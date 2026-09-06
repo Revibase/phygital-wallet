@@ -6,6 +6,7 @@ import { findPhygitalTokenPda } from "phygital-token-sdk";
 
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { CeremonyShell } from "@/components/shared/ceremony-shell";
 import { NfcHoldStatus } from "@/components/shared/nfc-hold-status";
 import { copy } from "@/lib/copy/phygital";
 import { queryKeys, queryOptions } from "@/lib/queries";
@@ -165,46 +166,52 @@ export function ClaimItemSheet({
 
   if (success) {
     return (
-      <NfcHoldStatus
-        size="lg"
-        pulsing={false}
-        tone="success"
-        title={copy.wallet.claimSuccessTitle}
-        body={copy.wallet.claimSuccessBody}
-        action={
-          <Button type="button" size="lg" className="w-full" onClick={finishClaimed}>
-            {copy.wallet.claimSuccessCta}
-          </Button>
-        }
-      />
+      <CeremonyShell>
+        <NfcHoldStatus
+          size="lg"
+          pulsing={false}
+          tone="success"
+          title={copy.wallet.claimSuccessTitle}
+          body={copy.wallet.claimSuccessBody}
+          action={
+            <Button type="button" size="lg" className="w-full" onClick={finishClaimed}>
+              {copy.wallet.claimSuccessCta}
+            </Button>
+          }
+        />
+      </CeremonyShell>
     );
   }
 
   if (elsewhere) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 px-4 py-16 text-center">
-        <h1 className="text-display-md tracking-tight">
-          {copy.wallet.limitsLinkedElsewhereTitle}
-        </h1>
-        <p className="max-w-sm text-sm text-muted-foreground">
-          {copy.wallet.limitsLinkedElsewhereBody}
-        </p>
-        <Button type="button" size="lg" variant="outline" onClick={onDismiss}>
-          {copy.common.done}
-        </Button>
-      </div>
+      <CeremonyShell>
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-4 py-16 text-center">
+          <h1 className="text-display-md tracking-tight">
+            {copy.wallet.limitsLinkedElsewhereTitle}
+          </h1>
+          <p className="max-w-sm text-sm text-muted-foreground">
+            {copy.wallet.limitsLinkedElsewhereBody}
+          </p>
+          <Button type="button" size="lg" variant="outline" onClick={onDismiss}>
+            {copy.common.done}
+          </Button>
+        </div>
+      </CeremonyShell>
     );
   }
 
   if (holdContinue.isPending) {
     return (
-      <NfcHoldStatus
-        size="lg"
-        pulsing
-        busy
-        title={copy.verify.holdStill}
-        body={copy.verify.holdStillBody}
-      />
+      <CeremonyShell>
+        <NfcHoldStatus
+          size="lg"
+          pulsing
+          busy
+          title={copy.verify.holdStill}
+          body={copy.verify.holdStillBody}
+        />
+      </CeremonyShell>
     );
   }
 
@@ -213,35 +220,37 @@ export function ClaimItemSheet({
       ? toUserErrorMessage(holdContinue.error)
       : null;
     return (
-      <NfcHoldStatus
-        size="lg"
-        pulsing={!holdError}
-        title={holdError ? copy.verify.failed : copy.wallet.claimHoldToContinue}
-        body={holdError ?? copy.wallet.claimHoldBody}
-        action={
-          <div className="flex w-full flex-col gap-2">
-            <Button
-              type="button"
-              size="lg"
-              className="w-full"
-              onClick={() => holdContinue.mutate()}
-            >
-              {holdError
-                ? copy.common.tryAgain
-                : copy.wallet.claimHoldToContinue}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="lg"
-              className="w-full"
-              onClick={skip}
-            >
-              {copy.wallet.claimNotNow}
-            </Button>
-          </div>
-        }
-      />
+      <CeremonyShell>
+        <NfcHoldStatus
+          size="lg"
+          pulsing={!holdError}
+          title={holdError ? copy.verify.failed : copy.wallet.claimHoldToContinue}
+          body={holdError ?? copy.wallet.claimHoldBody}
+          action={
+            <div className="flex w-full flex-col gap-2">
+              <Button
+                type="button"
+                size="lg"
+                className="w-full"
+                onClick={() => holdContinue.mutate()}
+              >
+                {holdError
+                  ? copy.common.tryAgain
+                  : copy.wallet.claimHoldToContinue}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="lg"
+                className="w-full"
+                onClick={skip}
+              >
+                {copy.wallet.claimNotNow}
+              </Button>
+            </div>
+          }
+        />
+      </CeremonyShell>
     );
   }
 
@@ -262,74 +271,76 @@ export function ClaimItemSheet({
       : copy.wallet.claimCta;
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-6 px-4 py-16 text-center">
-      <div className="space-y-2">
-        <p className="text-eyebrow text-primary/80">
-          {signedIn
-            ? copy.wallet.setupStepLink
-            : copy.wallet.setupStepPasskey}
-        </p>
-        <h1 className="text-large-title tracking-tight">
-          {copy.wallet.claimTitle}
-        </h1>
-        <p className="mx-auto max-w-sm text-sm leading-relaxed text-muted-foreground">
-          {authError
-            ? authError
-            : !canAuth
-              ? copy.wallet.claimDesktopHint
-              : copy.wallet.claimBody}
-        </p>
-      </div>
-      <div className="flex w-full max-w-sm flex-col gap-2">
-        {canAuth ? (
-          <Button
-            type="button"
-            size="lg"
-            className="w-full rounded-full"
-            disabled={claim.isPending || session.isPending}
-            onClick={() => {
-              setPreferRegister(false);
-              claim.mutate();
-            }}
-          >
-            {claim.isPending ? (
-              <Spinner className="size-4" />
-            ) : (
-              primaryLabel
-            )}
-          </Button>
-        ) : null}
-        {!signedIn && canAuth ? (
+    <CeremonyShell>
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 px-4 py-16 text-center">
+        <div className="space-y-2">
+          <p className="text-eyebrow text-primary/80">
+            {signedIn
+              ? copy.wallet.setupStepLink
+              : copy.wallet.setupStepPasskey}
+          </p>
+          <h1 className="text-large-title tracking-tight">
+            {copy.wallet.claimTitle}
+          </h1>
+          <p className="mx-auto max-w-sm text-sm leading-relaxed text-muted-foreground">
+            {authError
+              ? authError
+              : !canAuth
+                ? copy.wallet.claimDesktopHint
+                : copy.wallet.claimBody}
+          </p>
+        </div>
+        <div className="flex w-full max-w-sm flex-col gap-2">
+          {canAuth ? (
+            <Button
+              type="button"
+              size="lg"
+              className="w-full rounded-full"
+              disabled={claim.isPending || session.isPending}
+              onClick={() => {
+                setPreferRegister(false);
+                claim.mutate();
+              }}
+            >
+              {claim.isPending ? (
+                <Spinner className="size-4" />
+              ) : (
+                primaryLabel
+              )}
+            </Button>
+          ) : null}
+          {!signedIn && canAuth ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="lg"
+              className="w-full rounded-full"
+              disabled={claim.isPending}
+              onClick={() => {
+                setPreferRegister(true);
+                claim.mutate();
+              }}
+            >
+              <span className="text-muted-foreground">
+                {copy.wallet.newPhoneHint}{" "}
+                <span className="font-medium text-foreground">
+                  {copy.wallet.setUpThisPhone}
+                </span>
+              </span>
+            </Button>
+          ) : null}
           <Button
             type="button"
             variant="ghost"
             size="lg"
             className="w-full rounded-full"
             disabled={claim.isPending}
-            onClick={() => {
-              setPreferRegister(true);
-              claim.mutate();
-            }}
+            onClick={skip}
           >
-            <span className="text-muted-foreground">
-              {copy.wallet.newPhoneHint}{" "}
-              <span className="font-medium text-foreground">
-                {copy.wallet.setUpThisPhone}
-              </span>
-            </span>
+            {copy.wallet.claimNotNow}
           </Button>
-        ) : null}
-        <Button
-          type="button"
-          variant="ghost"
-          size="lg"
-          className="w-full rounded-full"
-          disabled={claim.isPending}
-          onClick={skip}
-        >
-          {copy.wallet.claimNotNow}
-        </Button>
+        </div>
       </div>
-    </div>
+    </CeremonyShell>
   );
 }

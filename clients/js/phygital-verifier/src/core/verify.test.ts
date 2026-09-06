@@ -105,10 +105,20 @@ describe("layouts / parsers", () => {
 
 describe("defineStandardPolicy + verify", () => {
   const verify = createVerifier({ parsers: [...STANDARD_PARSERS] });
-  const policy = defineStandardPolicy();
+  const policy = defineStandardPolicy({
+    maxMintRaw: "50000000",
+    maxSolLamports: "100000000",
+  });
+  const uncapped = defineStandardPolicy();
 
   it("validatePolicy accepts STANDARD", () => {
     expect(validatePolicy(policy).ok).toBe(true);
+  });
+
+  it("uncapped STANDARD allows large USDC without aggregates", () => {
+    expect(uncapped.transaction).toBeUndefined();
+    const r = verify(uncapped, [transferChecked(100_000_000n)]);
+    expect(r).toEqual({ ok: true });
   });
 
   it("allows under-cap USDC + ATA", () => {

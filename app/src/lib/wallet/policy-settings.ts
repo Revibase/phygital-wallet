@@ -11,8 +11,10 @@ import {
 } from "@solana-program/token";
 import { TOKEN_2022_PROGRAM_ADDRESS } from "@solana-program/token-2022";
 import {
-  RECIPIENT_ACCOUNT_FIELDS,
   COLLECTIBLE_COMPANION_PROGRAMS,
+  DEFAULT_MAX_MINT_RAW,
+  DEFAULT_MAX_SOL_LAMPORTS,
+  RECIPIENT_ACCOUNT_FIELDS,
   ataParser,
   bubblegumParser,
   coreParser,
@@ -57,12 +59,51 @@ export const EMPTY_POLICY_SETTINGS: PolicySettings = {
   extraPrograms: [],
 };
 
-/** Suggested caps when enabling limits for the first time. */
+function rawCapToUiAmount(raw: string, decimals: number): string {
+  const n = Number(raw) / 10 ** decimals;
+  if (!Number.isFinite(n)) return String(n);
+  // Trim trailing zeros but keep a readable default (50 / 0.1).
+  return String(n);
+}
+
+/** Suggested caps when enabling spend limits for the first time. */
 export const FIRST_ENABLE_POLICY_SETTINGS: PolicySettings = {
   ...EMPTY_POLICY_SETTINGS,
-  maxTransferUsdc: "50",
-  maxTransferSol: "0.1",
+  maxTransferUsdc: rawCapToUiAmount(DEFAULT_MAX_MINT_RAW, USDC_DECIMALS),
+  maxTransferSol: rawCapToUiAmount(DEFAULT_MAX_SOL_LAMPORTS, 9),
 };
+
+export function hasSpendCaps(settings: PolicySettings): boolean {
+  return (
+    (settings.maxTransferUsdc != null && settings.maxTransferUsdc !== "") ||
+    (settings.maxTransferSol != null && settings.maxTransferSol !== "")
+  );
+}
+
+/** True when settings warrant keeping a standing policy document. */
+export function hasStandingPolicyContent(settings: PolicySettings): boolean {
+  return (
+    hasSpendCaps(settings) ||
+    settings.recipientMode === "allowlist" ||
+    settings.extraPrograms.length > 0
+  );
+}
+
+/** Sync hub/sheet summary from a stored document (no ATA collapse). */
+export function summarizePolicyDocument(policy: PolicyDocument): {
+  spendCaps: boolean;
+  recipientAllowlist: boolean;
+  unrestrictedApps: number;
+} {
+  return {
+    spendCaps:
+      findUsdcCapRaw(policy) != null || findSolCapLamports(policy) != null,
+    recipientAllowlist: collectRecipientAllowValues(policy).length > 0,
+    unrestrictedApps: policy.programs
+      .map((p) => p.programId)
+      .filter((id) => !BASE_PROGRAM_IDS.has(id)).length,
+  };
+}
 
 const BASE_PROGRAM_IDS = new Set<string>([
   ataParser.programId,
@@ -75,6 +116,47 @@ const BASE_PROGRAM_IDS = new Set<string>([
   ...COLLECTIBLE_COMPANION_PROGRAMS,
 ]);
 
+/** Default program allowlist once a standing policy exists (human labels). */
+export const STANDARD_SCOPED_PROGRAMS: readonly {
+  programId: string;
+  label: string;
+}[] = [
+  { programId: systemParser.programId, label: "System" },
+  { programId: tokenParser.programId, label: "Token" },
+  { programId: token2022Parser.programId, label: "Token-2022" },
+  { programId: ataParser.programId, label: "Associated Token" },
+  { programId: tokenMetadataParser.programId, label: "Token Metadata" },
+  { programId: bubblegumParser.programId, label: "Bubblegum" },
+  { programId: coreParser.programId, label: "Core" },
+];
+
+/** Collectible helpers included as allowAll (no spend/recipient checks). */
+export const STANDARD_COMPANION_PROGRAMS: readonly {
+  programId: string;
+  label: string;
+}[] = [
+  {
+    programId: COLLECTIBLE_COMPANION_PROGRAMS[0],
+    label: "Token Auth Rules",
+  },
+  {
+    programId: COLLECTIBLE_COMPANION_PROGRAMS[1],
+    label: "Account Compression",
+  },
+  {
+    programId: COLLECTIBLE_COMPANION_PROGRAMS[2],
+    label: "SPL Noop",
+  },
+];
+
+export const STANDARD_ALLOWED_PROGRAMS: readonly {
+  programId: string;
+  label: string;
+}[] = [...STANDARD_SCOPED_PROGRAMS, ...STANDARD_COMPANION_PROGRAMS];
+
+export function isStandardAllowedProgram(programId: string): boolean {
+  return BASE_PROGRAM_IDS.has(programId);
+}
 const LAYOUTS_BY_PROGRAM = indexProgramLayouts();
 const RECIPIENT_FIELDS = new Set<string>(RECIPIENT_ACCOUNT_FIELDS);
 

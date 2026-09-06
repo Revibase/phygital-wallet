@@ -24,6 +24,7 @@ export function NfcHoldStatus({
   imageSrc,
   imageAlt = "",
   progress = false,
+  className,
 }: {
   title: string;
   body?: string;
@@ -39,6 +40,7 @@ export function NfcHoldStatus({
   imageAlt?: string;
   /** Animate hold progress ring while busy. */
   progress?: boolean;
+  className?: string;
 }) {
   const base = header ? 1 : 0;
   const titleClassName =
@@ -46,7 +48,12 @@ export function NfcHoldStatus({
   const showProgress = progress || busy;
 
   return (
-    <div className="relative flex flex-1 flex-col items-center justify-center gap-5 py-8 text-center sm:py-14">
+    <div
+      className={cn(
+        "relative flex min-h-0 flex-1 flex-col items-center justify-center gap-5 py-8 text-center sm:py-14",
+        className,
+      )}
+    >
       <LuminousAura intensity="default" breathing={!busy || tone !== "success"} />
       {header ? (
         <div

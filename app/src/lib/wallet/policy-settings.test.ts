@@ -8,11 +8,32 @@ import { CLASSIC_TOKEN_PROGRAM } from "@/lib/tokens/payment-token";
 import {
   compilePolicySettings,
   derivePolicySettings,
+  FIRST_ENABLE_POLICY_SETTINGS,
+  hasStandingPolicyContent,
 } from "@/lib/wallet/policy-settings";
 
 const OWNER_A = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 
 describe("policy-settings compile/derive", () => {
+  it("FIRST_ENABLE matches SDK default raw caps", () => {
+    expect(FIRST_ENABLE_POLICY_SETTINGS.maxTransferUsdc).toBe("50");
+    expect(FIRST_ENABLE_POLICY_SETTINGS.maxTransferSol).toBe("0.1");
+    expect(
+      hasStandingPolicyContent({
+        maxTransferUsdc: null,
+        maxTransferSol: null,
+        recipientMode: "anyone",
+        recipientAllowlist: [],
+        extraPrograms: [],
+      }),
+    ).toBe(false);
+    expect(
+      hasStandingPolicyContent({
+        ...FIRST_ENABLE_POLICY_SETTINGS,
+      }),
+    ).toBe(true);
+  });
+
   it("round-trips caps and keeps default programs", async () => {
     const next = await compilePolicySettings({
       maxTransferUsdc: "25.00",
@@ -79,6 +100,41 @@ describe("policy-settings compile/derive", () => {
     );
     expect(token?.allowAll).toBeUndefined();
     const settings = await derivePolicySettings(next);
+    expect(settings.extraPrograms).toEqual([extra]);
+  });
+
+  it("recipients-only compile has no spend aggregates", async () => {
+    const next = await compilePolicySettings({
+      maxTransferUsdc: null,
+      maxTransferSol: null,
+      recipientMode: "allowlist",
+      recipientAllowlist: [OWNER_A],
+      extraPrograms: [],
+    });
+    expect(next.transaction?.aggregates).toBeUndefined();
+    const settings = await derivePolicySettings(next);
+    expect(settings.maxTransferUsdc).toBeNull();
+    expect(settings.maxTransferSol).toBeNull();
+    expect(settings.recipientMode).toBe("allowlist");
+    expect(settings.recipientAllowlist).toEqual([OWNER_A]);
+  });
+
+  it("apps-only compile has allowAll extra and no aggregates", async () => {
+    const extra = "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4";
+    const next = await compilePolicySettings({
+      maxTransferUsdc: null,
+      maxTransferSol: null,
+      recipientMode: "anyone",
+      recipientAllowlist: [],
+      extraPrograms: [extra],
+    });
+    expect(next.transaction?.aggregates).toBeUndefined();
+    expect(next.programs.find((p) => p.programId === extra)).toEqual({
+      programId: extra,
+      allowAll: true,
+    });
+    const settings = await derivePolicySettings(next);
+    expect(settings.maxTransferUsdc).toBeNull();
     expect(settings.extraPrograms).toEqual([extra]);
   });
 });

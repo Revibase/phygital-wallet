@@ -1,5 +1,7 @@
 "use client";
 
+import { useMemo } from "react";
+
 import { NavBar, NavBarBack } from "@/components/shared/nav-bar";
 import { GroupedList, GroupedRow } from "@/components/shared/grouped-list";
 import { useFeeBalance } from "@/hooks/wallet/use-fee-balance";
@@ -13,6 +15,7 @@ import { useWalletPolicy } from "@/hooks/wallet/use-wallet-policy";
 import { copy } from "@/lib/copy/phygital";
 import type { LinkStatus } from "@/lib/wallet/device-auth-client";
 import type { WalletRole } from "@/components/token/token-address-route";
+import { summarizePolicyDocument } from "@/lib/wallet/policy-settings";
 
 export type SettingsTarget =
   | "spendingLimits"
@@ -25,7 +28,7 @@ export type SettingsTarget =
   | "access"
   | "contacts";
 
-/** Wallet settings hub — Access / Money / Safety / Advanced. */
+/** Wallet settings hub — Access / Money / Send protections / Safety / Advanced. */
 export function SettingsHub({
   onBack,
   onOpen,
@@ -63,19 +66,68 @@ export function SettingsHub({
           ? copy.wallet.setupDeviceSignIn
           : copy.wallet.setupDeviceNotLinked;
 
-  const limitsSubtitle = !isOwner
-    ? linkStatus === "linked_elsewhere"
+  const summary = useMemo(() => {
+    if (!isOwner || policy.isLoading) return null;
+    if (policy.data?.status === "invalid") return "invalid" as const;
+    if (policy.data?.status !== "ok" || !policy.data.policy) return null;
+    return summarizePolicyDocument(policy.data.policy);
+  }, [isOwner, policy.isLoading, policy.data]);
+
+  const visitorLimitsSubtitle =
+    linkStatus === "linked_elsewhere"
       ? copy.wallet.setupDeviceLinkedElsewhere
       : claimed === true
         ? copy.wallet.setupDeviceSignIn
-        : copy.wallet.limitsStatusRequiresClaim
+        : copy.wallet.limitsStatusRequiresClaim;
+
+  function withProgramsHint(base: string): string {
+    if (
+      summary &&
+      summary !== "invalid" &&
+      summary.unrestrictedApps > 0
+    ) {
+      return `${base} · ${copy.wallet.unrestrictedAppsHint}`;
+    }
+    return base;
+  }
+
+  const spendSubtitle = !isOwner
+    ? visitorLimitsSubtitle
     : policy.isLoading
       ? copy.common.loading
-      : policy.data?.status === "invalid"
+      : summary === "invalid"
         ? copy.wallet.limitsStatusInvalid
-        : policy.data?.status === "ok"
-          ? copy.wallet.limitsStatusOn
-          : copy.wallet.limitsStatusOff;
+        : withProgramsHint(
+            summary?.spendCaps
+              ? copy.wallet.limitsStatusOn
+              : copy.wallet.limitsStatusOff,
+          );
+
+  const recipientsSubtitle = !isOwner
+    ? undefined
+    : policy.isLoading
+      ? copy.common.loading
+      : summary === "invalid"
+        ? copy.wallet.limitsStatusInvalid
+        : withProgramsHint(
+            summary?.recipientAllowlist
+              ? copy.wallet.recipientsAllowlist
+              : copy.wallet.recipientsAnyone,
+          );
+
+  const appsSubtitle = !isOwner
+    ? undefined
+    : policy.isLoading
+      ? copy.common.loading
+      : summary === "invalid"
+        ? copy.wallet.limitsStatusInvalid
+        : !summary
+          ? copy.wallet.extraProgramsAllAllowed
+          : summary.unrestrictedApps > 0
+            ? copy.wallet.extraProgramsWithUnrestricted(
+                summary.unrestrictedApps,
+              )
+            : copy.wallet.extraProgramsBuiltIn;
 
   return (
     <div className="flex flex-1 flex-col gap-6">
@@ -107,25 +159,44 @@ export function SettingsHub({
         <GroupedRow onClick={() => onOpen("contacts")}>
           {copy.wallet.contacts}
         </GroupedRow>
-        <GroupedRow
-          onClick={() => onOpen("spendingLimits")}
-          subtitle={limitsSubtitle}
-        >
-          {copy.wallet.spendingLimits}
-        </GroupedRow>
+        {!isOwner ? (
+          <GroupedRow
+            onClick={() => onOpen("spendingLimits")}
+            subtitle={spendSubtitle}
+          >
+            {copy.wallet.spendingLimits}
+          </GroupedRow>
+        ) : null}
       </GroupedList>
 
       {isOwner ? (
         <GroupedList
-          label={copy.wallet.settingsSafety}
+          label={copy.wallet.settingsSendProtections}
           footer={copy.wallet.policyDefaultSigningOnly}
         >
-          <GroupedRow onClick={() => onOpen("recipients")}>
+          <GroupedRow
+            onClick={() => onOpen("spendingLimits")}
+            subtitle={spendSubtitle}
+          >
+            {copy.wallet.spendingLimits}
+          </GroupedRow>
+          <GroupedRow
+            onClick={() => onOpen("recipients")}
+            subtitle={recipientsSubtitle}
+          >
             {copy.wallet.recipients}
           </GroupedRow>
-          <GroupedRow onClick={() => onOpen("extraPrograms")}>
+          <GroupedRow
+            onClick={() => onOpen("extraPrograms")}
+            subtitle={appsSubtitle}
+          >
             {copy.wallet.extraPrograms}
           </GroupedRow>
+        </GroupedList>
+      ) : null}
+
+      {isOwner ? (
+        <GroupedList label={copy.wallet.settingsSafety}>
           <SigningSettingsRow
             phygitalTokenPda={phygitalTokenPda}
             onOpen={() => onOpen("signing")}

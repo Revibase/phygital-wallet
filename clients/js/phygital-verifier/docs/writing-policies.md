@@ -14,7 +14,10 @@ import {
 
 const policy = definePolicy(
   [
-    ...standardPolicy(),
+    ...standardPolicy({
+      maxMintRaw: "50000000",
+      maxSolLamports: "100000000",
+    }),
     defineProgram(myParser, {
       allows: [
         {
@@ -29,7 +32,10 @@ const policy = definePolicy(
       ],
     }),
   ],
-  standardTransaction(),
+  standardTransaction({
+    maxMintRaw: "50000000",
+    maxSolLamports: "100000000",
+  }),
 );
 ```
 

@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { PolicyDeniedError } from "phygital-wallet-sdk";
 
 import { NavBar, NavBarBack } from "@/components/shared/nav-bar";
+import { CeremonyShell } from "@/components/shared/ceremony-shell";
 import { NfcHoldStatus } from "@/components/shared/nfc-hold-status";
 import { Button } from "@/components/ui/button";
 import { FieldLabel, Input } from "@/components/ui/input";
@@ -99,18 +100,22 @@ export function FeeBalanceSheet({
 
   if (phase === "holding" || phase === "success") {
     return (
-      <div className="flex flex-1 flex-col">
-        <NavBar
-          leading={
-            <Button type="button" variant="ghost" size="sm" onClick={onBack}>
-              {copy.common.cancel}
-            </Button>
-          }
-        />
+      <CeremonyShell
+        leading={
+          <NavBar
+            leading={
+              <Button type="button" variant="ghost" size="sm" onClick={onBack}>
+                {copy.common.cancel}
+              </Button>
+            }
+          />
+        }
+      >
         <NfcHoldStatus
           size="lg"
           pulsing={phase === "holding"}
           busy={phase === "holding"}
+          progress={phase === "holding"}
           tone={phase === "success" ? "success" : "default"}
           title={
             phase === "success"
@@ -120,17 +125,22 @@ export function FeeBalanceSheet({
           body={
             phase === "success"
               ? copy.wallet.topUpPending
-              : copy.verify.holdStillBody
+              : copy.wallet.holdCeremonyBody
           }
           action={
             phase === "success" ? (
-              <Button type="button" size="lg" className="w-full" onClick={onBack}>
+              <Button
+                type="button"
+                size="lg"
+                className="w-full rounded-full"
+                onClick={onBack}
+              >
                 {copy.common.done}
               </Button>
             ) : undefined
           }
         />
-      </div>
+      </CeremonyShell>
     );
   }
 

@@ -17,6 +17,7 @@ import {
 } from "phygital-token-sdk";
 
 import { NfcHoldStatus } from "@/components/shared/nfc-hold-status";
+import { CeremonyShell } from "@/components/shared/ceremony-shell";
 import { NavBar, NavBarBack } from "@/components/shared/nav-bar";
 import { Button } from "@/components/ui/button";
 import { FieldLabel, Input } from "@/components/ui/input";
@@ -148,16 +149,19 @@ export function SigningSettingsSheet({
 
   if (view === "holding" || view === "success") {
     return (
-      <div className="flex flex-1 flex-col">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="self-start"
-          onClick={onClose}
-        >
-          {copy.common.cancel}
-        </Button>
+      <CeremonyShell
+        leading={
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="self-start"
+            onClick={onClose}
+          >
+            {copy.common.cancel}
+          </Button>
+        }
+      >
         <NfcHoldStatus
           size="lg"
           pulsing={view === "holding"}
@@ -178,7 +182,7 @@ export function SigningSettingsSheet({
             ) : undefined
           }
         />
-      </div>
+      </CeremonyShell>
     );
   }
 

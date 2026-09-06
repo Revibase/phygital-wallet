@@ -6,12 +6,13 @@ import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { PolicyDeniedError } from "phygital-wallet-sdk";
 
+import { CeremonyShell } from "@/components/shared/ceremony-shell";
 import { NfcHoldStatus } from "@/components/shared/nfc-hold-status";
 import { NavBar } from "@/components/shared/nav-bar";
 import { TokenIcon } from "@/components/shared/token-chip";
 import { WalletQrCode } from "@/components/wallet/wallet-qr";
 import { Button } from "@/components/ui/button";
-import { FieldLabel, Input } from "@/components/ui/input";
+import { Input } from "@/components/ui/input";
 import {
   Sheet,
   SheetContent,
@@ -44,9 +45,18 @@ type LinkedPayer = {
   tokenPda: string;
 };
 
-type Phase = "form" | "identifying" | "holding" | "success" | "handoff";
+type Phase =
+  | "form"
+  | "identifying"
+  | "summary"
+  | "holding"
+  | "success"
+  | "handoff";
 
-/** Receive nearby — pick verified token → amount → tap From → Hold. */
+/**
+ * Receive nearby — amount → Hold (identify) → summary → Hold (confirm pay).
+ * Both holds use the same primary CTA pattern.
+ */
 export function ReceiveNearbySheet({
   recipientWallet,
   onClose,
@@ -105,10 +115,12 @@ export function ReceiveNearbySheet({
   }, [catalog, search]);
 
   const amountOk = Number(amount) > 0;
-  const canReceive = Boolean(from && asset && amountOk && !busy);
+  const canIdentify = Boolean(asset && amountOk && !busy);
+  const canConfirm = Boolean(from && asset && amountOk && !busy);
   const showSearch = catalog.length >= ALL_LIST_SEARCH_THRESHOLD;
 
   async function identifyFrom() {
+    if (!canIdentify) return;
     setPhase("identifying");
     setBusy(true);
     try {
@@ -122,8 +134,7 @@ export function ReceiveNearbySheet({
       });
       setHardError(null);
       setHandoffDeny(null);
-      toast.success(copy.wallet.accessoryLinked);
-      setPhase("form");
+      setPhase("summary");
     } catch (e) {
       setPhase("form");
       toast.error(toUserErrorMessage(e));
@@ -132,10 +143,17 @@ export function ReceiveNearbySheet({
     }
   }
 
-  function clearFrom() {
+  function backToForm() {
+    setPhase("form");
+    setHardError(null);
+    setHandoffDeny(null);
+  }
+
+  function changePayer() {
     setFrom(null);
     setHardError(null);
     setHandoffDeny(null);
+    setPhase("form");
   }
 
   async function runReceive() {
@@ -212,7 +230,7 @@ export function ReceiveNearbySheet({
         }
         return;
       }
-      setPhase("form");
+      setPhase("summary");
       toast.error(toUserErrorMessage(e));
     } finally {
       window.clearTimeout(holdTimer);
@@ -224,18 +242,22 @@ export function ReceiveNearbySheet({
     const success = phase === "success";
     const identifying = phase === "identifying";
     return (
-      <div className="flex flex-1 flex-col">
-        <NavBar
-          leading={
-            <Button type="button" variant="ghost" size="sm" onClick={onClose}>
-              {copy.common.cancel}
-            </Button>
-          }
-        />
+      <CeremonyShell
+        leading={
+          <NavBar
+            leading={
+              <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+                {copy.common.cancel}
+              </Button>
+            }
+          />
+        }
+      >
         <NfcHoldStatus
           size="lg"
           pulsing={!success}
           busy={!success}
+          progress={!success}
           tone={success ? "success" : "default"}
           imageSrc={asset?.icon}
           title={
@@ -245,16 +267,38 @@ export function ReceiveNearbySheet({
                 ? copy.wallet.tapTheirAccessory
                 : copy.wallet.holdToReceive
           }
-          body={success ? undefined : copy.verify.holdStillBody}
+          body={
+            success
+              ? undefined
+              : identifying
+                ? copy.wallet.holdCeremonyBody
+                : copy.verify.holdStillBody
+          }
           action={
             success ? (
-              <Button type="button" size="lg" className="w-full" onClick={onClose}>
-                {copy.common.done}
-              </Button>
+              <div className="flex w-full flex-col items-center gap-3">
+                <div className="w-full rounded-2xl bg-muted/25 px-4 py-3 text-center">
+                  <p className="font-(family-name:--font-display) text-lg">
+                    +{amount} {asset?.symbol ?? ""}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {copy.wallet.from}{" "}
+                    {shortAddress(from?.walletPda ?? "", 6)}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  size="lg"
+                  className="w-full"
+                  onClick={onClose}
+                >
+                  {copy.common.done}
+                </Button>
+              </div>
             ) : undefined
           }
         />
-      </div>
+      </CeremonyShell>
     );
   }
 
@@ -267,7 +311,7 @@ export function ReceiveNearbySheet({
         : copy.wallet.nearbyPolicyBody;
 
     return (
-      <div className="flex flex-1 flex-col gap-6">
+      <div className="flex min-h-0 flex-1 flex-col gap-6">
         <NavBar
           leading={
             <Button
@@ -276,7 +320,7 @@ export function ReceiveNearbySheet({
               size="sm"
               onClick={() => {
                 setHandoffDeny(null);
-                setPhase("form");
+                setPhase("summary");
               }}
             >
               {copy.common.cancel}
@@ -311,7 +355,7 @@ export function ReceiveNearbySheet({
           className="w-full"
           onClick={() => {
             setHandoffDeny(null);
-            setPhase("form");
+            setPhase("summary");
           }}
         >
           {copy.wallet.nearbyPolicyGotIt}
@@ -320,8 +364,107 @@ export function ReceiveNearbySheet({
     );
   }
 
+  if (phase === "summary" && from && asset) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col gap-6">
+        <NavBar
+          leading={
+            <Button type="button" variant="ghost" size="sm" onClick={backToForm}>
+              {copy.common.cancel}
+            </Button>
+          }
+          title={copy.wallet.nearbySummaryTitle}
+        />
+
+        <div className="flex flex-1 flex-col items-center justify-center gap-5 px-2 text-center">
+          <div className="flex flex-col items-center gap-2">
+            <TokenIcon
+              token={{
+                mint: asset.mint,
+                symbol: asset.symbol,
+                icon: asset.icon,
+              }}
+              className="size-10"
+            />
+            <p className="font-(family-name:--font-display) text-4xl font-medium tracking-tight tabular-nums">
+              {amount} {asset.symbol}
+            </p>
+            <p className="max-w-sm text-sm text-muted-foreground">
+              {copy.wallet.nearbySummaryBody}
+            </p>
+          </div>
+
+          <div className="w-full max-w-sm space-y-2 text-left">
+            <div className="rounded-2xl bg-muted/25 px-4 py-3">
+              <p className="text-xs text-muted-foreground">{copy.wallet.from}</p>
+              <p className="mt-0.5 text-sm tabular-nums">
+                {shortAddress(from.walletPda, 6)}
+              </p>
+            </div>
+            {payerBalanceUi != null ? (
+              <div className="flex items-center justify-between px-1">
+                <p className="text-sm text-muted-foreground">
+                  {copy.wallet.ofAvailableAsset(payerBalanceUi, asset.symbol)}
+                </p>
+                <Button
+                  type="button"
+                  variant="link"
+                  className="h-auto min-h-0 px-0 text-xs font-medium"
+                  onClick={() => setAmount(payerBalanceUi)}
+                >
+                  {copy.wallet.max}
+                </Button>
+              </div>
+            ) : null}
+          </div>
+
+          {hardError ? (
+            <div className="w-full max-w-sm rounded-2xl bg-muted/25 px-4 py-3 text-sm text-muted-foreground">
+              <p>{hardError}</p>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Button
+            type="button"
+            size="lg"
+            className="w-full rounded-full"
+            disabled={!canConfirm}
+            onClick={() => void runReceive()}
+          >
+            {busy ? <Spinner className="size-4" /> : copy.wallet.holdToReceive}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="lg"
+            className="w-full rounded-full"
+            disabled={busy}
+            onClick={backToForm}
+          >
+            {copy.wallet.nearbyChangeDetails}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="w-full text-muted-foreground"
+            disabled={busy}
+            onClick={changePayer}
+          >
+            {copy.wallet.nearbyChangePayer}
+          </Button>
+          <p className="hidden text-center text-xs text-muted-foreground md:block">
+            {copy.wallet.holdToReceiveDesktopHint}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-1 flex-col gap-6">
+    <div className="flex min-h-0 flex-1 flex-col gap-6">
       <NavBar
         leading={
           <Button type="button" variant="ghost" size="sm" onClick={onClose}>
@@ -370,56 +513,9 @@ export function ReceiveNearbySheet({
             aria-label={copy.wallet.receive}
           />
         </div>
-        {from && payerBalanceUi != null && asset ? (
-          <>
-            <p className="text-sm text-muted-foreground">
-              {copy.wallet.ofAvailableAsset(payerBalanceUi, asset.symbol)}
-            </p>
-            <Button
-              type="button"
-              variant="link"
-              className="h-auto min-h-0 px-0 text-xs font-medium"
-              onClick={() => setAmount(payerBalanceUi)}
-            >
-              {copy.wallet.max}
-            </Button>
-          </>
-        ) : null}
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <FieldLabel className="px-1 normal-case tracking-normal text-xs">
-          {copy.wallet.from}
-        </FieldLabel>
-        {from ? (
-          <div className="flex items-center justify-between rounded-2xl bg-muted/25 px-4 py-3">
-            <p className="text-sm tabular-nums">
-              {shortAddress(from.walletPda, 6)}
-            </p>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={clearFrom}
-            >
-              {copy.wallet.clear}
-            </Button>
-          </div>
-        ) : (
-          <Button
-            type="button"
-            variant="outline"
-            className="h-12 justify-start"
-            disabled={busy || !asset || !amountOk}
-            onClick={() => void identifyFrom()}
-          >
-            {busy ? (
-              <Spinner className="size-4" />
-            ) : (
-              copy.wallet.tapTheirAccessory
-            )}
-          </Button>
-        )}
+        <p className="max-w-xs text-center text-sm text-muted-foreground">
+          {copy.wallet.holdToIdentifyPayerHint}
+        </p>
       </div>
 
       {hardError ? (
@@ -432,18 +528,18 @@ export function ReceiveNearbySheet({
         <Button
           type="button"
           size="lg"
-          className="w-full"
-          disabled={!canReceive}
-          onClick={() => void runReceive()}
+          className="w-full rounded-full"
+          disabled={!canIdentify}
+          onClick={() => void identifyFrom()}
         >
           {busy ? (
             <Spinner className="size-4" />
           ) : (
-            copy.wallet.holdToReceive
+            copy.wallet.holdToIdentifyPayer
           )}
         </Button>
         <p className="hidden text-center text-xs text-muted-foreground md:block">
-          {copy.wallet.holdToReceiveDesktopHint}
+          {copy.wallet.holdToIdentifyPayerHint}
         </p>
       </div>
 

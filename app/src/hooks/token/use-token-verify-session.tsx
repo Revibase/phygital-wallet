@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 
+import { CeremonyShell } from "@/components/shared/ceremony-shell";
 import { InAppBrowserGate } from "@/components/shared/in-app-browser-gate";
 import { NfcHoldStatus } from "@/components/shared/nfc-hold-status";
 import { StageTransition } from "@/components/shared/stage-transition";
@@ -42,19 +43,21 @@ function VerifyFailedCeremony({
   const { collectible } = useResolvedDasCollectible(mint);
 
   return (
-    <NfcHoldStatus
-      size="lg"
-      pulsing={false}
-      title={copy.verify.failed}
-      body={errorMessage}
-      imageSrc={collectible?.image}
-      imageAlt={collectible?.name ?? ""}
-      action={
-        <Button type="button" size="lg" className="w-full" onClick={onRetry}>
-          {copy.common.tryAgain}
-        </Button>
-      }
-    />
+    <CeremonyShell>
+      <NfcHoldStatus
+        size="lg"
+        pulsing={false}
+        title={copy.verify.failed}
+        body={errorMessage}
+        imageSrc={collectible?.image}
+        imageAlt={collectible?.name ?? ""}
+        action={
+          <Button type="button" size="lg" className="w-full" onClick={onRetry}>
+            {copy.common.tryAgain}
+          </Button>
+        }
+      />
+    </CeremonyShell>
   );
 }
 
@@ -80,21 +83,25 @@ export function TokenVerifySessionGate({
   return (
     <StageTransition stageKey={showOverlay ? `overlay-${overlay}` : "home"}>
       {overlay === "pending" ? (
-        <NfcHoldStatus
-          size="lg"
-          pulsing
-          busy
-          title={copy.verify.holdStill}
-          body={copy.verify.holdStillBody}
-        />
+        <CeremonyShell>
+          <NfcHoldStatus
+            size="lg"
+            pulsing
+            busy
+            title={copy.verify.holdStill}
+            body={copy.verify.holdStillBody}
+          />
+        </CeremonyShell>
       ) : overlay === "recheck-success" ? (
-        <NfcHoldStatus
-          size="lg"
-          pulsing={false}
-          tone="success"
-          title={copy.verify.verified}
-          body={copy.verify.verifiedAgainBody}
-        />
+        <CeremonyShell>
+          <NfcHoldStatus
+            size="lg"
+            pulsing={false}
+            tone="success"
+            title={copy.verify.verified}
+            body={copy.verify.verifiedAgainBody}
+          />
+        </CeremonyShell>
       ) : overlay === "failed" ? (
         <VerifyFailedCeremony
           token={session.token}

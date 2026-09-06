@@ -232,38 +232,21 @@ export function WalletHomePanel({
         variants={sectionVariants}
         transition={sectionTransition}
       >
-        <div className="flex min-w-0 flex-col gap-0.5">
+        <div className="flex min-w-0 flex-col gap-0 leading-tight">
           {walletTitle ? (
             <p className="truncate text-sm font-medium tracking-tight">
               {walletTitle}
             </p>
           ) : null}
-          <div className="flex min-w-0 items-center gap-1.5">
-            <CopyableAddress
-              address={walletAddress}
-              length={4}
-              label={copy.address.wallet}
-              className={cn(
-                "min-h-8 text-muted-foreground",
-                walletTitle ? "text-[11px]" : "min-h-11 text-xs",
-              )}
-            />
-            {onRefresh ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label={copy.wallet.refresh}
-                className="rounded-full text-muted-foreground hover:text-foreground"
-                onClick={onRefresh}
-              >
-                <RefreshCcw
-                  className={cn("size-3.5", refreshing ? "animate-spin" : "")}
-                  aria-hidden
-                />
-              </Button>
-            ) : null}
-          </div>
+          <CopyableAddress
+            address={walletAddress}
+            length={4}
+            label={copy.address.wallet}
+            className={cn(
+              "min-h-0 py-0.5 text-muted-foreground",
+              walletTitle ? "text-[11px]" : "min-h-11 text-xs",
+            )}
+          />
         </div>
         <div className="flex shrink-0 items-center gap-2 pt-0.5">
           {showStatus ? (
@@ -336,8 +319,27 @@ export function WalletHomePanel({
             ) : null}
           </>
         )}
-        {lastUpdatedLabel ? (
-          <p className="text-xs text-muted-foreground">{lastUpdatedLabel}</p>
+        {lastUpdatedLabel || onRefresh ? (
+          <div className="flex items-center justify-center gap-1">
+            {lastUpdatedLabel ? (
+              <p className="text-xs text-muted-foreground">{lastUpdatedLabel}</p>
+            ) : null}
+            {onRefresh ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label={copy.wallet.refresh}
+                className="size-7 min-h-7 min-w-7 rounded-full text-muted-foreground hover:text-foreground"
+                onClick={onRefresh}
+              >
+                <RefreshCcw
+                  className={cn("size-3.5", refreshing ? "animate-spin" : "")}
+                  aria-hidden
+                />
+              </Button>
+            ) : null}
+          </div>
         ) : null}
       </m.div>
       ) : null}

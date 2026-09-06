@@ -69,6 +69,8 @@ export {
 
 export {
   COLLECTIBLE_COMPANION_PROGRAMS,
+  DEFAULT_MAX_MINT_RAW,
+  DEFAULT_MAX_SOL_LAMPORTS,
   defineStandardPolicy,
   standardPolicy,
   standardTransaction,

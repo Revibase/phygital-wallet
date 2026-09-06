@@ -8,6 +8,7 @@ import { findPhygitalTokenPda } from "phygital-token-sdk";
 import { AppShell } from "@/components/layout/app-shell";
 import { GroupedList, GroupedRow } from "@/components/shared/grouped-list";
 import { LoadingStatus } from "@/components/shared/loading-status";
+import { CeremonyShell } from "@/components/shared/ceremony-shell";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { NfcHoldStatus } from "@/components/shared/nfc-hold-status";
@@ -117,80 +118,82 @@ function HomePasskeyScreen({
   const authError = loginMutation.error ?? registerMutation.error;
 
   return (
-    <div className="relative flex flex-1 flex-col items-center justify-center gap-6 px-4 py-16 text-center">
-      <div className="relative z-10 space-y-2">
-        {setupMode ? (
-          <p className="text-eyebrow text-primary/80">
-            {copy.wallet.setupStepPasskey}
+    <CeremonyShell>
+      <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center gap-6 px-4 py-16 text-center">
+        <div className="relative z-10 space-y-2">
+          {setupMode ? (
+            <p className="text-eyebrow text-primary/80">
+              {copy.wallet.setupStepPasskey}
+            </p>
+          ) : null}
+          <h1 className="text-large-title tracking-tight">
+            {setupMode
+              ? claimMode
+                ? copy.wallet.homeSetupPasskeyClaimTitle
+                : copy.wallet.limitsSetupTitle
+              : copy.wallet.deviceLoginTitle}
+          </h1>
+          <p className="mx-auto max-w-sm text-sm leading-relaxed text-muted-foreground">
+            {authError
+              ? toUserErrorMessage(authError)
+              : setupMode
+                ? copy.wallet.homeSetupPasskeyBody
+                : copy.wallet.deviceLoginBody}
           </p>
-        ) : null}
-        <h1 className="text-large-title tracking-tight">
-          {setupMode
-            ? claimMode
-              ? copy.wallet.homeSetupPasskeyClaimTitle
-              : copy.wallet.limitsSetupTitle
-            : copy.wallet.deviceLoginTitle}
-        </h1>
-        <p className="mx-auto max-w-sm text-sm leading-relaxed text-muted-foreground">
-          {authError
-            ? toUserErrorMessage(authError)
-            : setupMode
-              ? copy.wallet.homeSetupPasskeyBody
-              : copy.wallet.deviceLoginBody}
-        </p>
-      </div>
-      <div className="relative z-10 flex w-full max-w-sm flex-col gap-2">
-        <Button
-          type="button"
-          size="lg"
-          className="w-full rounded-full"
-          disabled={busy}
-          onClick={() => {
-            registerMutation.reset();
-            loginMutation.mutate();
-          }}
-        >
-          {loginMutation.isPending ? (
-            <Spinner className="size-4" />
-          ) : (
-            copy.wallet.continueWithPasskey
-          )}
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="lg"
-          className="w-full rounded-full"
-          disabled={busy}
-          onClick={() => {
-            loginMutation.reset();
-            registerMutation.mutate();
-          }}
-        >
-          {registerMutation.isPending ? (
-            <Spinner className="size-4" />
-          ) : (
-            <span className="text-muted-foreground">
-              {copy.wallet.newPhoneHint}{" "}
-              <span className="font-medium text-foreground">
-                {copy.wallet.setUpThisPhone}
-              </span>
-            </span>
-          )}
-        </Button>
-        {!setupMode ? (
+        </div>
+        <div className="relative z-10 flex w-full max-w-sm flex-col gap-2">
+          <Button
+            type="button"
+            size="lg"
+            className="w-full rounded-full"
+            disabled={busy}
+            onClick={() => {
+              registerMutation.reset();
+              loginMutation.mutate();
+            }}
+          >
+            {loginMutation.isPending ? (
+              <Spinner className="size-4" />
+            ) : (
+              copy.wallet.continueWithPasskey
+            )}
+          </Button>
           <Button
             type="button"
             variant="ghost"
             size="lg"
             className="w-full rounded-full"
-            asChild
+            disabled={busy}
+            onClick={() => {
+              loginMutation.reset();
+              registerMutation.mutate();
+            }}
           >
-            <a href="/token">{copy.wallet.homeHaveItemHint}</a>
+            {registerMutation.isPending ? (
+              <Spinner className="size-4" />
+            ) : (
+              <span className="text-muted-foreground">
+                {copy.wallet.newPhoneHint}{" "}
+                <span className="font-medium text-foreground">
+                  {copy.wallet.setUpThisPhone}
+                </span>
+              </span>
+            )}
           </Button>
-        ) : null}
+          {!setupMode ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="lg"
+              className="w-full rounded-full"
+              asChild
+            >
+              <a href="/token">{copy.wallet.homeHaveItemHint}</a>
+            </Button>
+          ) : null}
+        </div>
       </div>
-    </div>
+    </CeremonyShell>
   );
 }
 
@@ -252,25 +255,27 @@ function HomeLinkSetup({
 
   if (status.data === "linked_elsewhere") {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 px-4 py-16 text-center">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {copy.wallet.setupStepLink}
-        </p>
-        <h1 className="text-display-md tracking-tight">
-          {copy.wallet.limitsLinkedElsewhereTitle}
-        </h1>
-        <p className="max-w-sm text-sm text-muted-foreground">
-          {copy.wallet.limitsLinkedElsewhereBody}
-        </p>
-        <Button
-          type="button"
-          variant="outline"
-          size="lg"
-          onClick={() => router.push("/")}
-        >
-          {copy.common.done}
-        </Button>
-      </div>
+      <CeremonyShell>
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-4 py-16 text-center">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            {copy.wallet.setupStepLink}
+          </p>
+          <h1 className="text-display-md tracking-tight">
+            {copy.wallet.limitsLinkedElsewhereTitle}
+          </h1>
+          <p className="max-w-sm text-sm text-muted-foreground">
+            {copy.wallet.limitsLinkedElsewhereBody}
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="lg"
+            onClick={() => router.push("/")}
+          >
+            {copy.common.done}
+          </Button>
+        </div>
+      </CeremonyShell>
     );
   }
 
@@ -278,21 +283,26 @@ function HomeLinkSetup({
 
   if (link.isPending) {
     return (
-      <NfcHoldStatus
-        size="lg"
-        pulsing
-        busy
-        title={copy.verify.holdStill}
-        body={copy.verify.holdStillBody}
-      />
+      <CeremonyShell>
+        <NfcHoldStatus
+          size="lg"
+          pulsing
+          busy
+          title={copy.verify.holdStill}
+          body={copy.verify.holdStillBody}
+        />
+      </CeremonyShell>
     );
   }
 
   return (
-    <div className="flex flex-1 flex-col">
-      <p className="px-4 pt-4 text-center text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {copy.wallet.setupStepLink}
-      </p>
+    <CeremonyShell
+      leading={
+        <p className="px-4 pt-4 text-center text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          {copy.wallet.setupStepLink}
+        </p>
+      }
+    >
       <NfcHoldStatus
         size="lg"
         pulsing={!error}
@@ -313,7 +323,7 @@ function HomeLinkSetup({
           </Button>
         }
       />
-    </div>
+    </CeremonyShell>
   );
 }
 
@@ -367,14 +377,16 @@ function HomeLinksScreen() {
 
   if (addAccessory.isPending) {
     return (
-      <NfcHoldStatus
-        size="lg"
-        pulsing
-        busy
-        progress
-        title={copy.home.holdTitle}
-        body={copy.home.holdBody}
-      />
+      <CeremonyShell>
+        <NfcHoldStatus
+          size="lg"
+          pulsing
+          busy
+          progress
+          title={copy.home.holdTitle}
+          body={copy.home.holdBody}
+        />
+      </CeremonyShell>
     );
   }
 
@@ -389,7 +401,7 @@ function HomeLinksScreen() {
 
   if (items.length === 0) {
     return (
-      <div className="flex flex-1 flex-col">
+      <CeremonyShell>
         <NfcHoldStatus
           size="lg"
           pulsing={false}
@@ -406,7 +418,7 @@ function HomeLinksScreen() {
             </Button>
           }
         />
-      </div>
+      </CeremonyShell>
     );
   }
 

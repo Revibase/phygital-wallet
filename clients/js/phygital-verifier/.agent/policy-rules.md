@@ -32,7 +32,7 @@ Follow these when authoring or reviewing policies and verifier changes.
 
 ## Extending STANDARD
 
-- Prefer composing `definePolicy([...standardPolicy(), …], standardTransaction())`.
+- Prefer composing `definePolicy([...standardPolicy({ maxMintRaw, maxSolLamports }), …], standardTransaction({ maxMintRaw, maxSolLamports }))` when spend caps are set; omit maxes for program allowlist only.
 - Collectibles (incl. companion `allowAll`) are on by default; pass `includeCollectibles: false` for payments-only.
 - New third-party programs: generate into **the consuming app**, not into this package’s `src/generated/` unless they are intentional STANDARD surface.
 

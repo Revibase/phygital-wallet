@@ -64,8 +64,9 @@ export const copy = {
     settingsAccess: "Access",
     settingsMoney: "Money",
     settingsSafety: "Safety",
-    /** Who cosigns sends (not authenticity verify). */
-    signing: "Extra approval",
+    settingsSendProtections: "Send protections",
+    /** Who cosigns sends (not authenticity verify). Replaces Revibase when custom. */
+    signing: "Send signing",
     rpcConnection: "Network",
     rpcBody: "Where this wallet loads balances and collectibles from.",
     rpcDefault: "Default",
@@ -88,8 +89,14 @@ export const copy = {
     modeObject: "Object",
     modeWallet: "Wallet",
     holdToSend: "Hold to confirm",
-    holdToReceive: "Hold to receive",
-    holdToReceiveDesktopHint: "They’ll hold their accessory next",
+    holdToReceive: "Hold to confirm",
+    holdToReceiveDesktopHint: "They’ll hold their accessory to confirm",
+    holdToIdentifyPayer: "Hold their accessory",
+    holdToIdentifyPayerHint: "They hold once to link, then again to pay",
+    nearbySummaryTitle: "Confirm receive",
+    nearbySummaryBody: "Have them hold again to send this amount.",
+    nearbyChangeDetails: "Change amount",
+    nearbyChangePayer: "Use a different item",
     holdToSave: "Hold to save",
     save: "Save",
     holdToOpenTitle: "Hold to open",
@@ -103,7 +110,6 @@ export const copy = {
     setUpThisPhone: "Set up this phone",
     newPhoneHint: "New on this phone?",
     max: "Max",
-    maxSolPerSend: "Max SOL per send",
     restoreDefault: "Use Revibase",
     add: "Add",
     sent: "Sent",
@@ -145,7 +151,8 @@ export const copy = {
     copied: "Copied",
     receiveAnything: "Receive SOL, tokens, and collectibles here",
     receiveNearby: "Receive from someone nearby",
-    receiveNearbyHint: "Pick a token, then they hold their accessory to pay",
+    receiveNearbyHint:
+      "Enter an amount, then they hold twice — once to link, once to pay",
     refresh: "Refresh",
     refreshing: "Refreshing…",
     lastUpdated: (value: string) => `Updated ${value}`,
@@ -231,11 +238,11 @@ export const copy = {
     deviceUnlinkConfirmCta: "Unlink",
     deviceUnlinkConfirmCancel: "Cancel",
     deviceUnlinkPolicyWarn:
-      "Recovery and extra approval can only be changed while this phone is linked. Limits turn off when you unlink.",
+      "Recovery and send signing can only be changed while this phone is linked. Limits turn off when you unlink.",
     deviceUnlinkNeedsRecovery:
       "Clear the recovery address before unlinking.",
     deviceUnlinkNeedsSigning:
-      "Switch back to Revibase approval before unlinking.",
+      "Switch back to Revibase signing before unlinking.",
     deviceUnlinkClearRecoveryCta: "Clear recovery",
     deviceUnlinkRestoreSigningCta: "Use Revibase",
     deviceUnlinkStepNeeded: "Required",
@@ -276,8 +283,9 @@ export const copy = {
     limitsStatusInvalid: "Needs fix",
     limitsInvalidBody:
       "Saved limits are invalid. Save again to restore protection.",
-    limitsTurnOff: "Turn off limits",
-    limitsTurnedOff: "Limits off",
+    limitsTurnOff: "Turn off spend caps",
+    limitsTurnedOff: "Spend caps off",
+    policyRemoved: "Send protections off",
     openApprovalContinue: "They can continue in their app",
     openApprovalsTitle: "Approve a pending send",
     openApprovalsLater: "Later",
@@ -288,29 +296,32 @@ export const copy = {
       "They need more network fees. Ask them to top up, then try again.",
     nearbyPolicyGotIt: "Got it",
     signingBody:
-      "Your accessory signs each send. Revibase joins the transaction and applies your limits.",
+      "Every send needs your accessory and a signing service that co-signs. Revibase is the default — it checks your limits before it signs.",
     signingCustomPolicyWarn:
-      "Extra approval can move all funds on any hold. Revibase limits, allowed people, and approvals will not apply.",
+      "This replaces Revibase as the service that co-signs your sends. Revibase will no longer check spending limits, recipients, programs, or one-time approvals. Only use a service you trust.",
     signingCustomAck:
-      "I understand this removes Revibase protection on every send.",
+      "I understand I’m replacing Revibase signing and its protections on every send.",
     signingCustomContinue: "Continue",
-    signingCustomSaved: "Extra approval on — Revibase limits off",
+    signingCustomSaved: "Custom signing on — Revibase protections off",
     signingRestored: "Back to Revibase",
     signingInvalidCustom: "Enter a valid address and HTTPS URL",
     signingCurrent: "Current",
     signingDefault: "Revibase",
-    signingCustom: "On",
-    useCustomSigning: "Turn on extra approval…",
-    customEndpoint: "Endpoint",
-    customVerifier: "Approval address",
-    verifierPubkey: "Approval address",
+    signingCustom: "Custom",
+    useCustomSigning: "Use a custom signing service…",
+    customEndpoint: "Service URL",
+    customVerifier: "Service public key",
+    verifierPubkey: "Solana address",
     setupDeviceNotLinked: "Not linked",
     setupDeviceLinkedElsewhere: "Linked elsewhere",
     setupDeviceSignIn: "Sign in",
     setupDeviceLinkedHere: "Linked here",
     policyDefaultSigningOnly:
-      "Off means sends are unrestricted with Revibase. Limits apply after you save.",
+      "Each control is separate. Caps and allow lists cover standard sends only — not unrestricted programs.",
     policySection: "Limits",
+    unrestrictedAppsWarn:
+      "Unrestricted programs can move funds without your USDC/SOL caps or allow list.",
+    unrestrictedAppsHint: "Programs unrestricted",
     approveSendTitle: "Approve this send?",
     approveSendBodyLimit: (limit: string) => `Over your $${limit} limit.`,
     approveSendBodyRecipient: "Address isn’t on your allowed people list.",
@@ -320,31 +331,108 @@ export const copy = {
     approveSendBodyInstruction:
       "This action isn’t allowed by your standing settings.",
     approveSendBodyProgram:
-      "This app isn’t allowed by your standing settings.",
+      "This program isn’t allowed by your standing settings.",
     approveSendBodyUnexpected:
       "This transaction couldn’t be checked against your settings.",
     approveSendAmount: "Amount",
     approveSendDestination: "To",
     approveSendMint: "Token",
-    approveSendProgram: "App",
+    approveSendProgram: "Program",
     approveSendInstruction: "Action",
     approveOnce: "Approve once",
-    changeLimits: "Change limits",
+    changeLimits: "Change settings",
     sendBlockedHard:
       "This can’t be approved once — it would fail on-chain.",
     spendingLimits: "Spending limits",
     spendingLimitsHint:
-      "Starting caps are 50 USDC and 0.1 SOL per send. You can approve a larger send once.",
-    maxPerSend: "Max per send",
+      "Caps cover USDC and SOL on standard wallet sends. Larger sends need a one-time approval. They do not apply to unrestricted programs.",
+    spendingLimitsOff: "Off",
+    spendingLimitsOffBody:
+      "No USDC or SOL spend caps. You can still restrict recipients or programs separately.",
+    spendingLimitsOn: "On",
+    spendingLimitsOnBody: (usdc: string, sol: string) => {
+      const hasUsdc = usdc !== "—";
+      const hasSol = sol !== "—";
+      if (hasUsdc && hasSol) {
+        return `Up to ${usdc} USDC and ${sol} SOL per standard send without a one-time approval.`;
+      }
+      if (hasUsdc) {
+        return `Up to ${usdc} USDC per standard send without a one-time approval. SOL is uncapped on standard sends.`;
+      }
+      if (hasSol) {
+        return `Up to ${sol} SOL per standard send without a one-time approval. USDC is uncapped on standard sends.`;
+      }
+      return "Spend caps are on.";
+    },
+    spendingLimitsInvalid: "Needs fix",
+    spendingLimitsInvalidBody:
+      "Saved limits are invalid. Save again to restore protection.",
+    spendingLimitsAdvanced: "Set caps",
+    spendingLimitsAdvancedHide: "Hide caps",
+    spendingLimitsAdvancedHint:
+      "Suggested starting caps are 50 USDC and 0.1 SOL. Change them, then save.",
+    spendingLimitsSaveTurnsOn:
+      "Saving turns on these spend caps and limits you to built-in programs (unless you add unrestricted ones).",
+    spendingLimitsSaveNeedsCap: "Enter a USDC or SOL cap to turn spend limits on.",
+    maxPerSend: "Max USDC per send",
+    maxSolPerSend: "Max SOL per send",
     recipients: "Recipients",
     recipientsHint:
-      "Use wallet addresses. Token accounts are applied automatically.",
+      "Allow lists cover who you pay on standard wallet sends — not unrestricted programs.",
     recipientsAnyone: "Anyone",
     recipientsAllowlist: "Allow list",
-    extraPrograms: "Allowed programs",
+    recipientsAllAllowed: "Anyone",
+    recipientsAllAllowedBody:
+      "No recipient restriction. Standard sends can go to any address.",
+    recipientsAnyoneActive: "Anyone",
+    recipientsAnyoneActiveBody:
+      "Recipient allow list is off. Standard sends can go to any address.",
+    recipientsRestricted: "Allow list only",
+    recipientsRestrictedBody:
+      "Only these addresses can be paid on standard sends without a one-time approval.",
+    recipientsAdvanced: "Manage",
+    recipientsAdvancedHide: "Hide",
+    recipientsAdvancedHint:
+      "Use wallet addresses. Matching token accounts are applied automatically. Saving an allow list also limits you to built-in programs.",
+    recipientsEmpty: "No addresses yet",
+    recipientsNeedAddress: "Add at least one address for an allow list.",
+    extraPrograms: "Programs",
     extraProgramsHint:
-      "Programs this wallet can use without approving each send.",
-    extraProgramsEmpty: "No extra programs yet",
+      "Without send protections, any program is allowed. Turning on spend caps or a recipient allow list also limits you to built-in programs. Add unrestricted programs only if you need them.",
+    extraProgramsAllAllowed: "All programs",
+    extraProgramsAllAllowedBody:
+      "No standing policy — Revibase does not restrict which programs this wallet can call.",
+    extraProgramsBuiltIn: "Built-in only",
+    extraProgramsBuiltInBody:
+      "Standard wallet and collectible programs. Spend caps and recipient rules apply on scoped paths.",
+    extraProgramsWithUnrestricted: (count: number) =>
+      count === 1
+        ? "Built-in + 1 unrestricted"
+        : `Built-in + ${count} unrestricted`,
+    extraProgramsWithUnrestrictedBody:
+      "Added programs can move funds without your USDC/SOL caps or allow list.",
+    extraProgramsRestricted: "Built-in only",
+    extraProgramsRestrictedBody:
+      "Only built-in wallet programs are allowed unless you add unrestricted ones.",
+    extraProgramsAdvanced: "Manage",
+    extraProgramsAdvancedHide: "Hide",
+    extraProgramsProtected: "Built-in",
+    extraProgramsProtectedHint:
+      "Scoped wallet and collectible sends. Caps and recipient rules apply on these instruction paths.",
+    extraProgramsCompanions: "Collectible helpers",
+    extraProgramsCompanionsHint:
+      "Included for collectible transfers. Any instruction is allowed — no spend or recipient checks.",
+    extraProgramsUnrestricted: "Added (unrestricted)",
+    extraProgramsUnrestrictedHint:
+      "Any instruction on these programs is allowed — no spend or recipient checks.",
+    extraProgramsAddConfirm:
+      "This program can move funds without your USDC/SOL caps or allow list. Continue?",
+    extraProgramsAddConfirmCta: "Add unrestricted program",
+    extraProgramsEmpty: "None — built-in programs only",
+    extraProgramsAdded: "Unrestricted",
+    extraProgramsAllowAllCta: "Allow all programs",
+    extraProgramsOrphanBody:
+      "Only built-in programs are allowed, with no spend caps or recipient list. Remove this limit to allow any program again.",
     invalidProgramId: "Enter a valid program ID",
     programId: "Program ID",
     settingsSaved: "Saved",

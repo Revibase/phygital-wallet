@@ -47,7 +47,7 @@ export const ctaBlockClass = "w-full max-w-xs mx-auto";
 
 /** Centered gate / loading blocks. */
 export const centeredBlockClass =
-  "flex flex-1 flex-col items-center justify-center gap-3 py-10 sm:py-14 text-center";
+  "flex min-h-0 flex-1 flex-col items-center justify-center gap-3 py-10 sm:py-14 text-center";
 
 /**
  * Minted card detail: stacked art → dossier on the phone, side-by-side

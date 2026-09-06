@@ -9,6 +9,7 @@ import { TOKEN_2022_PROGRAM_ADDRESS } from "@solana-program/token-2022";
 import { getUsdcMint } from "@/lib/tokens/usdc-mint";
 
 export const USDC_ICON_URL = "/tokens/usdc.png";
+export const SOL_ICON_URL = "/tokens/sol.png";
 
 export const NATIVE_SOL_MINT =
   "So11111111111111111111111111111111111111112" as const;
@@ -91,7 +92,7 @@ export function nativeSolHolding(
     mint: NATIVE_SOL_MINT,
     symbol: "SOL",
     name: "Solana",
-    icon: null,
+    icon: SOL_ICON_URL,
     decimals: 9,
     tokenProgram: NATIVE_SOL_TOKEN_PROGRAM,
     balanceRaw: balanceRaw.toString(),

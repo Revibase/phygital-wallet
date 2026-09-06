@@ -71,6 +71,9 @@ const timeFormatter = new Intl.DateTimeFormat(undefined, {
 function settingsFromDenyCode(code?: string): Screen {
   if (code === "recipient_not_allowed") return "recipients";
   if (code === "spend_limit") return "spendingLimits";
+  if (code === "program_not_allowed" || code === "instruction_not_allowed") {
+    return "extraPrograms";
+  }
   if (code === "insufficient_fee_balance") return "feeBalance";
   return "settings";
 }

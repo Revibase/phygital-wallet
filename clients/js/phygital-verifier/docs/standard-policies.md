@@ -1,9 +1,12 @@
 # Standard policies
 
-Helpers that ship a safe-by-default allowlist plus **per-transaction** spend aggregates.
+Helpers that ship a wallet/collectible program allowlist plus **optional**
+per-transaction spend aggregates.
 
 ```ts
 import {
+  DEFAULT_MAX_MINT_RAW,
+  DEFAULT_MAX_SOL_LAMPORTS,
   defineStandardPolicy,
   standardPolicy,
   standardTransaction,
@@ -13,15 +16,21 @@ import {
 
 ## One-shot: `defineStandardPolicy(opts?)`
 
-Returns a full `PolicyDocument` (`programs` + `transaction.aggregates`).
+Returns a `PolicyDocument`. Spend caps are **opt-in**:
+
+- Bare `defineStandardPolicy()` / omit maxes → program allowlist, **no** amount caps.
+- Pass `maxMintRaw` / `maxSolLamports` (or the exported defaults) to enable spend limits.
 
 ```ts
-const policy = defineStandardPolicy({
-  mint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", // default mainnet USDC
-  maxMintRaw: uiAmountToRaw(50, 6).toString(), // default 50 USDC
-  maxSolLamports: "100000000", // default 0.1 SOL
-  wallet: userWallet, // required for closeAccount rent return
-  // includeCollectibles defaults to true (NFT paths + companion allowAll)
+// Program allowlist only (recipients / apps can layer on top in the wallet)
+const allowlistOnly = defineStandardPolicy({ wallet });
+
+// First-enable spend caps
+const withCaps = defineStandardPolicy({
+  mint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+  maxMintRaw: DEFAULT_MAX_MINT_RAW, // 50 USDC
+  maxSolLamports: DEFAULT_MAX_SOL_LAMPORTS, // 0.1 SOL
+  wallet: userWallet,
 });
 ```
 
@@ -32,24 +41,27 @@ import { definePolicy, defineProgram, standardPolicy, standardTransaction } from
 
 const policy = definePolicy(
   [
-    ...standardPolicy({ wallet }),
+    ...standardPolicy({ wallet, maxMintRaw: DEFAULT_MAX_MINT_RAW, maxSolLamports: DEFAULT_MAX_SOL_LAMPORTS }),
     defineProgram(jupiterParser, {
       allows: [{ instruction: "route", when: { /* … */ } }],
     }),
   ],
-  standardTransaction(),
+  standardTransaction({
+    maxMintRaw: DEFAULT_MAX_MINT_RAW,
+    maxSolLamports: DEFAULT_MAX_SOL_LAMPORTS,
+  }),
 );
 ```
 
-Always pair `standardPolicy()` with `standardTransaction()` (or use `defineStandardPolicy`) so USDC/SOL **aggregates** apply across multiple instructions in one transaction.
+When spend caps are set, pair `standardPolicy` with `standardTransaction` (or use `defineStandardPolicy`) so USDC/SOL **aggregates** apply across multiple instructions in one transaction.
 
 ## Defaults
 
 | Allowed | Cap / notes |
 |---------|-------------|
 | ATA `create` + `createIdempotent` | Uncapped (rent outside SOL aggregate) |
-| System `transferSol` | ≤ 0.1 SOL **per tx** (aggregate) |
-| Token / Token-2022 `transferChecked` for the configured mint | ≤ 50 USDC **per tx** combined across both token programs |
+| System `transferSol` | Uncapped unless `maxSolLamports` set (then per-ix + aggregate) |
+| Token / Token-2022 `transferChecked` for the configured mint | Uncapped unless `maxMintRaw` set (then per-ix + aggregate) |
 | `closeAccount` | Only if `wallet` is set; destination must equal `wallet` |
 | Collectibles (on by default) | See below |
 
@@ -75,8 +87,8 @@ NFT value is not dollar-capped — enabling this allows draining any allowed NFT
 | Option | Default | Purpose |
 |--------|---------|---------|
 | `mint` | mainnet USDC | Mint for standing `transferChecked` |
-| `maxMintRaw` | `"50000000"` | Per-tx raw cap for that mint |
-| `maxSolLamports` | `"100000000"` | Per-tx SOL cap |
+| `maxMintRaw` | unset (uncapped) | Per-tx raw USDC cap; use `DEFAULT_MAX_MINT_RAW` for 50 USDC |
+| `maxSolLamports` | unset (uncapped) | Per-tx SOL cap; use `DEFAULT_MAX_SOL_LAMPORTS` for 0.1 SOL |
 | `wallet` | unset | Enables `closeAccount` with destination eq wallet |
 | `includeCollectibles` | `true` | NFT transfer paths + companion `allowAll` |
 | `includeAta` | `true` | ATA create ixs |

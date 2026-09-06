@@ -30,7 +30,7 @@ if (!result.ok) {
 }
 ```
 
-Defaults: mainnet USDC ≤ **$50** and SOL ≤ **0.1** per transaction. NFTs/collectibles off. Details: [Standard policies](./docs/standard-policies.md).
+Bare `defineStandardPolicy()` is a program allowlist **without** spend caps (collectibles on). Pass `DEFAULT_MAX_MINT_RAW` / `DEFAULT_MAX_SOL_LAMPORTS` (or your own raws) for suggested 50 USDC / 0.1 SOL caps. Details: [Standard policies](./docs/standard-policies.md).
 
 ## How the pieces fit
 

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { isDefaultMint, USDC_ICON_URL } from "@/lib/tokens/payment-token";
+import { isDefaultMint, NATIVE_SOL_MINT, SOL_ICON_URL, USDC_ICON_URL } from "@/lib/tokens/payment-token";
 import { cn } from "@/lib/utils";
 
 export function TokenIcon({
@@ -22,10 +22,13 @@ export function TokenIcon({
     size === "xs" ? "size-4" : size === "sm" ? "size-6" : "size-8";
   const letter =
     size === "xs" ? "text-[8px]" : "text-[10px]";
-  // Prefer vendored USDC mark — remote Jupiter/GitHub URLs often fail to paint.
-  const src = isDefaultMint(token.mint)
-    ? USDC_ICON_URL
-    : token.icon?.trim() || null;
+  // Prefer vendored marks — remote Jupiter/GitHub URLs often fail to paint.
+  const src =
+    token.mint === NATIVE_SOL_MINT
+      ? SOL_ICON_URL
+      : isDefaultMint(token.mint)
+        ? USDC_ICON_URL
+        : token.icon?.trim() || null;
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const failed = failedSrc === src;
 

@@ -6,6 +6,7 @@ import { useIsRestoring, useQuery } from "@tanstack/react-query";
 import { findPhygitalTokenPda } from "phygital-token-sdk";
 
 import { GateMessage } from "@/components/layout/gate-message";
+import { CeremonyShell } from "@/components/shared/ceremony-shell";
 import { InAppBrowserGate } from "@/components/shared/in-app-browser-gate";
 import { TokenRouteShell } from "@/components/token/token-route-shell";
 import { NfcHoldStatus } from "@/components/shared/nfc-hold-status";
@@ -181,14 +182,16 @@ function TokenAddressRouteInner({
               : claimed.data,
         })
       ) : waiting && !timedOut ? (
-        <NfcHoldStatus
-          size="lg"
-          pulsing
-          busy
-          imageSrc={collectible?.image}
-          imageAlt={collectible?.name ?? ""}
-          title={copy.verify.verifyingChip}
-        />
+        <CeremonyShell>
+          <NfcHoldStatus
+            size="lg"
+            pulsing
+            busy
+            imageSrc={collectible?.image}
+            imageAlt={collectible?.name ?? ""}
+            title={copy.verify.verifyingChip}
+          />
+        </CeremonyShell>
       ) : token && !isOwner ? (
         <AddressHoldGate
           token={token}
@@ -266,38 +269,42 @@ function AddressHoldGate({
 
   if (accessory.holding) {
     return (
-      <NfcHoldStatus
-        size="lg"
-        pulsing
-        busy
-        imageSrc={collectible?.image}
-        imageAlt={collectible?.name ?? ""}
-        title={copy.verify.holdStill}
-        body={copy.verify.holdStillBody}
-      />
+      <CeremonyShell>
+        <NfcHoldStatus
+          size="lg"
+          pulsing
+          busy
+          imageSrc={collectible?.image}
+          imageAlt={collectible?.name ?? ""}
+          title={copy.verify.holdStill}
+          body={copy.verify.holdStillBody}
+        />
+      </CeremonyShell>
     );
   }
 
   const error = accessory.error;
 
   return (
-    <NfcHoldStatus
-      size="lg"
-      pulsing={!error}
-      imageSrc={collectible?.image}
-      imageAlt={collectible?.name ?? ""}
-      title={error ? copy.verify.failed : copy.wallet.holdToOpenTitle}
-      body={error ?? copy.wallet.holdToOpenBody}
-      action={
-        <Button
-          type="button"
-          size="lg"
-          className="w-full"
-          onClick={() => void holdToOpen()}
-        >
-          {error ? copy.common.tryAgain : copy.wallet.holdToOpenCta}
-        </Button>
-      }
-    />
+    <CeremonyShell>
+      <NfcHoldStatus
+        size="lg"
+        pulsing={!error}
+        imageSrc={collectible?.image}
+        imageAlt={collectible?.name ?? ""}
+        title={error ? copy.verify.failed : copy.wallet.holdToOpenTitle}
+        body={error ?? copy.wallet.holdToOpenBody}
+        action={
+          <Button
+            type="button"
+            size="lg"
+            className="w-full"
+            onClick={() => void holdToOpen()}
+          >
+            {error ? copy.common.tryAgain : copy.wallet.holdToOpenCta}
+          </Button>
+        }
+      />
+    </CeremonyShell>
   );
 }

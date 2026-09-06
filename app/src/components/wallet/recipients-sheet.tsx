@@ -1,21 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Nfc, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Nfc, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { NavBar, NavBarBack } from "@/components/shared/nav-bar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import { usePolicyEditor } from "@/hooks/wallet/use-wallet-policy";
 import { copy } from "@/lib/copy/phygital";
 import { identifyAccessory } from "@/lib/wallet/identify-accessory";
 import { shortAddress } from "@/lib/utils";
 import { tryParseAddress } from "@/lib/solana/address";
 import { toUserErrorMessage } from "@/lib/user-errors";
-import { Spinner } from "@/components/ui/spinner";
 
-/** Anyone vs allowlist recipients. */
+/** Recipient allowlist — independent of spend caps. */
 export function RecipientsSheet({
   phygitalTokenPda,
   onBack,
@@ -27,6 +27,11 @@ export function RecipientsSheet({
   const [mode, setMode] = useState<"anyone" | "allowlist">("anyone");
   const [allowlist, setAllowlist] = useState<string[]>([]);
   const [draft, setDraft] = useState("");
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+
+  const effectiveMode = editor.settings?.recipientMode ?? "anyone";
+  const restricted = editor.policyEnabled && effectiveMode === "allowlist";
+  const extras = editor.settings?.extraPrograms.length ?? 0;
 
   useEffect(() => {
     if (!editor.settings) return;
@@ -44,6 +49,7 @@ export function RecipientsSheet({
     if (allowlist.includes(next)) return;
     setAllowlist((prev) => [...prev, next]);
     setDraft("");
+    setMode("allowlist");
   }
 
   async function pickNfc() {
@@ -56,6 +62,10 @@ export function RecipientsSheet({
   }
 
   async function save() {
+    if (mode === "allowlist" && allowlist.length === 0) {
+      toast.error(copy.wallet.recipientsNeedAddress);
+      return;
+    }
     await editor.save(
       {
         recipientMode: mode,
@@ -65,8 +75,21 @@ export function RecipientsSheet({
     );
   }
 
+  const statusTitle = restricted
+    ? copy.wallet.recipientsRestricted
+    : copy.wallet.recipientsAllAllowed;
+  const statusBody = restricted
+    ? copy.wallet.recipientsRestrictedBody
+    : editor.policyEnabled
+      ? copy.wallet.recipientsAnyoneActiveBody
+      : copy.wallet.recipientsAllAllowedBody;
+
+  const showSave =
+    mode === "allowlist" ||
+    (editor.policyEnabled && effectiveMode === "allowlist");
+
   return (
-    <div className="flex flex-1 flex-col gap-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
       <NavBar
         leading={<NavBarBack onClick={onBack} />}
         title={copy.wallet.recipients}
@@ -77,89 +100,139 @@ export function RecipientsSheet({
         </p>
       ) : (
         <>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             {copy.wallet.recipientsHint}
           </p>
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant={mode === "anyone" ? "default" : "outline"}
-              className="flex-1"
-              onClick={() => setMode("anyone")}
-            >
-              {copy.wallet.recipientsAnyone}
-            </Button>
-            <Button
-              type="button"
-              variant={mode === "allowlist" ? "default" : "outline"}
-              className="flex-1"
-              onClick={() => setMode("allowlist")}
-            >
-              {copy.wallet.recipientsAllowlist}
-            </Button>
+
+          <div className="rounded-2xl bg-muted/25 px-4 py-3">
+            <p className="text-sm font-medium">{statusTitle}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{statusBody}</p>
           </div>
-          {mode === "allowlist" ? (
-            <div className="flex flex-col gap-2">
-              <div className="flex gap-2">
-                <Input
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  placeholder={copy.wallet.pasteAddress}
-                  className="flex-1 font-mono text-sm"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  aria-label={copy.wallet.tapAccessory}
-                  onClick={() => void pickNfc()}
-                >
-                  <Nfc className="size-4" />
-                </Button>
-              </div>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => addAddress(draft)}
-              >
-                {copy.wallet.add}
-              </Button>
-              <ul className="flex flex-col gap-1">
-                {allowlist.map((addr) => (
-                  <li
-                    key={addr}
-                    className="flex items-center justify-between rounded-xl bg-muted/25 px-3 py-2 text-sm"
-                  >
-                    <span className="font-mono">{shortAddress(addr, 6)}</span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label={copy.common.remove}
-                      onClick={() =>
-                        setAllowlist((prev) => prev.filter((a) => a !== addr))
-                      }
-                    >
-                      <Trash2 className="size-4 text-muted-foreground" />
-                    </Button>
-                  </li>
-                ))}
-              </ul>
+
+          {extras > 0 ? (
+            <div className="rounded-2xl bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              {copy.wallet.unrestrictedAppsWarn}
             </div>
           ) : null}
+
           <Button
             type="button"
-            size="lg"
-            className="mt-auto"
-            disabled={editor.busy}
-            onClick={() => void save()}
+            variant="secondary"
+            onClick={() => setAdvancedOpen((o) => !o)}
+            className="h-auto min-h-11 w-full justify-between rounded-2xl bg-muted/25 px-4 py-3 text-sm font-medium hover:bg-muted/40"
           >
-            {editor.saving ? (
-              <Spinner className="size-4" />
+            {advancedOpen
+              ? copy.wallet.recipientsAdvancedHide
+              : copy.wallet.recipientsAdvanced}
+            {advancedOpen ? (
+              <ChevronUp className="size-4 text-muted-foreground" />
             ) : (
-              copy.wallet.save
+              <ChevronDown className="size-4 text-muted-foreground" />
             )}
           </Button>
+
+          {advancedOpen ? (
+            <div className="flex min-h-0 flex-1 flex-col gap-4">
+              <p className="text-xs text-muted-foreground">
+                {copy.wallet.recipientsAdvancedHint}
+              </p>
+
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={mode === "anyone" ? "default" : "outline"}
+                  className="flex-1 rounded-full"
+                  onClick={() => setMode("anyone")}
+                >
+                  {copy.wallet.recipientsAnyone}
+                </Button>
+                <Button
+                  type="button"
+                  variant={mode === "allowlist" ? "default" : "outline"}
+                  className="flex-1 rounded-full"
+                  onClick={() => setMode("allowlist")}
+                >
+                  {copy.wallet.recipientsAllowlist}
+                </Button>
+              </div>
+
+              {mode === "allowlist" ? (
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-2">
+                    <Input
+                      value={draft}
+                      onChange={(e) => setDraft(e.target.value)}
+                      placeholder={copy.wallet.pasteAddress}
+                      className="flex-1 font-mono text-sm"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      aria-label={copy.wallet.tapAccessory}
+                      onClick={() => void pickNfc()}
+                    >
+                      <Nfc className="size-4" />
+                    </Button>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => addAddress(draft)}
+                  >
+                    {copy.wallet.add}
+                  </Button>
+                  {allowlist.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      {copy.wallet.recipientsEmpty}
+                    </p>
+                  ) : (
+                    <ul className="flex flex-col gap-1">
+                      {allowlist.map((addr) => (
+                        <li
+                          key={addr}
+                          className="flex items-center justify-between rounded-xl bg-muted/25 px-3 py-2 text-sm"
+                        >
+                          <span className="font-mono">
+                            {shortAddress(addr, 6)}
+                          </span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={copy.common.remove}
+                            onClick={() =>
+                              setAllowlist((prev) =>
+                                prev.filter((a) => a !== addr),
+                              )
+                            }
+                          >
+                            <Trash2 className="size-4 text-muted-foreground" />
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ) : null}
+
+              {showSave ? (
+                <Button
+                  type="button"
+                  size="lg"
+                  className="mt-auto w-full rounded-full"
+                  disabled={editor.busy}
+                  onClick={() => void save()}
+                >
+                  {editor.saving ? (
+                    <Spinner className="size-4" />
+                  ) : (
+                    copy.wallet.save
+                  )}
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
         </>
       )}
     </div>

@@ -20,7 +20,9 @@ import {
   applyPolicySettingsPatch,
   compilePolicySettings,
   derivePolicySettings,
-  FIRST_ENABLE_POLICY_SETTINGS,
+  EMPTY_POLICY_SETTINGS,
+  hasStandingPolicyContent,
+  hasSpendCaps,
   type PolicySettings,
 } from "@/lib/wallet/policy-settings";
 import { handleOwnerAuthFailure } from "@/lib/wallet/limits-setup-href";
@@ -58,7 +60,7 @@ export function usePolicyEditor(phygitalToken: string) {
     mutationFn: () => deletePolicyDocument(phygitalToken),
     onSuccess: (effective) => {
       applyWalletPolicy(queryClient, phygitalToken, effective);
-      toast.success(copy.wallet.limitsTurnedOff);
+      toast.success(copy.wallet.policyRemoved);
     },
   });
 
@@ -76,7 +78,7 @@ export function usePolicyEditor(phygitalToken: string) {
       return;
     }
     if (status === "invalid" || doc == null) {
-      setSettings(FIRST_ENABLE_POLICY_SETTINGS);
+      setSettings(EMPTY_POLICY_SETTINGS);
       return;
     }
     let cancelled = false;
@@ -91,17 +93,29 @@ export function usePolicyEditor(phygitalToken: string) {
   async function save(patch: Partial<PolicySettings>, onBack: () => void) {
     if (!settings || busy) return;
     try {
-      const opts = {
-        ...(walletPda.walletAddress
-          ? { wallet: walletPda.walletAddress }
-          : {}),
-      };
       const merged: PolicySettings = {
         ...settings,
         ...patch,
         recipientAllowlist:
           patch.recipientAllowlist ?? settings.recipientAllowlist,
         extraPrograms: patch.extraPrograms ?? settings.extraPrograms,
+      };
+
+      // No knobs left → delete so we never leave a silent built-in-only doc.
+      if (!hasStandingPolicyContent(merged)) {
+        if (doc == null && status !== "invalid") {
+          onBack();
+          return;
+        }
+        await turnOffPolicy.mutateAsync();
+        onBack();
+        return;
+      }
+
+      const opts = {
+        ...(walletPda.walletAddress
+          ? { wallet: walletPda.walletAddress }
+          : {}),
       };
       const next =
         doc == null || status === "invalid"
@@ -116,6 +130,7 @@ export function usePolicyEditor(phygitalToken: string) {
     }
   }
 
+  /** Delete entire standing policy (all knobs). */
   async function turnOff(onBack: () => void) {
     if (busy) return;
     try {
@@ -125,6 +140,18 @@ export function usePolicyEditor(phygitalToken: string) {
       if (handleOwnerAuthFailure(phygitalToken, e)) return;
       toast.error(toUserErrorMessage(e));
     }
+  }
+
+  /**
+   * Clear spend caps only. Deletes the document when nothing else remains;
+   * otherwise recompiles with null caps so recipients/programs stay.
+   */
+  async function clearSpendCaps(onBack: () => void) {
+    if (!settings || busy) return;
+    await save(
+      { maxTransferUsdc: null, maxTransferSol: null },
+      onBack,
+    );
   }
 
   return {
@@ -139,7 +166,9 @@ export function usePolicyEditor(phygitalToken: string) {
     busy,
     save,
     turnOff,
+    clearSpendCaps,
     policyEnabled: status === "ok" && doc != null,
     policyInvalid: status === "invalid",
+    spendCapsEnabled: settings != null && hasSpendCaps(settings),
   };
 }

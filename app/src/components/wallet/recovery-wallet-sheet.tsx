@@ -16,6 +16,7 @@ import {
 } from "phygital-token-sdk";
 
 import { CopyableAddress } from "@/components/shared/copyable-address";
+import { CeremonyShell } from "@/components/shared/ceremony-shell";
 import { NfcHoldStatus } from "@/components/shared/nfc-hold-status";
 import { NavBar, NavBarBack } from "@/components/shared/nav-bar";
 import { Button } from "@/components/ui/button";
@@ -157,18 +158,21 @@ export function RecoveryWalletSheet({
 
   if (view === "holding" || view === "success") {
     return (
-      <div className="flex flex-1 flex-col">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="self-start"
-          onClick={() =>
-            view === "holding" ? setView("form") : onClose()
-          }
-        >
-          {view === "holding" ? copy.common.cancel : copy.common.done}
-        </Button>
+      <CeremonyShell
+        leading={
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="self-start"
+            onClick={() =>
+              view === "holding" ? setView("form") : onClose()
+            }
+          >
+            {view === "holding" ? copy.common.cancel : copy.common.done}
+          </Button>
+        }
+      >
         <NfcHoldStatus
           size="lg"
           pulsing={view === "holding"}
@@ -193,7 +197,7 @@ export function RecoveryWalletSheet({
             ) : undefined
           }
         />
-      </div>
+      </CeremonyShell>
     );
   }
 

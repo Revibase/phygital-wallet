@@ -1,5 +1,10 @@
-import { defineStandardPolicy, type PolicyDocument } from "phygital-verifier-sdk";
-import type { StandardPolicyOptions } from "phygital-verifier-sdk";
+import {
+  DEFAULT_MAX_MINT_RAW,
+  DEFAULT_MAX_SOL_LAMPORTS,
+  defineStandardPolicy,
+  type PolicyDocument,
+  type StandardPolicyOptions,
+} from "phygital-verifier-sdk";
 
 import { getUsdcMint } from "@/tokens/usdc-mint";
 
@@ -12,6 +17,8 @@ export function buildDefaultPolicy(
 ): PolicyDocument {
   return defineStandardPolicy({
     mint: String(getUsdcMint()),
+    maxMintRaw: DEFAULT_MAX_MINT_RAW,
+    maxSolLamports: DEFAULT_MAX_SOL_LAMPORTS,
     ...opts,
   });
 }

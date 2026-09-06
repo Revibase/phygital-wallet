@@ -10,6 +10,7 @@ import {
 } from "framer-motion";
 
 import { NavBar } from "@/components/shared/nav-bar";
+import { CeremonyShell } from "@/components/shared/ceremony-shell";
 import { NfcHoldStatus } from "@/components/shared/nfc-hold-status";
 import { ActivityReceiptSheet } from "@/components/wallet/activity-receipt-sheet";
 import { Button } from "@/components/ui/button";
@@ -76,22 +77,25 @@ export function SendHoldStage({
 
   return (
     <LazyMotion features={domAnimation}>
-      <div className="flex flex-1 flex-col">
-        <NavBar
-          leading={
-            <Button type="button" variant="ghost" size="sm" onClick={onClose}>
-              {copy.common.cancel}
-            </Button>
-          }
-        />
-        <AnimatePresence mode="sync" initial={false}>
+      <CeremonyShell
+        leading={
+          <NavBar
+            leading={
+              <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+                {copy.common.cancel}
+              </Button>
+            }
+          />
+        }
+      >
+        <AnimatePresence mode="wait" initial={false}>
           <m.div
             key={phase}
             initial={enter.initial}
             animate={enter.animate}
-            exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
+            exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0 }}
             transition={snapEnterTransition}
-            className="flex flex-1 flex-col"
+            className="flex min-h-0 flex-1 flex-col"
           >
             <NfcHoldStatus
               size="lg"
@@ -159,7 +163,7 @@ export function SendHoldStage({
           open={receiptOpen}
           onOpenChange={setReceiptOpen}
         />
-      </div>
+      </CeremonyShell>
     </LazyMotion>
   );
 }

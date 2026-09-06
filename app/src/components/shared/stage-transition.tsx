@@ -12,6 +12,8 @@ import {
 import { easeOut, galleryAnimate } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
+const fillClass = "flex min-h-0 flex-1 flex-col";
+
 /** Keyed screen push — snappy, no blur. Short wait so layouts never double-stack. */
 export function StageTransition({
   stageKey,
@@ -31,7 +33,7 @@ export function StageTransition({
     const motionClass =
       variant === "fade" ? galleryAnimate.stageFade : galleryAnimate.stage;
     return (
-      <div key={stageKey} className={cn(motionClass, className)}>
+      <div key={stageKey} className={cn(fillClass, motionClass, className)}>
         {children}
       </div>
     );
@@ -51,7 +53,7 @@ export function StageTransition({
       <AnimatePresence mode="wait" initial={false}>
         <m.div
           key={stageKey}
-          className={className}
+          className={cn(fillClass, className)}
           initial={enter}
           animate={animate}
           exit={{ opacity: 0 }}

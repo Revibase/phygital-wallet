@@ -1,8 +1,10 @@
 /**
- * STANDARD policy preset — safe defaults for USDC/SOL wallets.
+ * STANDARD policy preset — wallet / collectible program allowlist.
  *
- * Prefer `defineStandardPolicy()` for the full document
- * (program allows + per-tx aggregates).
+ * Prefer `defineStandardPolicy()` for the full document.
+ * Spend caps (`maxMintRaw` / `maxSolLamports`) are **optional** — omit them
+ * for a program allowlist without amount limits; pass explicit raws (or the
+ * exported defaults) when enabling spend protection.
  */
 import {
   ataParser,
@@ -16,14 +18,18 @@ import {
 import { definePolicy, defineProgram } from "../core/policy-builder.js";
 import type {
   PolicyDocument,
+  PolicyExpr,
   ProgramPolicy,
   TransactionConstraints,
 } from "../core/types.js";
 
 const DEFAULT_STANDARD_MINT =
   "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v" as const;
-const DEFAULT_MAX_MINT_RAW = "50000000" as const;
-const DEFAULT_MAX_SOL_LAMPORTS = "100000000" as const;
+
+/** Suggested first-enable USDC raw cap (50 USDC at 6 decimals). */
+export const DEFAULT_MAX_MINT_RAW = "50000000" as const;
+/** Suggested first-enable SOL lamports cap (0.1 SOL). */
+export const DEFAULT_MAX_SOL_LAMPORTS = "100000000" as const;
 
 /**
  * Metaplex / compression companion programs used alongside collectible sends.
@@ -51,13 +57,25 @@ export function uiAmountToRaw(ui: number, decimals: number): bigint {
   return negative ? -raw : raw;
 }
 
+function hasCap(value: string | null | undefined): value is string {
+  return typeof value === "string" && value.length > 0;
+}
+
 export type StandardPolicyOptions = {
   /** Mint for transferChecked eq condition. Default: mainnet USDC. */
   mint?: string;
-  /** Raw per-transaction cap for that mint (Token + Token-2022 combined). Default: 50 USDC. */
-  maxMintRaw?: string;
-  /** Lamports per-transaction cap for System transferSol. Default 0.1 SOL. */
-  maxSolLamports?: string;
+  /**
+   * Raw per-transaction cap for that mint (Token + Token-2022 combined).
+   * Omit / `null` = no USDC amount cap. Pass {@link DEFAULT_MAX_MINT_RAW} for
+   * the suggested first-enable value.
+   */
+  maxMintRaw?: string | null;
+  /**
+   * Lamports per-transaction cap for System transferSol.
+   * Omit / `null` = no SOL amount cap. Pass {@link DEFAULT_MAX_SOL_LAMPORTS}
+   * for the suggested first-enable value.
+   */
+  maxSolLamports?: string | null;
   /**
    * Wallet address for rent destination checks on closeAccount.
    * Required for closeAccount to be included when `includeTokenCloseAccount` is true.
@@ -83,67 +101,73 @@ export type StandardPolicyOptions = {
 
 /**
  * Transaction-level caps for STANDARD policies (amount aggregates).
- * Pair with `standardPolicy` via `definePolicy(programs, transaction)`.
+ * Returns `undefined` when neither spend cap is set.
  *
  * Compute Budget instructions are rejected by `createVerifier` itself (wallet
  * injects them at send time) — they are not part of STANDARD policy.
  */
 export function standardTransaction(
   opts: StandardPolicyOptions = {},
-): TransactionConstraints {
+): TransactionConstraints | undefined {
   const mint = opts.mint ?? DEFAULT_STANDARD_MINT;
-  const maxMint = opts.maxMintRaw ?? DEFAULT_MAX_MINT_RAW;
-  const maxSol = opts.maxSolLamports ?? DEFAULT_MAX_SOL_LAMPORTS;
+  const maxMint = hasCap(opts.maxMintRaw) ? opts.maxMintRaw : null;
+  const maxSol = hasCap(opts.maxSolLamports) ? opts.maxSolLamports : null;
   const tokenPrograms = opts.tokenPrograms ?? (["token", "token2022"] as const);
 
-  const mintFields = [];
-  if (tokenPrograms.includes("token")) {
-    mintFields.push({
-      programId: tokenParser.programId,
-      instruction: "transferChecked",
-      field: "amount",
-      when: {
-        field: "mint",
-        type: "string" as const,
-        op: "eq" as const,
-        value: mint,
-      },
-    });
-  }
-  if (tokenPrograms.includes("token2022")) {
-    mintFields.push({
-      programId: token2022Parser.programId,
-      instruction: "transferChecked",
-      field: "amount",
-      when: {
-        field: "mint",
-        type: "string" as const,
-        op: "eq" as const,
-        value: mint,
-      },
-    });
-  }
+  const aggregates: TransactionConstraints["aggregates"] = [];
 
-  const aggregates = [];
-  if (mintFields.length > 0) {
-    aggregates.push({
-      fields: mintFields,
-      op: "lte" as const,
-      value: maxMint,
-    });
-  }
-  aggregates.push({
-    fields: [
-      {
-        programId: systemParser.programId,
-        instruction: "transferSol",
+  if (maxMint) {
+    const mintFields = [];
+    if (tokenPrograms.includes("token")) {
+      mintFields.push({
+        programId: tokenParser.programId,
+        instruction: "transferChecked",
         field: "amount",
-      },
-    ],
-    op: "lte" as const,
-    value: maxSol,
-  });
+        when: {
+          field: "mint",
+          type: "string" as const,
+          op: "eq" as const,
+          value: mint,
+        },
+      });
+    }
+    if (tokenPrograms.includes("token2022")) {
+      mintFields.push({
+        programId: token2022Parser.programId,
+        instruction: "transferChecked",
+        field: "amount",
+        when: {
+          field: "mint",
+          type: "string" as const,
+          op: "eq" as const,
+          value: mint,
+        },
+      });
+    }
+    if (mintFields.length > 0) {
+      aggregates.push({
+        fields: mintFields,
+        op: "lte" as const,
+        value: maxMint,
+      });
+    }
+  }
 
+  if (maxSol) {
+    aggregates.push({
+      fields: [
+        {
+          programId: systemParser.programId,
+          instruction: "transferSol",
+          field: "amount",
+        },
+      ],
+      op: "lte" as const,
+      value: maxSol,
+    });
+  }
+
+  if (aggregates.length === 0) return undefined;
   return { aggregates };
 }
 
@@ -151,15 +175,15 @@ export function standardTransaction(
  * Spread-friendly STANDARD policy program blocks.
  *
  * Instruction names match generated FIELD_SCHEMA exactly.
- * Spend caps are **per transaction** via `standardTransaction` —
- * always compose both (see `defineStandardPolicy`).
+ * Optional spend caps via `maxMintRaw` / `maxSolLamports`; pair with
+ * `standardTransaction` when caps are set (see `defineStandardPolicy`).
  */
 export function standardPolicy(
   opts: StandardPolicyOptions = {},
 ): ProgramPolicy[] {
   const mint = opts.mint ?? DEFAULT_STANDARD_MINT;
-  const maxMint = opts.maxMintRaw ?? DEFAULT_MAX_MINT_RAW;
-  const maxSol = opts.maxSolLamports ?? DEFAULT_MAX_SOL_LAMPORTS;
+  const maxMint = hasCap(opts.maxMintRaw) ? opts.maxMintRaw : null;
+  const maxSol = hasCap(opts.maxSolLamports) ? opts.maxSolLamports : null;
   const includeCollectibles = opts.includeCollectibles ?? true;
   const includeAta = opts.includeAta ?? true;
   /** Off by default — createAccount/allocate/assign are powerful. */
@@ -183,11 +207,13 @@ export function standardPolicy(
   }
 
   {
+    const transferSolWhen: PolicyExpr | undefined = maxSol
+      ? { field: "amount", type: "bigint", op: "lte", value: maxSol }
+      : undefined;
     const allows: ProgramPolicy["allows"] = [
-      {
-        instruction: "transferSol",
-        when: { field: "amount", type: "bigint", op: "lte", value: maxSol },
-      },
+      transferSolWhen
+        ? { instruction: "transferSol", when: transferSolWhen }
+        : { instruction: "transferSol" },
     ];
     if (includeSystemSetup) {
       allows.push(
@@ -209,15 +235,22 @@ export function standardPolicy(
         when: { field: "amount", type: "bigint", op: "lte", value: "1" },
       });
     }
-    allows.push({
-      instruction: "transferChecked",
-      when: {
-        and: [
-          { field: "mint", type: "string", op: "eq", value: mint },
-          { field: "amount", type: "bigint", op: "lte", value: maxMint },
-        ],
-      },
-    });
+    if (maxMint) {
+      allows.push({
+        instruction: "transferChecked",
+        when: {
+          and: [
+            { field: "mint", type: "string", op: "eq", value: mint },
+            { field: "amount", type: "bigint", op: "lte", value: maxMint },
+          ],
+        },
+      });
+    } else {
+      allows.push({
+        instruction: "transferChecked",
+        when: { field: "mint", type: "string", op: "eq", value: mint },
+      });
+    }
     if (includeNftTokenTransfer) {
       allows.push({
         instruction: "transfer",
@@ -279,7 +312,8 @@ export function standardPolicy(
 }
 
 /**
- * Full STANDARD policy: program allows + per-tx aggregates.
+ * Full STANDARD policy: program allows + optional per-tx aggregates.
+ * Bare call = program allowlist without spend caps.
  */
 export function defineStandardPolicy(
   opts: StandardPolicyOptions = {},
