@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { generateAuthenticationOptions } from "@simplewebauthn/server";
+import { isoBase64URL } from "@simplewebauthn/server/helpers";
 
-import { resolveWebAuthnRp, hashMutationBinding } from "@/webauthn-mutation";
+import {
+  resolveWebAuthnRp,
+  hashMutationBinding,
+  buildMutationOptions,
+} from "@/webauthn-mutation";
 import { initTokenSchema, TokenStore } from "@/token-store";
 
 /** Minimal in-memory stand-in for DO SqlStorage.exec. */
@@ -166,7 +172,43 @@ function memorySql() {
       return { toArray: () => (rows[0] ? [rows[0]] : []) };
     }
 
+    if (q.includes("INSERT INTO challenges")) {
+      const rows = tables.get("challenges") ?? [];
+      rows.push({
+        id: params[0],
+        nonce: params[1],
+        binding_hash: params[2],
+        origin: params[3],
+        expires_at: params[4],
+      });
+      tables.set("challenges", rows);
+      return { toArray: () => [] };
+    }
+
+    if (q.includes("FROM challenges") && q.includes("WHERE id")) {
+      const rows = tables.get("challenges") ?? [];
+      const hit = rows.find((r) => r.id === params[0]);
+      return { toArray: () => (hit ? [hit] : []) };
+    }
+
     if (q.includes("DELETE FROM challenges")) {
+      if (q.includes("WHERE id")) {
+        const rows = tables.get("challenges") ?? [];
+        tables.set(
+          "challenges",
+          rows.filter((r) => r.id !== params[0]),
+        );
+        return { toArray: () => [] };
+      }
+      if (q.includes("expires_at")) {
+        const rows = tables.get("challenges") ?? [];
+        const now = params[0] as number;
+        tables.set(
+          "challenges",
+          rows.filter((r) => (r.expires_at as number) >= now),
+        );
+        return { toArray: () => [] };
+      }
       tables.set("challenges", []);
       return { toArray: () => [] };
     }
@@ -213,6 +255,55 @@ describe("hashMutationBinding", () => {
       credentialId: "cred-a",
     });
     expect(new Set([clear, unlink, grant, claim]).size).toBe(4);
+  });
+});
+
+describe("WebAuthn challenge encoding", () => {
+  // Regression: passing a base64url string into generateAuthenticationOptions
+  // UTF-8-encodes it again, so verify sees a different challenge than mint.
+  const storedChallenge = "kWFILFRO7VkgP4I1vzN2SG1gPyKFwEZ93DXKdNVy27M";
+
+  it("double-encodes when a base64url challenge is passed as a string", async () => {
+    const options = await generateAuthenticationOptions({
+      rpID: "localhost",
+      challenge: storedChallenge,
+    });
+    expect(options.challenge).not.toBe(storedChallenge);
+    expect(
+      new TextDecoder().decode(isoBase64URL.toBuffer(options.challenge)),
+    ).toBe(storedChallenge);
+  });
+
+  it("preserves the challenge when passed as bytes", async () => {
+    const options = await generateAuthenticationOptions({
+      rpID: "localhost",
+      challenge: isoBase64URL.toBuffer(storedChallenge),
+    });
+    expect(options.challenge).toBe(storedChallenge);
+  });
+
+  it("buildMutationOptions emits options.challenge matching the DO store", async () => {
+    const sql = memorySql();
+    initTokenSchema(sql);
+    const store = new TokenStore(sql, "Token111");
+    store.ensureToken("Token111");
+
+    const credentialId = "dGVzdC1jcmVkLWlk"; // valid base64url
+    const result = await buildMutationOptions(
+      store,
+      "http://localhost:3000",
+      { kind: "addOwner", credentialId },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const consumed = await store.consumeChallenge(
+      result.challengeId,
+      "http://localhost:3000",
+      await hashMutationBinding({ kind: "addOwner", credentialId }),
+    );
+    expect(consumed).not.toBeNull();
+    expect(result.options.challenge).toBe(consumed!.challenge);
   });
 });
 

@@ -146,10 +146,12 @@ export async function buildMutationOptions(
     rp.expectedOrigin,
     bindingHash,
   );
+  // Pass raw challenge bytes. A string is UTF-8-encoded then base64url'd again
+  // by @simplewebauthn/server, which breaks verifyAuthenticationResponse.
   const options = await generateAuthenticationOptions({
     rpID: rp.rpId,
     userVerification: "required",
-    challenge,
+    challenge: isoBase64URL.toBuffer(challenge),
     allowCredentials: [
       {
         id: allowCredentialId,
@@ -157,6 +159,13 @@ export async function buildMutationOptions(
       },
     ],
   });
+  if (options.challenge !== challenge) {
+    return {
+      ok: false,
+      code: "signer_misconfigured",
+      error: "WebAuthn challenge encoding mismatch",
+    };
+  }
 
   return { ok: true, challengeId, options };
 }
