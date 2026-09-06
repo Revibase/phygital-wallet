@@ -2,7 +2,7 @@
  * Generic device-local list store backed by localStorage.
  *
  * Provides cached reads, cross-tab sync via the `storage` event, and same-tab
- * updates via a custom event — shared by address book and local wallet activity.
+ * updates via a custom event — used by local wallet activity.
  */
 
 export type LocalStore<T> = {

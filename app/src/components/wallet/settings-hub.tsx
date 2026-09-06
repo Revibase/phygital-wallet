@@ -26,8 +26,7 @@ export type SettingsTarget =
   | "recoveryWallet"
   | "rpcConnection"
   | "feeBalance"
-  | "access"
-  | "contacts";
+  | "access";
 
 /** Wallet settings hub — Access / Money / Send protections / Safety / Advanced. */
 export function SettingsHub({
@@ -173,10 +172,7 @@ export function SettingsHub({
         >
           {copy.wallet.feeBalance}
         </GroupedRow>
-        <GroupedRow onClick={() => onOpen("contacts")}>
-          {copy.wallet.contacts}
-        </GroupedRow>
-        {!isOwner ? (
+        {!isOwner && claimed === true ? (
           <GroupedRow
             onClick={() => onOpen("spendingLimits")}
             subtitle={spendSubtitle}

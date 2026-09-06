@@ -24,7 +24,6 @@ import { RecoveryWalletSheet } from "@/components/wallet/recovery-wallet-sheet";
 import { FeeBalanceSheet } from "@/components/wallet/fee-balance-sheet";
 import { AccessRecoverySheet } from "@/components/wallet/access-recovery-sheet";
 import { ClaimItemSheet } from "@/components/wallet/claim-item-sheet";
-import { ContactsSheet } from "@/components/wallet/contacts-sheet";
 import { RpcConnectionSheet } from "@/components/wallet/rpc-connection-sheet";
 import { TokensAllSheet } from "@/components/wallet/tokens-all-sheet";
 import { CollectiblesAllSheet } from "@/components/wallet/collectibles-all-sheet";
@@ -148,7 +147,6 @@ function WalletWorkspaceInner({
     initialScreen === "settings" ||
     initialScreen === "feeBalance" ||
     initialScreen === "access" ||
-    initialScreen === "contacts" ||
     initialScreen === "signing" ||
     initialScreen === "recoveryWallet" ||
     initialScreen === "rpcConnection"
@@ -501,8 +499,6 @@ function WalletWorkspaceInner({
         }}
       />
     );
-  } else if (screen === "contacts") {
-    body = <ContactsSheet onBack={() => setScreen("settings")} />;
   } else if (screen === "rpcConnection") {
     body = (
       <RpcConnectionSheet onBack={() => setScreen("settings")} />

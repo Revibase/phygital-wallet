@@ -22,12 +22,7 @@ import {
 import { tryParseAddress } from "@/lib/solana/address";
 import { cn, shortAddress } from "@/lib/utils";
 import { toUserErrorMessage } from "@/lib/user-errors";
-import { useAddressBook } from "@/hooks/wallet/use-address-book";
 import { useFeeBalance } from "@/hooks/wallet/use-fee-balance";
-import {
-  touchAddressBookEntry,
-  upsertAddressBookEntry,
-} from "@/lib/wallet/address-book";
 import { pushLocalWalletActivity, patchLocalWalletActivity } from "@/lib/wallet/activity-local";
 import { identifyAccessory } from "@/lib/wallet/identify-accessory";
 import { createOneTimeGrant } from "@/lib/wallet/policies-client";
@@ -107,10 +102,6 @@ export function SendDialog({
   const [busy, setBusy] = useState(false);
   const [hardError, setHardError] = useState<SendHardError | null>(null);
   const [softDeny, setSoftDeny] = useState<PolicyDeniedError | null>(null);
-  const [saveContactOpen, setSaveContactOpen] = useState(false);
-  const [contactName, setContactName] = useState("");
-  const [contactNote, setContactNote] = useState("");
-  const addressBook = useAddressBook();
   const feeBalance = useFeeBalance(phygitalTokenPda);
   const prefersReducedMotion = useReducedMotion();
   const enter = snapEnter(prefersReducedMotion);
@@ -122,9 +113,6 @@ export function SendDialog({
     setHardError(null);
     setSoftDeny(null);
     setPickerOpen(false);
-    setSaveContactOpen(false);
-    setContactName("");
-    setContactNote("");
     setRecipient("");
     const nextAsset = defaultAsset(portfolio, initialAsset, tokensOnly);
     setAsset(nextAsset);
@@ -171,9 +159,6 @@ export function SendDialog({
   const canSend = Boolean(
     asset && parsedRecipient && amountOk && !selfSend && !busy,
   );
-  const savedRecipient = addressBook.find(
-    (entry) => parsedRecipient && entry.address === String(parsedRecipient),
-  );
 
   const feeEstimateLamports = asset
     ? estimateSponsoredFeeLamports(asset.kind)
@@ -192,8 +177,9 @@ export function SendDialog({
     feeBalanceLamports < feeEstimateLamports;
 
   function recapForSend(signature?: string | null): SendHoldRecap {
-    const recipientLabel = savedRecipient?.name
-      ?? (parsedRecipient ? shortAddress(String(parsedRecipient), 6) : trimmedRecipient);
+    const recipientLabel = parsedRecipient
+      ? shortAddress(String(parsedRecipient), 6)
+      : trimmedRecipient;
     return {
       amountLabel: nft
         ? (asset?.name ?? copy.wallet.sendCollectible)
@@ -278,7 +264,6 @@ export function SendDialog({
       window.clearTimeout(holdTimer);
       patchLocalWalletActivity(signature, { pending: false });
       onHoldPhaseChange("success", recapForSend(signature));
-      touchAddressBookEntry(String(parsedRecipient));
       applyOptimisticPortfolioDelta(queryClient, {
         owner: walletAddress,
         mint: asset.mint,
@@ -507,21 +492,6 @@ export function SendDialog({
             )}
           </Button>
         </div>
-        {addressBook.length > 0 ? (
-          <div className="flex flex-wrap gap-2 px-1">
-            {addressBook.slice(0, 4).map((entry) => (
-              <Button
-                key={entry.address}
-                type="button"
-                variant="secondary"
-                className="h-auto min-h-0 rounded-full bg-muted/30 px-3 py-1 text-xs font-medium"
-                onClick={() => setRecipient(entry.address)}
-              >
-                {entry.name}
-              </Button>
-            ))}
-          </div>
-        ) : null}
         <AnimatePresence initial={false}>
           {parsedRecipient ? (
             <m.p
@@ -545,20 +515,6 @@ export function SendDialog({
           <p className="px-1 text-xs text-destructive">
             {copy.wallet.selfSend}
           </p>
-        ) : null}
-        {parsedRecipient && !savedRecipient ? (
-          <Button
-            type="button"
-            variant="link"
-            className="h-auto min-h-0 justify-start px-1 text-left text-xs font-medium"
-            onClick={() => {
-              setContactName(shortAddress(String(parsedRecipient), 4));
-              setContactNote("");
-              setSaveContactOpen(true);
-            }}
-          >
-            {copy.wallet.saveContact}
-          </Button>
         ) : null}
       </m.div>
 
@@ -713,55 +669,6 @@ export function SendDialog({
                 })}
               </GroupedList>
             ) : null}
-          </div>
-        </SheetContent>
-      </Sheet>
-      <Sheet open={saveContactOpen} onOpenChange={setSaveContactOpen}>
-        <SheetContent
-          side="bottom"
-          className="mx-auto max-h-[70vh] max-w-lg overflow-y-auto rounded-t-3xl"
-        >
-          <SheetHeader className="text-left">
-            <SheetTitle>{copy.wallet.saveContact}</SheetTitle>
-          </SheetHeader>
-          <div className="space-y-4 px-4 pb-6">
-            <div className="space-y-2">
-              <FieldLabel className="normal-case tracking-normal text-xs">
-                {copy.wallet.contactName}
-              </FieldLabel>
-              <Input
-                value={contactName}
-                onChange={(e) => setContactName(e.target.value)}
-                placeholder="Alice"
-              />
-            </div>
-            <div className="space-y-2">
-              <FieldLabel className="normal-case tracking-normal text-xs">
-                {copy.wallet.contactNote}
-              </FieldLabel>
-              <Input
-                value={contactNote}
-                onChange={(e) => setContactNote(e.target.value)}
-                placeholder="Revibase"
-              />
-            </div>
-            <Button
-              type="button"
-              size="lg"
-              className="w-full"
-              disabled={!parsedRecipient || !contactName.trim()}
-              onClick={() => {
-                if (!parsedRecipient) return;
-                upsertAddressBookEntry({
-                  address: String(parsedRecipient),
-                  name: contactName,
-                  note: contactNote,
-                });
-                setSaveContactOpen(false);
-              }}
-            >
-              {copy.wallet.saveContact}
-            </Button>
           </div>
         </SheetContent>
       </Sheet>
