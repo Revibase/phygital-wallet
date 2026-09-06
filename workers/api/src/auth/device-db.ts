@@ -17,8 +17,6 @@ export type DeviceTokenLink = {
   linkedAt: number;
 };
 
-export type LinkStatus = "unlinked" | "linked_here" | "linked_elsewhere";
-
 function db() {
   return getD1();
 }
@@ -80,50 +78,6 @@ export async function updateCredentialCounter(
     .prepare(`UPDATE device_credentials SET counter = ? WHERE credential_id = ?`)
     .bind(counter, credentialId)
     .run();
-}
-
-export async function getLinkForToken(
-  phygitalToken: string,
-): Promise<DeviceTokenLink | null> {
-  const row = await db()
-    .prepare(
-      `SELECT credential_id, phygital_token, label, image_url, mint, linked_at
-       FROM device_token_links WHERE phygital_token = ?`,
-    )
-    .bind(phygitalToken)
-    .first<{
-      credential_id: string;
-      phygital_token: string;
-      label: string | null;
-      image_url: string | null;
-      mint: string | null;
-      linked_at: number;
-    }>();
-  if (!row) return null;
-  return {
-    credentialId: row.credential_id,
-    phygitalToken: row.phygital_token,
-    label: row.label,
-    imageUrl: row.image_url,
-    mint: row.mint,
-    linkedAt: row.linked_at,
-  };
-}
-
-export async function getLinkStatus(
-  credentialId: string,
-  phygitalToken: string,
-): Promise<LinkStatus> {
-  const link = await getLinkForToken(phygitalToken);
-  if (!link) return "unlinked";
-  if (link.credentialId === credentialId) return "linked_here";
-  return "linked_elsewhere";
-}
-
-/** True when any device has claimed this token (no credential leak). */
-export async function isTokenClaimed(phygitalToken: string): Promise<boolean> {
-  const link = await getLinkForToken(phygitalToken);
-  return link != null;
 }
 
 export async function listLinksForCredential(
@@ -200,12 +154,4 @@ export async function deleteLink(
     .bind(credentialId, phygitalToken)
     .run();
   return (result.meta.changes ?? 0) > 0;
-}
-
-export async function assertOwnerLink(
-  credentialId: string,
-  phygitalToken: string,
-): Promise<boolean> {
-  const status = await getLinkStatus(credentialId, phygitalToken);
-  return status === "linked_here";
 }

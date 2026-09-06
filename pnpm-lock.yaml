@@ -274,12 +274,9 @@ importers:
       '@noble/curves':
         specifier: ^2.3.0
         version: 2.4.0
-      '@solana-program/system':
-        specifier: ^0.14.0
-        version: 0.14.0(@solana/kit@8.1.0(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@6.0.6))
-      '@solana-program/token':
-        specifier: ^0.16.0
-        version: 0.16.0(@solana/kit@8.1.0(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@6.0.6))
+      '@simplewebauthn/server':
+        specifier: ^14.0.0
+        version: 14.0.0
       '@solana/kit':
         specifier: ^8.1.0
         version: 8.1.0(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@6.0.6)

@@ -10,13 +10,13 @@ import {
   FEE_BALANCE_LOW_LAMPORTS,
   lamportsToSolUi,
 } from "@/fees/constants";
-import { getFeeBalanceLamports } from "@/fees/fee-balance-db";
+import { tokenSigner } from "@/verifier/token-signer";
 
 /**
- * Server-only token routes (D1 fee balance, Jupiter key, rarity index).
+ * Server-only token routes (DO fee balance, Jupiter key, rarity index).
  * Portfolio / collectible / shortcuts use the client Solana RPC.
  */
-export const tokenRoutes = new Hono();
+export const tokenRoutes = new Hono<{ Bindings: Env }>();
 
 tokenRoutes.get("/tokens/fee-balance", async (c) => {
   const tokenRaw = c.req.query("phygitalToken")?.trim() ?? "";
@@ -29,7 +29,10 @@ tokenRoutes.get("/tokens/fee-balance", async (c) => {
   }
 
   try {
-    const balanceLamports = await getFeeBalanceLamports(String(phygitalToken));
+    const { balanceLamports } = await tokenSigner(
+      c.env,
+      String(phygitalToken),
+    ).getFeeBalance();
     return json({
       balanceLamports: String(balanceLamports),
       balanceUi: lamportsToSolUi(balanceLamports),

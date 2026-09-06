@@ -50,6 +50,13 @@ export const queryOptions = {
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
   },
+  /** Browse-unlock cookie (~5m). Short stale; refetch on focus near expiry. */
+  browseUnlock: {
+    staleTime: 30 * SECOND,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+  },
   /** Changes after user actions; mutations already invalidate. */
   default: { refetchOnWindowFocus: false, staleTime: 5 * MINUTE },
   /**

@@ -1,9 +1,8 @@
-import { getEnv } from "@/shared/request-context";
+import { getEnv, getTokenStore } from "@/shared/request-context";
 import {
   MEMO_PROGRAM_ADDRESS,
   requiredFeeLamports,
 } from "@/fees/constants";
-import { getFeeBalanceLamports } from "@/fees/fee-balance-db";
 import { usesDefaultVerifierPaymaster } from "@/fees/default-verifier";
 import { SYSTEM_PROGRAM } from "@/verifier/constants";
 import type { Instruction } from "phygital-verifier-sdk";
@@ -54,7 +53,7 @@ export async function assertFeeBalance(args: {
   }
 
   const requiredLamports = requiredFeeLamports(args.instructions.length);
-  const balanceLamports = await getFeeBalanceLamports(args.phygitalToken);
+  const balanceLamports = getTokenStore().getFeeBalanceLamports();
 
   if (balanceLamports < requiredLamports) {
     return {

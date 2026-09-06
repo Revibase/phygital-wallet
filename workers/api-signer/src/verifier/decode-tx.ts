@@ -4,7 +4,6 @@ import {
   getInstructionsFromCompiledTransactionMessage,
   getTransactionDecoder,
   AccountRole,
-  type Address,
   type Instruction,
 } from "@solana/kit";
 import {
@@ -36,13 +35,6 @@ function discEq(a: Uint8Array, b: Uint8Array): boolean {
   if (a.length < b.length) return false;
   for (let i = 0; i < b.length; i++) if (a[i] !== b[i]) return false;
   return true;
-}
-
-/** Kit `AccountRole` is 0–3; preview JSON may send number or numeric string. */
-function coerceAccountRole(role: string | number | undefined): AccountRole {
-  const n = typeof role === "number" ? role : Number(role);
-  if (Number.isInteger(n) && n >= 0 && n <= 3) return n as AccountRole;
-  return AccountRole.READONLY;
 }
 
 type DecodedSignTx = {
@@ -138,24 +130,4 @@ export function decodeWireTransaction(base64Tx: string): DecodedSignTx {
     phygitalToken,
     instructions: inner,
   };
-}
-
-export function instructionFromJson(raw: {
-  programAddress: string;
-  accounts?: { address: string; role?: string | number }[];
-  data?: string;
-}): Instruction {
-  const dataB64 = raw.data ?? "";
-  const data =
-    dataB64.length > 0
-      ? new Uint8Array(base64Encoder.encode(dataB64))
-      : new Uint8Array();
-  return {
-    programAddress: raw.programAddress as Address,
-    accounts: (raw.accounts ?? []).map((a) => ({
-      address: a.address as Address,
-      role: coerceAccountRole(a.role),
-    })),
-    data,
-  } satisfies Instruction;
 }

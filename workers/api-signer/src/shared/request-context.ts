@@ -1,13 +1,15 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 
+import type { TokenStore } from "@/token-store";
+
 export type RequestStore = {
   env: Env;
-  waitUntil: (promise: Promise<unknown>) => void;
+  /** Present when running inside TokenSigner DO authorize/sign. */
+  tokenStore?: TokenStore;
 };
 
 const als = new AsyncLocalStorage<RequestStore>();
 
-/** Run a Hono request with env / waitUntil available to deep libs. */
 export function runWithRequestStore<T>(
   store: RequestStore,
   fn: () => T,
@@ -27,10 +29,10 @@ export function getEnv(): Env {
   return getRequestStore().env;
 }
 
-export function scheduleBackgroundWork(work: Promise<void>): void {
-  try {
-    getRequestStore().waitUntil(work);
-  } catch {
-    void work;
+export function getTokenStore(): TokenStore {
+  const store = getRequestStore().tokenStore;
+  if (!store) {
+    throw new Error("TokenStore is not configured");
   }
+  return store;
 }

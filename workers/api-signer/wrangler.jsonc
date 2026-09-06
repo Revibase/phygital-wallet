@@ -4,18 +4,25 @@
   "main": "src/index.ts",
   "compatibility_date": "2025-07-01",
   "compatibility_flags": ["nodejs_compat"],
-  // Private worker — only reachable via service binding from revibase-api.
+  // Private worker — only reachable via DO binding from revibase-api.
   "workers_dev": false,
-  "d1_databases": [
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "TOKEN_SIGNER",
+        "class_name": "TokenSigner"
+      }
+    ]
+  },
+  "migrations": [
     {
-      "binding": "phygital_token",
-      "database_name": "phygital-token",
-      "database_id": "356d6b15-cd60-47b5-a014-648246bd27b5"
+      "tag": "v1-token-signer",
+      "new_sqlite_classes": ["TokenSigner"]
     }
   ],
   "vars": {
-    "SOLANA_CLUSTER": "devnet",
-    "SOLANA_RPC_URL": "https://api.devnet.solana.com",
+    "SOLANA_CLUSTER": "mainnet",
+    "SOLANA_RPC_URL": "https://rpc.revibase.com",
     "VERIFIER_SIGNER_BACKEND": "secrets",
     "TOP_UP_ACCUMULATOR": "BExDpnx6E1LW3ofkCPxXvBRAmxqPVsmwnPb4oM5FUutv"
   },

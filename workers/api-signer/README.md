@@ -1,49 +1,47 @@
-# Revibase verifier signer
+# Revibase verifier signer (TokenSigner Durable Object)
 
-Private Cloudflare Worker (`revibase-verifier-signer`) that owns:
+Private Cloudflare Worker (`revibase-verifier-signer`) that hosts the
+**`TokenSigner`** Durable Object (one instance per `phygitalToken`).
 
-1. Fee balance gate  
+Owns:
+
+1. Fee balance gate + ledger  
 2. `authorizeIntent` (standing policy + Approve-once grants)  
-3. Verifier ed25519 co-sign via a pluggable backend  
+3. Verifier ed25519 co-sign via pluggable backend  
+4. Owner membership + platform WebAuthn-gated policy/grant mutations  
 
-It is **not** publicly routed. Only [`api`](../api/) calls it through the `VERIFIER_SIGNER` service binding.
+It is **not** publicly routed. Only [`api`](../api/) calls it through the
+`TOKEN_SIGNER` Durable Object binding (`script_name`).
 
-This package is **isolated** — it does not import from `api`. Runtime helpers
-(policy, fee, decode) are vendored under `src/` and may diverge from the API
-Worker copies intentionally.
+## RPC (`TokenSigner`)
 
-## RPC (`VerifierSignerEntrypoint`)
-
-| Method | Behavior |
-|--------|----------|
-| `signTransactions(wires)` | canSign → fee → authorize(`sign`) → `backend.sign` |
-| `previewAuthorize({ phygitalToken, instructions })` | wallet PDA signer → authorize(`preview`) → fee if ok (no sign) |
-
-Signing never runs unless fee and policy checks pass.
+| Method | Auth | Behavior |
+|--------|------|----------|
+| `signTransactions(wires)` | none | canSign → fee → authorize(`sign`) → `backend.sign` |
+| `previewAuthorize({ instructions })` | none | wallet PDA → authorize(`preview`) → fee |
+| `getPolicy` / `getFeeBalance` / `hasOwner` / `isOwner` / `getOwnerCredentialId` | none | reads |
+| `createMutationChallenge` | none (api gates session) | mint short-TTL challenge bound to write intent; returns `challengeId` + options |
+| `addOwner` | **WebAuthn** | sole owner; binding `{ kind: "addOwner", credentialId }`; fails `linked_elsewhere` if claimed |
+| `setPolicy` / `clearPolicy` / `createGrant` / `removeOwnerAndClear` | **challengeId + assertion** | binding (policy / intent / kind) must match mint; consume + verify sig |
+| `removeOwnerAndClear` | **WebAuthn** | on-chain: token verifier + recovery wallet PDAs must be closed; then wipe owner + policies/grants |
+| `applyFeeEvents` | webhook auth on api | idempotent credit/debit |
 
 ## Signing backends
 
 | `VERIFIER_SIGNER_BACKEND` | Status |
 |---------------------------|--------|
 | `secrets` (default) | `VERIFIER_SECRET_KEYS` JSON map pubkey → seed/keypair (max 8) |
-| `kms` | Reserved — implement `KmsVerifierBackend` + `VERIFIER_KMS_KEY_MAP` later |
-
-Interface: `src/backend/types.ts` (`canSign` / `sign`).
+| `kms` | Reserved |
 
 ## Secrets
 
 ```bash
-# Map of on-chain verifier pubkey → base58 32-byte seed or 64-byte keypair
 wrangler secret put VERIFIER_SECRET_KEYS --config wrangler.jsonc
-# Example value:
-# {"VerifierPubkey111...":"SeedOrKeypairBase58..."}
 ```
-
-Optional: `TOP_UP_ACCUMULATOR` (same as API) for fee top-up exemption.
 
 ## Deploy
 
-Deploy **signer before API** so the service binding target exists:
+Deploy **signer before API** so the DO class exists:
 
 ```bash
 pnpm --filter api-signer deploy

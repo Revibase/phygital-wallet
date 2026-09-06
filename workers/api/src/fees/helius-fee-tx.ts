@@ -21,12 +21,9 @@ import {
 } from "phygital-wallet-sdk";
 
 import { isDefaultConfigVerifier } from "@/fees/default-verifier";
-import {
-  creditFeeBalance,
-  debitFeeBalance,
-} from "@/fees/fee-balance-db";
 import { getEnv } from "@/shared/request-context";
 import { tryParseAddress } from "@/shared/solana/address";
+import { tokenSigner } from "@/verifier/token-signer";
 
 type HeliusIx = {
   programId?: string;
@@ -189,7 +186,7 @@ export function findExecuteAccounts(tx: HeliusTxLike): ExecuteAccounts | null {
 
 /**
  * Process one Helius tx: credit top-ups, debit default-verifier execute fees.
- * Pure side-effects via D1; safe to call repeatedly (idempotent by signature).
+ * Ledger lives on TokenSigner DO; idempotent by signature.
  */
 async function processHeliusFeeTx(
   raw: HeliusTxLike,
@@ -198,40 +195,65 @@ async function processHeliusFeeTx(
   const signature = tx.signature?.trim();
   if (!signature) return { credited: false, debited: false };
 
-  const accumulator = getEnv().TOP_UP_ACCUMULATOR?.trim() ?? "";
+  const env = getEnv();
+  const accumulator = env.TOP_UP_ACCUMULATOR?.trim() ?? "";
   const execute = findExecuteAccounts(tx);
-  let credited = false;
-  let debited = false;
+  const events: {
+    token: string;
+    event: { signature: string; kind: "credit" | "debit"; lamports: number };
+  }[] = [];
 
-  // Credit: SOL landed on accumulator. Prefer execute's token (always present
-  // on a wrapped top-up); memo is the fallback for a plain transfer.
   if (accumulator) {
     const change = nativeChange(tx, accumulator);
     if (change > 0) {
       const token = execute?.phygitalToken ?? findMemoPhygitalToken(tx);
       if (token) {
-        credited = await creditFeeBalance({
-          phygitalToken: token,
-          lamports: change,
-          signature: `${signature}:credit`,
+        events.push({
+          token,
+          event: {
+            signature: `${signature}:credit`,
+            kind: "credit",
+            lamports: change,
+          },
         });
       }
     }
   }
 
-  // Debit: execute with default verifier fee spend
   if (execute) {
     const feePayer = tx.feePayer ?? execute.verifier;
     const isDefault = await isDefaultConfigVerifier(feePayer);
     if (isDefault) {
       const change = nativeChange(tx, feePayer);
       if (change < 0) {
-        debited = await debitFeeBalance({
-          phygitalToken: execute.phygitalToken,
-          lamports: -change,
-          signature: `${signature}:debit`,
+        events.push({
+          token: execute.phygitalToken,
+          event: {
+            signature: `${signature}:debit`,
+            kind: "debit",
+            lamports: -change,
+          },
         });
       }
+    }
+  }
+
+  if (events.length === 0) return { credited: false, debited: false };
+
+  const byToken = new Map<string, (typeof events)[number]["event"][]>();
+  for (const { token, event } of events) {
+    const list = byToken.get(token) ?? [];
+    list.push(event);
+    byToken.set(token, list);
+  }
+
+  let credited = false;
+  let debited = false;
+  for (const [token, batch] of byToken) {
+    const { applied } = await tokenSigner(env, token).applyFeeEvents(batch);
+    if (applied > 0) {
+      if (batch.some((e) => e.kind === "credit")) credited = true;
+      if (batch.some((e) => e.kind === "debit")) debited = true;
     }
   }
 

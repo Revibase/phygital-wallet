@@ -4,13 +4,13 @@
 interface __BaseEnv_Env {
 	revibase_counter: KVNamespace;
 	phygital_token: D1Database;
+	TOKEN_SIGNER: DurableObjectNamespace /* TokenSigner from revibase-verifier-signer */;
 	SOLANA_CLUSTER: string;
 	SOLANA_RPC_URL: string;
 	JUPITER_API_KEY: string;
 	POLICY_SESSION_SECRET: string;
 	TOP_UP_ACCUMULATOR: string;
 	HELIUS_WEBHOOK_AUTH: string;
-	VERIFIER_SIGNER: Service /* entrypoint VerifierSignerEntrypoint from revibase-verifier-signer */;
 }
 declare namespace Cloudflare {
 	interface GlobalProps {

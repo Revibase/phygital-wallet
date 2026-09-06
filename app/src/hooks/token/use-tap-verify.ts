@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useSearchParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { queryKeys, queryOptions } from "@/lib/queries";
 import { queryFetch, readJson } from "@/lib/queries/http";
@@ -13,8 +13,8 @@ export type TapVerifyResult = {
   status: "verified" | "failed";
   identifier?: string;
   counter?: number;
-  possessionToken?: string;
-  possessionExpiresAt?: number;
+  /** PDA from server GPA — prefer over a second client GPA. */
+  phygitalToken?: string;
 };
 
 async function fetchTapVerification(
@@ -29,8 +29,7 @@ async function fetchTapVerification(
     isVerified?: boolean;
     identifier?: string;
     counter?: number;
-    possessionToken?: string;
-    possessionExpiresAt?: number;
+    phygitalToken?: string;
     error?: string;
   }>(res, "verification failed");
 
@@ -42,8 +41,7 @@ async function fetchTapVerification(
     status: "verified",
     identifier: body.identifier,
     counter: body.counter,
-    possessionToken: body.possessionToken,
-    possessionExpiresAt: body.possessionExpiresAt,
+    phygitalToken: body.phygitalToken,
   };
 }
 
@@ -53,6 +51,7 @@ async function fetchTapVerification(
  */
 export function useTapVerify() {
   const params = useSearchParams();
+  const queryClient = useQueryClient();
 
   const pk = params.get("pk");
   const s = params.get("s");
@@ -74,7 +73,19 @@ export function useTapVerify() {
 
   const verifyQuery = useQuery<TapVerifyResult, Error>({
     queryKey: queryKeys.tapVerify.byParams(tapParamsString),
-    queryFn: () => fetchTapVerification(new URLSearchParams(tapParamsString)),
+    queryFn: async () => {
+      const result = await fetchTapVerification(
+        new URLSearchParams(tapParamsString),
+      );
+      // Cookie is set by /verify-tap; seed RQ so the address page skips GET.
+      if (result.phygitalToken) {
+        queryClient.setQueryData(
+          queryKeys.deviceAuth.browseUnlock(result.phygitalToken),
+          true,
+        );
+      }
+      return result;
+    },
     enabled: hasTapProof,
     // One-shot proof — cache success; never refetch.
     ...queryOptions.immutable,

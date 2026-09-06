@@ -26,7 +26,7 @@ export function LimitsSetupSheet({
   claimed?: boolean;
   screen: PolicySetupScreen;
   onBack: () => void;
-  /** Prefer in-wallet claim when possession is already fresh. */
+  /** Prefer in-wallet claim when browse unlock is already fresh. */
   onClaim?: () => void;
 }) {
   const linkedElsewhere = linkStatus === "linked_elsewhere";

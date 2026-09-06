@@ -20,7 +20,7 @@ export type HoldToCheckOverlay =
  * Hold-to-verify + Verified badge.
  *
  * `liveConfirmed` is true only after a successful `startAuthentication` /
- * verifyResponse in this page session — never from possession unlock alone.
+ * verifyResponse in this page session — never from browse unlock alone.
  */
 export function useHoldToCheck(token: PhygitalToken) {
   const inApp = useIsInAppBrowser();

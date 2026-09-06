@@ -1,5 +1,4 @@
 import {
-  COMPUTE_BUDGET_PROGRAM_ADDRESS,
   RECIPIENT_ACCOUNT_FIELDS,
   STANDARD_PARSERS,
   createVerifier,
@@ -12,6 +11,7 @@ import {
   PHYGITAL_TOKEN_PROGRAM_ADDRESS,
   PHYGITAL_WALLET_PROGRAM_ADDRESS,
 } from "phygital-wallet-sdk";
+import { COMPUTE_BUDGET_PROGRAM } from "@/verifier/constants";
 import { getUsdcMint, USDC_DECIMALS } from "@/tokens/usdc-mint";
 
 const verify = createVerifier({ parsers: [...STANDARD_PARSERS] });
@@ -141,7 +141,7 @@ export function evaluatePolicy(
   instructions: readonly Instruction[],
 ): PolicyVerdict {
   const body = instructions.filter(
-    (ix) => String(ix.programAddress) !== COMPUTE_BUDGET_PROGRAM_ADDRESS,
+    (ix) => String(ix.programAddress) !== COMPUTE_BUDGET_PROGRAM,
   );
 
   if (body.length === 0) {

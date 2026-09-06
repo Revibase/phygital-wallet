@@ -1,6 +1,6 @@
 import { json } from "@/shared/http";
 
-export type CodedVerifierError = {
+type CodedVerifierError = {
   code: string;
   error: string;
   soft: boolean;

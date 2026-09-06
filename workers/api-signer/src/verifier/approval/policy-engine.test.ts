@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { Address } from "@solana/kit";
 import {
   defineStandardPolicy,
   type Instruction,
@@ -9,11 +10,11 @@ import {
 
 import { evaluatePolicy } from "./policy-engine";
 
-const SYSTEM = "11111111111111111111111111111111";
+const SYSTEM = "11111111111111111111111111111111" as Address;
 
-function ix(programAddress: string): Instruction {
+function ix(programAddress: Address | string): Instruction {
   return {
-    programAddress,
+    programAddress: programAddress as Address,
     accounts: [],
     data: new Uint8Array(),
   };

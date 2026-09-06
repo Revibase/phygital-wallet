@@ -1,5 +1,4 @@
 import { getEnv } from "@/shared/request-context";
-import { bytesToBase64Url } from "@/shared/crypto/base64";
 
 const CHALLENGE_TTL_SEC = 300;
 const CHALLENGE_PREFIX = "webauthn:challenge:";
@@ -30,12 +29,9 @@ export async function consumeWebAuthnChallenge(
   return true;
 }
 
-export function newWebAuthnChallenge(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(32));
-  return bytesToBase64Url(bytes);
-}
-
-/** RP ID for platform passkeys — registrable domain of the app origin. */
+/** RP ID for platform passkeys — registrable domain of the app origin.
+ * Keep in sync with workers/api-signer/src/webauthn-mutation.ts `resolveWebAuthnRp`.
+ */
 export function resolveWebAuthnRp(originHeader: string | null): {
   rpId: string;
   rpName: string;

@@ -1,3 +1,11 @@
+import {
+  startAuthentication as startPlatformAuthentication,
+} from "@simplewebauthn/browser";
+import type {
+  AuthenticationResponseJSON,
+  PublicKeyCredentialRequestOptionsJSON,
+} from "@simplewebauthn/browser";
+
 import { queryFetch, readJson } from "@/lib/queries/http";
 import type { PolicyDocument } from "phygital-verifier-sdk";
 
@@ -19,14 +27,40 @@ export type EffectivePolicy = {
   status: PolicyStatus;
 };
 
-function asEffective(
-  body: { policy: PolicyDocument | null; status?: PolicyStatus },
-  fallback: PolicyStatus = body.policy ? "ok" : "none",
-): EffectivePolicy {
-  return {
-    policy: body.policy,
-    status: body.status ?? fallback,
-  };
+/** Owner mutation bindings used by the app (addOwner is claim-only). */
+export type MutationBinding =
+  | { kind: "setPolicy"; policy: PolicyDocument }
+  | { kind: "clearPolicy" }
+  | { kind: "createGrant"; intentHash: string }
+  | { kind: "removeOwner" };
+
+/** Fetch DO-minted WebAuthn options bound to this write and collect assertion. */
+export async function assertPolicyMutation(
+  phygitalToken: string,
+  binding: MutationBinding,
+  cancelMessage = "Confirmation was cancelled",
+): Promise<{ challengeId: string; assertion: AuthenticationResponseJSON }> {
+  const optionsRes = await queryFetch(
+    `/policies/${encodeURIComponent(phygitalToken)}/mutation-options`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(binding),
+    },
+  );
+  const { challengeId, options } = await readJson<{
+    challengeId: string;
+    options: PublicKeyCredentialRequestOptionsJSON;
+  }>(optionsRes, "Couldn’t start confirmation");
+  try {
+    const assertion = await startPlatformAuthentication({ optionsJSON: options });
+    return { challengeId, assertion };
+  } catch (e) {
+    if (e instanceof Error && e.name === "NotAllowedError") {
+      throw new Error(cancelMessage);
+    }
+    throw e;
+  }
 }
 
 /** GET standing policy (owner session required). */
@@ -34,61 +68,65 @@ export async function fetchEffectivePolicy(
   phygitalToken: string,
 ): Promise<EffectivePolicy> {
   const res = await queryFetch(`/policies/${encodeURIComponent(phygitalToken)}`);
-  const body = await readJson<{
-    policy: PolicyDocument | null;
-    status?: PolicyStatus;
-  }>(res, "Couldn’t load settings");
-  return asEffective(body);
+  return readJson<EffectivePolicy>(res, "Couldn’t load settings");
 }
 
-/**
- * PUT compiled `PolicyDocument`. Requires an existing device session + owner
- * link — no lazy Face ID (send user to Home setup on 401).
- */
+/** PUT compiled PolicyDocument with platform WebAuthn step-up. */
 export async function putPolicyDocument(
   phygitalToken: string,
   policy: PolicyDocument,
 ): Promise<EffectivePolicy> {
+  const { challengeId, assertion } = await assertPolicyMutation(
+    phygitalToken,
+    { kind: "setPolicy", policy },
+    "Save was cancelled",
+  );
   const res = await queryFetch(
     `/policies/${encodeURIComponent(phygitalToken)}`,
     {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ policy }),
+      body: JSON.stringify({ policy, challengeId, assertion }),
     },
   );
-  const body = await readJson<{
-    policy: PolicyDocument | null;
-    status?: PolicyStatus;
-  }>(res, "Couldn’t save settings");
-  return asEffective(body);
+  return readJson<EffectivePolicy>(res, "Couldn’t save settings");
 }
 
-/** DELETE standing policy (limits off). */
+/** DELETE standing policy (limits off) with platform WebAuthn step-up. */
 export async function deletePolicyDocument(
   phygitalToken: string,
 ): Promise<EffectivePolicy> {
+  const { challengeId, assertion } = await assertPolicyMutation(
+    phygitalToken,
+    { kind: "clearPolicy" },
+    "Turn off was cancelled",
+  );
   const res = await queryFetch(
     `/policies/${encodeURIComponent(phygitalToken)}`,
-    { method: "DELETE" },
+    {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ challengeId, assertion }),
+    },
   );
-  const body = await readJson<{
-    policy: PolicyDocument | null;
-    status?: PolicyStatus;
-  }>(res, "Couldn’t turn off limits");
-  return asEffective(body, "none");
+  return readJson<EffectivePolicy>(res, "Couldn’t turn off limits");
 }
 
 export async function createOneTimeGrant(
   phygitalToken: string,
   intentHash: string,
 ): Promise<void> {
+  const { challengeId, assertion } = await assertPolicyMutation(
+    phygitalToken,
+    { kind: "createGrant", intentHash },
+    "Approve was cancelled",
+  );
   const res = await queryFetch(
     `/policies/${encodeURIComponent(phygitalToken)}/grants`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ intentHash }),
+      body: JSON.stringify({ intentHash, challengeId, assertion }),
     },
   );
   await readJson(res, "Couldn’t approve this send");
@@ -115,5 +153,5 @@ export async function cancelOpenApproval(
     `/policies/${encodeURIComponent(phygitalToken)}/approvals/${encodeURIComponent(intentHash)}`,
     { method: "DELETE" },
   );
-  await readJson(res, "Couldn’t cancel this approval");
+  await readJson(res, "Couldn’t dismiss approval");
 }

@@ -1,6 +1,6 @@
-import type { Instruction } from "phygital-verifier-sdk";
-
-/** Canonical RPC contract for `VerifierSignerEntrypoint` (api + api-signer). */
+/**
+ * Canonical result types for TokenSigner DO authorize / sign RPC.
+ */
 
 export type SignTransactionsResult =
   | { ok: true; signatures: string[] }
@@ -15,11 +15,6 @@ export type SignTransactionsResult =
       };
     };
 
-export type PreviewAuthorizeInput = {
-  phygitalToken: string;
-  instructions: readonly Instruction[];
-};
-
 export type PreviewAuthorizeResult =
   | { ok: true; intentHash: string }
   | {
@@ -29,13 +24,5 @@ export type PreviewAuthorizeResult =
       soft: boolean;
       intentHash?: string;
       details?: Record<string, unknown>;
-      /** When set (e.g. coded throws), API uses this HTTP status; else 200. */
       httpStatus?: number;
     };
-
-export type VerifierSignerService = {
-  signTransactions(transactions: string[]): Promise<SignTransactionsResult>;
-  previewAuthorize(
-    input: PreviewAuthorizeInput,
-  ): Promise<PreviewAuthorizeResult>;
-};

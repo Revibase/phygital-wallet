@@ -143,3 +143,13 @@ export async function resolvePendingApproval(
     .run();
   return (result.meta.changes ?? 0) > 0;
 }
+
+/** Wipe inbox when policy is cleared / owner unlinks. */
+export async function clearPendingApprovalsForToken(
+  phygitalToken: string,
+): Promise<void> {
+  await db()
+    .prepare(`DELETE FROM pending_approvals WHERE phygital_token = ?`)
+    .bind(phygitalToken)
+    .run();
+}

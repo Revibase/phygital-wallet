@@ -12,7 +12,6 @@
  * - `parsers/`  — STANDARD program parsers + IDL glue
  */
 export {
-  COMPUTE_BUDGET_PROGRAM_ADDRESS,
   RECIPIENT_ACCOUNT_FIELDS,
 } from "./core/constants.js";
 

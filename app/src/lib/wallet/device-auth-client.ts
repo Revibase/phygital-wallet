@@ -1,6 +1,7 @@
 /**
  * Platform-passkey device identity — register / login / links.
- * App session is credential-scoped; accessory Hold is for spend + link only.
+ * App session is credential-scoped. Browse unlock is an httpOnly cookie
+ * from NFC tap / accessory Hold; claim/link uses platform WebAuthn only.
  */
 import {
   startAuthentication as startPlatformAuthentication,
@@ -12,10 +13,11 @@ import type {
   PublicKeyCredentialRequestOptionsJSON,
   RegistrationResponseJSON,
 } from "@simplewebauthn/browser";
-import { startAuthentication } from "phygital-token-sdk";
 
 import { queryFetch, readJson } from "@/lib/queries/http";
 import { authenticateToken } from "@/lib/token/authenticate";
+import { clearClaimDismiss } from "@/lib/wallet/claim-setup-href";
+import { assertPolicyMutation } from "@/lib/wallet/policies-client";
 
 export type DeviceSessionInfo = {
   credentialId: string;
@@ -32,120 +34,70 @@ export type DeviceLink = {
   linkedAt: number;
 };
 
-export type AccessoryAuth = {
-  message: string;
-  response: Awaited<ReturnType<typeof startAuthentication>>;
+export type TokenGate = {
+  session: DeviceSessionInfo | null;
+  browseUnlocked: boolean;
+  linkStatus: LinkStatus | null;
+  claimed: boolean;
 };
 
-/** Match server possession TTL — browse/link reuse without a second Hold. */
-const ACCESSORY_PROOF_TTL_MS = 5 * 60 * 1000;
-
-function possessionStorageKey(phygitalToken: string): string {
-  return `revibase.possession.${phygitalToken}`;
-}
-
-function accessoryProofStorageKey(phygitalToken: string): string {
-  return `revibase.accessoryProof.${phygitalToken}`;
-}
-
-export function peekPossessionToken(phygitalToken: string): string | null {
-  try {
-    return sessionStorage.getItem(possessionStorageKey(phygitalToken));
-  } catch {
-    return null;
-  }
-}
-
-export function storePossessionToken(
+/** Whether the httpOnly browse-unlock cookie covers this token. */
+export async function fetchBrowseUnlock(
   phygitalToken: string,
-  token: string,
-): void {
-  try {
-    sessionStorage.setItem(possessionStorageKey(phygitalToken), token);
-  } catch {
-    /* private mode / quota */
-  }
-  try {
-    // New possession = new unlock session → resurface claim prompt.
-    sessionStorage.removeItem(`revibase.claimDismissed.${phygitalToken}`);
-  } catch {
-    /* ignore */
-  }
-}
-
-export function clearPossessionToken(phygitalToken: string): void {
-  try {
-    sessionStorage.removeItem(possessionStorageKey(phygitalToken));
-  } catch {
-    /* ignore */
-  }
-}
-
-type StoredAccessoryProof = AccessoryAuth & { storedAt: number };
-
-/** Fresh cold-Hold / address-Hold proof for browse + link (not the HMAC tap token). */
-export function peekAccessoryProof(
-  phygitalToken: string,
-): AccessoryAuth | null {
-  try {
-    const raw = sessionStorage.getItem(accessoryProofStorageKey(phygitalToken));
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<StoredAccessoryProof>;
-    if (
-      typeof parsed.message !== "string" ||
-      parsed.response == null ||
-      typeof parsed.storedAt !== "number"
-    ) {
-      clearAccessoryProof(phygitalToken);
-      return null;
-    }
-    if (Date.now() - parsed.storedAt > ACCESSORY_PROOF_TTL_MS) {
-      clearAccessoryProof(phygitalToken);
-      return null;
-    }
-    return { message: parsed.message, response: parsed.response as AccessoryAuth["response"] };
-  } catch {
-    return null;
-  }
-}
-
-export function storeAccessoryProof(
-  phygitalToken: string,
-  accessory: AccessoryAuth,
-): void {
-  try {
-    const payload: StoredAccessoryProof = {
-      ...accessory,
-      storedAt: Date.now(),
-    };
-    sessionStorage.setItem(
-      accessoryProofStorageKey(phygitalToken),
-      JSON.stringify(payload),
-    );
-  } catch {
-    /* private mode / quota */
-  }
-  try {
-    sessionStorage.removeItem(`revibase.claimDismissed.${phygitalToken}`);
-  } catch {
-    /* ignore */
-  }
-}
-
-export function clearAccessoryProof(phygitalToken: string): void {
-  try {
-    sessionStorage.removeItem(accessoryProofStorageKey(phygitalToken));
-  } catch {
-    /* ignore */
-  }
-}
-
-/** True when NFC possession token or a fresh cold-Hold proof is available. */
-export function hasFreshPossession(phygitalToken: string): boolean {
-  return (
-    Boolean(peekPossessionToken(phygitalToken)) ||
-    Boolean(peekAccessoryProof(phygitalToken))
+): Promise<boolean> {
+  const res = await queryFetch(
+    `/auth/browse-unlock?phygitalToken=${encodeURIComponent(phygitalToken)}`,
   );
+  const body = await readJson<{ unlocked: boolean }>(
+    res,
+    "Couldn’t check browse unlock",
+  );
+  return Boolean(body.unlocked);
+}
+
+/**
+ * Session + browse unlock + link status + claimed in one request.
+ * Prefer this on the token address gate over parallel auth GETs.
+ */
+export async function fetchTokenGate(phygitalToken: string): Promise<TokenGate> {
+  const res = await queryFetch(
+    `/auth/device/gate?phygitalToken=${encodeURIComponent(phygitalToken)}`,
+  );
+  const body = await readJson<{
+    session: DeviceSessionInfo | null;
+    browseUnlocked: boolean;
+    linkStatus: LinkStatus | null;
+    claimed: boolean;
+  }>(res, "Couldn’t check token access");
+  return {
+    session: body.session,
+    browseUnlocked: Boolean(body.browseUnlocked),
+    linkStatus: body.linkStatus,
+    claimed: Boolean(body.claimed),
+  };
+}
+
+/** After Hold crypto, mint browse-unlock cookie without a second prompt. */
+export async function unlockBrowseFromAccessory(args: {
+  message: string;
+  response: Awaited<ReturnType<typeof authenticateToken>>["response"];
+  phygitalToken?: string;
+}): Promise<{ phygitalToken: string; expiresAt: number }> {
+  const res = await queryFetch("/auth/browse-unlock", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      message: args.message,
+      response: args.response,
+      ...(args.phygitalToken ? { phygitalToken: args.phygitalToken } : {}),
+    }),
+  });
+  const body = await readJson<{
+    phygitalToken: string;
+    expiresAt: number;
+  }>(res, "Couldn’t unlock browse");
+  clearClaimDismiss(body.phygitalToken);
+  return body;
 }
 
 export async function fetchDeviceSession(): Promise<DeviceSessionInfo | null> {
@@ -256,25 +208,42 @@ export async function fetchTokenClaimed(
   return Boolean(body.claimed);
 }
 
-/** Accessory Hold for link (reuses authenticateToken crypto). */
-export async function holdAccessoryAuth(): Promise<
-  AccessoryAuth & { secp256r1PublicKey: string }
-> {
-  return authenticateToken();
-}
-
 export async function linkToken(args: {
   phygitalToken: string;
-  possessionToken?: string;
-  accessory?: AccessoryAuth;
   label?: string | null;
   imageUrl?: string | null;
   mint?: string | null;
 }): Promise<LinkStatus> {
+  const optionsRes = await queryFetch(
+    `/auth/device/links/${encodeURIComponent(args.phygitalToken)}/mutation-options`,
+    { method: "POST" },
+  );
+  const { challengeId, options } = await readJson<{
+    challengeId: string;
+    options: PublicKeyCredentialRequestOptionsJSON;
+  }>(optionsRes, "Couldn’t start link confirmation");
+
+  let assertion: AuthenticationResponseJSON;
+  try {
+    assertion = await startPlatformAuthentication({ optionsJSON: options });
+  } catch (e) {
+    if (e instanceof Error && e.name === "NotAllowedError") {
+      throw new Error("Link was cancelled");
+    }
+    throw e;
+  }
+
   const res = await queryFetch("/auth/device/links", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(args),
+    body: JSON.stringify({
+      phygitalToken: args.phygitalToken,
+      label: args.label,
+      imageUrl: args.imageUrl,
+      mint: args.mint,
+      challengeId,
+      assertion,
+    }),
   });
   const body = await readJson<{ status: LinkStatus }>(
     res,
@@ -284,9 +253,19 @@ export async function linkToken(args: {
 }
 
 export async function unlinkToken(phygitalToken: string): Promise<void> {
+  const { challengeId, assertion } = await assertPolicyMutation(
+    phygitalToken,
+    { kind: "removeOwner" },
+    "Unlink was cancelled",
+  );
+
   const res = await queryFetch(
     `/auth/device/links/${encodeURIComponent(phygitalToken)}`,
-    { method: "DELETE" },
+    {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ challengeId, assertion }),
+    },
   );
   await readJson(res, "Couldn’t unlink");
 }

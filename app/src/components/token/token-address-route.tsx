@@ -2,7 +2,7 @@
 
 import { Nfc } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { useIsRestoring, useQuery } from "@tanstack/react-query";
+import { useIsRestoring, useQuery, useQueryClient } from "@tanstack/react-query";
 import { findPhygitalTokenPda } from "phygital-token-sdk";
 
 import { GateMessage } from "@/components/layout/gate-message";
@@ -20,12 +20,10 @@ import { copy } from "@/lib/copy/phygital";
 import { queryKeys, queryOptions } from "@/lib/queries";
 import { toUserErrorMessage } from "@/lib/user-errors";
 import {
-  fetchDeviceSession,
-  fetchLinkStatus,
-  fetchTokenClaimed,
-  hasFreshPossession,
-  storeAccessoryProof,
+  fetchTokenGate,
+  unlockBrowseFromAccessory,
   type LinkStatus,
+  type TokenGate,
 } from "@/lib/wallet/device-auth-client";
 import { isClaimDismissed } from "@/lib/wallet/claim-setup-href";
 
@@ -46,6 +44,28 @@ function layoutForToken(token: PhygitalToken): ShellLayout {
   return tokenHasLinkedMint(token) ? "gallery" : "compact";
 }
 
+function seedAuthCaches(
+  queryClient: ReturnType<typeof useQueryClient>,
+  tokenAddress: string,
+  gate: TokenGate,
+) {
+  queryClient.setQueryData(queryKeys.deviceAuth.session(), gate.session);
+  queryClient.setQueryData(
+    queryKeys.deviceAuth.browseUnlock(tokenAddress),
+    gate.browseUnlocked,
+  );
+  if (gate.linkStatus) {
+    queryClient.setQueryData(
+      queryKeys.deviceAuth.linkStatus(tokenAddress),
+      gate.linkStatus,
+    );
+  }
+  queryClient.setQueryData(
+    queryKeys.deviceAuth.claimed(tokenAddress),
+    gate.claimed,
+  );
+}
+
 /** Possession-first token home — platform session optional (owner convenience). */
 export function TokenAddressRoute({
   tokenAddress,
@@ -55,6 +75,7 @@ export function TokenAddressRoute({
   children?: ReactNode | ((args: TokenHomeRenderArgs) => ReactNode);
 }) {
   const isRestoring = useIsRestoring();
+  const queryClient = useQueryClient();
   const tokenQuery = usePhygitalTokenByAddress(tokenAddress);
 
   // Under client-only layout: wait for persist restore, then use cached/fetched token.
@@ -62,34 +83,32 @@ export function TokenAddressRoute({
   const mint = token && tokenHasLinkedMint(token) ? String(token.mint) : null;
   const { collectible } = useResolvedDasCollectible(mint);
 
-  const session = useQuery({
-    queryKey: queryKeys.deviceAuth.session(),
-    queryFn: fetchDeviceSession,
-    ...queryOptions.deviceSession,
-  });
-
-  const linkStatus = useQuery({
-    queryKey: queryKeys.deviceAuth.linkStatus(tokenAddress),
-    queryFn: () => fetchLinkStatus(tokenAddress),
-    enabled: Boolean(token) && Boolean(session.data),
+  const gate = useQuery({
+    queryKey: queryKeys.deviceAuth.gate(tokenAddress),
+    queryFn: async () => {
+      const data = await fetchTokenGate(tokenAddress);
+      seedAuthCaches(queryClient, tokenAddress, data);
+      return data;
+    },
+    enabled: Boolean(token),
     ...queryOptions.deviceLinks,
   });
 
-  const [possessionOk, setPossessionOk] = useState(false);
-
-  useEffect(() => {
-    if (hasFreshPossession(tokenAddress)) setPossessionOk(true);
-  }, [tokenAddress]);
-
-  const claimed = useQuery({
-    queryKey: queryKeys.deviceAuth.claimed(tokenAddress),
-    queryFn: () => fetchTokenClaimed(tokenAddress),
-    enabled: Boolean(token) && (possessionOk || Boolean(session.data)),
-    ...queryOptions.deviceLinks,
+  // Seeded by /verify-tap / Hold — unlock immediately without waiting on gate.
+  const seededBrowse = useQuery({
+    queryKey: queryKeys.deviceAuth.browseUnlock(tokenAddress),
+    queryFn: async () => false,
+    enabled: false,
   });
 
-  const isOwner = Boolean(session.data) && linkStatus.data === "linked_here";
-  const unlocked = Boolean(token) && (isOwner || possessionOk);
+  const session = gate.data?.session ?? null;
+  const linkStatus = gate.data?.linkStatus;
+  const browseUnlocked =
+    gate.data?.browseUnlocked === true || seededBrowse.data === true;
+  const claimed = gate.data?.claimed;
+
+  const isOwner = Boolean(session) && linkStatus === "linked_here";
+  const unlocked = Boolean(token) && (isOwner || browseUnlocked);
 
   const role: WalletRole = isOwner ? "owner" : "visitor";
 
@@ -101,24 +120,14 @@ export function TokenAddressRoute({
       (tokenQuery.isPending ||
         tokenQuery.isLoading ||
         tokenQuery.isFetching));
-  // Wait for session before Hold so linked owners don’t flash the gate.
-  const waitingSession =
-    Boolean(token) &&
-    session.isPending &&
-    !possessionOk &&
-    !unlocked;
-  // Only wait on link-status when sessioned (owner fast-path); never block Hold.
-  const waitingLink =
-    Boolean(token) &&
-    Boolean(session.data) &&
-    linkStatus.isPending &&
-    !unlocked &&
-    !possessionOk;
+  // One gate request covers session / browse / link / claimed.
+  const waitingGate = Boolean(token) && gate.isPending && !unlocked;
   // Wait briefly for claimed so claim sheet doesn’t flash after wallet.
   const waitingClaimed =
     unlocked &&
     !isOwner &&
-    claimed.isPending &&
+    !gate.data &&
+    gate.isPending &&
     !isClaimDismissed(tokenAddress);
   const [claimedWaitTimedOut, setClaimedWaitTimedOut] = useState(false);
   useEffect(() => {
@@ -135,8 +144,7 @@ export function TokenAddressRoute({
 
   const waiting =
     waitingToken ||
-    waitingSession ||
-    waitingLink ||
+    waitingGate ||
     (waitingClaimed && !claimedWaitTimedOut);
   const [timedOut, setTimedOut] = useState(false);
 
@@ -154,17 +162,17 @@ export function TokenAddressRoute({
     return {
       token,
       role,
-      linkStatus: session.data ? linkStatus.data : undefined,
-      claimed: claimed.isError ? undefined : claimed.data,
+      linkStatus: session ? (linkStatus ?? undefined) : undefined,
+      claimed: gate.isError ? undefined : claimed,
     };
   }, [
     unlocked,
     token,
     role,
-    session.data,
-    linkStatus.data,
-    claimed.isError,
-    claimed.data,
+    session,
+    linkStatus,
+    gate.isError,
+    claimed,
   ]);
 
   return (
@@ -190,7 +198,24 @@ export function TokenAddressRoute({
         <AddressHoldGate
           token={token}
           tokenAddress={tokenAddress}
-          onPossessed={() => setPossessionOk(true)}
+          onUnlocked={() => {
+            queryClient.setQueryData(
+              queryKeys.deviceAuth.browseUnlock(tokenAddress),
+              true,
+            );
+            queryClient.setQueryData(
+              queryKeys.deviceAuth.gate(tokenAddress),
+              (prev: TokenGate | undefined) =>
+                prev
+                  ? { ...prev, browseUnlocked: true }
+                  : {
+                      session: null,
+                      browseUnlocked: true,
+                      linkStatus: null,
+                      claimed: false,
+                    },
+            );
+          }}
         />
       ) : (
         <GateMessage
@@ -212,7 +237,7 @@ export function TokenAddressRoute({
               onClick={() => {
                 setTimedOut(false);
                 void tokenQuery.refetch();
-                if (session.data) void linkStatus.refetch();
+                void gate.refetch();
               }}
             >
               {copy.common.tryAgain}
@@ -227,11 +252,11 @@ export function TokenAddressRoute({
 function AddressHoldGate({
   token,
   tokenAddress,
-  onPossessed,
+  onUnlocked,
 }: {
   token: PhygitalToken;
   tokenAddress: string;
-  onPossessed: () => void;
+  onUnlocked: () => void;
 }) {
   const mint = tokenHasLinkedMint(token) ? String(token.mint) : null;
   const { collectible } = useResolvedDasCollectible(mint);
@@ -247,11 +272,12 @@ function AddressHoldGate({
       if (pda !== tokenAddress) {
         throw new Error(copy.token.wrongItem);
       }
-      storeAccessoryProof(tokenAddress, {
+      await unlockBrowseFromAccessory({
         message: auth.message,
         response: auth.response,
+        phygitalToken: tokenAddress,
       });
-      onPossessed();
+      onUnlocked();
     } catch (err) {
       accessory.setError(toUserErrorMessage(err, copy.verify.failedBody));
     }

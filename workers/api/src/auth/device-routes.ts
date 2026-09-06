@@ -18,10 +18,8 @@ const textEncoder = new TextEncoder();
 import {
   deleteLink,
   getCredentialById,
-  getLinkStatus,
   insertCredential,
   insertLink,
-  isTokenClaimed,
   listLinksForCredential,
   updateCredentialCounter,
 } from "@/auth/device-db";
@@ -32,11 +30,11 @@ import {
   setDeviceSessionCookie,
 } from "@/auth/device-session";
 import {
-  type AuthenticationResponseJSON as AccessoryAuthResponse,
-  resolveTokenFromIdentifier,
-  verifyPasskeyAndResolveToken,
-} from "@/auth/passkey-verify";
-import { consumePossessionToken } from "@/auth/possession-token";
+  clearBrowseUnlockCookie,
+  issueBrowseUnlockCookie,
+  readBrowseUnlock,
+} from "@/auth/browse-unlock-session";
+import { verifyAccessoryAndResolveToken } from "@/auth/accessory-verify";
 import { denyIfAuthRateLimited } from "@/auth/rate-limit";
 import {
   consumeWebAuthnChallenge,
@@ -44,10 +42,20 @@ import {
   storeWebAuthnChallenge,
 } from "@/auth/webauthn-challenge";
 import { json } from "@/shared/http";
-import { deletePolicyDocument } from "@/verifier/policy-db";
-import { unlinkOwnerAndResetPolicy } from "@/auth/unlink-owner";
+import { clearPendingApprovalsForToken } from "@/auth/pending-approvals-db";
+import { tokenSigner } from "@/verifier/token-signer";
 
-export const deviceAuthRoutes = new Hono();
+export const deviceAuthRoutes = new Hono<{ Bindings: Env }>();
+
+async function doLinkStatus(
+  env: Env,
+  credentialId: string,
+  phygitalToken: string,
+): Promise<"unlinked" | "linked_here" | "linked_elsewhere"> {
+  const ownerId = await tokenSigner(env, phygitalToken).getOwnerCredentialId();
+  if (!ownerId) return "unlinked";
+  return ownerId === credentialId ? "linked_here" : "linked_elsewhere";
+}
 
 deviceAuthRoutes.get("/auth/device-session", async (c) => {
   const session = await readDeviceSession(c);
@@ -337,7 +345,7 @@ deviceAuthRoutes.get("/auth/device/links/claimed", async (c) => {
     );
   }
 
-  const claimed = await isTokenClaimed(phygitalToken);
+  const claimed = await tokenSigner(c.env, phygitalToken).hasOwner();
   return json({ claimed, phygitalToken });
 });
 
@@ -353,28 +361,61 @@ deviceAuthRoutes.get("/auth/device/links/status", async (c) => {
     );
   }
 
-  const status = await getLinkStatus(session.credentialId, phygitalToken);
+  const status = await doLinkStatus(
+    c.env,
+    session.credentialId,
+    phygitalToken,
+  );
   return json({ status, phygitalToken });
 });
 
-deviceAuthRoutes.post("/auth/device/links", async (c) => {
-  const limited = await denyIfAuthRateLimited(c, "link");
-  if (limited) return limited;
+/**
+ * Token home gate: session + browse unlock + link status + claimed
+ * in one round-trip (one DO owner read).
+ */
+deviceAuthRoutes.get("/auth/device/gate", async (c) => {
+  const phygitalToken = c.req.query("phygitalToken")?.trim();
+  if (!phygitalToken) {
+    return json(
+      { error: "phygitalToken required", code: "invalid_transaction" },
+      { status: 400 },
+    );
+  }
 
-  try {
+  const session = await readDeviceSession(c);
+  const browse = await readBrowseUnlock(c);
+  const browseUnlocked = Boolean(
+    browse && browse.phygitalToken === phygitalToken,
+  );
+
+  const ownerId = await tokenSigner(c.env, phygitalToken).getOwnerCredentialId();
+  const claimed = Boolean(ownerId);
+  const linkStatus = session
+    ? !ownerId
+      ? ("unlinked" as const)
+      : ownerId === session.credentialId
+        ? ("linked_here" as const)
+        : ("linked_elsewhere" as const)
+    : null;
+
+  return json({
+    session: session
+      ? { credentialId: session.credentialId, expiresAt: session.exp }
+      : null,
+    browseUnlocked,
+    linkStatus,
+    claimed,
+    phygitalToken,
+  });
+});
+
+deviceAuthRoutes.post(
+  "/auth/device/links/:phygitalToken/mutation-options",
+  async (c) => {
     const session = await requireDeviceSession(c);
     if (session instanceof Response) return session;
 
-    const body = (await c.req.json()) as {
-      phygitalToken?: string;
-      possessionToken?: string;
-      accessory?: { message?: string; response?: AccessoryAuthResponse };
-      label?: string;
-      imageUrl?: string;
-      mint?: string;
-    };
-
-    const phygitalToken = body.phygitalToken?.trim();
+    const phygitalToken = c.req.param("phygitalToken")?.trim();
     if (!phygitalToken) {
       return json(
         { error: "phygitalToken required", code: "invalid_transaction" },
@@ -382,101 +423,131 @@ deviceAuthRoutes.post("/auth/device/links", async (c) => {
       );
     }
 
-    const status = await getLinkStatus(session.credentialId, phygitalToken);
-    if (status === "linked_here") {
-      return json({ status: "linked_here", phygitalToken });
-    }
-    if (status === "linked_elsewhere") {
+    const origin = c.req.header("Origin") ?? null;
+    if (!origin) {
       return json(
-        {
-          error: "This accessory is linked to another phone.",
-          code: "linked_elsewhere",
-        },
-        { status: 409 },
-      );
-    }
-
-    if (body.possessionToken) {
-      const proof = await consumePossessionToken(body.possessionToken);
-      if (!proof) {
-        return json(
-          {
-            error: "Possession expired. Hold your item again.",
-            code: "possession_invalid",
-          },
-          { status: 400 },
-        );
-      }
-      const pda = await resolveTokenFromIdentifier(proof.identifier);
-      if (pda && pda !== phygitalToken) {
-        return json(
-          { error: "That isn’t the same accessory.", code: "passkey_invalid" },
-          { status: 403 },
-        );
-      }
-    } else if (body.accessory?.message && body.accessory.response) {
-      const verified = await verifyPasskeyAndResolveToken({
-        message: body.accessory.message,
-        response: body.accessory.response,
-      });
-      if (!verified.ok) {
-        return json(
-          { error: verified.error, code: "passkey_invalid" },
-          { status: verified.status },
-        );
-      }
-      if (verified.phygitalToken !== phygitalToken) {
-        return json(
-          { error: "That isn’t the same accessory.", code: "passkey_invalid" },
-          { status: 403 },
-        );
-      }
-    } else {
-      return json(
-        {
-          error: "possessionToken or accessory hold required",
-          code: "invalid_transaction",
-        },
+        { error: "Unsupported origin", code: "invalid_transaction" },
         { status: 400 },
       );
     }
 
-    try {
-      await insertLink({
-        credentialId: session.credentialId,
-        phygitalToken,
-        label: body.label ?? null,
-        imageUrl: body.imageUrl ?? null,
-        mint: body.mint ?? null,
-      });
-    } catch {
-      const again = await getLinkStatus(session.credentialId, phygitalToken);
-      if (again === "linked_elsewhere") {
-        return json(
-          {
-            error: "This accessory is linked to another phone.",
-            code: "linked_elsewhere",
-          },
-          { status: 409 },
-        );
-      }
-      if (again === "linked_here") {
-        return json({ status: "linked_here", phygitalToken });
-      }
-      throw new Error("Couldn’t link this accessory");
+    // DO createMutationChallenge already rejects linked_elsewhere.
+    const result = await tokenSigner(c.env, phygitalToken).createMutationChallenge({
+      origin,
+      binding: { kind: "addOwner", credentialId: session.credentialId },
+    });
+    if (!result.ok) {
+      return json(
+        { error: result.error, code: result.code },
+        {
+          status:
+            result.code === "linked_elsewhere"
+              ? 409
+              : result.code === "not_owner"
+                ? 403
+                : 400,
+        },
+      );
     }
+    return json({ challengeId: result.challengeId, options: result.options });
+  },
+);
 
-    return json({ status: "linked_here", phygitalToken });
-  } catch (err) {
+deviceAuthRoutes.post("/auth/device/links", async (c) => {
+  const limited = await denyIfAuthRateLimited(c, "link");
+  if (limited) return limited;
+
+  const session = await requireDeviceSession(c);
+  if (session instanceof Response) return session;
+
+  let body: {
+    phygitalToken?: string;
+    label?: string;
+    imageUrl?: string;
+    mint?: string;
+    challengeId?: string;
+    assertion?: AuthenticationResponseJSON;
+  };
+  try {
+    body = (await c.req.json()) as typeof body;
+  } catch {
+    return json(
+      { error: "Invalid JSON body", code: "invalid_transaction" },
+      { status: 400 },
+    );
+  }
+
+  const phygitalToken = body.phygitalToken?.trim();
+  if (!phygitalToken) {
+    return json(
+      { error: "phygitalToken required", code: "invalid_transaction" },
+      { status: 400 },
+    );
+  }
+
+  const origin = c.req.header("Origin") ?? null;
+  if (!origin) {
+    return json(
+      { error: "Unsupported origin", code: "invalid_transaction" },
+      { status: 400 },
+    );
+  }
+
+  if (!body.challengeId?.trim() || !body.assertion) {
     return json(
       {
-        error:
-          err instanceof Error ? err.message : "Couldn’t link this accessory",
-        code: "device_invalid",
+        error: "challengeId and assertion required",
+        code: "invalid_transaction",
       },
       { status: 400 },
     );
   }
+
+  // DO addOwner is idempotent for the same credential and rejects linked_elsewhere.
+  const credential = await getCredentialById(session.credentialId);
+  if (!credential) {
+    return json(
+      {
+        error: "Sign in with this phone to continue.",
+        code: "device_session_required",
+      },
+      { status: 401 },
+    );
+  }
+
+  const added = await tokenSigner(c.env, phygitalToken).addOwner({
+    credentialId: session.credentialId,
+    publicKey: credential.publicKey,
+    label: body.label ?? null,
+    imageUrl: body.imageUrl ?? null,
+    mint: body.mint ?? null,
+    challengeId: body.challengeId.trim(),
+    assertion: body.assertion,
+    origin,
+  });
+  if (!added.ok) {
+    const statusCode =
+      added.code === "linked_elsewhere"
+        ? 409
+        : added.code === "challenge_invalid"
+          ? 400
+          : 403;
+    return json({ error: added.error, code: added.code }, { status: statusCode });
+  }
+
+  try {
+    await insertLink({
+      credentialId: session.credentialId,
+      phygitalToken,
+      label: body.label ?? null,
+      imageUrl: body.imageUrl ?? null,
+      mint: body.mint ?? null,
+    });
+  } catch {
+    /* listing index may already exist; DO is source of truth */
+  }
+
+  return json({ status: "linked_here", phygitalToken });
 });
 
 deviceAuthRoutes.delete("/auth/device/links/:phygitalToken", async (c) => {
@@ -491,15 +562,138 @@ deviceAuthRoutes.delete("/auth/device/links/:phygitalToken", async (c) => {
     );
   }
 
-  const ok = await unlinkOwnerAndResetPolicy({
-    deleteLink: () => deleteLink(session.credentialId, phygitalToken),
-    deletePolicy: () => deletePolicyDocument(phygitalToken),
-  });
-  if (!ok) {
+  const origin = c.req.header("Origin") ?? null;
+  if (!origin) {
+    return json(
+      { error: "Unsupported origin", code: "invalid_transaction" },
+      { status: 400 },
+    );
+  }
+
+  const body = (await c.req.json().catch(() => ({}))) as {
+    challengeId?: string;
+    assertion?: AuthenticationResponseJSON;
+  };
+  if (!body.challengeId || !body.assertion) {
+    return json(
+      {
+        error: "challengeId and assertion required",
+        code: "invalid_transaction",
+      },
+      { status: 400 },
+    );
+  }
+
+  const stub = tokenSigner(c.env, phygitalToken);
+  if (!(await stub.isOwner(session.credentialId))) {
     return json(
       { error: "Not linked on this phone", code: "not_owner" },
       { status: 403 },
     );
   }
+
+  const cleared = await stub.removeOwnerAndClear({
+    challengeId: body.challengeId,
+    assertion: body.assertion,
+    origin,
+  });
+  if (!cleared.ok) {
+    const status =
+      cleared.code === "teardown_required"
+        ? 409
+        : cleared.code === "challenge_invalid"
+          ? 400
+          : 403;
+    return json(
+      {
+        error: cleared.error,
+        code: cleared.code,
+        details: "details" in cleared ? cleared.details : undefined,
+      },
+      { status },
+    );
+  }
+
+  await deleteLink(session.credentialId, phygitalToken);
+  await clearPendingApprovalsForToken(phygitalToken);
+  clearBrowseUnlockCookie(c);
+  return json({ ok: true });
+});
+
+/** Check httpOnly browse-unlock cookie for a token. */
+deviceAuthRoutes.get("/auth/browse-unlock", async (c) => {
+  const phygitalToken = c.req.query("phygitalToken")?.trim();
+  if (!phygitalToken) {
+    return json(
+      { error: "phygitalToken required", code: "invalid_transaction" },
+      { status: 400 },
+    );
+  }
+  const unlock = await readBrowseUnlock(c);
+  if (!unlock || unlock.phygitalToken !== phygitalToken) {
+    return json({ unlocked: false });
+  }
+  return json({ unlocked: true, expiresAt: unlock.exp });
+});
+
+/** Accessory Hold → mint browse-unlock cookie. */
+deviceAuthRoutes.post("/auth/browse-unlock", async (c) => {
+  let body: {
+    message?: string;
+    response?: Parameters<
+      typeof verifyAccessoryAndResolveToken
+    >[0]["response"];
+    phygitalToken?: string;
+  };
+  try {
+    body = (await c.req.json()) as typeof body;
+  } catch {
+    return json(
+      { error: "Invalid JSON body", code: "invalid_transaction" },
+      { status: 400 },
+    );
+  }
+  if (!body.message?.trim() || !body.response) {
+    return json(
+      {
+        error: "message and response required",
+        code: "invalid_transaction",
+      },
+      { status: 400 },
+    );
+  }
+
+  const verified = await verifyAccessoryAndResolveToken({
+    message: body.message.trim(),
+    response: body.response,
+  });
+  if (!verified.ok) {
+    return json(
+      { error: verified.error, code: "passkey_invalid" },
+      { status: verified.status },
+    );
+  }
+
+  const expected = body.phygitalToken?.trim();
+  if (expected && expected !== verified.phygitalToken) {
+    return json(
+      { error: "That isn’t the same accessory.", code: "passkey_invalid" },
+      { status: 403 },
+    );
+  }
+
+  const { expiresAt } = await issueBrowseUnlockCookie(
+    c,
+    verified.phygitalToken,
+  );
+  return json({
+    unlocked: true,
+    phygitalToken: verified.phygitalToken,
+    expiresAt,
+  });
+});
+
+deviceAuthRoutes.delete("/auth/browse-unlock", async (c) => {
+  clearBrowseUnlockCookie(c);
   return json({ ok: true });
 });

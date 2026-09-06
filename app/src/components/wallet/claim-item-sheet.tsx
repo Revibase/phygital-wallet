@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { findPhygitalTokenPda } from "phygital-token-sdk";
 
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -14,13 +13,9 @@ import { QueryHttpError } from "@/lib/queries/http";
 import { toUserErrorMessage } from "@/lib/user-errors";
 import {
   fetchDeviceSession,
-  holdAccessoryAuth,
   linkToken,
   loginDevice,
-  peekAccessoryProof,
-  peekPossessionToken,
   registerDevice,
-  storeAccessoryProof,
   type LinkStatus,
 } from "@/lib/wallet/device-auth-client";
 import { dismissClaim } from "@/lib/wallet/claim-setup-href";
@@ -56,7 +51,7 @@ async function ensureSession(
   }
 }
 
-/** Full-screen claim ceremony — passkey then link with possession proof. */
+/** Full-screen claim ceremony — passkey then platform WebAuthn link. */
 export function ClaimItemSheet({
   phygitalTokenPda,
   onClaimed,
@@ -67,7 +62,6 @@ export function ClaimItemSheet({
   onDismiss: () => void;
 }) {
   const queryClient = useQueryClient();
-  const [needHold, setNeedHold] = useState(false);
   const [elsewhere, setElsewhere] = useState(false);
   const [success, setSuccess] = useState(false);
   const [preferRegister, setPreferRegister] = useState(false);
@@ -99,30 +93,11 @@ export function ClaimItemSheet({
       const sessionInfo = await ensureSession(session.data ?? null, preferRegister);
       queryClient.setQueryData(queryKeys.deviceAuth.session(), sessionInfo);
 
-      const possessionToken = peekPossessionToken(phygitalTokenPda);
-      const accessory = peekAccessoryProof(phygitalTokenPda);
-
-      if (!possessionToken && !accessory) {
-        setNeedHold(true);
-        throw new Error("possession_required");
-      }
-
       try {
-        await linkToken({
-          phygitalToken: phygitalTokenPda,
-          ...(possessionToken ? { possessionToken } : {}),
-          ...(accessory && !possessionToken ? { accessory } : {}),
-        });
+        await linkToken({ phygitalToken: phygitalTokenPda });
       } catch (e) {
         if (e instanceof QueryHttpError && e.code === "linked_elsewhere") {
           setElsewhere(true);
-          throw e;
-        }
-        if (
-          e instanceof QueryHttpError &&
-          (e.code === "possession_invalid" || e.status === 400)
-        ) {
-          setNeedHold(true);
         }
         throw e;
       }
@@ -140,22 +115,6 @@ export function ClaimItemSheet({
         queryKey: queryKeys.deviceAuth.all(),
       });
       setSuccess(true);
-    },
-  });
-
-  const holdContinue = useMutation({
-    mutationFn: async () => {
-      const auth = await holdAccessoryAuth();
-      const pda = String(await findPhygitalTokenPda(auth.secp256r1PublicKey));
-      if (pda !== phygitalTokenPda) {
-        throw new Error(copy.token.wrongItem);
-      }
-      storeAccessoryProof(phygitalTokenPda, {
-        message: auth.message,
-        response: auth.response,
-      });
-      setNeedHold(false);
-      await claim.mutateAsync();
     },
   });
 
@@ -201,67 +160,7 @@ export function ClaimItemSheet({
     );
   }
 
-  if (holdContinue.isPending) {
-    return (
-      <CeremonyShell>
-        <NfcHoldStatus
-          size="lg"
-          pulsing
-          busy
-          title={copy.verify.holdStill}
-          body={copy.verify.holdStillBody}
-        />
-      </CeremonyShell>
-    );
-  }
-
-  if (needHold) {
-    const holdError = holdContinue.error
-      ? toUserErrorMessage(holdContinue.error)
-      : null;
-    return (
-      <CeremonyShell>
-        <NfcHoldStatus
-          size="lg"
-          pulsing={!holdError}
-          title={holdError ? copy.verify.failed : copy.wallet.claimHoldToContinue}
-          body={holdError ?? copy.wallet.claimHoldBody}
-          action={
-            <div className="flex w-full flex-col gap-2">
-              <Button
-                type="button"
-                size="lg"
-                className="w-full"
-                onClick={() => holdContinue.mutate()}
-              >
-                {holdError
-                  ? copy.common.tryAgain
-                  : copy.wallet.claimHoldToContinue}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="lg"
-                className="w-full"
-                onClick={skip}
-              >
-                {copy.wallet.claimNotNow}
-              </Button>
-            </div>
-          }
-        />
-      </CeremonyShell>
-    );
-  }
-
-  const authError =
-    claim.error &&
-    !(
-      claim.error instanceof Error &&
-      claim.error.message === "possession_required"
-    )
-      ? toUserErrorMessage(claim.error)
-      : null;
+  const authError = claim.error ? toUserErrorMessage(claim.error) : null;
   const showRetry = Boolean(authError);
   const signedIn = Boolean(session.data);
   const primaryLabel = showRetry

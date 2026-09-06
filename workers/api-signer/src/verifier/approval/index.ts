@@ -1,26 +1,14 @@
 /**
- * Revibase standing policies + one-time grants ("Approve once").
- *
- * Standing policy is opt-in (D1 row). Custom instruction policy belongs in
- * `phygital-verifier-sdk` (`defineStandardPolicy` / `createVerifier`).
- * This module orchestrates D1-backed grants around soft denies.
+ * Standing policies + one-time grants for TokenSigner DO SQLite.
  */
 import type { Instruction } from "phygital-verifier-sdk";
 import { hashIntent } from "@/verifier/intent-hash";
-import {
-  consumeGrant,
-  findValidGrant,
-  loadPolicyDocument,
-} from "@/verifier/approval/policy-db";
 import { evaluatePolicy } from "@/verifier/approval/policy-engine";
+import { getTokenStore } from "@/shared/request-context";
 
 type AuthorizeRequest = {
   phygitalToken: string;
   instructions: readonly Instruction[];
-  /**
-   * `preview` — soft deny may still pass if an unused grant exists (no consume).
-   * `sign` — soft deny requires consuming a grant.
-   */
   mode: "preview" | "sign";
 };
 
@@ -38,10 +26,9 @@ type AuthorizeResult =
 export async function authorizeIntent(
   req: AuthorizeRequest,
 ): Promise<AuthorizeResult> {
-  const [intentHash, loaded] = await Promise.all([
-    hashIntent(req.phygitalToken, req.instructions),
-    loadPolicyDocument(req.phygitalToken),
-  ]);
+  const store = getTokenStore();
+  const intentHash = await hashIntent(req.phygitalToken, req.instructions);
+  const loaded = store.loadPolicyDocument();
 
   if (loaded === "invalid") {
     return {
@@ -71,9 +58,9 @@ export async function authorizeIntent(
   }
 
   if (req.mode === "preview") {
-    const grant = await findValidGrant(req.phygitalToken, intentHash);
+    const grant = store.findValidGrant(intentHash);
     if (grant) return { ok: true, intentHash };
-  } else if (await consumeGrant(req.phygitalToken, intentHash)) {
+  } else if (store.tryConsumeGrant(intentHash)) {
     return { ok: true, intentHash };
   }
 

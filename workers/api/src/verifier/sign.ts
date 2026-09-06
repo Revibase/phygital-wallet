@@ -1,13 +1,12 @@
 /**
- * POST /sign — proxy to private verifier signer Worker (service binding).
- *
- * Sensitive work (fee, authorizeIntent, ed25519 co-sign) runs only in
- * revibase-verifier-signer; this Worker never holds verifier secrets.
+ * POST /sign — proxy to TokenSigner Durable Object (fee + authorize + co-sign).
  */
 import { Hono } from "hono";
 
 import { json } from "@/shared/http";
+import { decodeWireTransaction } from "@/verifier/decode-tx";
 import { verifierJsonError } from "@/verifier/errors";
+import { tokenSigner } from "@/verifier/token-signer";
 
 export const signRoutes = new Hono<{ Bindings: Env }>();
 
@@ -21,7 +20,15 @@ signRoutes.post("/sign", async (c) => {
       );
     }
 
-    const result = await c.env.VERIFIER_SIGNER.signTransactions(
+    const first = body.transactions[0];
+    if (!first) {
+      return json(
+        { error: "transactions required", code: "invalid_transaction" },
+        { status: 400 },
+      );
+    }
+    const { phygitalToken } = decodeWireTransaction(first);
+    const result = await tokenSigner(c.env, phygitalToken).signTransactions(
       body.transactions,
     );
     if (!result.ok) {

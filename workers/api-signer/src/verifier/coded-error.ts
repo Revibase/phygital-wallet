@@ -1,5 +1,5 @@
 /** Parse thrown `{ code, soft?, details? }` into a stable RPC error shape. */
-export type CodedVerifierError = {
+type CodedVerifierError = {
   code: string;
   error: string;
   soft: boolean;

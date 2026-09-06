@@ -1,7 +1,8 @@
 import { Hono } from "hono";
 
-import { mintPossessionToken } from "@/auth/possession-token";
+import { issueBrowseUnlockCookie } from "@/auth/browse-unlock-session";
 import { json } from "@/shared/http";
+import { resolvePhygitalTokenFromIdentifier } from "@/tap/resolve-token";
 import { evaluateCounter } from "@/tap/counter-session";
 import {
   readCounterSession,
@@ -57,24 +58,17 @@ verifyTapRoutes.get("/verify-tap", async (c) => {
 
     await writeCounterSession(identifier, { c: counter });
 
-    let possessionToken: string | undefined;
-    let possessionExpiresAt: number | undefined;
-    try {
-      const minted = await mintPossessionToken({ identifier });
-      possessionToken = minted.token;
-      possessionExpiresAt = minted.expiresAt;
-    } catch {
-      /* possession mint is best-effort */
+    const phygitalToken =
+      await resolvePhygitalTokenFromIdentifier(identifier);
+    if (phygitalToken) {
+      await issueBrowseUnlockCookie(c, phygitalToken);
     }
 
     return json({
       isVerified: true,
       identifier,
       counter,
-      ...(possessionToken ? { possessionToken } : {}),
-      ...(possessionExpiresAt != null
-        ? { possessionExpiresAt }
-        : {}),
+      ...(phygitalToken ? { phygitalToken } : {}),
     });
   } catch (err) {
     return json(

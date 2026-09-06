@@ -22,15 +22,16 @@ import {
   fetchDeviceLinks,
   fetchDeviceSession,
   fetchLinkStatus,
-  holdAccessoryAuth,
   linkToken,
   loginDevice,
   registerDevice,
+  unlockBrowseFromAccessory,
   type DeviceLink,
   type LinkStatus,
 } from "@/lib/wallet/device-auth-client";
-import { parseLimitsSetupIntent } from "@/lib/wallet/limits-setup-href";
+import { authenticateToken } from "@/lib/token/authenticate";
 import { parseClaimSetupIntent } from "@/lib/wallet/claim-setup-href";
+import { parseLimitsSetupIntent } from "@/lib/wallet/limits-setup-href";
 import { tokenHref, walletHref } from "@/lib/wallet/token-routes";
 
 /** Home: signed-out passkey door, or signed-in linked items (+ setup intent). */
@@ -223,17 +224,23 @@ function HomeLinkSetup({
 
   const link = useMutation({
     mutationFn: async () => {
-      const auth = await holdAccessoryAuth();
+      const auth = await authenticateToken();
       const pda = String(await findPhygitalTokenPda(auth.secp256r1PublicKey));
       if (pda !== tokenAddress) {
         throw new Error(copy.token.wrongItem);
       }
-      await linkToken({
+      await unlockBrowseFromAccessory({
+        message: auth.message,
+        response: auth.response,
         phygitalToken: tokenAddress,
-        accessory: { message: auth.message, response: auth.response },
       });
+      await linkToken({ phygitalToken: tokenAddress });
     },
     onSuccess: async () => {
+      queryClient.setQueryData(
+        queryKeys.deviceAuth.browseUnlock(tokenAddress),
+        true,
+      );
       queryClient.setQueryData(
         queryKeys.deviceAuth.linkStatus(tokenAddress),
         "linked_here" as LinkStatus,
@@ -338,12 +345,18 @@ function HomeLinksScreen() {
 
   const addAccessory = useMutation({
     mutationFn: async () => {
-      const auth = await holdAccessoryAuth();
+      const auth = await authenticateToken();
       const pda = String(await findPhygitalTokenPda(auth.secp256r1PublicKey));
-      await linkToken({
+      await unlockBrowseFromAccessory({
+        message: auth.message,
+        response: auth.response,
         phygitalToken: pda,
-        accessory: { message: auth.message, response: auth.response },
       });
+      await linkToken({ phygitalToken: pda });
+      queryClient.setQueryData(
+        queryKeys.deviceAuth.browseUnlock(pda),
+        true,
+      );
       queryClient.setQueryData(
         queryKeys.deviceAuth.linkStatus(pda),
         "linked_here" as const,

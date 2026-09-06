@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { findPhygitalTokenPda } from "phygital-token-sdk";
 
 import { InAppBrowserGate } from "@/components/shared/in-app-browser-gate";
@@ -10,12 +11,17 @@ import { NfcHoldStatus } from "@/components/shared/nfc-hold-status";
 import { StatusPill } from "@/components/shared/status-pill";
 import { Button } from "@/components/ui/button";
 import { useAccessoryHold } from "@/hooks/token/use-accessory-hold";
-import { usePhygitalToken } from "@/hooks/token/use-phygital-token";
+import {
+  usePhygitalToken,
+  usePhygitalTokenByAddress,
+} from "@/hooks/token/use-phygital-token";
 import { useTapVerify } from "@/hooks/token/use-tap-verify";
 import { copy } from "@/lib/copy/phygital";
 import { toUserErrorMessage } from "@/lib/user-errors";
-import { storeAccessoryProof, storePossessionToken } from "@/lib/wallet/device-auth-client";
+import { unlockBrowseFromAccessory } from "@/lib/wallet/device-auth-client";
+import { clearClaimDismiss } from "@/lib/wallet/claim-setup-href";
 import { tokenHasLinkedMint } from "@/lib/phygital/token";
+import { queryKeys } from "@/lib/queries";
 import { tokenHref, walletHref } from "@/lib/wallet/token-routes";
 
 export type TokenNfcCopy = {
@@ -28,26 +34,37 @@ export type TokenNfcCopy = {
  */
 export function TokenNfcApp({ nfcCopy }: { nfcCopy: TokenNfcCopy }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { hasTapProof, verify, verifyPending, result, verifyError } =
     useTapVerify();
   const accessory = useAccessoryHold();
   const [holdError, setHoldError] = useState<string | null>(null);
 
-  // Tap URL `pk` is the chip identifier — resolve PDA via GPA, not findPda(pk).
+  // Prefer PDA from /verify-tap (server already ran GPA). Fall back to
+  // identifier GPA only when the server could not resolve the account.
+  const pdaFromTap =
+    hasTapProof && verify === "verified"
+      ? (result?.phygitalToken ?? null)
+      : null;
   const identifier =
-    hasTapProof && verify === "verified" ? (result?.identifier ?? null) : null;
-  const tokenQuery = usePhygitalToken(identifier);
+    hasTapProof && verify === "verified" && !pdaFromTap
+      ? (result?.identifier ?? null)
+      : null;
+
+  const tokenByAddress = usePhygitalTokenByAddress(pdaFromTap);
+  const tokenByIdentifier = usePhygitalToken(identifier);
+  const tokenQuery = pdaFromTap ? tokenByAddress : tokenByIdentifier;
 
   useEffect(() => {
     if (!tokenQuery.data) return;
     const pda = String(tokenQuery.data.address);
-    if (result?.possessionToken) {
-      storePossessionToken(pda, result.possessionToken);
-    }
+    // Browse-unlock cookie is set by /verify-tap (credentials: include).
+    clearClaimDismiss(pda);
+    queryClient.setQueryData(queryKeys.deviceAuth.browseUnlock(pda), true);
     router.replace(
       tokenHasLinkedMint(tokenQuery.data) ? tokenHref(pda) : walletHref(pda),
     );
-  }, [tokenQuery.data, result?.possessionToken, router]);
+  }, [tokenQuery.data, router, queryClient]);
 
   async function holdToOpen() {
     setHoldError(null);
@@ -55,11 +72,12 @@ export function TokenNfcApp({ nfcCopy }: { nfcCopy: TokenNfcCopy }) {
     if (!auth) return;
     try {
       const pda = String(await findPhygitalTokenPda(auth.secp256r1PublicKey));
-      // Reuse this Hold for browse + link (same role as NFC possessionToken).
-      storeAccessoryProof(pda, {
+      await unlockBrowseFromAccessory({
         message: auth.message,
         response: auth.response,
+        phygitalToken: pda,
       });
+      queryClient.setQueryData(queryKeys.deviceAuth.browseUnlock(pda), true);
       // Address page redirects unminted → wallet; minted lands on card.
       router.replace(tokenHref(pda));
     } catch (e) {

@@ -1,8 +1,9 @@
-import {
-  address,
-  createSolanaRpc,
-  fetchEncodedAccounts,
-} from "@solana/kit";
+/**
+ * Whether a token uses Config default-verifier paymaster sponsorship.
+ * Caches Config verifier set (~60s) and per-token TokenVerifier override (~8s)
+ * so hot preview/sign paths avoid Solana RPC on cache hit.
+ */
+import { address, fetchEncodedAccounts, type Address } from "@solana/kit";
 import {
   decodeConfig,
   decodeTokenVerifier,
@@ -10,10 +11,19 @@ import {
   findTokenVerifierPda,
 } from "phygital-wallet-sdk";
 
-import { getRpcUrl } from "@/shared/solana/cluster";
+import { getSolanaRpc } from "@/shared/solana/cluster";
 
-let cachedDefaultVerifiers: { at: number; set: Set<string> } | null = null;
 const CONFIG_CACHE_MS = 60_000;
+const TOKEN_VERIFIER_CACHE_MS = 8_000;
+
+let cachedDefaults: { at: number; set: Set<string> } | null = null;
+let cachedConfigPda: Address | null = null;
+
+/** token → override verifier pubkey, or null when PDA absent (defaults apply). */
+const tokenVerifierCache = new Map<
+  string,
+  { at: number; override: string | null }
+>();
 
 function verifierSetFromConfig(
   encoded: Awaited<ReturnType<typeof fetchEncodedAccounts>>[number],
@@ -30,38 +40,106 @@ function verifierSetFromConfig(
   return set;
 }
 
+async function resolveConfigPda(): Promise<Address> {
+  if (cachedConfigPda) return cachedConfigPda;
+  const [pda] = await findConfigPda();
+  cachedConfigPda = pda;
+  return pda;
+}
+
+function rememberTokenOverride(
+  phygitalToken: string,
+  now: number,
+  override: string | null,
+): string | null {
+  if (tokenVerifierCache.size >= 256) {
+    const oldest = tokenVerifierCache.keys().next().value;
+    if (oldest !== undefined) tokenVerifierCache.delete(oldest);
+  }
+  tokenVerifierCache.set(phygitalToken, { at: now, override });
+  return override;
+}
+
+function overrideFromEncoded(
+  encoded: Awaited<ReturnType<typeof fetchEncodedAccounts>>[number],
+): string | null {
+  const tokenVerifier = decodeTokenVerifier(encoded);
+  return tokenVerifier.exists ? String(tokenVerifier.data.verifier) : null;
+}
+
 /** True when this token is sponsored by a Config default verifier (paymaster). */
 export async function usesDefaultVerifierPaymaster(
   phygitalToken: string,
 ): Promise<boolean> {
-  const rpc = createSolanaRpc(getRpcUrl());
-  const token = address(phygitalToken);
-  const [[configPda], [tokenVerifierPda]] = await Promise.all([
-    findConfigPda(),
-    findTokenVerifierPda({ phygitalToken: token }),
-  ]);
-
   const now = Date.now();
-  const cacheHit =
-    cachedDefaultVerifiers &&
-    now - cachedDefaultVerifiers.at < CONFIG_CACHE_MS;
+  const defaultsWarm =
+    cachedDefaults != null && now - cachedDefaults.at < CONFIG_CACHE_MS;
+  const tvEntry = tokenVerifierCache.get(phygitalToken);
+  const tvWarm =
+    tvEntry != null && now - tvEntry.at < TOKEN_VERIFIER_CACHE_MS;
 
-  if (cacheHit) {
-    const [tvEncoded] = await fetchEncodedAccounts(rpc, [tokenVerifierPda]);
-    const tokenVerifier = decodeTokenVerifier(tvEncoded);
-    if (!tokenVerifier.exists) return true;
-    return cachedDefaultVerifiers!.set.has(String(tokenVerifier.data.verifier));
+  if (defaultsWarm && tvWarm) {
+    const override = tvEntry!.override;
+    return override == null || cachedDefaults!.set.has(override);
   }
 
-  // One multi-get: Config + TokenVerifier.
-  const [configEncoded, tvEncoded] = await fetchEncodedAccounts(rpc, [
-    configPda,
-    tokenVerifierPda,
-  ]);
-  const defaults = verifierSetFromConfig(configEncoded);
-  cachedDefaultVerifiers = { at: now, set: defaults };
+  const rpc = getSolanaRpc();
+  const token = address(phygitalToken);
 
-  const tokenVerifier = decodeTokenVerifier(tvEncoded);
-  if (!tokenVerifier.exists) return true;
-  return defaults.has(String(tokenVerifier.data.verifier));
+  // Both cold: one multi-get.
+  if (!defaultsWarm && !tvWarm) {
+    const [configPda, [tokenVerifierPda]] = await Promise.all([
+      resolveConfigPda(),
+      findTokenVerifierPda({ phygitalToken: token }),
+    ]);
+    const [configEncoded, tvEncoded] = await fetchEncodedAccounts(rpc, [
+      configPda,
+      tokenVerifierPda,
+    ]);
+    const set = verifierSetFromConfig(configEncoded);
+    cachedDefaults = { at: now, set };
+    const override = rememberTokenOverride(
+      phygitalToken,
+      now,
+      overrideFromEncoded(tvEncoded),
+    );
+    return override == null || set.has(override);
+  }
+
+  // One warm, one cold: fetch only what's missing (parallel when both needed).
+  let set = cachedDefaults?.set;
+  let override = tvWarm ? tvEntry!.override : undefined;
+
+  const fetches: Promise<void>[] = [];
+  if (!defaultsWarm) {
+    fetches.push(
+      (async () => {
+        const [encoded] = await fetchEncodedAccounts(rpc, [
+          await resolveConfigPda(),
+        ]);
+        set = verifierSetFromConfig(encoded);
+        cachedDefaults = { at: now, set };
+      })(),
+    );
+  }
+  if (!tvWarm) {
+    fetches.push(
+      (async () => {
+        const [tokenVerifierPda] = await findTokenVerifierPda({
+          phygitalToken: token,
+        });
+        const [tvEncoded] = await fetchEncodedAccounts(rpc, [tokenVerifierPda]);
+        override = rememberTokenOverride(
+          phygitalToken,
+          now,
+          overrideFromEncoded(tvEncoded),
+        );
+      })(),
+    );
+  }
+  if (fetches.length) await Promise.all(fetches);
+
+  const defaults = set ?? cachedDefaults!.set;
+  const ov = override !== undefined ? override : tvEntry!.override;
+  return ov == null || defaults.has(ov);
 }

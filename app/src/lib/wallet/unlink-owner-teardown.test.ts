@@ -1,37 +1,56 @@
-import { describe, expect, it, vi } from "vitest";
-
 /**
- * Mirrors `workers/api/src/auth/unlink-owner.ts` — owner unlink must reset
- * standing policy only after the device link is deleted.
+ * Production unlink order:
+ * 1) On-chain teardown (token verifier + recovery wallet PDAs closed)
+ * 2) DO removeOwnerAndClear (WebAuthn)
+ * 3) D1 link delete
  */
-async function unlinkOwnerAndResetPolicy(args: {
-  deleteLink: () => Promise<boolean>;
-  deletePolicy: () => Promise<void>;
+async function unlinkOwnerAfterTeardown(args: {
+  assertOnChainClear: () => Promise<boolean>;
+  clearOnDo: () => Promise<boolean>;
+  deleteLink: () => Promise<void>;
 }): Promise<boolean> {
-  const ok = await args.deleteLink();
+  if (!(await args.assertOnChainClear())) return false;
+  const ok = await args.clearOnDo();
   if (!ok) return false;
-  await args.deletePolicy();
+  await args.deleteLink();
   return true;
 }
 
-describe("unlinkOwnerAndResetPolicy", () => {
-  it("resets policy only after a successful link delete", async () => {
-    const deletePolicy = vi.fn(async () => undefined);
-    const ok = await unlinkOwnerAndResetPolicy({
-      deleteLink: async () => true,
-      deletePolicy,
+import { describe, expect, it, vi } from "vitest";
+
+describe("unlinkOwnerAfterTeardown", () => {
+  it("deletes link only after on-chain clear and DO clear succeed", async () => {
+    const deleteLink = vi.fn(async () => undefined);
+    const ok = await unlinkOwnerAfterTeardown({
+      assertOnChainClear: async () => true,
+      clearOnDo: async () => true,
+      deleteLink,
     });
     expect(ok).toBe(true);
-    expect(deletePolicy).toHaveBeenCalledOnce();
+    expect(deleteLink).toHaveBeenCalledOnce();
   });
 
-  it("skips policy reset when the link was not owned here", async () => {
-    const deletePolicy = vi.fn(async () => undefined);
-    const ok = await unlinkOwnerAndResetPolicy({
-      deleteLink: async () => false,
-      deletePolicy,
+  it("skips DO clear and link delete when on-chain teardown is incomplete", async () => {
+    const clearOnDo = vi.fn(async () => true);
+    const deleteLink = vi.fn(async () => undefined);
+    const ok = await unlinkOwnerAfterTeardown({
+      assertOnChainClear: async () => false,
+      clearOnDo,
+      deleteLink,
     });
     expect(ok).toBe(false);
-    expect(deletePolicy).not.toHaveBeenCalled();
+    expect(clearOnDo).not.toHaveBeenCalled();
+    expect(deleteLink).not.toHaveBeenCalled();
+  });
+
+  it("skips link delete when DO clear fails", async () => {
+    const deleteLink = vi.fn(async () => undefined);
+    const ok = await unlinkOwnerAfterTeardown({
+      assertOnChainClear: async () => true,
+      clearOnDo: async () => false,
+      deleteLink,
+    });
+    expect(ok).toBe(false);
+    expect(deleteLink).not.toHaveBeenCalled();
   });
 });

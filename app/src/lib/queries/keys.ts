@@ -69,6 +69,11 @@ export const queryKeys = {
       [...queryKeys.deviceAuth.all(), "status", token] as const,
     claimed: (token: string | null) =>
       [...queryKeys.deviceAuth.all(), "claimed", token] as const,
+    browseUnlock: (token: string | null) =>
+      [...queryKeys.deviceAuth.all(), "browseUnlock", token] as const,
+    /** Session + browse + link + claimed in one round-trip. */
+    gate: (token: string | null) =>
+      [...queryKeys.deviceAuth.all(), "gate", token] as const,
   },
 
   walletPda: {

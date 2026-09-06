@@ -1,19 +1,18 @@
 /**
  * POST /preview — preflight before NFC / passkey (no co-sign).
  *
- * Wallet check, authorize, and fee run in the private signer Worker.
- * Soft deny may upsert `pending_approvals` when an owner exists and this
- * browser is not the owner (device session + link). Never upsert when unlinked.
+ * Soft deny may upsert `pending_approvals` when an owner exists on the DO and
+ * this browser is not the owner. Never upsert when unlinked.
  */
 import { Hono } from "hono";
 
-import { getLinkForToken } from "@/auth/device-db";
 import { readDeviceSession } from "@/auth/device-session";
 import { upsertPendingApproval } from "@/auth/pending-approvals-db";
 import { json } from "@/shared/http";
 import type { Instruction } from "phygital-verifier-sdk";
 import { instructionFromJson } from "@/verifier/decode-tx";
 import { verifierJsonError } from "@/verifier/errors";
+import { tokenSigner } from "@/verifier/token-signer";
 
 export const previewRoutes = new Hono<{ Bindings: Env }>();
 
@@ -45,8 +44,8 @@ previewRoutes.post("/preview", async (c) => {
       instructionFromJson,
     );
 
-    const result = await c.env.VERIFIER_SIGNER.previewAuthorize({
-      phygitalToken,
+    const stub = tokenSigner(c.env, phygitalToken);
+    const result = await stub.previewAuthorize({
       instructions,
     });
 
@@ -55,12 +54,10 @@ previewRoutes.post("/preview", async (c) => {
     }
 
     if (result.soft && result.intentHash) {
-      const ownerLink = await getLinkForToken(phygitalToken);
-      if (ownerLink) {
+      const ownerId = await stub.getOwnerCredentialId();
+      if (ownerId) {
         const session = await readDeviceSession(c);
-        const isOwner =
-          session != null && session.credentialId === ownerLink.credentialId;
-        if (!isOwner) {
+        if (!session || session.credentialId !== ownerId) {
           await upsertPendingApproval({
             phygitalToken,
             intentHash: result.intentHash,

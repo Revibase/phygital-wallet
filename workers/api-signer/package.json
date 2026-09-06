@@ -16,8 +16,7 @@
   },
   "dependencies": {
     "@noble/curves": "^2.3.0",
-    "@solana-program/system": "^0.14.0",
-    "@solana-program/token": "^0.16.0",
+    "@simplewebauthn/server": "^14.0.0",
     "@solana/kit": "^8.1.0",
     "phygital-verifier-sdk": "workspace:*",
     "phygital-wallet-sdk": "workspace:*"

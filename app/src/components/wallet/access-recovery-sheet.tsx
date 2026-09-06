@@ -16,8 +16,6 @@ import { queryKeys } from "@/lib/queries";
 import { toUserErrorMessage } from "@/lib/user-errors";
 import {
   unlinkToken,
-  clearAccessoryProof,
-  clearPossessionToken,
   type LinkStatus,
 } from "@/lib/wallet/device-auth-client";
 import { redirectToClaimSetup, clearClaimDismiss } from "@/lib/wallet/claim-setup-href";
@@ -74,8 +72,6 @@ export function AccessRecoverySheet({
     setBusy(true);
     try {
       await unlinkToken(phygitalTokenPda);
-      clearPossessionToken(phygitalTokenPda);
-      clearAccessoryProof(phygitalTokenPda);
       clearClaimDismiss(phygitalTokenPda);
       queryClient.setQueryData(
         queryKeys.deviceAuth.linkStatus(phygitalTokenPda),

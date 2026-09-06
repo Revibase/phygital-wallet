@@ -4,24 +4,17 @@ Owner-app authentication and standing-policy HTTP surface.
 
 | File | Role |
 |------|------|
-| `device-routes.ts` | Platform passkey register / login; token links |
-| `device-session.ts` | Single device session cookie (`revibase_device_session`) |
-| `device-db.ts` | `device_credentials` + `device_token_links` D1 |
-| `possession-token.ts` | Short-lived tap/Hold proof for linking (not app session) |
-| `pending-approvals-db.ts` | Soft-deny inbox rows |
-| `passkey-verify.ts` | Accessory `verifyResponse` + resolve phygital token PDA |
-| `policies-routes.ts` | `GET/PUT/DELETE /policies/:token`, grants, open approvals |
-| `webauthn-challenge.ts` | Platform WebAuthn challenge KV |
+| `device-routes.ts` | Platform passkey register / login; `GET /auth/device/gate` (session+browse+link+claimed); link → WebAuthn + DO `addOwner`; unlink → on-chain teardown + WebAuthn + DO clear; browse-unlock cookie check/mint/clear |
+| `browse-unlock-session.ts` | Short-lived httpOnly `revibase_browse_unlock` (tap / Hold); `Domain=.revibase.com` in prod |
+| `device-session.ts` | Device session cookie (`revibase_device_session`); shared domain in prod |
+| `session-hmac.ts` | Shared HMAC mint/parse for both session cookies |
+| `session-cookie-attrs.ts` | Cookie secure / SameSite / Domain for app middleware visibility |
+| `device-db.ts` | `device_credentials` + listing index `device_token_links` |
+| `policies-routes.ts` | Policy/grant HTTP; mutations require platform WebAuthn verified in TokenSigner DO |
+| `pending-approvals-db.ts` | Soft-deny inbox (API D1 only; never authorizes spend) |
 
-App session is minted only by platform passkey (register or assert) on `/`.
-Accessory Hold / NFC never mints the login cookie. Spending on `/token` does
-not require a platform session.
+Owner-of-record is the **TokenSigner DO** single-row `owner` (current only;
+no past-owner history). A new phone links only after the current owner unlinks
+(WebAuthn → clear owner + all policies). `device_token_links` is a Home listing cache.
 
-Standing policy is **opt-in**: no D1 `token_policies` row means authorize skips
-SDK verify (hard-denies for Phygital programs only). `PUT` creates/enables;
-`DELETE` turns limits off.
-
-Admin writes (Approve / Change limits / Cancel / DELETE policy) and
-`GET /policies/:token` require device session **and** owner link for that token.
-`/preview` skips pending upsert for the owner; never upserts when the token is
-unlinked.
+Policy mutations: `POST .../mutation-options` with write binding → platform assertion → PUT/DELETE/grants/unlink.

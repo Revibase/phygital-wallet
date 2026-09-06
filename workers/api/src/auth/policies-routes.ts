@@ -1,126 +1,235 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
+import type { AuthenticationResponseJSON } from "@simplewebauthn/server";
+import type { PolicyDocument } from "phygital-verifier-sdk";
 
-import { assertOwnerLink } from "@/auth/device-db";
 import { requireDeviceSession } from "@/auth/device-session";
 import {
+  clearPendingApprovalsForToken,
   listOpenApprovals,
   resolvePendingApproval,
 } from "@/auth/pending-approvals-db";
+import { parseMutationBinding } from "@/auth/mutation-binding";
 import { json } from "@/shared/http";
-import {
-  createGrant,
-  deletePolicyDocument,
-  getEffectivePolicy,
-  upsertPolicyDocument,
-} from "@/verifier/policy-db";
-import type { PolicyDocument } from "phygital-verifier-sdk";
+import { tokenSigner, type TokenSignerRpc } from "@/verifier/token-signer";
 
-export const policyRoutes = new Hono();
+export const policyRoutes = new Hono<{ Bindings: Env }>();
 
-async function requireOwnerSession(c: Parameters<typeof requireDeviceSession>[0]) {
+function requestOrigin(c: Context): string | null {
+  return c.req.header("Origin") ?? null;
+}
+
+async function requireOwnerSession(c: Context<{ Bindings: Env }>): Promise<
+  | Response
+  | {
+      session: { credentialId: string };
+      phygitalToken: string;
+      stub: TokenSignerRpc;
+    }
+> {
   const session = await requireDeviceSession(c);
   if (session instanceof Response) return session;
 
   const phygitalToken = c.req.param("phygitalToken")?.trim();
   if (!phygitalToken) {
-    return c.json(
+    return json(
       { error: "Missing phygitalToken", code: "invalid_transaction" },
-      400,
+      { status: 400 },
     );
   }
 
-  if (!(await assertOwnerLink(session.credentialId, phygitalToken))) {
-    return c.json(
+  const stub = tokenSigner(c.env, phygitalToken);
+  if (!(await stub.isOwner(session.credentialId))) {
+    return json(
       { error: "Only the owner phone can do this.", code: "not_owner" },
-      403,
+      { status: 403 },
     );
   }
 
-  return { session, phygitalToken };
+  return { session, phygitalToken, stub };
 }
 
 policyRoutes.get("/policies/:phygitalToken", async (c) => {
   const owner = await requireOwnerSession(c);
   if (owner instanceof Response) return owner;
-  return json(await getEffectivePolicy(owner.phygitalToken));
+  return json(await owner.stub.getPolicy());
+});
+
+policyRoutes.post("/policies/:phygitalToken/mutation-options", async (c) => {
+  const owner = await requireOwnerSession(c);
+  if (owner instanceof Response) return owner;
+
+  const origin = requestOrigin(c);
+  if (!origin) {
+    return json(
+      { error: "Unsupported origin", code: "invalid_transaction" },
+      { status: 400 },
+    );
+  }
+
+  const binding = parseMutationBinding(await c.req.json().catch(() => null));
+  if (!binding) {
+    return json(
+      {
+        error: "Valid owner mutation binding required",
+        code: "invalid_transaction",
+      },
+      { status: 400 },
+    );
+  }
+
+  const result = await owner.stub.createMutationChallenge({ origin, binding });
+  if (!result.ok) {
+    return json(
+      { error: result.error, code: result.code },
+      { status: result.code === "not_owner" ? 403 : 400 },
+    );
+  }
+  return json({ challengeId: result.challengeId, options: result.options });
 });
 
 policyRoutes.put("/policies/:phygitalToken", async (c) => {
   const owner = await requireOwnerSession(c);
   if (owner instanceof Response) return owner;
 
-  const body = (await c.req.json()) as {
-    policy?: PolicyDocument;
-  };
-
-  if (!body.policy) {
+  const origin = requestOrigin(c);
+  if (!origin) {
     return json(
-      { error: "policy required", code: "invalid_transaction" },
+      { error: "Unsupported origin", code: "invalid_transaction" },
       { status: 400 },
     );
   }
 
-  try {
-    await upsertPolicyDocument(owner.phygitalToken, body.policy);
-  } catch (e) {
-    const err = e as { code?: string; message?: string };
-    if (err.code) {
-      return json(
-        {
-          error: err.message ?? "Invalid policy",
-          code: err.code,
-        },
-        { status: 400 },
-      );
-    }
-    throw e;
+  const body = (await c.req.json()) as {
+    policy?: PolicyDocument;
+    challengeId?: string;
+    assertion?: AuthenticationResponseJSON;
+  };
+
+  if (!body.policy || !body.challengeId || !body.assertion) {
+    return json(
+      {
+        error: "policy, challengeId and assertion required",
+        code: "invalid_transaction",
+      },
+      { status: 400 },
+    );
   }
 
-  return json(await getEffectivePolicy(owner.phygitalToken));
+  const result = await owner.stub.setPolicy({
+    policy: body.policy,
+    challengeId: body.challengeId,
+    assertion: body.assertion,
+    origin,
+  });
+  if (!result.ok) {
+    const status =
+      result.code === "not_owner" || result.code === "device_invalid"
+        ? 403
+        : 400;
+    return json(
+      { error: result.error, code: result.code, details: result.details },
+      { status },
+    );
+  }
+  return json(result.policy);
 });
 
 policyRoutes.delete("/policies/:phygitalToken", async (c) => {
   const owner = await requireOwnerSession(c);
   if (owner instanceof Response) return owner;
 
-  await deletePolicyDocument(owner.phygitalToken);
-  return json(await getEffectivePolicy(owner.phygitalToken));
+  const origin = requestOrigin(c);
+  if (!origin) {
+    return json(
+      { error: "Unsupported origin", code: "invalid_transaction" },
+      { status: 400 },
+    );
+  }
+
+  const body = (await c.req.json().catch(() => ({}))) as {
+    challengeId?: string;
+    assertion?: AuthenticationResponseJSON;
+  };
+  if (!body.challengeId || !body.assertion) {
+    return json(
+      {
+        error: "challengeId and assertion required",
+        code: "invalid_transaction",
+      },
+      { status: 400 },
+    );
+  }
+
+  const result = await owner.stub.clearPolicy({
+    challengeId: body.challengeId,
+    assertion: body.assertion,
+    origin,
+  });
+  if (!result.ok) {
+    return json(
+      { error: result.error, code: result.code },
+      { status: 403 },
+    );
+  }
+  await clearPendingApprovalsForToken(owner.phygitalToken);
+  return json(result.policy);
 });
 
 policyRoutes.post("/policies/:phygitalToken/grants", async (c) => {
   const owner = await requireOwnerSession(c);
   if (owner instanceof Response) return owner;
 
-  const body = (await c.req.json()) as {
-    intentHash?: string;
-    ttlSeconds?: number;
-  };
-  const intentHash = body.intentHash?.trim();
-  if (!intentHash) {
+  const origin = requestOrigin(c);
+  if (!origin) {
     return json(
-      { error: "intentHash required", code: "invalid_transaction" },
+      { error: "Unsupported origin", code: "invalid_transaction" },
       { status: 400 },
     );
   }
 
-  const ttlSeconds = Math.min(Math.max(body.ttlSeconds ?? 300, 60), 3600);
-  const grant = await createGrant({
-    phygitalToken: owner.phygitalToken,
+  const body = (await c.req.json()) as {
+    intentHash?: string;
+    ttlSeconds?: number;
+    challengeId?: string;
+    assertion?: AuthenticationResponseJSON;
+  };
+  const intentHash = body.intentHash?.trim();
+  if (!intentHash || !body.challengeId || !body.assertion) {
+    return json(
+      {
+        error: "intentHash, challengeId and assertion required",
+        code: "invalid_transaction",
+      },
+      { status: 400 },
+    );
+  }
+
+  const result = await owner.stub.createGrant({
     intentHash,
-    ttlSeconds,
+    ttlSeconds: body.ttlSeconds,
+    challengeId: body.challengeId,
+    assertion: body.assertion,
+    origin,
   });
+  if (!result.ok) {
+    return json(
+      { error: result.error, code: result.code },
+      { status: 403 },
+    );
+  }
+
+  await resolvePendingApproval(owner.phygitalToken, intentHash);
 
   return json({
-    grantId: grant.grantId,
-    intentHash,
-    expiresAt: grant.expiresAt,
+    grantId: result.grantId,
+    intentHash: result.intentHash,
+    expiresAt: result.expiresAt,
   });
 });
 
 policyRoutes.get("/policies/:phygitalToken/approvals", async (c) => {
   const owner = await requireOwnerSession(c);
   if (owner instanceof Response) {
-    // Visitors / unsigned: empty inbox (do not leak).
     if (owner.status === 401 || owner.status === 403) {
       return json({ approvals: [] });
     }

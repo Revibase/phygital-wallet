@@ -24,13 +24,15 @@
       "id": "a9aa768ab4854f11ac0314170849c172"
     }
   ],
-  "services": [
-    {
-      "binding": "VERIFIER_SIGNER",
-      "service": "revibase-verifier-signer",
-      "entrypoint": "VerifierSignerEntrypoint"
-    }
-  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "TOKEN_SIGNER",
+        "class_name": "TokenSigner",
+        "script_name": "revibase-verifier-signer"
+      }
+    ]
+  },
   "observability": {
     "enabled": true,
     "logs": {

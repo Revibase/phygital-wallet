@@ -8,7 +8,11 @@ NEXTJS_ENV=development
 # NEXT_PUBLIC_SOLANA_RPC_URL=https://api.devnet.solana.com
 
 # Backend Worker (pnpm --filter api dev → :8787)
-# NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8787
+# Use localhost (not 127.0.0.1) so session cookies share the Next host.
+# NEXT_PUBLIC_API_BASE_URL=http://localhost:8787
+
+# Must match workers/api — Next middleware verifies session cookies with this HMAC.
+# POLICY_SESSION_SECRET=dev-session-secret-change-me
 
 # Fee balance top-up accumulator (must match API TOP_UP_ACCUMULATOR)
 # NEXT_PUBLIC_TOP_UP_ACCUMULATOR=
