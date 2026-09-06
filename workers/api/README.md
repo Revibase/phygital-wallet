@@ -74,7 +74,10 @@ Per-token prepaid balance lives in the **TokenSigner DO** (not D1):
 
 ## Deploy
 
+`pnpm --filter api run deploy` deploys **api-signer first** (TokenSigner DO must
+exist before `revibase-api` can bind `script_name`), then the API Worker.
+
 ```bash
-pnpm --filter api-signer run deploy
 pnpm --filter api run deploy
+# or: pnpm deploy:api
 ```

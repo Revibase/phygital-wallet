@@ -17,7 +17,7 @@
     "cf:build": "pnpm build:client && pnpm --filter app exec opennextjs-cloudflare build",
     "cf:deploy": "pnpm --filter app exec opennextjs-cloudflare deploy",
     "deploy:app": "pnpm cf:build && pnpm cf:deploy",
-    "deploy:api": "pnpm --filter api-signer run deploy && pnpm --filter api run deploy"
+    "deploy:api": "pnpm --filter api run deploy"
   },
   "dependencies": {
     "@anchor-lang/core": "^1.0.2"

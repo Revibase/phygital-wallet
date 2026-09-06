@@ -41,11 +41,13 @@ wrangler secret put VERIFIER_SECRET_KEYS --config wrangler.jsonc
 
 ## Deploy
 
-Deploy **signer before API** so the DO class exists:
+Deploy **signer before API** so the DO class exists. Prefer the API package
+script (it chains both):
 
 ```bash
-pnpm --filter api-signer deploy
 pnpm --filter api deploy
+# or explicitly:
+pnpm --filter api-signer deploy && pnpm --filter api exec wrangler deploy
 ```
 
 Local:
