@@ -14,24 +14,12 @@
       "service": "revibase-app"
     }
   ],
-  "migrations": [
-    {
-      "tag": "v1",
-      "new_sqlite_classes": ["TransferSubmitterDO"]
-    },
-    {
-      "tag": "v2",
-      "new_sqlite_classes": ["PreauthGrantsDO"]
-    },
-    {
-      "tag": "v3",
-      "deleted_classes": ["TransferSubmitterDO", "PreauthGrantsDO"]
-    }
-  ],
+  "migrations": [],
   "vars": {
     "NEXT_PUBLIC_SOLANA_RPC_URL": "https://rpc.revibase.com",
     "NEXT_PUBLIC_SOLANA_CLUSTER": "mainnet",
-    "NEXT_PUBLIC_API_BASE_URL": "https://api.revibase.com"
+    "NEXT_PUBLIC_API_BASE_URL": "https://api.revibase.com",
+    "NEXT_PUBLIC_TOP_UP_ACCUMULATOR": ""
   },
   "observability": {
     "enabled": false,

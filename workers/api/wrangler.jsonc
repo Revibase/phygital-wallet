@@ -64,10 +64,6 @@
       "entrypoint": "VerifierSignerEntrypoint"
     }
   ],
-  "vars": {
-    "SOLANA_RPC_URL": "https://rpc.revibase.com",
-    "SOLANA_CLUSTER": "mainnet"
-  },
   "observability": {
     "enabled": true,
     "logs": {

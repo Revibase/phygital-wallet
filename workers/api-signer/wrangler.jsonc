@@ -13,11 +13,6 @@
       "database_id": "356d6b15-cd60-47b5-a014-648246bd27b5"
     }
   ],
-  "vars": {
-    "SOLANA_RPC_URL": "https://rpc.revibase.com",
-    "SOLANA_CLUSTER": "mainnet",
-    "VERIFIER_SIGNER_BACKEND": "secrets"
-  },
   "observability": {
     "enabled": true,
     "logs": {
