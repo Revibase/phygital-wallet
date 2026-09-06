@@ -5,44 +5,6 @@
   "compatibility_date": "2025-07-01",
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
-  "routes": [
-    {
-      "pattern": "api.revibase.com/tokens/*",
-      "zone_name": "revibase.com"
-    },
-    {
-      "pattern": "api.revibase.com/wallet/*",
-      "zone_name": "revibase.com"
-    },
-    {
-      "pattern": "api.revibase.com/verify-tap*",
-      "zone_name": "revibase.com"
-    },
-    {
-      "pattern": "api.revibase.com/sign*",
-      "zone_name": "revibase.com"
-    },
-    {
-      "pattern": "api.revibase.com/preview*",
-      "zone_name": "revibase.com"
-    },
-    {
-      "pattern": "api.revibase.com/policies/*",
-      "zone_name": "revibase.com"
-    },
-    {
-      "pattern": "api.revibase.com/auth*",
-      "zone_name": "revibase.com"
-    },
-    {
-      "pattern": "api.revibase.com/webhooks/*",
-      "zone_name": "revibase.com"
-    },
-    {
-      "pattern": "api.revibase.com/health",
-      "zone_name": "revibase.com"
-    }
-  ],
   "d1_databases": [
     {
       "binding": "phygital_token",
