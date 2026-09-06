@@ -211,6 +211,11 @@ export const copy = {
     homeLinkSetupTitle: "Hold to claim",
     homeLinkSetupBody:
       "Hold your accessory to the top of your phone to finish claiming.",
+    homeLinkConfirmTitle: "Confirm on this phone",
+    homeLinkConfirmBody:
+      "Use Face ID, fingerprint, or your screen lock to link this accessory to this phone.",
+    homeLinkConfirmCta: "Confirm with Passkey",
+    homeLinkConfirmPending: "Waiting for Face ID, fingerprint, or screen lock…",
     homeSetupPasskeyClaimTitle: "Make it yours",
     deviceLinkBody:
       "Claim this accessory so only this phone can change limits, recovery, and approval.",

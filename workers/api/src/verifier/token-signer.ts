@@ -6,6 +6,7 @@ import type { Instruction } from "phygital-verifier-sdk";
 import type { PolicyDocument } from "phygital-verifier-sdk";
 
 import type { MutationBinding } from "@/auth/mutation-binding";
+import { createLogger } from "@/shared/log";
 
 type EffectivePolicy = {
   phygitalToken: string;
@@ -110,5 +111,6 @@ export function tokenSigner(env: Env, phygitalToken: string): TokenSignerRpc {
   if (!token) {
     throw new Error("phygitalToken required");
   }
+  createLogger("api", env).debug("tokenSigner.stub", { phygitalToken: token });
   return env.TOKEN_SIGNER.getByName(token) as unknown as TokenSignerRpc;
 }

@@ -88,11 +88,19 @@ export function ClaimItemSheet({
     return () => window.clearTimeout(id);
   }, [success]);
 
+  const signIn = useMutation({
+    mutationFn: async () => {
+      const sessionInfo = await ensureSession(
+        session.data ?? null,
+        preferRegister,
+      );
+      queryClient.setQueryData(queryKeys.deviceAuth.session(), sessionInfo);
+      return sessionInfo;
+    },
+  });
+
   const claim = useMutation({
     mutationFn: async () => {
-      const sessionInfo = await ensureSession(session.data ?? null, preferRegister);
-      queryClient.setQueryData(queryKeys.deviceAuth.session(), sessionInfo);
-
       try {
         await linkToken({ phygitalToken: phygitalTokenPda });
       } catch (e) {
@@ -160,14 +168,28 @@ export function ClaimItemSheet({
     );
   }
 
-  const authError = claim.error ? toUserErrorMessage(claim.error) : null;
-  const showRetry = Boolean(authError);
   const signedIn = Boolean(session.data);
+  const busy = signIn.isPending || claim.isPending || session.isPending;
+  const activeError = signedIn ? claim.error : signIn.error;
+  const authError = activeError ? toUserErrorMessage(activeError) : null;
+  const showRetry = Boolean(authError);
   const primaryLabel = showRetry
     ? copy.wallet.claimTryAgain
     : signedIn
-      ? copy.wallet.claimContinue
+      ? copy.wallet.homeLinkConfirmCta
       : copy.wallet.claimCta;
+  const title = signedIn
+    ? copy.wallet.homeLinkConfirmTitle
+    : copy.wallet.claimTitle;
+  const body = authError
+    ? authError
+    : claim.isPending
+      ? copy.wallet.homeLinkConfirmPending
+      : !canAuth
+        ? copy.wallet.claimDesktopHint
+        : signedIn
+          ? copy.wallet.homeLinkConfirmBody
+          : copy.wallet.claimBody;
 
   return (
     <CeremonyShell>
@@ -178,15 +200,9 @@ export function ClaimItemSheet({
               ? copy.wallet.setupStepLink
               : copy.wallet.setupStepPasskey}
           </p>
-          <h1 className="text-large-title tracking-tight">
-            {copy.wallet.claimTitle}
-          </h1>
+          <h1 className="text-large-title tracking-tight">{title}</h1>
           <p className="mx-auto max-w-sm text-sm leading-relaxed text-muted-foreground">
-            {authError
-              ? authError
-              : !canAuth
-                ? copy.wallet.claimDesktopHint
-                : copy.wallet.claimBody}
+            {body}
           </p>
         </div>
         <div className="flex w-full max-w-sm flex-col gap-2">
@@ -195,13 +211,18 @@ export function ClaimItemSheet({
               type="button"
               size="lg"
               className="w-full rounded-full"
-              disabled={claim.isPending || session.isPending}
+              disabled={busy}
               onClick={() => {
+                if (signedIn) {
+                  claim.mutate();
+                  return;
+                }
                 setPreferRegister(false);
-                claim.mutate();
+                claim.reset();
+                signIn.mutate();
               }}
             >
-              {claim.isPending ? (
+              {signIn.isPending || claim.isPending ? (
                 <Spinner className="size-4" />
               ) : (
                 primaryLabel
@@ -214,10 +235,11 @@ export function ClaimItemSheet({
               variant="ghost"
               size="lg"
               className="w-full rounded-full"
-              disabled={claim.isPending}
+              disabled={busy}
               onClick={() => {
                 setPreferRegister(true);
-                claim.mutate();
+                claim.reset();
+                signIn.mutate();
               }}
             >
               <span className="text-muted-foreground">
@@ -233,7 +255,7 @@ export function ClaimItemSheet({
             variant="ghost"
             size="lg"
             className="w-full rounded-full"
-            disabled={claim.isPending}
+            disabled={busy}
             onClick={skip}
           >
             {copy.wallet.claimNotNow}

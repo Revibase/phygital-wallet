@@ -1,5 +1,8 @@
 # Local secrets for `wrangler dev` (gitignored as `.dev.vars`).
 
+# Structured Workers Logs verbosity (debug | info | warn | error)
+LOG_LEVEL=debug
+
 # SOLANA_CLUSTER=devnet
 # SOLANA_RPC_URL=https://api.devnet.solana.com
 

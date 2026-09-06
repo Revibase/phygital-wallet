@@ -10,6 +10,7 @@ import type { PolicyDocument } from "phygital-verifier-sdk";
 import { createVerifierSignerBackend } from "@/backend/create";
 import type { VerifierSignerBackend } from "@/backend/types";
 import { assertFeeBalance } from "@/fees/fee-balance-gate";
+import { createLogger, withLoggedRpc, type Logger } from "@/shared/log";
 import { runWithRequestStore } from "@/shared/request-context";
 import { authorizeIntent } from "@/verifier/approval";
 import { assertPreviewWalletSigner } from "@/verifier/assert-preview-wallet";
@@ -62,12 +63,30 @@ export class TokenSigner extends DurableObject<Env> {
   #store: TokenStore | null = null;
   #backend: VerifierSignerBackend | null = null;
   #token: string | null = null;
+  #logger: Logger | null = null;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     this.ctx.blockConcurrencyWhile(async () => {
       initTokenSchema(this.ctx.storage.sql);
     });
+  }
+
+  #log(): Logger {
+    if (!this.#logger) {
+      this.#logger = createLogger("token-signer", this.env, {
+        durableObjectId: this.ctx.id.toString(),
+      });
+    }
+    return this.#logger;
+  }
+
+  #rpc<T>(
+    method: string,
+    fields: Record<string, unknown>,
+    fn: () => Promise<T>,
+  ): Promise<T> {
+    return withLoggedRpc(this.#log(), method, fields, fn);
   }
 
   #getToken(): string {
@@ -119,24 +138,40 @@ export class TokenSigner extends DurableObject<Env> {
   // --- reads (no auth) ---
 
   async getPolicy(): Promise<EffectivePolicy> {
-    return this.#getStore().getEffectivePolicy();
+    return this.#rpc("getPolicy", { phygitalToken: this.#getToken() }, async () =>
+      this.#getStore().getEffectivePolicy(),
+    );
   }
 
   async getFeeBalance(): Promise<{ balanceLamports: number }> {
-    return { balanceLamports: this.#getStore().getFeeBalanceLamports() };
+    return this.#rpc(
+      "getFeeBalance",
+      { phygitalToken: this.#getToken() },
+      async () => ({ balanceLamports: this.#getStore().getFeeBalanceLamports() }),
+    );
   }
 
   async hasOwner(): Promise<boolean> {
-    return this.#getStore().hasOwner();
+    return this.#rpc("hasOwner", { phygitalToken: this.#getToken() }, async () =>
+      this.#getStore().hasOwner(),
+    );
   }
 
   async isOwner(credentialId: string): Promise<boolean> {
-    return this.#getStore().isOwner(credentialId);
+    return this.#rpc(
+      "isOwner",
+      { phygitalToken: this.#getToken(), credentialId },
+      async () => this.#getStore().isOwner(credentialId),
+    );
   }
 
   /** Sole owner credential id, or null if unclaimed. */
   async getOwnerCredentialId(): Promise<string | null> {
-    return this.#getStore().ownerCredentialId();
+    return this.#rpc(
+      "getOwnerCredentialId",
+      { phygitalToken: this.#getToken() },
+      async () => this.#getStore().ownerCredentialId(),
+    );
   }
 
   // --- claim owner (WebAuthn; api gates device session) ---
@@ -146,33 +181,44 @@ export class TokenSigner extends DurableObject<Env> {
     assertion: AuthenticationResponseJSON;
     origin: string;
   }): Promise<AddOwnerResult> {
-    const auth = await verifyMutationAssertion({
-      store: this.#getStore(),
-      challengeId: input.challengeId,
-      binding: { kind: "addOwner", credentialId: input.credentialId },
-      assertion: input.assertion,
-      origin: input.origin,
-      claimantPublicKey: input.publicKey,
-    });
-    if (!auth.ok) {
-      return { ok: false, code: auth.code, error: auth.error };
-    }
-    if (auth.credentialId !== input.credentialId) {
-      return {
-        ok: false,
-        code: "device_invalid",
-        error: "Couldn’t verify this phone",
-      };
-    }
-    const result = this.#getStore().addOwner(input);
-    if (!result.ok) {
-      return {
-        ok: false,
-        code: "linked_elsewhere",
-        error: "This accessory is linked to another phone.",
-      };
-    }
-    return { ok: true };
+    return this.#rpc(
+      "addOwner",
+      {
+        phygitalToken: this.#getToken(),
+        credentialId: input.credentialId,
+        challengeId: input.challengeId,
+        origin: input.origin,
+      },
+      async () => {
+        const auth = await verifyMutationAssertion({
+          store: this.#getStore(),
+          challengeId: input.challengeId,
+          binding: { kind: "addOwner", credentialId: input.credentialId },
+          assertion: input.assertion,
+          origin: input.origin,
+          claimantPublicKey: input.publicKey,
+        });
+        if (!auth.ok) {
+          return { ok: false, code: auth.code, error: auth.error };
+        }
+        if (auth.credentialId !== input.credentialId) {
+          return {
+            ok: false,
+            code: "device_invalid",
+            error: "Couldn’t verify this phone",
+          };
+        }
+        const result = this.#getStore().addOwner(input);
+        if (!result.ok) {
+          return {
+            ok: false,
+            code: "linked_elsewhere",
+            error: "This accessory is linked to another phone.",
+          };
+        }
+        return { ok: true };
+      },
+    );
   }
 
   // --- WebAuthn challenge ---
@@ -186,19 +232,29 @@ export class TokenSigner extends DurableObject<Env> {
       options: Record<string, unknown>;
     }>
   > {
-    const built = await buildMutationOptions(
-      this.#getStore(),
-      input.origin,
-      input.binding,
+    return this.#rpc(
+      "createMutationChallenge",
+      {
+        phygitalToken: this.#getToken(),
+        origin: input.origin,
+        bindingKind: input.binding.kind,
+      },
+      async () => {
+        const built = await buildMutationOptions(
+          this.#getStore(),
+          input.origin,
+          input.binding,
+        );
+        if (!built.ok) {
+          return { ok: false, code: built.code, error: built.error };
+        }
+        return {
+          ok: true,
+          challengeId: built.challengeId,
+          options: built.options as unknown as Record<string, unknown>,
+        };
+      },
     );
-    if (!built.ok) {
-      return { ok: false, code: built.code, error: built.error };
-    }
-    return {
-      ok: true,
-      challengeId: built.challengeId,
-      options: built.options as unknown as Record<string, unknown>,
-    };
   }
 
   // --- policy mutations (WebAuthn) ---
@@ -209,26 +265,36 @@ export class TokenSigner extends DurableObject<Env> {
     assertion: AuthenticationResponseJSON;
     origin: string;
   }): Promise<MutationResult<{ policy: EffectivePolicy }>> {
-    const auth = await verifyMutationAssertion({
-      store: this.#getStore(),
-      challengeId: input.challengeId,
-      binding: { kind: "setPolicy", policy: input.policy },
-      assertion: input.assertion,
-      origin: input.origin,
-    });
-    if (!auth.ok) {
-      return { ok: false, code: auth.code, error: auth.error };
-    }
-    const saved = this.#getStore().upsertPolicy(input.policy);
-    if (!saved.ok) {
-      return {
-        ok: false,
-        code: saved.code,
-        error: saved.error,
-        details: saved.details,
-      };
-    }
-    return { ok: true, policy: this.#getStore().getEffectivePolicy() };
+    return this.#rpc(
+      "setPolicy",
+      {
+        phygitalToken: this.#getToken(),
+        challengeId: input.challengeId,
+        origin: input.origin,
+      },
+      async () => {
+        const auth = await verifyMutationAssertion({
+          store: this.#getStore(),
+          challengeId: input.challengeId,
+          binding: { kind: "setPolicy", policy: input.policy },
+          assertion: input.assertion,
+          origin: input.origin,
+        });
+        if (!auth.ok) {
+          return { ok: false, code: auth.code, error: auth.error };
+        }
+        const saved = this.#getStore().upsertPolicy(input.policy);
+        if (!saved.ok) {
+          return {
+            ok: false,
+            code: saved.code,
+            error: saved.error,
+            details: saved.details,
+          };
+        }
+        return { ok: true, policy: this.#getStore().getEffectivePolicy() };
+      },
+    );
   }
 
   async clearPolicy(input: {
@@ -236,18 +302,28 @@ export class TokenSigner extends DurableObject<Env> {
     assertion: AuthenticationResponseJSON;
     origin: string;
   }): Promise<MutationResult<{ policy: EffectivePolicy }>> {
-    const auth = await verifyMutationAssertion({
-      store: this.#getStore(),
-      challengeId: input.challengeId,
-      binding: { kind: "clearPolicy" },
-      assertion: input.assertion,
-      origin: input.origin,
-    });
-    if (!auth.ok) {
-      return { ok: false, code: auth.code, error: auth.error };
-    }
-    this.#getStore().clearPolicyAndGrants();
-    return { ok: true, policy: this.#getStore().getEffectivePolicy() };
+    return this.#rpc(
+      "clearPolicy",
+      {
+        phygitalToken: this.#getToken(),
+        challengeId: input.challengeId,
+        origin: input.origin,
+      },
+      async () => {
+        const auth = await verifyMutationAssertion({
+          store: this.#getStore(),
+          challengeId: input.challengeId,
+          binding: { kind: "clearPolicy" },
+          assertion: input.assertion,
+          origin: input.origin,
+        });
+        if (!auth.ok) {
+          return { ok: false, code: auth.code, error: auth.error };
+        }
+        this.#getStore().clearPolicyAndGrants();
+        return { ok: true, policy: this.#getStore().getEffectivePolicy() };
+      },
+    );
   }
 
   async createGrant(input: {
@@ -257,25 +333,36 @@ export class TokenSigner extends DurableObject<Env> {
     assertion: AuthenticationResponseJSON;
     origin: string;
   }): Promise<MutationResult<{ grantId: string; expiresAt: number; intentHash: string }>> {
-    const intentHash = input.intentHash.trim();
-    const auth = await verifyMutationAssertion({
-      store: this.#getStore(),
-      challengeId: input.challengeId,
-      binding: { kind: "createGrant", intentHash },
-      assertion: input.assertion,
-      origin: input.origin,
-    });
-    if (!auth.ok) {
-      return { ok: false, code: auth.code, error: auth.error };
-    }
-    const ttlSeconds = Math.min(Math.max(input.ttlSeconds ?? 300, 60), 3600);
-    const grant = this.#getStore().createGrant(intentHash, ttlSeconds);
-    return {
-      ok: true,
-      grantId: grant.grantId,
-      expiresAt: grant.expiresAt,
-      intentHash,
-    };
+    return this.#rpc(
+      "createGrant",
+      {
+        phygitalToken: this.#getToken(),
+        intentHash: input.intentHash,
+        challengeId: input.challengeId,
+        origin: input.origin,
+      },
+      async () => {
+        const intentHash = input.intentHash.trim();
+        const auth = await verifyMutationAssertion({
+          store: this.#getStore(),
+          challengeId: input.challengeId,
+          binding: { kind: "createGrant", intentHash },
+          assertion: input.assertion,
+          origin: input.origin,
+        });
+        if (!auth.ok) {
+          return { ok: false, code: auth.code, error: auth.error };
+        }
+        const ttlSeconds = Math.min(Math.max(input.ttlSeconds ?? 300, 60), 3600);
+        const grant = this.#getStore().createGrant(intentHash, ttlSeconds);
+        return {
+          ok: true,
+          grantId: grant.grantId,
+          expiresAt: grant.expiresAt,
+          intentHash,
+        };
+      },
+    );
   }
 
   /**
@@ -287,41 +374,51 @@ export class TokenSigner extends DurableObject<Env> {
     assertion: AuthenticationResponseJSON;
     origin: string;
   }): Promise<MutationResult<{ credentialId: string }>> {
-    // Fail before consuming the WebAuthn challenge when teardown is incomplete.
-    const pre = await assertOnChainUnlinkTeardown(this.#getToken());
-    if (!pre.ok) {
-      return {
-        ok: false,
-        code: pre.code,
-        error: pre.error,
-        details: pre.details,
-      };
-    }
+    return this.#rpc(
+      "removeOwnerAndClear",
+      {
+        phygitalToken: this.#getToken(),
+        challengeId: input.challengeId,
+        origin: input.origin,
+      },
+      async () => {
+        // Fail before consuming the WebAuthn challenge when teardown is incomplete.
+        const pre = await assertOnChainUnlinkTeardown(this.#getToken());
+        if (!pre.ok) {
+          return {
+            ok: false,
+            code: pre.code,
+            error: pre.error,
+            details: pre.details,
+          };
+        }
 
-    const auth = await verifyMutationAssertion({
-      store: this.#getStore(),
-      challengeId: input.challengeId,
-      binding: { kind: "removeOwner" },
-      assertion: input.assertion,
-      origin: input.origin,
-    });
-    if (!auth.ok) {
-      return { ok: false, code: auth.code, error: auth.error };
-    }
+        const auth = await verifyMutationAssertion({
+          store: this.#getStore(),
+          challengeId: input.challengeId,
+          binding: { kind: "removeOwner" },
+          assertion: input.assertion,
+          origin: input.origin,
+        });
+        if (!auth.ok) {
+          return { ok: false, code: auth.code, error: auth.error };
+        }
 
-    // Re-check after auth in case accounts were re-created during the prompt.
-    const post = await assertOnChainUnlinkTeardown(this.#getToken());
-    if (!post.ok) {
-      return {
-        ok: false,
-        code: post.code,
-        error: post.error,
-        details: post.details,
-      };
-    }
+        // Re-check after auth in case accounts were re-created during the prompt.
+        const post = await assertOnChainUnlinkTeardown(this.#getToken());
+        if (!post.ok) {
+          return {
+            ok: false,
+            code: post.code,
+            error: post.error,
+            details: post.details,
+          };
+        }
 
-    this.#getStore().clearOwnerAndPolicies();
-    return { ok: true, credentialId: auth.credentialId };
+        this.#getStore().clearOwnerAndPolicies();
+        return { ok: true, credentialId: auth.credentialId };
+      },
+    );
   }
 
   // --- fees ---
@@ -329,11 +426,17 @@ export class TokenSigner extends DurableObject<Env> {
   async applyFeeEvents(
     events: FeeEvent[],
   ): Promise<{ applied: number }> {
-    let applied = 0;
-    for (const ev of events) {
-      if (this.#getStore().applyFeeEvent(ev)) applied += 1;
-    }
-    return { applied };
+    return this.#rpc(
+      "applyFeeEvents",
+      { phygitalToken: this.#getToken(), events: events.length },
+      async () => {
+        let applied = 0;
+        for (const ev of events) {
+          if (this.#getStore().applyFeeEvent(ev)) applied += 1;
+        }
+        return { applied };
+      },
+    );
   }
 
   // --- authorize + sign ---
@@ -341,157 +444,173 @@ export class TokenSigner extends DurableObject<Env> {
   async previewAuthorize(input: {
     instructions: Instruction[];
   }): Promise<PreviewAuthorizeResult> {
-    return this.#withEnv(async () => {
-      try {
-        const phygitalToken = this.#getToken();
-        await assertPreviewWalletSigner(phygitalToken, input.instructions);
+    return this.#rpc(
+      "previewAuthorize",
+      {
+        phygitalToken: this.#getToken(),
+        instructions: input.instructions.length,
+      },
+      () =>
+        this.#withEnv(async () => {
+          try {
+            const phygitalToken = this.#getToken();
+            await assertPreviewWalletSigner(phygitalToken, input.instructions);
 
-        const result = await authorizeIntent({
-          phygitalToken,
-          instructions: input.instructions,
-          mode: "preview",
-        });
+            const result = await authorizeIntent({
+              phygitalToken,
+              instructions: input.instructions,
+              mode: "preview",
+            });
 
-        if (!result.ok) {
-          return {
-            ok: false as const,
-            intentHash: result.intentHash,
-            code: result.code,
-            error: result.error,
-            soft: result.soft,
-            details: result.details,
-          };
-        }
+            if (!result.ok) {
+              return {
+                ok: false as const,
+                intentHash: result.intentHash,
+                code: result.code,
+                error: result.error,
+                soft: result.soft,
+                details: result.details,
+              };
+            }
 
-        const fee = await assertFeeBalance({
-          phygitalToken,
-          instructions: input.instructions,
-        });
-        if (!fee.ok) {
-          return {
-            ok: false as const,
-            code: fee.code,
-            error: fee.error,
-            soft: fee.soft,
-            details: fee.details,
-          };
-        }
+            const fee = await assertFeeBalance({
+              phygitalToken,
+              instructions: input.instructions,
+            });
+            if (!fee.ok) {
+              return {
+                ok: false as const,
+                code: fee.code,
+                error: fee.error,
+                soft: fee.soft,
+                details: fee.details,
+              };
+            }
 
-        return { ok: true as const, intentHash: result.intentHash };
-      } catch (err) {
-        const mapped = mapCodedVerifierError(err);
-        return {
-          ok: false as const,
-          code: mapped.code,
-          error: mapped.error,
-          soft: mapped.soft,
-          details: mapped.details,
-          httpStatus: mapped.status,
-        };
-      }
-    });
+            return { ok: true as const, intentHash: result.intentHash };
+          } catch (err) {
+            const mapped = mapCodedVerifierError(err);
+            return {
+              ok: false as const,
+              code: mapped.code,
+              error: mapped.error,
+              soft: mapped.soft,
+              details: mapped.details,
+              httpStatus: mapped.status,
+            };
+          }
+        }),
+    );
   }
 
   async signTransactions(wires: string[]): Promise<SignTransactionsResult> {
-    return this.#withEnv(async () => {
-      try {
-        if (!Array.isArray(wires) || wires.length === 0) {
-          return {
-            ok: false as const,
-            status: 400,
-            body: {
-              error: "transactions required",
-              code: "invalid_transaction",
-              soft: false,
-            },
-          };
-        }
+    return this.#rpc(
+      "signTransactions",
+      {
+        phygitalToken: this.#getToken(),
+        transactions: Array.isArray(wires) ? wires.length : 0,
+      },
+      () =>
+        this.#withEnv(async () => {
+          try {
+            if (!Array.isArray(wires) || wires.length === 0) {
+              return {
+                ok: false as const,
+                status: 400,
+                body: {
+                  error: "transactions required",
+                  code: "invalid_transaction",
+                  soft: false,
+                },
+              };
+            }
 
-        const backend = this.#getBackend();
-        const signatures: string[] = [];
+            const backend = this.#getBackend();
+            const signatures: string[] = [];
 
-        for (const wire of wires) {
-          const decoded = decodeWireTransaction(wire);
-          this.#bindToken(decoded.phygitalToken);
+            for (const wire of wires) {
+              const decoded = decodeWireTransaction(wire);
+              this.#bindToken(decoded.phygitalToken);
 
-          if (!(await backend.canSign(decoded.verifier))) {
+              if (!(await backend.canSign(decoded.verifier))) {
+                return {
+                  ok: false as const,
+                  status: 403,
+                  body: {
+                    error: "Transaction verifier does not match this signing service",
+                    code: "verifier_mismatch",
+                    soft: false,
+                    details: {
+                      got: decoded.verifier,
+                      phygitalToken: decoded.phygitalToken,
+                    },
+                  },
+                };
+              }
+
+              const fee = await assertFeeBalance({
+                phygitalToken: decoded.phygitalToken,
+                instructions: decoded.instructions,
+              });
+              if (!fee.ok) {
+                return {
+                  ok: false as const,
+                  status: 403,
+                  body: {
+                    error: fee.error,
+                    code: fee.code,
+                    soft: fee.soft,
+                    details: {
+                      ...fee.details,
+                      phygitalToken: decoded.phygitalToken,
+                    },
+                  },
+                };
+              }
+
+              const result = await authorizeIntent({
+                phygitalToken: decoded.phygitalToken,
+                instructions: decoded.instructions,
+                mode: "sign",
+              });
+
+              if (!result.ok) {
+                return {
+                  ok: false as const,
+                  status: 403,
+                  body: {
+                    error: result.error,
+                    code: result.code,
+                    soft: result.soft,
+                    details: {
+                      ...result.details,
+                      phygitalToken: decoded.phygitalToken,
+                      intentHash: result.intentHash,
+                    },
+                  },
+                };
+              }
+
+              signatures.push(
+                await backend.sign(decoded.verifier, decoded.messageBytes),
+              );
+            }
+
+            return { ok: true as const, signatures };
+          } catch (err) {
+            const mapped = mapCodedVerifierError(err);
             return {
               ok: false as const,
-              status: 403,
+              status: mapped.status,
               body: {
-                error: "Transaction verifier does not match this signing service",
-                code: "verifier_mismatch",
-                soft: false,
-                details: {
-                  got: decoded.verifier,
-                  phygitalToken: decoded.phygitalToken,
-                },
+                error: mapped.error,
+                code: mapped.code,
+                soft: mapped.soft,
+                details: mapped.details,
               },
             };
           }
-
-          const fee = await assertFeeBalance({
-            phygitalToken: decoded.phygitalToken,
-            instructions: decoded.instructions,
-          });
-          if (!fee.ok) {
-            return {
-              ok: false as const,
-              status: 403,
-              body: {
-                error: fee.error,
-                code: fee.code,
-                soft: fee.soft,
-                details: {
-                  ...fee.details,
-                  phygitalToken: decoded.phygitalToken,
-                },
-              },
-            };
-          }
-
-          const result = await authorizeIntent({
-            phygitalToken: decoded.phygitalToken,
-            instructions: decoded.instructions,
-            mode: "sign",
-          });
-
-          if (!result.ok) {
-            return {
-              ok: false as const,
-              status: 403,
-              body: {
-                error: result.error,
-                code: result.code,
-                soft: result.soft,
-                details: {
-                  ...result.details,
-                  phygitalToken: decoded.phygitalToken,
-                  intentHash: result.intentHash,
-                },
-              },
-            };
-          }
-
-          signatures.push(
-            await backend.sign(decoded.verifier, decoded.messageBytes),
-          );
-        }
-
-        return { ok: true as const, signatures };
-      } catch (err) {
-        const mapped = mapCodedVerifierError(err);
-        return {
-          ok: false as const,
-          status: mapped.status,
-          body: {
-            error: mapped.error,
-            code: mapped.code,
-            soft: mapped.soft,
-            details: mapped.details,
-          },
-        };
-      }
-    });
+        }),
+    );
   }
 }

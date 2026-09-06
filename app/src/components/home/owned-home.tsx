@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { findPhygitalTokenPda } from "phygital-token-sdk";
@@ -209,6 +209,7 @@ function HomeLinkSetup({
 }) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [phase, setPhase] = useState<"hold" | "confirm">("hold");
 
   const status = useQuery({
     queryKey: queryKeys.deviceAuth.linkStatus(tokenAddress),
@@ -222,7 +223,7 @@ function HomeLinkSetup({
     }
   }, [status.data, router, returnTo]);
 
-  const link = useMutation({
+  const hold = useMutation({
     mutationFn: async () => {
       const auth = await authenticateToken();
       const pda = String(await findPhygitalTokenPda(auth.secp256r1PublicKey));
@@ -234,13 +235,21 @@ function HomeLinkSetup({
         response: auth.response,
         phygitalToken: tokenAddress,
       });
-      await linkToken({ phygitalToken: tokenAddress });
     },
-    onSuccess: async () => {
+    onSuccess: () => {
       queryClient.setQueryData(
         queryKeys.deviceAuth.browseUnlock(tokenAddress),
         true,
       );
+      setPhase("confirm");
+    },
+  });
+
+  const link = useMutation({
+    mutationFn: async () => {
+      await linkToken({ phygitalToken: tokenAddress });
+    },
+    onSuccess: async () => {
       queryClient.setQueryData(
         queryKeys.deviceAuth.linkStatus(tokenAddress),
         "linked_here" as LinkStatus,
@@ -286,9 +295,64 @@ function HomeLinkSetup({
     );
   }
 
-  const error = link.error ? toUserErrorMessage(link.error) : null;
+  if (phase === "confirm") {
+    const linkError = link.error ? toUserErrorMessage(link.error) : null;
+    return (
+      <CeremonyShell>
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 px-4 py-16 text-center">
+          <div className="space-y-2">
+            <p className="text-eyebrow text-primary/80">
+              {copy.wallet.setupStepLink}
+            </p>
+            <h1 className="text-large-title tracking-tight">
+              {copy.wallet.homeLinkConfirmTitle}
+            </h1>
+            <p className="mx-auto max-w-sm text-sm leading-relaxed text-muted-foreground">
+              {linkError
+                ? linkError
+                : link.isPending
+                  ? copy.wallet.homeLinkConfirmPending
+                  : copy.wallet.homeLinkConfirmBody}
+            </p>
+          </div>
+          <div className="flex w-full max-w-sm flex-col gap-2">
+            <Button
+              type="button"
+              size="lg"
+              className="w-full rounded-full"
+              disabled={link.isPending}
+              onClick={() => link.mutate()}
+            >
+              {link.isPending ? (
+                <Spinner className="size-4" />
+              ) : linkError ? (
+                copy.common.tryAgain
+              ) : (
+                copy.wallet.homeLinkConfirmCta
+              )}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="lg"
+              className="w-full rounded-full"
+              disabled={link.isPending}
+              onClick={() => {
+                link.reset();
+                setPhase("hold");
+              }}
+            >
+              {copy.common.back}
+            </Button>
+          </div>
+        </div>
+      </CeremonyShell>
+    );
+  }
 
-  if (link.isPending) {
+  const holdError = hold.error ? toUserErrorMessage(hold.error) : null;
+
+  if (hold.isPending) {
     return (
       <CeremonyShell>
         <NfcHoldStatus
@@ -312,17 +376,20 @@ function HomeLinkSetup({
     >
       <NfcHoldStatus
         size="lg"
-        pulsing={!error}
-        title={error ? copy.verify.failed : copy.wallet.homeLinkSetupTitle}
-        body={error ?? copy.wallet.homeLinkSetupBody}
+        pulsing={!holdError}
+        title={holdError ? copy.verify.failed : copy.wallet.homeLinkSetupTitle}
+        body={holdError ?? copy.wallet.homeLinkSetupBody}
         action={
           <Button
             type="button"
             size="lg"
             className="w-full"
-            onClick={() => link.mutate()}
+            onClick={() => {
+              link.reset();
+              hold.mutate();
+            }}
           >
-            {error
+            {holdError
               ? copy.common.tryAgain
               : claimMode
                 ? copy.wallet.claimHoldToContinue
@@ -337,13 +404,14 @@ function HomeLinkSetup({
 function HomeLinksScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [pendingPda, setPendingPda] = useState<string | null>(null);
   const links = useQuery({
     queryKey: queryKeys.deviceAuth.links(),
     queryFn: fetchDeviceLinks,
     ...queryOptions.deviceLinks,
   });
 
-  const addAccessory = useMutation({
+  const hold = useMutation({
     mutationFn: async () => {
       const auth = await authenticateToken();
       const pda = String(await findPhygitalTokenPda(auth.secp256r1PublicKey));
@@ -352,11 +420,20 @@ function HomeLinksScreen() {
         response: auth.response,
         phygitalToken: pda,
       });
-      await linkToken({ phygitalToken: pda });
+      return pda;
+    },
+    onSuccess: (pda) => {
       queryClient.setQueryData(
         queryKeys.deviceAuth.browseUnlock(pda),
         true,
       );
+      setPendingPda(pda);
+    },
+  });
+
+  const link = useMutation({
+    mutationFn: async (pda: string) => {
+      await linkToken({ phygitalToken: pda });
       queryClient.setQueryData(
         queryKeys.deviceAuth.linkStatus(pda),
         "linked_here" as const,
@@ -384,11 +461,12 @@ function HomeLinksScreen() {
       return pda;
     },
     onSuccess: (pda) => {
+      setPendingPda(null);
       router.push(walletHref(pda));
     },
   });
 
-  if (addAccessory.isPending) {
+  if (hold.isPending) {
     return (
       <CeremonyShell>
         <NfcHoldStatus
@@ -403,14 +481,64 @@ function HomeLinksScreen() {
     );
   }
 
+  if (pendingPda) {
+    const linkError = link.error ? toUserErrorMessage(link.error) : null;
+    return (
+      <CeremonyShell>
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 px-4 py-16 text-center">
+          <div className="space-y-2">
+            <h1 className="text-large-title tracking-tight">
+              {copy.wallet.homeLinkConfirmTitle}
+            </h1>
+            <p className="mx-auto max-w-sm text-sm leading-relaxed text-muted-foreground">
+              {linkError
+                ? linkError
+                : link.isPending
+                  ? copy.wallet.homeLinkConfirmPending
+                  : copy.wallet.homeLinkConfirmBody}
+            </p>
+          </div>
+          <div className="flex w-full max-w-sm flex-col gap-2">
+            <Button
+              type="button"
+              size="lg"
+              className="w-full rounded-full"
+              disabled={link.isPending}
+              onClick={() => link.mutate(pendingPda)}
+            >
+              {link.isPending ? (
+                <Spinner className="size-4" />
+              ) : linkError ? (
+                copy.common.tryAgain
+              ) : (
+                copy.wallet.homeLinkConfirmCta
+              )}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="lg"
+              className="w-full rounded-full"
+              disabled={link.isPending}
+              onClick={() => {
+                link.reset();
+                setPendingPda(null);
+              }}
+            >
+              {copy.common.back}
+            </Button>
+          </div>
+        </div>
+      </CeremonyShell>
+    );
+  }
+
   if (links.isLoading) {
     return <LoadingStatus />;
   }
 
   const items = links.data ?? [];
-  const error = addAccessory.error
-    ? toUserErrorMessage(addAccessory.error)
-    : null;
+  const error = hold.error ? toUserErrorMessage(hold.error) : null;
 
   if (items.length === 0) {
     return (
@@ -425,7 +553,10 @@ function HomeLinksScreen() {
               type="button"
               size="lg"
               className="w-full"
-              onClick={() => addAccessory.mutate()}
+              onClick={() => {
+                link.reset();
+                hold.mutate();
+              }}
             >
               {copy.wallet.deviceAddAccessory}
             </Button>
@@ -448,7 +579,10 @@ function HomeLinksScreen() {
           variant="outline"
           size="default"
           className={cn(touchTargetClass, "rounded-full")}
-          onClick={() => addAccessory.mutate()}
+          onClick={() => {
+            link.reset();
+            hold.mutate();
+          }}
         >
           {copy.wallet.deviceAddAccessory}
         </Button>

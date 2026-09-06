@@ -24,7 +24,9 @@
     "SOLANA_CLUSTER": "mainnet",
     "SOLANA_RPC_URL": "https://rpc.revibase.com",
     "VERIFIER_SIGNER_BACKEND": "secrets",
-    "TOP_UP_ACCUMULATOR": "BExDpnx6E1LW3ofkCPxXvBRAmxqPVsmwnPb4oM5FUutv"
+    "TOP_UP_ACCUMULATOR": "BExDpnx6E1LW3ofkCPxXvBRAmxqPVsmwnPb4oM5FUutv",
+    // debug | info | warn | error — override in .dev.vars for local verbosity
+    "LOG_LEVEL": "info"
   },
   "observability": {
     "enabled": true,

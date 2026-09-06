@@ -9,6 +9,7 @@ import { Hono } from "hono";
 import { deviceAuthRoutes } from "@/auth/device-routes";
 import { policyRoutes } from "@/auth/policies-routes";
 import { appCors } from "@/shared/cors";
+import { createLogger } from "@/shared/log";
 import { runWithRequestStore } from "@/shared/request-context";
 import { verifyTapRoutes } from "@/tap/routes";
 import { tokenRoutes } from "@/tokens/routes";
@@ -28,6 +29,44 @@ app.use("*", async (c, next) => {
     },
     () => next(),
   );
+});
+
+app.use("*", async (c, next) => {
+  const log = createLogger("api", c.env);
+  const started = Date.now();
+  const method = c.req.method;
+  const path = c.req.path;
+  const requestId =
+    c.req.header("cf-ray") ?? c.req.header("x-request-id") ?? undefined;
+  const skipSummary = path === "/health";
+
+  log.debug("request.start", { method, path, requestId });
+  try {
+    await next();
+  } catch (err) {
+    log.error("request.exception", {
+      method,
+      path,
+      requestId,
+      ms: Date.now() - started,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    throw err;
+  }
+
+  if (skipSummary) return;
+
+  const status = c.res.status;
+  const fields = {
+    method,
+    path,
+    status,
+    requestId,
+    ms: Date.now() - started,
+  };
+  if (status >= 500) log.error("request.end", fields);
+  else if (status >= 400) log.warn("request.end", fields);
+  else log.info("request.end", fields);
 });
 
 app.get("/health", (c) => c.json({ ok: true }));

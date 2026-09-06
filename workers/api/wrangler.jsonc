@@ -16,7 +16,9 @@
   "vars": {
     "SOLANA_CLUSTER": "mainnet",
     "SOLANA_RPC_URL": "https://rpc.revibase.com",
-    "TOP_UP_ACCUMULATOR": "BExDpnx6E1LW3ofkCPxXvBRAmxqPVsmwnPb4oM5FUutv"
+    "TOP_UP_ACCUMULATOR": "BExDpnx6E1LW3ofkCPxXvBRAmxqPVsmwnPb4oM5FUutv",
+    // debug | info | warn | error — override in .dev.vars for local verbosity
+    "LOG_LEVEL": "info"
   },
   "kv_namespaces": [
     {

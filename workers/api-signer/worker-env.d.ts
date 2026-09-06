@@ -8,6 +8,7 @@ interface __BaseEnv_Env {
 	VERIFIER_SIGNER_BACKEND: string;
 	VERIFIER_SECRET_KEYS: string;
 	TOP_UP_ACCUMULATOR: string;
+	LOG_LEVEL: string;
 }
 declare namespace Cloudflare {
 	interface GlobalProps {
@@ -20,7 +21,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "SOLANA_CLUSTER" | "SOLANA_RPC_URL" | "VERIFIER_SIGNER_BACKEND" | "VERIFIER_SECRET_KEYS" | "TOP_UP_ACCUMULATOR">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "SOLANA_CLUSTER" | "SOLANA_RPC_URL" | "VERIFIER_SIGNER_BACKEND" | "VERIFIER_SECRET_KEYS" | "TOP_UP_ACCUMULATOR" | "LOG_LEVEL">> {}
 }
 
 // Begin runtime types
