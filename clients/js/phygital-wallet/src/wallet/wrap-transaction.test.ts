@@ -20,6 +20,11 @@ import {
   type Transaction,
 } from "@solana/kit";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  COMPUTE_BUDGET_PROGRAM_ADDRESS,
+  getSetComputeUnitLimitInstruction,
+  getSetComputeUnitPriceInstruction,
+} from "@solana-program/compute-budget";
 
 import {
   DEFAULT_VERIFIER_API_BASE,
@@ -180,9 +185,7 @@ const SECP256R1_PROGRAM = address(
   "Secp256r1SigVerify1111111111111111111111111",
 );
 const FEE_PAYER = address("11111111111111111111111111111113");
-const COMPUTE_BUDGET = address(
-  "ComputeBudget111111111111111111111111111111",
-);
+const MEMO_PROGRAM = address("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr");
 
 vi.mock("phygital-token-sdk", () => ({
   authenticatePasskeyForSecp256r1Verify: vi.fn(async () => ({ mocked: true })),
@@ -208,18 +211,27 @@ function mockInstruction(
   return { programAddress, accounts, data };
 }
 
-function setComputeUnitLimitIx(units: number): Instruction {
-  const data = new Uint8Array(5);
-  data[0] = 0x02;
-  new DataView(data.buffer).setUint32(1, units, true);
-  return { programAddress: COMPUTE_BUDGET, data };
-}
-
-function setComputeUnitPriceIx(microLamports: bigint): Instruction {
-  const data = new Uint8Array(9);
-  data[0] = 0x03;
-  new DataView(data.buffer).setBigUint64(1, microLamports, true);
-  return { programAddress: COMPUTE_BUDGET, data };
+function compileUnsigned(
+  instructions: readonly Instruction[],
+  feePayer: Address = FEE_PAYER,
+) {
+  return compileTransaction(
+    pipe(
+      createTransactionMessage({ version: 0 }),
+      (message) =>
+        setTransactionMessageFeePayerSigner(createNoopSigner(feePayer), message),
+      (message) =>
+        setTransactionMessageLifetimeUsingBlockhash(
+          {
+            blockhash: "11111111111111111111111111111111",
+            lastValidBlockHeight: 999n,
+          },
+          message,
+        ),
+      (message) =>
+        appendTransactionMessageInstructions([...instructions], message),
+    ),
+  );
 }
 
 function getTransactionProgramAddresses(transaction: Transaction): Address[] {
@@ -245,7 +257,7 @@ function readComputeBudget(transaction: Transaction): {
   let unitPrice: bigint | undefined;
 
   for (const instruction of instructions) {
-    if (instruction.programAddress !== COMPUTE_BUDGET) continue;
+    if (instruction.programAddress !== COMPUTE_BUDGET_PROGRAM_ADDRESS) continue;
     const data = instruction.data;
     if (!data || data.length === 0) continue;
     const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
@@ -409,20 +421,7 @@ describe("getPhygitalWalletSigner modifyAndSignTransactions", () => {
       { address: RECIPIENT, role: AccountRole.WRITABLE },
     ]);
 
-    const unsigned = pipe(
-      createTransactionMessage({ version: 0 }),
-      (message) => setTransactionMessageFeePayerSigner(createNoopSigner(FEE_PAYER), message),
-      (message) =>
-        setTransactionMessageLifetimeUsingBlockhash(
-          {
-            blockhash: "11111111111111111111111111111111",
-            lastValidBlockHeight: 999n,
-          },
-          message,
-        ),
-      (message) => appendTransactionMessageInstructions([transfer], message),
-    );
-    const compiled = compileTransaction(unsigned);
+    const compiled = compileUnsigned([transfer]);
 
     expect(getTransactionProgramAddresses(compiled)).toEqual([SYSTEM_PROGRAM]);
 
@@ -430,13 +429,39 @@ describe("getPhygitalWalletSigner modifyAndSignTransactions", () => {
     const programsAfter = getTransactionProgramAddresses(wrapped);
 
     expect(programsAfter).toEqual([
+      COMPUTE_BUDGET_PROGRAM_ADDRESS,
+      COMPUTE_BUDGET_PROGRAM_ADDRESS,
       SECP256R1_PROGRAM,
       PHYGITAL_WALLET_PROGRAM_ADDRESS,
-      COMPUTE_BUDGET,
-      COMPUTE_BUDGET,
     ]);
     expect(wrapped.signatures?.[walletPda]).toBeUndefined();
     expect(wrapped.signatures?.[CONFIG_VERIFIER]).toBeDefined();
+  });
+
+  it("lifts SPL memo instructions to the top level", async () => {
+    const rpc = await createMockRpc({
+      config: defaultConfigArgs(CONFIG_VERIFIER),
+    });
+    const [walletPda] = await findWalletPda({ phygitalToken: PHYGITAL_TOKEN });
+    const signer = await getPhygitalWalletSigner(rpc as never, PHYGITAL_TOKEN);
+
+    const transfer = mockInstruction(SYSTEM_PROGRAM, [
+      { address: walletPda, role: AccountRole.WRITABLE_SIGNER },
+      { address: RECIPIENT, role: AccountRole.WRITABLE },
+    ]);
+    const memo = mockInstruction(MEMO_PROGRAM, [], new Uint8Array([1, 2, 3]));
+
+    const [wrapped] = await signer.modifyAndSignTransactions([
+      compileUnsigned([transfer, memo]),
+    ]);
+
+    expect(getTransactionProgramAddresses(wrapped)).toEqual([
+      COMPUTE_BUDGET_PROGRAM_ADDRESS,
+      COMPUTE_BUDGET_PROGRAM_ADDRESS,
+      SECP256R1_PROGRAM,
+      PHYGITAL_WALLET_PROGRAM_ADDRESS,
+      MEMO_PROGRAM,
+    ]);
   });
 
   it("replaces wallet PDA fee payer with the verifier", async () => {
@@ -451,23 +476,8 @@ describe("getPhygitalWalletSigner modifyAndSignTransactions", () => {
       { address: RECIPIENT, role: AccountRole.WRITABLE },
     ]);
 
-    const unsigned = pipe(
-      createTransactionMessage({ version: 0 }),
-      (message) =>
-        setTransactionMessageFeePayerSigner(createNoopSigner(walletPda), message),
-      (message) =>
-        setTransactionMessageLifetimeUsingBlockhash(
-          {
-            blockhash: "11111111111111111111111111111111",
-            lastValidBlockHeight: 999n,
-          },
-          message,
-        ),
-      (message) => appendTransactionMessageInstructions([transfer], message),
-    );
-
     const [wrapped] = await signer.modifyAndSignTransactions([
-      compileTransaction(unsigned),
+      compileUnsigned([transfer], walletPda),
     ]);
 
     const compiledMessage = getCompiledTransactionMessageDecoder().decode(
@@ -491,38 +501,20 @@ describe("getPhygitalWalletSigner modifyAndSignTransactions", () => {
       { address: RECIPIENT, role: AccountRole.WRITABLE },
     ]);
 
-    const unsigned = pipe(
-      createTransactionMessage({ version: 0 }),
-      (message) => setTransactionMessageFeePayerSigner(createNoopSigner(FEE_PAYER), message),
-      (message) =>
-        setTransactionMessageLifetimeUsingBlockhash(
-          {
-            blockhash: "11111111111111111111111111111111",
-            lastValidBlockHeight: 999n,
-          },
-          message,
-        ),
-      (message) =>
-        appendTransactionMessageInstructions(
-          [
-            setComputeUnitPriceIx(5_000n),
-            setComputeUnitLimitIx(250_000),
-            memo,
-            transfer,
-          ],
-          message,
-        ),
-    );
-
     const [wrapped] = await signer.modifyAndSignTransactions([
-      compileTransaction(unsigned),
+      compileUnsigned([
+        getSetComputeUnitPriceInstruction({ microLamports: 5_000n }),
+        getSetComputeUnitLimitInstruction({ units: 250_000 }),
+        memo,
+        transfer,
+      ]),
     ]);
 
     expect(getTransactionProgramAddresses(wrapped)).toEqual([
+      COMPUTE_BUDGET_PROGRAM_ADDRESS,
+      COMPUTE_BUDGET_PROGRAM_ADDRESS,
       SECP256R1_PROGRAM,
       PHYGITAL_WALLET_PROGRAM_ADDRESS,
-      COMPUTE_BUDGET,
-      COMPUTE_BUDGET,
     ]);
     // Simulated 100_000 × 1.1 margin; median of [2k, 5k, 10k] fees.
     expect(readComputeBudget(wrapped)).toEqual({
@@ -537,28 +529,30 @@ describe("getPhygitalWalletSigner modifyAndSignTransactions", () => {
     });
     const signer = await getPhygitalWalletSigner(rpc as never, PHYGITAL_TOKEN);
 
-    const unsigned = pipe(
-      createTransactionMessage({ version: 0 }),
-      (message) => setTransactionMessageFeePayerSigner(createNoopSigner(FEE_PAYER), message),
-      (message) =>
-        setTransactionMessageLifetimeUsingBlockhash(
-          {
-            blockhash: "11111111111111111111111111111111",
-            lastValidBlockHeight: 999n,
-          },
-          message,
-        ),
-      (message) =>
-        appendTransactionMessageInstructions(
-          [setComputeUnitPriceIx(1_000n), setComputeUnitLimitIx(200_000)],
-          message,
-        ),
+    await expect(
+      signer.modifyAndSignTransactions([
+        compileUnsigned([
+          getSetComputeUnitPriceInstruction({ microLamports: 1_000n }),
+          getSetComputeUnitLimitInstruction({ units: 200_000 }),
+        ]),
+      ]),
+    ).rejects.toThrow(
+      /no instructions to wrap \(only compute budget\/memo, or empty\)/,
     );
+  });
+
+  it("rejects transactions with only memo instructions", async () => {
+    const rpc = await createMockRpc({
+      config: defaultConfigArgs(CONFIG_VERIFIER),
+    });
+    const signer = await getPhygitalWalletSigner(rpc as never, PHYGITAL_TOKEN);
 
     await expect(
-      signer.modifyAndSignTransactions([compileTransaction(unsigned)]),
+      signer.modifyAndSignTransactions([
+        compileUnsigned([mockInstruction(MEMO_PROGRAM, [], new Uint8Array([1]))]),
+      ]),
     ).rejects.toThrow(
-      /no instructions to wrap \(only compute budget, or empty\)/,
+      /no instructions to wrap \(only compute budget\/memo, or empty\)/,
     );
   });
 
@@ -594,22 +588,8 @@ describe("getPhygitalWalletSigner modifyAndSignTransactions", () => {
       { address: RECIPIENT, role: AccountRole.WRITABLE },
     ]);
 
-    const unsigned = pipe(
-      createTransactionMessage({ version: 0 }),
-      (message) => setTransactionMessageFeePayerSigner(createNoopSigner(FEE_PAYER), message),
-      (message) =>
-        setTransactionMessageLifetimeUsingBlockhash(
-          {
-            blockhash: "11111111111111111111111111111111",
-            lastValidBlockHeight: 999n,
-          },
-          message,
-        ),
-      (message) => appendTransactionMessageInstructions([transfer], message),
-    );
-
     const [wrapped] = await signer.modifyAndSignTransactions([
-      compileTransaction(unsigned),
+      compileUnsigned([transfer]),
     ]);
 
     expect(getLatestBlockhash).toHaveBeenCalled();

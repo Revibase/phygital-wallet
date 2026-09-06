@@ -6,8 +6,7 @@ import {
   isTransactionMessageWithBlockhashLifetime,
   isTransactionWithBlockhashLifetime,
   isWritableRole,
-  setTransactionMessageComputeUnitLimit,
-  setTransactionMessageComputeUnitPrice,
+  prependTransactionMessageInstructions,
   setTransactionMessageFeePayerSigner,
   setTransactionMessageLifetimeUsingBlockhash,
   type AccountMeta,
@@ -23,6 +22,11 @@ import {
   type TransactionWithLifetime,
   type TransactionWithinSizeLimit,
 } from "@solana/kit";
+import {
+  COMPUTE_BUDGET_PROGRAM_ADDRESS,
+  getSetComputeUnitLimitInstruction,
+  getSetComputeUnitPriceInstruction,
+} from "@solana-program/compute-budget";
 import {
   authenticatePasskeyForSecp256r1Verify,
   buildSecp256r1VerifyInstruction,
@@ -42,8 +46,8 @@ import {
   type SlotEntry,
 } from "../utils/challenges.js";
 
-const COMPUTE_BUDGET_PROGRAM_ADDRESS =
-  "ComputeBudget111111111111111111111111111111" as Address;
+const MEMO_PROGRAM_ADDRESS =
+  "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr" as Address;
 
 /** Account metas for execute don't depend on the passkey payload. */
 const PLACEHOLDER_SECP_ARGS: Secp256r1VerifyArgsArgs = {
@@ -71,6 +75,7 @@ type PreparedWalletWrap = {
   transaction: Transaction & TransactionWithLifetime;
   decompiled: DecompiledMessage;
   bodyInstructions: Instruction[];
+  memoInstructions: Instruction[];
 };
 
 type PendingWalletWrap = {
@@ -158,13 +163,12 @@ function applyComputeBudget<T extends DecompiledMessage>(
     instructions: stripComputeBudgetInstructions(message.instructions),
   } as T;
 
-  const withLimit = setTransactionMessageComputeUnitLimit(
-    unitLimit,
+  return prependTransactionMessageInstructions(
+    [
+      getSetComputeUnitLimitInstruction({ units: unitLimit }),
+      getSetComputeUnitPriceInstruction({ microLamports: unitPrice }),
+    ],
     withoutBudget,
-  );
-  return setTransactionMessageComputeUnitPrice(
-    unitPrice,
-    withLimit as Extract<T, { version: 0 | "legacy" }>,
   ) as T;
 }
 
@@ -245,9 +249,13 @@ function buildWrappedBaseMessage(input: {
     executeIx,
     pending.remainingAccounts,
   );
-  const instructions = input.secp256r1VerifyInstruction
-    ? [input.secp256r1VerifyInstruction, executeWithRemaining]
-    : [executeWithRemaining];
+  const instructions = [
+    ...(input.secp256r1VerifyInstruction
+      ? [input.secp256r1VerifyInstruction]
+      : []),
+    executeWithRemaining,
+    ...pending.prepared.memoInstructions,
+  ];
 
   const baseMessage = {
     ...pending.prepared.decompiled,
@@ -296,7 +304,6 @@ function applyVerifierCoSignature(
   };
 }
 
-/** Decompile + strip compute budget. */
 async function prepareWrappedWalletTransaction(input: {
   rpc: Rpc<SolanaRpcApi>;
   transaction: Transaction & TransactionWithLifetime;
@@ -318,13 +325,20 @@ async function prepareWrappedWalletTransaction(input: {
     decompileConfig,
   );
 
-  const bodyInstructions = stripComputeBudgetInstructions(
-    decompiled.instructions,
-  );
+  const bodyInstructions: Instruction[] = [];
+  const memoInstructions: Instruction[] = [];
+  for (const instruction of decompiled.instructions) {
+    if (instruction.programAddress === COMPUTE_BUDGET_PROGRAM_ADDRESS) continue;
+    if (instruction.programAddress === MEMO_PROGRAM_ADDRESS) {
+      memoInstructions.push(instruction);
+    } else {
+      bodyInstructions.push(instruction);
+    }
+  }
 
   if (bodyInstructions.length === 0) {
     throw new Error(
-      "Transaction has no instructions to wrap (only compute budget, or empty)",
+      "Transaction has no instructions to wrap (only compute budget/memo, or empty)",
     );
   }
 
@@ -332,6 +346,7 @@ async function prepareWrappedWalletTransaction(input: {
     transaction: input.transaction,
     decompiled,
     bodyInstructions,
+    memoInstructions,
   };
 }
 

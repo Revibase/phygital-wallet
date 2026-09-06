@@ -13,6 +13,7 @@ import {
   PHYGITAL_WALLET_PROGRAM_ADDRESS,
 } from "phygital-wallet-sdk";
 
+import { MEMO_PROGRAM_ADDRESS } from "@/fees/constants";
 import {
   COMPUTE_BUDGET_PROGRAM,
   SECP256R1_PROGRAM,
@@ -28,6 +29,7 @@ const TOP_LEVEL_OK = new Set<string>([
   COMPUTE_BUDGET_PROGRAM,
   SECP256R1_PROGRAM,
   PHYGITAL_WALLET_PROGRAM_ADDRESS,
+  MEMO_PROGRAM_ADDRESS,
 ]);
 
 function discEq(a: Uint8Array, b: Uint8Array): boolean {

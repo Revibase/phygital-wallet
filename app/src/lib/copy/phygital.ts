@@ -150,7 +150,7 @@ export const copy = {
     receiveAnything: "Receive SOL, tokens, and collectibles here",
     receiveNearby: "Receive from someone nearby",
     receiveNearbyHint:
-      "Use NFC tap to receive",
+      "Use NFC to receive",
     refresh: "Refresh",
     refreshing: "Refreshing…",
     lastUpdated: (value: string) => `Updated ${value}`,
