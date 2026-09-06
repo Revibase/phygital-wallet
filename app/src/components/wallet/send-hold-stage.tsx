@@ -14,7 +14,7 @@ import { NfcHoldStatus } from "@/components/shared/nfc-hold-status";
 import { ActivityReceiptSheet } from "@/components/wallet/activity-receipt-sheet";
 import { Button } from "@/components/ui/button";
 import { copy } from "@/lib/copy/phygital";
-import { blurEnter, blurEnterTransition } from "@/lib/motion";
+import { snapEnter, snapEnterTransition } from "@/lib/motion";
 import type { WalletActivityItem } from "@/lib/wallet/portfolio-types";
 
 export type SendHoldRecap = {
@@ -41,7 +41,7 @@ export function SendHoldStage({
   onClose: () => void;
 }) {
   const prefersReducedMotion = useReducedMotion();
-  const enter = blurEnter(prefersReducedMotion);
+  const enter = snapEnter(prefersReducedMotion);
   const [receiptOpen, setReceiptOpen] = useState(false);
 
   const receiptItem: WalletActivityItem | null =
@@ -84,23 +84,32 @@ export function SendHoldStage({
             </Button>
           }
         />
-        <AnimatePresence mode="wait" initial={false}>
+        <AnimatePresence mode="sync" initial={false}>
           <m.div
             key={phase}
             initial={enter.initial}
             animate={enter.animate}
-            exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -6, scale: 0.995 }}
-            transition={blurEnterTransition}
+            exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
+            transition={snapEnterTransition}
             className="flex flex-1 flex-col"
           >
             <NfcHoldStatus
               size="lg"
               pulsing={phase === "holding"}
               busy={phase === "holding"}
+              progress={phase === "holding"}
               tone={phase === "success" ? "success" : "default"}
               imageSrc={imageSrc}
-              title={phase === "success" ? copy.wallet.sent : copy.wallet.holdToSend}
-              body={phase === "success" ? undefined : copy.verify.holdStillBody}
+              title={
+                phase === "success"
+                  ? copy.wallet.sent
+                  : copy.wallet.holdCeremonyTitle
+              }
+              body={
+                phase === "success"
+                  ? undefined
+                  : copy.wallet.holdCeremonyBody
+              }
               action={
                 <div className="flex w-full flex-col items-center gap-3">
                   {recap ? (

@@ -6,6 +6,7 @@ import { findPhygitalTokenPda } from "phygital-token-sdk";
 
 import { InAppBrowserGate } from "@/components/shared/in-app-browser-gate";
 import { NfcHoldStatus } from "@/components/shared/nfc-hold-status";
+import { StatusPill } from "@/components/shared/status-pill";
 import { Button } from "@/components/ui/button";
 import { useAccessoryHold } from "@/hooks/token/use-accessory-hold";
 import { usePhygitalToken } from "@/hooks/token/use-phygital-token";
@@ -21,7 +22,7 @@ export type TokenNfcCopy = {
 };
 
 /**
- * Cold `/token` — NFC tap or Hold, then address-gated home.
+ * Cold `/token` — luminous boot on NFC tap, or Hold ceremony.
  */
 export function TokenNfcApp({ nfcCopy }: { nfcCopy: TokenNfcCopy }) {
   const router = useRouter();
@@ -70,12 +71,33 @@ export function TokenNfcApp({ nfcCopy }: { nfcCopy: TokenNfcCopy }) {
     !tokenQuery.isError &&
     (verifyPending || verify === "pending" || verify === "verified")
   ) {
+    const authentic = verify === "verified";
     return (
       <NfcHoldStatus
         size="lg"
         pulsing
-        busy
-        title={copy.verify.verifyingChip}
+        busy={!authentic}
+        progress={!authentic}
+        tone={authentic ? "success" : "default"}
+        title={
+          authentic
+            ? copy.wallet.statusAuthentic
+            : copy.wallet.confirmingAuthenticity
+        }
+        body={
+          authentic ? undefined : copy.wallet.readingAccessory
+        }
+        header={
+          authentic ? (
+            <div className="flex justify-center">
+              <StatusPill
+                label={copy.wallet.statusAuthenticLive}
+                tone="success"
+                sealed
+              />
+            </div>
+          ) : null
+        }
       />
     );
   }
@@ -86,8 +108,9 @@ export function TokenNfcApp({ nfcCopy }: { nfcCopy: TokenNfcCopy }) {
         size="lg"
         pulsing
         busy
-        title={copy.verify.holdStill}
-        body={copy.verify.holdStillBody}
+        progress
+        title={copy.wallet.holdCeremonyTitle}
+        body={copy.wallet.holdCeremonyBody}
       />
     );
   }
@@ -104,16 +127,16 @@ export function TokenNfcApp({ nfcCopy }: { nfcCopy: TokenNfcCopy }) {
     <NfcHoldStatus
       size="lg"
       pulsing={!error}
-      title={error ? copy.verify.failed : copy.verify.holdToCheck}
+      title={error ? copy.verify.failed : copy.wallet.holdToOpenTitle}
       body={error ?? nfcCopy.holdBody}
       action={
         <Button
           type="button"
           size="lg"
-          className="w-full"
+          className="w-full rounded-full"
           onClick={() => void holdToOpen()}
         >
-          {error ? copy.common.tryAgain : copy.verify.holdToCheck}
+          {error ? copy.common.tryAgain : copy.wallet.holdToOpenCta}
         </Button>
       }
     />

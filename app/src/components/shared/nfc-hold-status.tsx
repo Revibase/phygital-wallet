@@ -3,11 +3,15 @@
 import type { ReactNode } from "react";
 
 import { CollectibleOrb } from "@/components/token/collectible-orb";
+import { LuminousAura } from "@/components/shared/luminous-aura";
 import { copyBlockClass, ctaBlockClass } from "@/lib/layout";
 import { galleryAnimate, staggerStyle } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
-/** Shared NFC hold / processing status used by claim, pay, receive, and accessory check. */
+/**
+ * Shared Hold ceremony — unlock, verify, claim, send, nearby, fees, policies.
+ * Full-screen focused coach with progress ring affordance on the orb.
+ */
 export function NfcHoldStatus({
   title,
   body,
@@ -19,6 +23,7 @@ export function NfcHoldStatus({
   header,
   imageSrc,
   imageAlt = "",
+  progress = false,
 }: {
   title: string;
   body?: string;
@@ -32,42 +37,52 @@ export function NfcHoldStatus({
   /** DAS mint art for the circular hold target; NFC glyph if missing. */
   imageSrc?: string | null;
   imageAlt?: string;
+  /** Animate hold progress ring while busy. */
+  progress?: boolean;
 }) {
   const base = header ? 1 : 0;
   const titleClassName =
     "text-display-md tracking-tight md:text-2xl text-foreground";
+  const showProgress = progress || busy;
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-5 py-8 text-center sm:py-14">
+    <div className="relative flex flex-1 flex-col items-center justify-center gap-5 py-8 text-center sm:py-14">
+      <LuminousAura intensity="default" breathing={!busy || tone !== "success"} />
       {header ? (
         <div
-          className={cn("w-full max-w-sm", galleryAnimate.rise)}
+          className={cn("relative z-10 w-full max-w-sm", galleryAnimate.rise)}
           style={staggerStyle(0)}
         >
           {header}
         </div>
       ) : null}
-      <CollectibleOrb
-        src={imageSrc}
-        alt={imageAlt}
-        size={size}
-        pulsing={pulsing}
-        busy={busy}
-        tone={tone}
-        style={staggerStyle(base)}
-      />
+      <div className="relative z-10" style={staggerStyle(base)}>
+        <CollectibleOrb
+          src={imageSrc}
+          alt={imageAlt}
+          size={size}
+          pulsing={pulsing}
+          busy={busy}
+          tone={tone}
+          progress={showProgress && tone !== "success"}
+        />
+      </div>
       <div
-        className={cn(copyBlockClass, "space-y-1", galleryAnimate.rise)}
+        className={cn(
+          copyBlockClass,
+          "relative z-10 space-y-1.5",
+          galleryAnimate.rise,
+        )}
         style={staggerStyle(base + 1)}
       >
         <p className={titleClassName}>{title}</p>
         {body ? (
-          <p className="text-sm text-muted-foreground">{body}</p>
+          <p className="text-sm leading-relaxed text-muted-foreground">{body}</p>
         ) : null}
       </div>
       {action ? (
         <div
-          className={cn(ctaBlockClass, galleryAnimate.rise)}
+          className={cn(ctaBlockClass, "relative z-10", galleryAnimate.rise)}
           style={staggerStyle(base + 2)}
         >
           {action}

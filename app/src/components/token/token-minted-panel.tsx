@@ -11,6 +11,7 @@ import { CollectibleHero } from "@/components/token/collectible-hero";
 import { CollectibleShortcuts } from "@/components/token/collectible-shortcuts";
 import { VerificationMetadataRow } from "@/components/token/authenticity-badge";
 import { TokenDetails } from "@/components/token/token-details";
+import { StatusPill } from "@/components/shared/status-pill";
 import { StickyActions } from "@/components/shared/sticky-actions";
 import { MotionSection } from "@/components/shared/motion-section";
 import { Button } from "@/components/ui/button";
@@ -90,13 +91,23 @@ export function TokenMintedPanel({
           <div className="flex flex-col gap-5 pb-4">
             <MotionSection staggerIndex={stagger++}>
               {collectible ? (
-                <CollectibleHeader
-                  name={collectible.name}
-                  collectionName={collectible.collectionName}
-                  collectionImage={collectible.collectionImage}
-                  rarity={rarity}
-                  rarityLoading={rarityLoading}
-                />
+                <div className="flex flex-col gap-3">
+                  {liveConfirmed ? (
+                    <StatusPill
+                      label={copy.wallet.statusVerifiedNow}
+                      tone="success"
+                      sealed
+                      className="self-start"
+                    />
+                  ) : null}
+                  <CollectibleHeader
+                    name={collectible.name}
+                    collectionName={collectible.collectionName}
+                    collectionImage={collectible.collectionImage}
+                    rarity={rarity}
+                    rarityLoading={rarityLoading}
+                  />
+                </div>
               ) : loading ? (
                 <Skeleton className="h-14 w-full rounded-xl" aria-hidden />
               ) : null}
@@ -140,7 +151,7 @@ export function TokenMintedPanel({
                 >
                   {detailsOpen
                     ? copy.token.hideDetails
-                    : copy.token.showDetails}
+                    : copy.token.provenance}
                   {detailsOpen ? (
                     <ChevronUp className="size-4 text-muted-foreground" />
                   ) : (

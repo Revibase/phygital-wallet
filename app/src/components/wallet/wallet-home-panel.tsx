@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, type ReactNode } from "react";
+import { useMemo } from "react";
 import { LazyMotion, domAnimation, m, useReducedMotion } from "framer-motion";
 import { ArrowDown, ArrowUp, RefreshCcw, Settings } from "lucide-react";
 
@@ -29,7 +29,7 @@ import {
 import { formatUsd, sumUsd } from "@/lib/currency/usd";
 import { formatCompactTokenAmount } from "@/lib/tokens/amount";
 import { isDefaultMint } from "@/lib/tokens/payment-token";
-import { blurEnter, blurEnterTransition } from "@/lib/motion";
+import { snapEnter, snapEnterTransition, easeOut } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 const FIRST_RUN_FLAG = "revibase.first-run.wallet.v1";
@@ -40,8 +40,8 @@ const EMPTY_HOLDINGS: WalletPortfolio["holdings"] = [];
 const EMPTY_COLLECTIBLES: WalletPortfolio["collectibles"] = [];
 const SKELETON_ROWS = ["wallet-home-1", "wallet-home-2", "wallet-home-3"] as const;
 const sectionTransition = {
-  duration: 0.34,
-  ease: [0.22, 1, 0.36, 1] as const,
+  duration: 0.18,
+  ease: easeOut,
 };
 
 export function WalletHomePanel({
@@ -119,8 +119,8 @@ export function WalletHomePanel({
         show: { opacity: 1 },
       }
     : {
-        hidden: { opacity: 0, y: 12, filter: "blur(6px)" },
-        show: { opacity: 1, y: 0, filter: "blur(0px)" },
+        hidden: { opacity: 0, y: 6 },
+        show: { opacity: 1, y: 0 },
       };
   const [firstRunDismissed, setFirstRunDismissed] = useLocalFlag(FIRST_RUN_FLAG);
   const [recoveryAcked, setRecoveryAcked] = useLocalFlag(RECOVERY_ACK_FLAG);
@@ -159,7 +159,9 @@ export function WalletHomePanel({
         : primaryCryptoLine;
   const heroValue = showUsdHero
     ? formatUsd(totalUsd)
-    : (primaryCryptoLine ?? "—");
+    : primaryCryptoLine
+      ? primaryCryptoLine
+      : formatUsd(0);
   const showStatus = status === "error" || status === "refreshing";
   const statusLabel =
     status === "error"
@@ -219,8 +221,8 @@ export function WalletHomePanel({
           hidden: {},
           show: {
             transition: {
-              staggerChildren: prefersReducedMotion ? 0 : 0.045,
-              delayChildren: prefersReducedMotion ? 0 : 0.03,
+              staggerChildren: prefersReducedMotion ? 0 : 0.028,
+              delayChildren: 0,
             },
           },
         }}
@@ -309,7 +311,7 @@ export function WalletHomePanel({
           className="text-balance-hero tabular-nums"
           initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.985, y: 8 }}
           animate={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0 }}
-          transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1], delay: 0.04 }}
+          transition={{ duration: 0.22, ease: easeOut }}
         >
           {heroValue}
         </m.h1>
@@ -318,15 +320,22 @@ export function WalletHomePanel({
             type="button"
             variant="link"
             onClick={onReceive}
-            className="h-auto min-h-0 px-0 text-sm font-medium"
+            className="h-auto min-h-0 px-0 text-sm font-medium text-primary"
           >
             {copy.wallet.addMoney}
           </Button>
-        ) : heroSubtitle ? (
-          <p className="text-sm text-muted-foreground tabular-nums">
-            {heroSubtitle}
-          </p>
-        ) : null}
+        ) : (
+          <>
+            <p className="text-xs font-medium tracking-wide text-muted-foreground">
+              {copy.wallet.available}
+            </p>
+            {heroSubtitle ? (
+              <p className="text-sm text-muted-foreground tabular-nums">
+                {heroSubtitle}
+              </p>
+            ) : null}
+          </>
+        )}
         {lastUpdatedLabel ? (
           <p className="text-xs text-muted-foreground">{lastUpdatedLabel}</p>
         ) : null}
@@ -335,7 +344,7 @@ export function WalletHomePanel({
 
       {showFirstRun ? (
         <m.div
-          className="mx-4 flex flex-col gap-4 rounded-3xl bg-muted/20 px-5 py-6 text-center"
+          className="mx-4 flex flex-col gap-4 rounded-3xl border border-border/30 bg-card/70 px-5 py-6 text-center shadow-[0_16px_48px_-28px_var(--card-shadow)] backdrop-blur-md"
           variants={sectionVariants}
           transition={sectionTransition}
         >
@@ -364,22 +373,36 @@ export function WalletHomePanel({
 
       {!showFirstRun ? (
       <m.div
-        className="flex items-center justify-center gap-14"
+        className="flex w-full items-center justify-center gap-3 px-2"
         variants={sectionVariants}
         transition={sectionTransition}
       >
-        <QuickActionButton
-          label={copy.wallet.send}
-          icon={<ArrowUp className="size-5" />}
+        <Button
+          type="button"
+          size="lg"
           disabled={!hasFungible}
-          disabledHint={copy.wallet.sendNeedsFunds}
+          title={!hasFungible ? copy.wallet.sendNeedsFunds : undefined}
+          aria-label={
+            !hasFungible
+              ? `${copy.wallet.send}. ${copy.wallet.sendNeedsFunds}`
+              : copy.wallet.send
+          }
           onClick={onSend}
-        />
-        <QuickActionButton
-          label={copy.wallet.receive}
-          icon={<ArrowDown className="size-5" />}
+          className="h-12 min-h-12 flex-1 rounded-full text-[0.9375rem] font-semibold shadow-sm"
+        >
+          <ArrowUp className="size-4" aria-hidden />
+          {copy.wallet.send}
+        </Button>
+        <Button
+          type="button"
+          size="lg"
+          variant="secondary"
           onClick={onReceive}
-        />
+          className="h-12 min-h-12 flex-1 rounded-full border border-border/50 bg-card/80 text-[0.9375rem] font-semibold backdrop-blur-sm"
+        >
+          <ArrowDown className="size-4" aria-hidden />
+          {copy.wallet.receive}
+        </Button>
       </m.div>
       ) : null}
 
@@ -456,6 +479,7 @@ export function WalletHomePanel({
           <CollectiblesGrid
             collectibles={collectiblePreview}
             onSelect={onSelectCollectible}
+            layout="strip"
           />
         </m.section>
       ) : null}
@@ -524,52 +548,6 @@ export function WalletHomePanel({
   );
 }
 
-function QuickActionButton({
-  label,
-  icon,
-  onClick,
-  disabled,
-  disabledHint,
-}: {
-  label: string;
-  icon: ReactNode;
-  onClick: () => void;
-  disabled?: boolean;
-  disabledHint?: string;
-}) {
-  return (
-    <Button
-      type="button"
-      variant="ghost"
-      asChild
-      disabled={disabled}
-      className="h-auto min-h-0 flex-col gap-2 bg-transparent px-0 py-0 hover:bg-transparent disabled:opacity-40"
-    >
-      <m.button
-        type="button"
-        onClick={onClick}
-        disabled={disabled}
-        title={disabled ? disabledHint : undefined}
-        aria-label={disabled && disabledHint ? `${label}. ${disabledHint}` : label}
-        whileHover={disabled ? undefined : { y: -1.5 }}
-        whileTap={disabled ? undefined : { scale: 0.98 }}
-        transition={{ duration: 0.18, ease: "easeOut" }}
-      >
-        <m.span
-          className="flex size-12 items-center justify-center rounded-2xl border border-border/60 bg-muted/30 text-foreground transition-opacity active:opacity-80"
-          whileHover={disabled ? undefined : { scale: 1.03 }}
-          transition={{ duration: 0.2, ease: "easeOut" }}
-        >
-          {icon}
-        </m.span>
-        <span className="text-[11px] font-medium text-foreground/80">
-          {label}
-        </span>
-      </m.button>
-    </Button>
-  );
-}
-
 function QuietNotice({
   label,
   action,
@@ -580,14 +558,14 @@ function QuietNotice({
   onClick?: () => void;
 }) {
   const prefersReducedMotion = useReducedMotion();
-  const enter = blurEnter(prefersReducedMotion);
+  const enter = snapEnter(prefersReducedMotion);
   if (!action || !onClick) {
     return (
       <m.div
         className="mx-4 rounded-2xl bg-muted/20 px-4 py-2.5"
         initial={enter.initial}
         animate={enter.animate}
-        transition={blurEnterTransition}
+        transition={snapEnterTransition}
       >
         <p className="text-xs text-muted-foreground">{label}</p>
       </m.div>
@@ -605,9 +583,8 @@ function QuietNotice({
         onClick={onClick}
         initial={enter.initial}
         animate={enter.animate}
-        whileHover={{ y: -1 }}
-        whileTap={{ scale: 0.995 }}
-        transition={blurEnterTransition}
+        whileTap={{ scale: 0.99 }}
+        transition={snapEnterTransition}
       >
         <p className="min-w-0 flex-1 truncate text-xs font-normal text-muted-foreground">
           {label}

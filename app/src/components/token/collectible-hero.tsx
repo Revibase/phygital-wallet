@@ -30,7 +30,7 @@ export function CollectibleHero({
       className={cn(
         "w-full overflow-hidden rounded-2xl border border-card-frame bg-muted/40",
         "aspect-square shadow-[0_12px_40px_-16px_var(--card-shadow)]",
-        reveal && galleryAnimate.scaleIn,
+        reveal && galleryAnimate.reveal,
         className,
       )}
     >

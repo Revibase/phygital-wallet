@@ -117,21 +117,21 @@ function HomePasskeyScreen({
   const authError = loginMutation.error ?? registerMutation.error;
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-6 px-4 py-16 text-center">
-      <div className="space-y-2">
+    <div className="relative flex flex-1 flex-col items-center justify-center gap-6 px-4 py-16 text-center">
+      <div className="relative z-10 space-y-2">
         {setupMode ? (
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <p className="text-eyebrow text-primary/80">
             {copy.wallet.setupStepPasskey}
           </p>
         ) : null}
-        <h1 className="text-display-md tracking-tight">
+        <h1 className="text-large-title tracking-tight">
           {setupMode
             ? claimMode
               ? copy.wallet.homeSetupPasskeyClaimTitle
               : copy.wallet.limitsSetupTitle
             : copy.wallet.deviceLoginTitle}
         </h1>
-        <p className="max-w-sm text-sm text-muted-foreground">
+        <p className="mx-auto max-w-sm text-sm leading-relaxed text-muted-foreground">
           {authError
             ? toUserErrorMessage(authError)
             : setupMode
@@ -139,11 +139,11 @@ function HomePasskeyScreen({
               : copy.wallet.deviceLoginBody}
         </p>
       </div>
-      <div className="flex w-full max-w-sm flex-col gap-2">
+      <div className="relative z-10 flex w-full max-w-sm flex-col gap-2">
         <Button
           type="button"
           size="lg"
-          className="w-full"
+          className="w-full rounded-full"
           disabled={busy}
           onClick={() => {
             registerMutation.reset();
@@ -160,7 +160,7 @@ function HomePasskeyScreen({
           type="button"
           variant="ghost"
           size="lg"
-          className="w-full"
+          className="w-full rounded-full"
           disabled={busy}
           onClick={() => {
             loginMutation.reset();
@@ -183,7 +183,7 @@ function HomePasskeyScreen({
             type="button"
             variant="ghost"
             size="lg"
-            className="w-full"
+            className="w-full rounded-full"
             asChild
           >
             <a href="/token">{copy.wallet.homeHaveItemHint}</a>
@@ -371,6 +371,7 @@ function HomeLinksScreen() {
         size="lg"
         pulsing
         busy
+        progress
         title={copy.home.holdTitle}
         body={copy.home.holdBody}
       />
@@ -415,12 +416,13 @@ function HomeLinksScreen() {
 
   return (
     <div className="flex flex-1 flex-col gap-5">
-      <div className="flex justify-end gap-2">
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-large-title tracking-tight">{copy.home.keysTitle}</h1>
         <Button
           type="button"
           variant="outline"
           size="default"
-          className={touchTargetClass}
+          className={cn(touchTargetClass, "rounded-full")}
           onClick={() => addAccessory.mutate()}
         >
           {copy.wallet.deviceAddAccessory}

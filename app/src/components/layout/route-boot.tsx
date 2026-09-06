@@ -3,7 +3,8 @@
 import type { ReactNode } from "react";
 
 import { AppShell } from "@/components/layout/app-shell";
-import { brand } from "@/lib/copy/phygital";
+import { LuminousAura } from "@/components/shared/luminous-aura";
+import { brand, copy } from "@/lib/copy/phygital";
 import { galleryAnimate } from "@/lib/motion";
 import type { ShellLayout } from "@/lib/layout";
 import { cn } from "@/lib/utils";
@@ -18,16 +19,27 @@ export function RouteBoot({
 }) {
   return (
     <AppShell layout={layout}>
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 py-14">
+      <div className="relative flex flex-1 flex-col items-center justify-center gap-4 py-14">
+        <LuminousAura intensity="strong" />
         <div
           className={cn(
-            "h-2 w-24 rounded-full bg-linear-to-r from-muted/30 via-muted/60 to-muted/30 bg-size-[200%_100%]",
-            galleryAnimate.shimmer,
+            "relative z-10 h-1.5 w-28 overflow-hidden rounded-full bg-primary/15",
+            galleryAnimate.rise,
           )}
           aria-hidden
-        />
-        <p className="font-(family-name:--font-display) text-sm tracking-tight text-muted-foreground">
+        >
+          <div
+            className={cn(
+              "h-full w-1/2 rounded-full bg-primary",
+              galleryAnimate.shimmer,
+            )}
+          />
+        </div>
+        <p className="relative z-10 font-(family-name:--font-display) text-sm font-medium tracking-tight text-foreground">
           {brand.company}
+        </p>
+        <p className="relative z-10 text-xs text-muted-foreground">
+          {copy.wallet.readingAccessory}
         </p>
       </div>
       {children}

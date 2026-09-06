@@ -3,10 +3,11 @@
 import { CheckCircle2, RefreshCw } from "lucide-react";
 
 import { CollectibleMetadataRow } from "@/components/token/collectible-metadata-group";
+import { StatusPill } from "@/components/shared/status-pill";
 import { Button } from "@/components/ui/button";
 import { copy } from "@/lib/copy/phygital";
 
-/** Verification metadata row — Verify CTA, or Verified after live auth. */
+/** Verification metadata row — Verify CTA, or authenticity seal after live auth. */
 export function VerificationMetadataRow({
   liveConfirmed,
   onVerify,
@@ -40,15 +41,14 @@ export function VerificationMetadataRow({
           ) : undefined
         }
       >
-        <span
-          className="inline-flex items-center gap-1 font-medium text-success"
+        <StatusPill
+          label={copy.verify.verified}
+          tone="success"
+          sealed
           aria-label={
             canRecheck ? copy.verify.verifiedRecheckAria : copy.verify.verified
           }
-        >
-          <CheckCircle2 className="size-3.5 shrink-0" aria-hidden />
-          {copy.verify.verified}
-        </span>
+        />
       </CollectibleMetadataRow>
     );
   }
@@ -66,7 +66,8 @@ export function VerificationMetadataRow({
           {copy.verify.verifyCta}
         </Button>
       ) : (
-        <span className="font-medium text-muted-foreground">
+        <span className="inline-flex items-center gap-1 font-medium text-muted-foreground">
+          <CheckCircle2 className="size-3.5 opacity-40" aria-hidden />
           {copy.verify.notVerified}
         </span>
       )}

@@ -1,8 +1,15 @@
 import type { Metadata, Viewport } from "next";
+import { Outfit } from "next/font/google";
 
 import { AppProviders } from "./providers";
 import { brand, products } from "@/lib/copy/phygital";
 import "./globals.css";
+
+const outfit = Outfit({
+  subsets: ["latin"],
+  variable: "--font-outfit",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: {
@@ -24,9 +31,9 @@ export const viewport: Viewport = {
   viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: brand.chromeLight },
-    { media: "(prefers-color-scheme: dark)", color: brand.chromeDark },
+    { media: "(prefers-color-scheme: dark)", color: brand.chromeLight },
   ],
-  colorScheme: "light dark",
+  colorScheme: "light",
 };
 
 export default function RootLayout({
@@ -35,7 +42,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="min-h-dvh antialiased">
+    <html lang="en" className={`${outfit.variable} min-h-dvh antialiased`}>
       <body className="flex min-h-dvh flex-col font-sans">
         <AppProviders>{children}</AppProviders>
       </body>

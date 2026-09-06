@@ -66,7 +66,7 @@ export function ReceiveHub({
       />
 
       <div className="flex flex-col items-center gap-3 px-2 text-center">
-        <div className="rounded-[28px] border border-border/50 bg-white p-4 shadow-sm">
+        <div className="rounded-[28px] border border-border/40 bg-card p-5 shadow-[0_16px_48px_-24px_var(--card-shadow)]">
           <WalletQrCode value={payUrl} size={192} className="size-48" />
         </div>
         <div className="space-y-1">

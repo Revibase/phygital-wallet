@@ -10,6 +10,7 @@ import {
 } from "react";
 import Link from "next/link";
 
+import { LuminousAura } from "@/components/shared/luminous-aura";
 import { Badge } from "@/components/ui/badge";
 import { brand, copy } from "@/lib/copy/phygital";
 import {
@@ -59,13 +60,14 @@ export function AppShell({
   return (
     <ShellStageSlotContext.Provider value={stageApi}>
       <div className="relative flex min-h-dvh flex-1 flex-col items-center overflow-x-clip bg-background">
+        <LuminousAura intensity="soft" />
         <main
           className={cn(
             "relative z-10 mx-auto flex w-full min-w-0 flex-1 flex-col self-center",
             shellPaddingClass,
             shellLayoutClass[layout],
             (layout === "compact" || layout === "home") &&
-              "md:my-4 md:min-h-[min(100dvh-2rem,52rem)] md:rounded-[2rem] md:border md:border-border/40 md:bg-background/90 md:shadow-[0_0_0_1px_rgba(255,255,255,0.03)]",
+              "md:my-4 md:min-h-[min(100dvh-2rem,52rem)] md:overflow-hidden md:rounded-[2rem] md:border md:border-border/40 md:bg-background/80 md:shadow-[0_24px_80px_-32px_var(--card-shadow)] md:backdrop-blur-xl",
           )}
         >
           <div className={cn("mb-4 md:mb-5", galleryAnimate.rise)}>

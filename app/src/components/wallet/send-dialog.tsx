@@ -46,7 +46,7 @@ import {
   formatSponsoredFeeUi,
 } from "@/lib/wallet/sponsored-fee";
 import { sanitizeDecimalInput } from "@/lib/tokens/amount";
-import { blurEnter, blurEnterTransition } from "@/lib/motion";
+import { snapEnter, snapEnterTransition, easeOut } from "@/lib/motion";
 import type { SendHoldRecap } from "@/components/wallet/send-hold-stage";
 import { Spinner } from "@/components/ui/spinner";
 import { GroupedList, GroupedRow } from "@/components/shared/grouped-list";
@@ -113,7 +113,7 @@ export function SendDialog({
   const addressBook = useAddressBook();
   const feeBalance = useFeeBalance(phygitalTokenPda);
   const prefersReducedMotion = useReducedMotion();
-  const enter = blurEnter(prefersReducedMotion);
+  const enter = snapEnter(prefersReducedMotion);
   const amountInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -363,7 +363,7 @@ export function SendDialog({
         className="flex flex-1 flex-col gap-5"
         initial={enter.initial}
         animate={enter.animate}
-        transition={blurEnterTransition}
+        transition={snapEnterTransition}
       >
       <NavBar
         className="mb-0"
@@ -419,7 +419,7 @@ export function SendDialog({
         className="flex flex-col items-center gap-2 py-1"
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1], delay: 0.03 }}
+        transition={snapEnterTransition}
       >
         {nft ? (
           <>
@@ -476,7 +476,7 @@ export function SendDialog({
         className="flex flex-col gap-2"
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1], delay: 0.05 }}
+        transition={snapEnterTransition}
       >
         <FieldLabel className="px-1 normal-case tracking-normal text-xs">
           {copy.wallet.to}
@@ -616,7 +616,7 @@ export function SendDialog({
         className="mt-auto pt-2"
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1], delay: 0.08 }}
+        transition={snapEnterTransition}
       >
         <m.div whileTap={{ scale: canSend ? 0.995 : 1 }}>
           <Button
@@ -781,7 +781,7 @@ export function SendDialog({
           className="flex flex-1 flex-col gap-6"
           initial={enter.initial}
           animate={enter.animate}
-          transition={blurEnterTransition}
+          transition={snapEnterTransition}
         >
           <NavBar
             className="mb-0"
@@ -802,13 +802,13 @@ export function SendDialog({
             className="flex flex-1 flex-col items-center justify-center gap-4 px-2 text-center"
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1], delay: 0.04 }}
+            transition={{ duration: 0.16, ease: easeOut }}
           >
             <m.h2
               className="font-(family-name:--font-display) text-2xl font-medium"
               initial={{ opacity: 0, scale: 0.985 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1], delay: 0.06 }}
+              transition={snapEnterTransition}
             >
               {role === "owner"
                 ? copy.wallet.approveSendTitle
@@ -823,7 +823,7 @@ export function SendDialog({
               className="w-full max-w-sm overflow-hidden rounded-2xl bg-muted/25 text-left"
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1], delay: 0.08 }}
+              transition={snapEnterTransition}
             >
               <div className="border-b border-border/40 px-4 py-3">
                 <p className="font-(family-name:--font-display) text-lg">
@@ -849,7 +849,7 @@ export function SendDialog({
             className="flex flex-col gap-2"
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
+            transition={snapEnterTransition}
           >
             {role === "owner" ? (
               <>

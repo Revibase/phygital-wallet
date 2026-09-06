@@ -264,10 +264,15 @@ export function ClaimItemSheet({
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-6 px-4 py-16 text-center">
       <div className="space-y-2">
-        <h1 className="text-display-md tracking-tight">
+        <p className="text-eyebrow text-primary/80">
+          {signedIn
+            ? copy.wallet.setupStepLink
+            : copy.wallet.setupStepPasskey}
+        </p>
+        <h1 className="text-large-title tracking-tight">
           {copy.wallet.claimTitle}
         </h1>
-        <p className="max-w-sm text-sm text-muted-foreground">
+        <p className="mx-auto max-w-sm text-sm leading-relaxed text-muted-foreground">
           {authError
             ? authError
             : !canAuth
@@ -280,7 +285,7 @@ export function ClaimItemSheet({
           <Button
             type="button"
             size="lg"
-            className="w-full"
+            className="w-full rounded-full"
             disabled={claim.isPending || session.isPending}
             onClick={() => {
               setPreferRegister(false);
@@ -299,7 +304,7 @@ export function ClaimItemSheet({
             type="button"
             variant="ghost"
             size="lg"
-            className="w-full"
+            className="w-full rounded-full"
             disabled={claim.isPending}
             onClick={() => {
               setPreferRegister(true);
@@ -318,7 +323,7 @@ export function ClaimItemSheet({
           type="button"
           variant="ghost"
           size="lg"
-          className="w-full"
+          className="w-full rounded-full"
           disabled={claim.isPending}
           onClick={skip}
         >

@@ -134,7 +134,7 @@ function WalletWorkspaceInner({
   const resolvedLabel =
     collectible?.name ??
     cardLabel ??
-    (mint ? copy.home.card : copy.home.accessory);
+    (mint ? copy.home.card : copy.common.wallet);
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const router = useRouter();
@@ -526,7 +526,7 @@ function WalletWorkspaceInner({
               : linkedElsewhere
                 ? copy.wallet.deviceVisitorNotice
                 : unclaimed || claimed === undefined
-                  ? copy.wallet.deviceVisitorUnlinkedNotice
+                  ? copy.wallet.claimBannerTitle
                   : null
           }
           visitorNoticeAction={
