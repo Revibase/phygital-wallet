@@ -4,160 +4,81 @@ import { getRpcUrl } from "@/shared/solana/cluster";
 import { json } from "@/shared/http";
 import { tryParseAddress } from "@/shared/solana/address";
 import { getErrorMessage } from "@/shared/utils";
-import { getEnv } from "@/shared/request-context";
 
-type HeliusHistoryRequest = {
-  address: string;
-  limit?: number;
-  beforeSignature?: string;
-  afterSignature?: string;
-  order?: "asc" | "desc";
-};
-
-type HeliusTransfer = {
-  fromUserAccount?: string;
-  toUserAccount?: string;
-  amount?: number;
+/**
+ * Helius Wallet API — GET /v1/wallet/{address}/history
+ * @see https://www.helius.dev/docs/wallet-api/history
+ */
+type WalletHistoryBalanceChange = {
   mint?: string;
+  /** Human-readable (already divided by decimals); signed. */
+  amount?: number;
   decimals?: number;
 };
 
-type HeliusNativeTransfer = {
-  fromUserAccount?: string;
-  toUserAccount?: string;
-  amount?: number;
-};
-
-type HeliusSummary = {
-  type?: string;
-  description?: string;
-};
-
-type ParsedHistoryTx = {
+type WalletHistoryTx = {
   signature?: string;
+  timestamp?: number | null;
   slot?: number;
-  timestamp?: number;
   fee?: number;
   feePayer?: string;
-  transactionError?: string | null;
-  description?: string | null;
-  nativeTransfers?: HeliusNativeTransfer[];
-  tokenTransfers?: HeliusTransfer[];
-  summary?: HeliusSummary | null;
+  error?: unknown;
+  balanceChanges?: WalletHistoryBalanceChange[];
 };
 
-type ParsedHistoryItem = {
-  signature?: string;
-  parserStatus?: string;
-  data?: ParsedHistoryTx;
-  error?: { message?: string };
-};
-
-type ParsedHistoryResponse = {
-  data?: ParsedHistoryItem[];
-  paginationToken?: string | null;
+type WalletHistoryResponse = {
+  data?: WalletHistoryTx[];
+  pagination?: {
+    hasMore?: boolean;
+    nextCursor?: string | null;
+  };
 };
 
 const NATIVE_SOL_MINT =
   "So11111111111111111111111111111111111111112" as const;
 
-function toUiAmount(amountRaw: number, decimals: number): string {
-  if (!Number.isFinite(amountRaw)) return "0";
-  return (amountRaw / 10 ** decimals).toLocaleString(undefined, {
-    maximumFractionDigits: Math.min(Math.max(decimals, 0), 6),
-  });
+function normalizeMint(mint: string | undefined): string | null {
+  const raw = mint?.trim();
+  if (!raw) return null;
+  if (raw === "SOL" || raw === NATIVE_SOL_MINT) return NATIVE_SOL_MINT;
+  return raw;
 }
 
-function mapHistoryItem(walletAddress: string, item: ParsedHistoryItem) {
-  const tx = item.data;
-  const signature = tx?.signature ?? item.signature ?? null;
-  if (!tx || !signature) return null;
+function formatUiAmount(amount: number): string {
+  if (!Number.isFinite(amount)) return "0";
+  const abs = Math.abs(amount);
+  return abs.toFixed(6).replace(/\.?0+$/, "") || "0";
+}
 
-  type DeltaKey = `${string}:${"in" | "out"}`;
-  const deltasMap = new Map<
-    DeltaKey,
-    { mint: string; direction: "in" | "out"; rawSum: number; decimals: number }
-  >();
+function mapHistoryTx(walletAddress: string, tx: WalletHistoryTx) {
+  const signature = tx.signature?.trim();
+  if (!signature) return null;
 
-  let counterparty: string | null = null;
+  const balanceDeltas: Array<{
+    mint: string;
+    direction: "in" | "out";
+    amountUi: string;
+  }> = [];
+
   let hasIn = false;
   let hasOut = false;
 
-  function upsertDelta(args: {
-    mint: string;
-    direction: "in" | "out";
-    rawAmount: number;
-    decimals: number;
-  }) {
-    const rawAmount = args.rawAmount;
-    if (!Number.isFinite(rawAmount)) return;
-    const decimals = Number.isFinite(args.decimals) ? args.decimals : 0;
-    const key = `${args.mint}:${args.direction}` as DeltaKey;
-    const prev = deltasMap.get(key);
-    if (!prev) {
-      deltasMap.set(key, {
-        mint: args.mint,
-        direction: args.direction,
-        rawSum: rawAmount,
-        decimals,
-      });
-      return;
-    }
-    deltasMap.set(key, {
-      ...prev,
-      rawSum: prev.rawSum + rawAmount,
-      // If decimals differ (rare), prefer the latest.
-      decimals,
+  for (const change of tx.balanceChanges ?? []) {
+    const mint = normalizeMint(change.mint);
+    const amount = typeof change.amount === "number" ? change.amount : NaN;
+    if (!mint || !Number.isFinite(amount) || amount === 0) continue;
+    const direction = amount > 0 ? "in" : "out";
+    if (direction === "in") hasIn = true;
+    else hasOut = true;
+    balanceDeltas.push({
+      mint,
+      direction,
+      amountUi: formatUiAmount(amount),
     });
   }
 
-  for (const t of tx.tokenTransfers ?? []) {
-    const mint = t.mint?.trim();
-    if (!mint) continue;
-    const decimals = typeof t.decimals === "number" ? t.decimals : 0;
-    const raw = typeof t.amount === "number" ? t.amount : 0;
-
-    if (t.fromUserAccount === walletAddress) {
-      hasOut = true;
-      upsertDelta({ mint, direction: "out", rawAmount: raw, decimals });
-      if (!counterparty && t.toUserAccount) counterparty = t.toUserAccount;
-    } else if (t.toUserAccount === walletAddress) {
-      hasIn = true;
-      upsertDelta({ mint, direction: "in", rawAmount: raw, decimals });
-      if (!counterparty && t.fromUserAccount) counterparty = t.fromUserAccount;
-    }
-  }
-
-  for (const n of tx.nativeTransfers ?? []) {
-    const raw = typeof n.amount === "number" ? n.amount : 0;
-    if (n.fromUserAccount === walletAddress) {
-      hasOut = true;
-      upsertDelta({
-        mint: NATIVE_SOL_MINT,
-        direction: "out",
-        rawAmount: raw,
-        decimals: 9,
-      });
-      if (!counterparty && n.toUserAccount) counterparty = n.toUserAccount;
-    } else if (n.toUserAccount === walletAddress) {
-      hasIn = true;
-      upsertDelta({
-        mint: NATIVE_SOL_MINT,
-        direction: "in",
-        rawAmount: raw,
-        decimals: 9,
-      });
-      if (!counterparty && n.fromUserAccount) counterparty = n.fromUserAccount;
-    }
-  }
-
-  const balanceDeltas = [...deltasMap.values()].map((d) => ({
-    mint: d.mint,
-    direction: d.direction,
-    amountUi: toUiAmount(d.rawSum, d.decimals),
-  }));
-
-  const kind: "failed" | "sent" | "received" | "other" = tx.transactionError
+  const failed = tx.error != null && tx.error !== false;
+  const kind: "failed" | "sent" | "received" | "other" = failed
     ? "failed"
     : hasOut && !hasIn
       ? "sent"
@@ -169,76 +90,88 @@ function mapHistoryItem(walletAddress: string, item: ParsedHistoryItem) {
   const amountLabel = primary
     ? `${primary.direction === "in" ? "+" : "-"}${primary.amountUi}`
     : null;
-  const mint = primary ? primary.mint : null;
 
-  const summaryType = tx.summary?.type?.trim();
-  const title =
-    tx.transactionError
-      ? "Failed"
-      : kind === "sent" && summaryType === "transfer"
-        ? "Sent"
-        : kind === "received" && summaryType === "transfer"
-          ? "Received"
-          : tx.summary?.description?.trim() ||
-              tx.description?.trim() ||
-              "Transaction";
+  const title = failed
+    ? "Failed"
+    : kind === "sent"
+      ? "Sent"
+      : kind === "received"
+        ? "Received"
+        : "Transaction";
 
   return {
     id: signature,
     walletAddress,
     kind,
     title,
-    subtitle: counterparty,
+    subtitle: null as string | null,
     amountLabel,
-    statusLabel: tx.transactionError ? "Failed" : null,
-    timestamp: tx.timestamp ?? null,
+    statusLabel: failed ? "Failed" : null,
+    timestamp: typeof tx.timestamp === "number" ? tx.timestamp : null,
     signature,
-    mint,
+    mint: primary?.mint ?? null,
     balanceDeltas,
     source: "helius" as const,
   };
 }
 
-async function fetchParsedHistory(body: HeliusHistoryRequest): Promise<ParsedHistoryResponse> {
-  const res = await fetch(`${getRpcUrl()}/v1/parsed-events/transaction-history}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+async function fetchWalletHistory(args: {
+  wallet: string;
+  limit: number;
+  before?: string;
+}): Promise<WalletHistoryResponse> {
+  const params = new URLSearchParams({
+    limit: String(args.limit),
+    tokenAccounts: "balanceChanged",
   });
+  if (args.before) params.set("before", args.before);
+
+  const res = await fetch(
+    `${getRpcUrl()}/v1/wallet/${args.wallet}/history?${params.toString()}`,
+    { method: "GET", headers: { Accept: "application/json" } },
+  );
   if (!res.ok) {
-    throw new Error(`Helius activity failed (${res.status})`);
+    throw new Error(`Helius wallet history failed (${res.status})`);
   }
-  return (await res.json()) as ParsedHistoryResponse;
+  return (await res.json()) as WalletHistoryResponse;
 }
 
 export const walletRoutes = new Hono();
 
+/**
+ * GET /wallet/activity — proxies Helius Wallet API history (100 credits/req).
+ * Query: wallet (required), limit (1–50), before (signature cursor).
+ */
 walletRoutes.get("/wallet/activity", async (c) => {
   const walletRaw = c.req.query("wallet")?.trim() ?? "";
   const wallet = tryParseAddress(walletRaw);
   if (!wallet) {
-    return json({ error: "Query param wallet must be a valid Solana address" }, { status: 400 });
+    return json(
+      { error: "Query param wallet must be a valid Solana address" },
+      { status: 400 },
+    );
   }
 
   const before = c.req.query("before")?.trim() || undefined;
   const limit = Math.min(50, Math.max(1, Number(c.req.query("limit") ?? 20) || 20));
 
   try {
-    const response = await fetchParsedHistory({
-      address: String(wallet),
+    const response = await fetchWalletHistory({
+      wallet: String(wallet),
       limit,
-      beforeSignature: before,
-      order: "desc",
+      before,
     });
 
     const items = (response.data ?? [])
-      .map((item) => mapHistoryItem(String(wallet), item))
+      .map((tx) => mapHistoryTx(String(wallet), tx))
       .filter((item): item is NonNullable<typeof item> => item != null);
 
-    return json({
-      items,
-      nextCursor: response.paginationToken ?? null,
-    });
+    const nextCursor =
+      response.pagination?.hasMore && response.pagination.nextCursor
+        ? response.pagination.nextCursor
+        : null;
+
+    return json({ items, nextCursor });
   } catch (error) {
     return json(
       { error: getErrorMessage(error, "Failed to load wallet activity") },

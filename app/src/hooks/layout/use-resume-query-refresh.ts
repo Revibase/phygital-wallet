@@ -9,6 +9,9 @@ import { queryKeys } from "@/lib/queries";
  * iOS often restores this tab from bfcache after an NFC tap or wallet
  * in-app browser. React Query's focus manager does not always run then,
  * so persisted token ownership can stay frozen until site data is cleared.
+ *
+ * Intentionally skips `walletActivity` — Helius Wallet History is expensive
+ * (100 credits/req); local optimistic rows + post-send invalidation cover UX.
  */
 export function useResumeQueryRefresh() {
   const queryClient = useQueryClient();
@@ -21,9 +24,6 @@ export function useResumeQueryRefresh() {
       });
       void queryClient.invalidateQueries({
         queryKey: queryKeys.walletPortfolio.all(),
-      });
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.walletActivity.all(),
       });
       void queryClient.invalidateQueries({
         queryKey: queryKeys.feeBalance.all(),

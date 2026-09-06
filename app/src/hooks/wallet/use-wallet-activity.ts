@@ -28,7 +28,7 @@ export function useWalletActivity(
         before,
       }),
     enabled: Boolean(walletAddress),
-    ...queryOptions.default,
+    ...queryOptions.activity,
   });
 
   const local = useSyncExternalStore(

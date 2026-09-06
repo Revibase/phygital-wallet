@@ -57,7 +57,7 @@ pnpm --filter api dev
 | GET/PUT/DELETE | `/policies/:phygitalToken` | `auth/` (owner session; standing policy opt-in) |
 | POST | `/policies/:phygitalToken/grants` | `auth/` |
 | GET/DELETE | `/policies/:phygitalToken/approvals…` | `auth/` |
-| GET | `/wallet/activity` | `wallet/` (Helius history proxy) |
+| GET | `/wallet/activity` | `wallet/` (Helius Wallet API `/history` proxy) |
 | GET | `/tokens/fee-balance` | `tokens/` / `fees/` |
 | GET | `/tokens/verified` | `tokens/` (Jupiter) |
 | POST | `/tokens/rarity` | `tokens/` (D1; client supplies DAS fields) |

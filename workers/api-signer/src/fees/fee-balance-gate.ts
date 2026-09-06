@@ -12,7 +12,7 @@ import type { Instruction } from "phygital-verifier-sdk";
  * Top-up intents (SOL → accumulator + optional memo) must not require fee
  * balance or empty wallets could never fund the paymaster.
  */
-export function isFeeBalanceTopUpIntent(
+function isFeeBalanceTopUpIntent(
   instructions: readonly Instruction[],
   accumulator: string,
 ): boolean {

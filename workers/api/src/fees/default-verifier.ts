@@ -1,5 +1,4 @@
 import {
-  address,
   createSolanaRpc,
   fetchEncodedAccounts,
 } from "@solana/kit";

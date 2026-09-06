@@ -30,7 +30,6 @@ import { CollectiblesAllSheet } from "@/components/wallet/collectibles-all-sheet
 import { useRpcPreference } from "@/hooks/wallet/use-rpc-preference";
 import { useWalletPda } from "@/hooks/wallet/use-wallet-pda";
 import { useWalletPortfolio } from "@/hooks/wallet/use-wallet-portfolio";
-import { useWalletActivity } from "@/hooks/wallet/use-wallet-activity";
 import { useFeeBalance } from "@/hooks/wallet/use-fee-balance";
 import { useOpenApprovals } from "@/hooks/wallet/use-open-approvals";
 import { tokenHasLinkedMint, type PhygitalToken } from "@/lib/phygital/token";
@@ -188,10 +187,6 @@ function WalletWorkspaceInner({
   }, []);
 
   const portfolio = useWalletPortfolio(walletAddress);
-  const activity = useWalletActivity(
-    deferSecondary ? walletAddress : null,
-    20,
-  );
   const feeBalance = useFeeBalance(tokenAddress);
   const isOwner = role === "owner";
   const openApprovals = useOpenApprovals(
@@ -560,7 +555,7 @@ function WalletWorkspaceInner({
           status={
             portfolio.isError
               ? "error"
-              : portfolio.isFetching || activity.isFetching
+              : portfolio.isFetching
                 ? "refreshing"
                 : "live"
           }
@@ -571,8 +566,6 @@ function WalletWorkspaceInner({
                 )
               : null
           }
-          activityItems={activity.items}
-          activityAssetMetaByMint={activity.mintMeta}
         />
       </div>
     );

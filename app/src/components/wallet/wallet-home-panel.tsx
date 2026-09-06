@@ -2,20 +2,18 @@
 
 import { useMemo } from "react";
 import { LazyMotion, domAnimation, m, useReducedMotion } from "framer-motion";
-import { ArrowDown, ArrowUp, RefreshCcw, Settings } from "lucide-react";
+import { ArrowDown, ArrowUp, Clock3, RefreshCcw, Settings } from "lucide-react";
 
 import { CopyableAddress } from "@/components/shared/copyable-address";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ActivityList } from "@/components/wallet/activity-list";
 import { CollectiblesGrid } from "@/components/wallet/collectibles-grid";
 import { TokenHoldingRow } from "@/components/wallet/token-holding-row";
 import { GroupedList } from "@/components/shared/grouped-list";
 import { useLocalFlag } from "@/lib/local-flag";
 import { copy } from "@/lib/copy/phygital";
 import type {
-  WalletActivityItem,
   WalletCollectible,
   WalletPortfolio,
 } from "@/lib/wallet/portfolio-types";
@@ -64,8 +62,6 @@ export function WalletHomePanel({
   onChangeRpc,
   onRefresh,
   lastUpdatedLabel,
-  activityItems,
-  activityAssetMetaByMint,
   visitorNotice,
   onVisitorNotice,
   visitorNoticeAction,
@@ -86,7 +82,8 @@ export function WalletHomePanel({
   onSelectCollectible: (c: WalletCollectible) => void;
   onSeeAllTokens: () => void;
   onSeeAllCollectibles: () => void;
-  onSeeAllActivity?: () => void;
+  /** Opens activity screen — history is fetched only then. */
+  onSeeAllActivity: () => void;
   feeBalanceLow?: boolean;
   onTopUpFees?: () => void;
   /** Masked host when a custom RPC is active (Backpack-style reminder). */
@@ -94,8 +91,6 @@ export function WalletHomePanel({
   onChangeRpc?: () => void;
   onRefresh?: () => void;
   lastUpdatedLabel?: string | null;
-  activityItems?: WalletActivityItem[];
-  activityAssetMetaByMint?: Record<string, { symbol: string; name: string }>;
   onManageDevice: () => void;
   /** Owner: open recovery set/clear from the first-funds ack. */
   onAddRecovery?: () => void;
@@ -405,6 +400,16 @@ export function WalletHomePanel({
           <ArrowDown className="size-4" aria-hidden />
           {copy.wallet.receive}
         </Button>
+        <Button
+          type="button"
+          size="lg"
+          variant="secondary"
+          onClick={onSeeAllActivity}
+          className="h-12 min-h-12 flex-1 rounded-full border border-border/50 bg-card/80 text-[0.9375rem] font-semibold backdrop-blur-sm"
+        >
+          <Clock3 className="size-4" aria-hidden />
+          {copy.wallet.activity}
+        </Button>
       </m.div>
       ) : null}
 
@@ -482,32 +487,6 @@ export function WalletHomePanel({
             collectibles={collectiblePreview}
             onSelect={onSelectCollectible}
             layout="strip"
-          />
-        </m.section>
-      ) : null}
-      {activityItems?.length ? (
-        <m.section
-          className="flex flex-col gap-1.5"
-          variants={sectionVariants}
-          transition={sectionTransition}
-        >
-          <div className="flex items-baseline justify-between px-4">
-            <h2 className="text-section-label">{copy.wallet.activity}</h2>
-            {onSeeAllActivity ? (
-              <Button
-                type="button"
-                variant="link"
-                onClick={onSeeAllActivity}
-                className="h-auto min-h-0 px-0 text-xs font-medium"
-              >
-                {copy.wallet.seeAll}
-              </Button>
-            ) : null}
-          </div>
-          <ActivityList
-            items={activityItems.slice(0, 4)}
-            emptyLabel={copy.wallet.noActivity}
-            assetMetaByMint={activityAssetMetaByMint}
           />
         </m.section>
       ) : null}

@@ -30,23 +30,6 @@ function verifierSetFromConfig(
   return set;
 }
 
-async function loadDefaultVerifierSet(): Promise<Set<string>> {
-  const now = Date.now();
-  if (
-    cachedDefaultVerifiers &&
-    now - cachedDefaultVerifiers.at < CONFIG_CACHE_MS
-  ) {
-    return cachedDefaultVerifiers.set;
-  }
-
-  const rpc = createSolanaRpc(getRpcUrl());
-  const [configPda] = await findConfigPda();
-  const [encoded] = await fetchEncodedAccounts(rpc, [configPda]);
-  const set = verifierSetFromConfig(encoded);
-  cachedDefaultVerifiers = { at: now, set };
-  return set;
-}
-
 /** True when this token is sponsored by a Config default verifier (paymaster). */
 export async function usesDefaultVerifierPaymaster(
   phygitalToken: string,
@@ -81,11 +64,4 @@ export async function usesDefaultVerifierPaymaster(
   const tokenVerifier = decodeTokenVerifier(tvEncoded);
   if (!tokenVerifier.exists) return true;
   return defaults.has(String(tokenVerifier.data.verifier));
-}
-
-export async function isDefaultConfigVerifier(
-  verifier: string,
-): Promise<boolean> {
-  const defaults = await loadDefaultVerifierSet();
-  return defaults.has(verifier);
 }

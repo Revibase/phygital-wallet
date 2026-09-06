@@ -1,6 +1,25 @@
-import { PHYGITAL_WALLET_PROGRAM_ADDRESS } from "phygital-wallet-sdk";
+import {
+  AccountRole,
+  getBase58Encoder,
+  getBase64Encoder,
+  type AccountMeta,
+  type Address,
+  type Instruction,
+  type InstructionWithAccounts,
+  type InstructionWithData,
+  type ReadonlyUint8Array,
+} from "@solana/kit";
+import {
+  MEMO_PROGRAM_ADDRESS,
+  parseAddMemoInstruction,
+} from "@solana-program/memo";
+import {
+  identifyPhygitalWalletInstruction,
+  parseExecuteInstruction,
+  PhygitalWalletInstruction,
+  PHYGITAL_WALLET_PROGRAM_ADDRESS,
+} from "phygital-wallet-sdk";
 
-import { MEMO_PROGRAM_ADDRESS } from "@/fees/constants";
 import { isDefaultConfigVerifier } from "@/fees/default-verifier";
 import {
   creditFeeBalance,
@@ -9,89 +28,161 @@ import {
 import { getEnv } from "@/shared/request-context";
 import { tryParseAddress } from "@/shared/solana/address";
 
-/** Minimal Helius enhanced / raw tx shape we care about. */
-export type HeliusTxLike = {
+type HeliusIx = {
+  programId?: string;
+  accounts?: string[];
+  data?: string;
+  /** jsonParsed memo payloads put the utf8 string here instead of `data`. */
+  parsed?: string | { type?: string; info?: unknown };
+};
+
+type HeliusNativeTransfer = {
+  fromUserAccount?: string;
+  toUserAccount?: string;
+  amount?: number;
+};
+
+/** Minimal Helius enhanced tx shape we care about. */
+type HeliusTxLike = {
   signature?: string;
   feePayer?: string;
   accountData?: Array<{
     account?: string;
     nativeBalanceChange?: number;
   }>;
-  instructions?: Array<{
-    programId?: string;
-    accounts?: string[];
-    data?: string;
-    innerInstructions?: unknown[];
-  }>;
+  nativeTransfers?: HeliusNativeTransfer[];
+  instructions?: HeliusIx[];
   /** Some payloads nest under `transaction` */
   transaction?: HeliusTxLike;
 };
 
-function unwrapTx(raw: HeliusTxLike): HeliusTxLike {
+const base58 = getBase58Encoder();
+const base64 = getBase64Encoder();
+
+function unwrapHeliusTx(raw: HeliusTxLike): HeliusTxLike {
   return raw.transaction && typeof raw.transaction === "object"
     ? { ...raw, ...raw.transaction }
     : raw;
 }
 
-function nativeChange(
-  tx: HeliusTxLike,
-  account: string,
-): number {
+function nativeChange(tx: HeliusTxLike, account: string): number {
   for (const row of tx.accountData ?? []) {
     if (row.account === account && typeof row.nativeBalanceChange === "number") {
       return row.nativeBalanceChange;
     }
   }
-  return 0;
+  let sum = 0;
+  for (const transfer of tx.nativeTransfers ?? []) {
+    if (typeof transfer.amount !== "number") continue;
+    if (transfer.toUserAccount === account) sum += transfer.amount;
+    if (transfer.fromUserAccount === account) sum -= transfer.amount;
+  }
+  return sum;
 }
 
-/** Decode memo instruction data (base58 or base64 or utf8 string). */
-export function decodeMemoText(data: string | undefined): string | null {
-  if (!data) return null;
-  // Helius often gives utf8 already for memo
-  if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(data)) {
-    return data;
+function heliusIxData(ix: HeliusIx): Uint8Array | null {
+  if (typeof ix.parsed === "string" && ix.parsed.trim()) {
+    return new TextEncoder().encode(ix.parsed.trim());
+  }
+  const raw = ix.data?.trim();
+  if (!raw) return null;
+  try {
+    return new Uint8Array(base58.encode(raw));
+  } catch {
+    /* not base58 */
   }
   try {
-    // base64
-    if (/^[A-Za-z0-9+/=]+$/.test(data) && data.length % 4 === 0) {
-      const bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
-      const text = new TextDecoder().decode(bytes).trim();
-      if (text) return text;
-    }
+    return new Uint8Array(base64.encode(raw));
   } catch {
-    /* ignore */
+    return null;
   }
+}
+
+type KitIx = Instruction &
+  InstructionWithAccounts<readonly AccountMeta[]> &
+  InstructionWithData<ReadonlyUint8Array>;
+
+function toKitIx(ix: HeliusIx): KitIx | null {
+  if (!ix.programId) return null;
+  const data = heliusIxData(ix);
+  if (!data) return null;
+  const accounts: AccountMeta[] = (ix.accounts ?? []).map((account) => ({
+    address: account as Address,
+    role: AccountRole.READONLY,
+  }));
+  return {
+    programAddress: ix.programId as Address,
+    data,
+    accounts,
+  };
+}
+
+/** Decode memo instruction data via `@solana-program/memo`. */
+export function decodeMemoText(data: string | undefined): string | null {
+  if (!data) return null;
   const trimmed = data.trim();
-  return trimmed || null;
+  if (!trimmed) return null;
+  if (tryParseAddress(trimmed)) return trimmed;
+  try {
+    const decoded = parseAddMemoInstruction({
+      programAddress: MEMO_PROGRAM_ADDRESS,
+      data: heliusIxData({ data: trimmed }) ?? new TextEncoder().encode(trimmed),
+    });
+    return decoded.data.memo.trim() || null;
+  } catch {
+    return trimmed;
+  }
 }
 
 function findMemoPhygitalToken(tx: HeliusTxLike): string | null {
   for (const ix of tx.instructions ?? []) {
     if (ix.programId !== MEMO_PROGRAM_ADDRESS) continue;
-    const text = decodeMemoText(ix.data);
-    if (!text) continue;
-    const addr = tryParseAddress(text);
+    const kitIx = toKitIx(ix);
+    if (kitIx) {
+      try {
+        const decoded = parseAddMemoInstruction(kitIx);
+        const addr = tryParseAddress(decoded.data.memo);
+        if (addr) return String(addr);
+      } catch {
+        /* not a memo we can parse */
+      }
+    }
+    const fallback = decodeMemoText(
+      typeof ix.parsed === "string" ? ix.parsed : ix.data,
+    );
+    const addr = tryParseAddress(fallback);
     if (addr) return String(addr);
   }
   return null;
 }
 
-/** Execute account metas: 0 verifier, 1 config, 2 phygital_token */
-function findExecuteAccounts(
-  tx: HeliusTxLike,
-): { verifier: string; phygitalToken: string } | null {
+type ExecuteAccounts = {
+  verifier: string;
+  phygitalToken: string;
+};
+
+export function findExecuteAccounts(tx: HeliusTxLike): ExecuteAccounts | null {
   for (const ix of tx.instructions ?? []) {
     if (ix.programId !== PHYGITAL_WALLET_PROGRAM_ADDRESS) continue;
-    const accounts = ix.accounts ?? [];
-    if (accounts.length < 3) continue;
-    const verifier = accounts[0];
-    const phygitalToken = accounts[2];
-    if (!verifier || !phygitalToken) continue;
-    if (!tryParseAddress(verifier) || !tryParseAddress(phygitalToken)) {
-      continue;
+    const kitIx = toKitIx(ix);
+    if (!kitIx || kitIx.accounts.length < 8) continue;
+    try {
+      if (
+        identifyPhygitalWalletInstruction(kitIx) !==
+        PhygitalWalletInstruction.Execute
+      ) {
+        continue;
+      }
+      const parsed = parseExecuteInstruction(kitIx);
+      const verifier = String(parsed.accounts.verifier.address);
+      const phygitalToken = String(parsed.accounts.phygitalToken.address);
+      if (!tryParseAddress(verifier) || !tryParseAddress(phygitalToken)) {
+        continue;
+      }
+      return { verifier, phygitalToken };
+    } catch {
+      /* not execute */
     }
-    return { verifier, phygitalToken };
   }
   return null;
 }
@@ -100,22 +191,24 @@ function findExecuteAccounts(
  * Process one Helius tx: credit top-ups, debit default-verifier execute fees.
  * Pure side-effects via D1; safe to call repeatedly (idempotent by signature).
  */
-export async function processHeliusFeeTx(
+async function processHeliusFeeTx(
   raw: HeliusTxLike,
 ): Promise<{ credited: boolean; debited: boolean }> {
-  const tx = unwrapTx(raw);
+  const tx = unwrapHeliusTx(raw);
   const signature = tx.signature?.trim();
   if (!signature) return { credited: false, debited: false };
 
   const accumulator = getEnv().TOP_UP_ACCUMULATOR?.trim() ?? "";
+  const execute = findExecuteAccounts(tx);
   let credited = false;
   let debited = false;
 
-  // --- Credit: SOL landed on accumulator with memo = phygitalToken ---
+  // Credit: SOL landed on accumulator. Prefer execute's token (always present
+  // on a wrapped top-up); memo is the fallback for a plain transfer.
   if (accumulator) {
     const change = nativeChange(tx, accumulator);
     if (change > 0) {
-      const token = findMemoPhygitalToken(tx);
+      const token = execute?.phygitalToken ?? findMemoPhygitalToken(tx);
       if (token) {
         credited = await creditFeeBalance({
           phygitalToken: token,
@@ -126,8 +219,7 @@ export async function processHeliusFeeTx(
     }
   }
 
-  // --- Debit: execute with default verifier fee spend ---
-  const execute = findExecuteAccounts(tx);
+  // Debit: execute with default verifier fee spend
   if (execute) {
     const feePayer = tx.feePayer ?? execute.verifier;
     const isDefault = await isDefaultConfigVerifier(feePayer);

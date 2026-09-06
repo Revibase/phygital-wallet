@@ -52,6 +52,15 @@ export const queryOptions = {
   },
   /** Changes after user actions; mutations already invalidate. */
   default: { refetchOnWindowFocus: false, staleTime: 5 * MINUTE },
+  /**
+   * Costly Helius Wallet History — only mounted on the Activity screen.
+   * Same short stale window as portfolio; no focus refetch while on the tab.
+   */
+  activity: {
+    staleTime: 5 * MINUTE,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  },
   /** Catalog / rarely changing metadata. */
   stable: { refetchOnWindowFocus: false, staleTime: 15 * MINUTE },
   /** One-shot proofs / immutable chain metadata — never refetch. */

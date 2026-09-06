@@ -10,11 +10,14 @@
     "deploy": "wrangler deploy",
     "cf-typegen": "wrangler types --env-interface Env ./worker-env.d.ts",
     "pretypecheck": "pnpm --filter phygital-wallet-sdk build && pnpm --filter phygital-verifier-sdk build",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "pretest": "pnpm --filter phygital-wallet-sdk build && pnpm --filter phygital-verifier-sdk build",
+    "test": "vitest run"
   },
   "dependencies": {
     "@noble/curves": "^2.3.0",
     "@simplewebauthn/server": "^14.0.0",
+    "@solana-program/memo": "^0.13.1",
     "@solana-program/token": "^0.16.0",
     "@solana/kit": "^8.1.0",
     "helius-sdk": "3.1.0",
@@ -26,6 +29,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250726.0",
     "typescript": "^5",
+    "vitest": "^3.2.7",
     "wrangler": "^4.80.0"
   }
 }
