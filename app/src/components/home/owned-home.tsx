@@ -24,7 +24,6 @@ import {
   holdAccessoryAuth,
   linkToken,
   loginDevice,
-  logoutDevice,
   registerDevice,
   type DeviceLink,
   type LinkStatus,
@@ -327,16 +326,6 @@ function HomeLinksScreen() {
     ...queryOptions.deviceLinks,
   });
 
-  const logout = useMutation({
-    mutationFn: logoutDevice,
-    onSuccess: () => {
-      queryClient.setQueryData(queryKeys.deviceAuth.session(), null);
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.deviceAuth.all(),
-      });
-    },
-  });
-
   const addAccessory = useMutation({
     mutationFn: async () => {
       const auth = await holdAccessoryAuth();
@@ -395,9 +384,7 @@ function HomeLinksScreen() {
   const items = links.data ?? [];
   const error = addAccessory.error
     ? toUserErrorMessage(addAccessory.error)
-    : logout.error
-      ? toUserErrorMessage(logout.error)
-      : null;
+    : null;
 
   if (items.length === 0) {
     return (
@@ -408,30 +395,14 @@ function HomeLinksScreen() {
           title={copy.home.emptyTitle}
           body={error ?? copy.home.emptyBody}
           action={
-            <div className="flex w-full flex-col gap-2">
-              <Button
-                type="button"
-                size="lg"
-                className="w-full"
-                onClick={() => addAccessory.mutate()}
-              >
-                {copy.wallet.deviceAddAccessory}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="lg"
-                className="w-full"
-                disabled={logout.isPending}
-                onClick={() => logout.mutate()}
-              >
-                {logout.isPending ? (
-                  <Spinner className="size-4" />
-                ) : (
-                  copy.wallet.deviceSignOut
-                )}
-              </Button>
-            </div>
+            <Button
+              type="button"
+              size="lg"
+              className="w-full"
+              onClick={() => addAccessory.mutate()}
+            >
+              {copy.wallet.deviceAddAccessory}
+            </Button>
           }
         />
       </div>
@@ -445,20 +416,6 @@ function HomeLinksScreen() {
   return (
     <div className="flex flex-1 flex-col gap-5">
       <div className="flex justify-end gap-2">
-        <Button
-          type="button"
-          variant="ghost"
-          size="default"
-          className={touchTargetClass}
-          disabled={logout.isPending}
-          onClick={() => logout.mutate()}
-        >
-          {logout.isPending ? (
-            <Spinner className="size-4" />
-          ) : (
-            copy.wallet.deviceSignOut
-          )}
-        </Button>
         <Button
           type="button"
           variant="outline"

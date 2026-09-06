@@ -290,9 +290,3 @@ export async function unlinkToken(phygitalToken: string): Promise<void> {
   );
   await readJson(res, "Couldn’t unlink");
 }
-
-/** Clear platform session cookie (no Face ID). */
-export async function logoutDevice(): Promise<void> {
-  const res = await queryFetch("/auth/device-session", { method: "DELETE" });
-  await readJson(res, "Couldn’t sign out");
-}

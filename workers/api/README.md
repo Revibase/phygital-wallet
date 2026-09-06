@@ -47,8 +47,8 @@ pnpm --filter api dev
 |--------|------|--------|
 | GET | `/health` | entry |
 | GET | `/verify-tap` | `tap/` |
-| GET/POST/DELETE | `/auth/device-session` | `auth/` (platform passkey login) |
-| GET/POST/DELETE | `/auth/device` | `auth/` (register / cascade remove) |
+| GET/POST | `/auth/device-session` | `auth/` (platform passkey login) |
+| GET/POST | `/auth/device` | `auth/` (platform passkey register) |
 | GET/POST | `/auth/device/links` | `auth/` (owned links; POST link) |
 | GET | `/auth/device/links/status` | `auth/` |
 | DELETE | `/auth/device/links/:token` | `auth/` (owner unlink) |

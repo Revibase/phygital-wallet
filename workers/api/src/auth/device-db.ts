@@ -82,15 +82,6 @@ export async function updateCredentialCounter(
     .run();
 }
 
-/** Cascade-deletes links via FK. */
-export async function deleteCredential(credentialId: string): Promise<boolean> {
-  const result = await db()
-    .prepare(`DELETE FROM device_credentials WHERE credential_id = ?`)
-    .bind(credentialId)
-    .run();
-  return (result.meta.changes ?? 0) > 0;
-}
-
 export async function getLinkForToken(
   phygitalToken: string,
 ): Promise<DeviceTokenLink | null> {

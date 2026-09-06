@@ -16,7 +16,6 @@ import { isoBase64URL } from "@simplewebauthn/server/helpers";
 const textEncoder = new TextEncoder();
 
 import {
-  deleteCredential,
   deleteLink,
   getCredentialById,
   getLinkStatus,
@@ -27,7 +26,6 @@ import {
   updateCredentialCounter,
 } from "@/auth/device-db";
 import {
-  clearDeviceSessionCookie,
   mintDeviceSessionToken,
   readDeviceSession,
   requireDeviceSession,
@@ -84,7 +82,7 @@ deviceAuthRoutes.get("/auth/device/register-options", async (c) => {
   const options = await generateRegistrationOptions({
     rpName: rp.rpName,
     rpID: rp.rpId,
-    userName: `revibase-${userHandle.slice(0, 8)}`,
+    userName: `Revibase Owner's Key`,
     userDisplayName: "Revibase",
     userID: new Uint8Array(textEncoder.encode(userHandle)),
     attestationType: "none",
@@ -304,103 +302,6 @@ deviceAuthRoutes.post("/auth/device-session", async (c) => {
     return json(
       {
         error: err instanceof Error ? err.message : "Couldn’t sign in",
-        code: "device_invalid",
-      },
-      { status: 400 },
-    );
-  }
-});
-
-deviceAuthRoutes.delete("/auth/device-session", async (c) => {
-  clearDeviceSessionCookie(c);
-  return json({ ok: true });
-});
-
-deviceAuthRoutes.delete("/auth/device", async (c) => {
-  try {
-    const body = (await c.req.json()) as {
-      challengeId?: string;
-      credential?: AuthenticationResponseJSON;
-    };
-    if (!body.challengeId?.trim() || !body.credential) {
-      return json(
-        {
-          error: "challengeId and credential required",
-          code: "invalid_transaction",
-        },
-        { status: 400 },
-      );
-    }
-
-    const rp = resolveWebAuthnRp(c.req.header("Origin") ?? null);
-    if (!rp) {
-      return json(
-        { error: "Unsupported origin", code: "invalid_transaction" },
-        { status: 400 },
-      );
-    }
-
-    const clientData = JSON.parse(
-      new TextDecoder().decode(
-        isoBase64URL.toBuffer(body.credential.response.clientDataJSON),
-      ),
-    ) as { challenge?: string };
-    const challenge = clientData.challenge;
-    if (
-      !challenge ||
-      !(await consumeWebAuthnChallenge(
-        "auth",
-        body.challengeId.trim(),
-        challenge,
-      ))
-    ) {
-      return json(
-        { error: "Unlock challenge expired", code: "challenge_invalid" },
-        { status: 400 },
-      );
-    }
-
-    const device = await getCredentialById(body.credential.id);
-    if (!device) {
-      return json(
-        { error: "No phone registered", code: "device_not_enrolled" },
-        { status: 404 },
-      );
-    }
-
-    const verification = await verifyAuthenticationResponse({
-      response: body.credential,
-      expectedChallenge: challenge,
-      expectedOrigin: rp.expectedOrigin,
-      expectedRPID: rp.rpId,
-      requireUserVerification: true,
-      credential: {
-        id: device.credentialId,
-        publicKey: isoBase64URL.toBuffer(device.publicKey),
-        counter: device.counter,
-        transports: ["internal"],
-      },
-    });
-
-    if (!verification.verified) {
-      return json(
-        { error: "Couldn’t verify this phone", code: "device_invalid" },
-        { status: 401 },
-      );
-    }
-
-    const links = await listLinksForCredential(device.credentialId);
-    await Promise.all(
-      links.map((link) => deleteLink(device.credentialId, link.phygitalToken)),
-    );
-    await deleteCredential(device.credentialId);
-    clearDeviceSessionCookie(c);
-
-    return json({ enrolled: false });
-  } catch (err) {
-    return json(
-      {
-        error: err instanceof Error ? err.message : "Couldn’t remove this phone",
         code: "device_invalid",
       },
       { status: 400 },

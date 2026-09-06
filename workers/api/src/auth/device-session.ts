@@ -1,5 +1,5 @@
 import type { Context } from "hono";
-import { getCookie, setCookie, deleteCookie } from "hono/cookie";
+import { getCookie, setCookie } from "hono/cookie";
 
 import { base64UrlToBytes, bytesToBase64Url } from "@/shared/crypto/base64";
 import { getEnv } from "@/shared/request-context";
@@ -110,10 +110,6 @@ export function setDeviceSessionCookie(
     path: "/",
     maxAge,
   });
-}
-
-export function clearDeviceSessionCookie(c: Context): void {
-  deleteCookie(c, DEVICE_COOKIE, { path: "/" });
 }
 
 export async function readDeviceSession(

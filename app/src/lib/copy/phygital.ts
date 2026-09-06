@@ -215,7 +215,6 @@ export const copy = {
     deviceVisitorSoftDeny:
       "Over the owner’s limits. Ask them to approve once on their linked phone.",
     deviceAuthReady: "Signed in on this phone",
-    deviceSignOut: "Sign out",
     deviceUnlink: "Unlink this item",
     deviceUnlinkConfirmTitle: "Unlink this item?",
     deviceUnlinkConfirmBody:

@@ -4,7 +4,7 @@ Owner-app authentication and standing-policy HTTP surface.
 
 | File | Role |
 |------|------|
-| `device-routes.ts` | Platform passkey register / login / remove; token links |
+| `device-routes.ts` | Platform passkey register / login; token links |
 | `device-session.ts` | Single device session cookie (`revibase_device_session`) |
 | `device-db.ts` | `device_credentials` + `device_token_links` D1 |
 | `possession-token.ts` | Short-lived tap/Hold proof for linking (not app session) |
