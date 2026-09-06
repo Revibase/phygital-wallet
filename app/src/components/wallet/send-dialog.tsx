@@ -613,7 +613,7 @@ export function SendDialog({
       </AnimatePresence>
 
       <m.div
-        className="mt-auto pt-2"
+        className="pt-2"
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={snapEnterTransition}

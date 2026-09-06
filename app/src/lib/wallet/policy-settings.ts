@@ -46,7 +46,14 @@ export type PolicySettings = {
   maxTransferSol: string | null;
   recipientMode: "anyone" | "allowlist";
   recipientAllowlist: string[];
-  /** Beyond the default base — compiled as `{ allowAll: true }`. */
+  /**
+   * Send protections master. When true, standing policy includes STANDARD
+   * built-in programs (even with no caps / recipients / extras).
+   */
+  programAllowlist: boolean;
+  /** Always true for owner-compiled policies. */
+  includeStandardPrograms: boolean;
+  /** Exception programs beyond the standard base — `{ allowAll: true }`. */
   extraPrograms: string[];
 };
 
@@ -56,13 +63,14 @@ export const EMPTY_POLICY_SETTINGS: PolicySettings = {
   maxTransferSol: null,
   recipientMode: "anyone",
   recipientAllowlist: [],
+  programAllowlist: false,
+  includeStandardPrograms: true,
   extraPrograms: [],
 };
 
 function rawCapToUiAmount(raw: string, decimals: number): string {
   const n = Number(raw) / 10 ** decimals;
   if (!Number.isFinite(n)) return String(n);
-  // Trim trailing zeros but keep a readable default (50 / 0.1).
   return String(n);
 }
 
@@ -71,6 +79,15 @@ export const FIRST_ENABLE_POLICY_SETTINGS: PolicySettings = {
   ...EMPTY_POLICY_SETTINGS,
   maxTransferUsdc: rawCapToUiAmount(DEFAULT_MAX_MINT_RAW, USDC_DECIMALS),
   maxTransferSol: rawCapToUiAmount(DEFAULT_MAX_SOL_LAMPORTS, 9),
+  programAllowlist: true,
+  includeStandardPrograms: true,
+};
+
+/** Turn Send protections on — built-in surface only, no invented caps. */
+export const PROTECTIONS_ON_SETTINGS: PolicySettings = {
+  ...EMPTY_POLICY_SETTINGS,
+  programAllowlist: true,
+  includeStandardPrograms: true,
 };
 
 export function hasSpendCaps(settings: PolicySettings): boolean {
@@ -85,9 +102,21 @@ export function hasStandingPolicyContent(settings: PolicySettings): boolean {
   return (
     hasSpendCaps(settings) ||
     settings.recipientMode === "allowlist" ||
+    settings.programAllowlist ||
     settings.extraPrograms.length > 0
   );
 }
+
+const BASE_PROGRAM_IDS = new Set<string>([
+  ataParser.programId,
+  systemParser.programId,
+  tokenParser.programId,
+  token2022Parser.programId,
+  tokenMetadataParser.programId,
+  bubblegumParser.programId,
+  coreParser.programId,
+  ...COLLECTIBLE_COMPANION_PROGRAMS,
+]);
 
 /** Sync hub/sheet summary from a stored document (no ATA collapse). */
 export function summarizePolicyDocument(policy: PolicyDocument): {
@@ -104,55 +133,64 @@ export function summarizePolicyDocument(policy: PolicyDocument): {
       .filter((id) => !BASE_PROGRAM_IDS.has(id)).length,
   };
 }
-
-const BASE_PROGRAM_IDS = new Set<string>([
-  ataParser.programId,
-  systemParser.programId,
-  tokenParser.programId,
-  token2022Parser.programId,
-  tokenMetadataParser.programId,
-  bubblegumParser.programId,
-  coreParser.programId,
-  ...COLLECTIBLE_COMPANION_PROGRAMS,
-]);
-
 /** Default program allowlist once a standing policy exists (human labels). */
-export const STANDARD_SCOPED_PROGRAMS: readonly {
+export const STANDARD_ALLOWED_PROGRAMS: readonly {
   programId: string;
   label: string;
+  /** Short blurb for the Programs detail sheet. */
+  blurb: string;
 }[] = [
-  { programId: systemParser.programId, label: "System" },
-  { programId: tokenParser.programId, label: "Token" },
-  { programId: token2022Parser.programId, label: "Token-2022" },
-  { programId: ataParser.programId, label: "Associated Token" },
-  { programId: tokenMetadataParser.programId, label: "Token Metadata" },
-  { programId: bubblegumParser.programId, label: "Bubblegum" },
-  { programId: coreParser.programId, label: "Core" },
-];
-
-/** Collectible helpers included as allowAll (no spend/recipient checks). */
-export const STANDARD_COMPANION_PROGRAMS: readonly {
-  programId: string;
-  label: string;
-}[] = [
+  {
+    programId: systemParser.programId,
+    label: "System",
+    blurb: "Native SOL transfers and basic account setup.",
+  },
+  {
+    programId: tokenParser.programId,
+    label: "Token",
+    blurb: "Classic SPL token transfers (including USDC) and account closes.",
+  },
+  {
+    programId: token2022Parser.programId,
+    label: "Token-2022",
+    blurb: "Token-2022 transfers for assets that use the newer token program.",
+  },
+  {
+    programId: ataParser.programId,
+    label: "Associated Token",
+    blurb: "Creates the standard token accounts used when you send tokens.",
+  },
+  {
+    programId: tokenMetadataParser.programId,
+    label: "Token Metadata",
+    blurb: "Transfers for Metaplex NFTs and pNFTs.",
+  },
+  {
+    programId: bubblegumParser.programId,
+    label: "Bubblegum",
+    blurb: "Transfers for compressed NFTs (cNFTs).",
+  },
+  {
+    programId: coreParser.programId,
+    label: "Core",
+    blurb: "Transfers for Metaplex Core digital assets.",
+  },
   {
     programId: COLLECTIBLE_COMPANION_PROGRAMS[0],
     label: "Token Auth Rules",
+    blurb: "Authorization rules used with some programmable NFTs.",
   },
   {
     programId: COLLECTIBLE_COMPANION_PROGRAMS[1],
     label: "Account Compression",
+    blurb: "Merkle tree helpers used by compressed NFT transfers.",
   },
   {
     programId: COLLECTIBLE_COMPANION_PROGRAMS[2],
     label: "SPL Noop",
+    blurb: "Logging helper used alongside compressed NFT transfers.",
   },
 ];
-
-export const STANDARD_ALLOWED_PROGRAMS: readonly {
-  programId: string;
-  label: string;
-}[] = [...STANDARD_SCOPED_PROGRAMS, ...STANDARD_COMPANION_PROGRAMS];
 
 export function isStandardAllowedProgram(programId: string): boolean {
   return BASE_PROGRAM_IDS.has(programId);
@@ -425,6 +463,8 @@ export async function derivePolicySettings(
       solCap != null ? (Number(solCap) / 1e9).toFixed(4) : null,
     recipientMode: allowExpanded.length > 0 ? "allowlist" : "anyone",
     recipientAllowlist,
+    programAllowlist: true,
+    includeStandardPrograms: true,
     extraPrograms: policy.programs
       .map((p) => p.programId)
       .filter((id) => !BASE_PROGRAM_IDS.has(id)),
@@ -433,7 +473,7 @@ export async function derivePolicySettings(
 
 /**
  * Build a standing `PolicyDocument` from owner settings.
- * Always starts from full `defineStandardPolicy` (collectibles on).
+ * Always includes the STANDARD built-in program set (+ optional extras).
  */
 export async function compilePolicySettings(
   settings: PolicySettings,
@@ -441,6 +481,10 @@ export async function compilePolicySettings(
 ): Promise<PolicyDocument> {
   const maxMintRaw = uiCapToRaw(settings.maxTransferUsdc, USDC_DECIMALS);
   const maxSolLamports = uiCapToRaw(settings.maxTransferSol, 9);
+  const extras = settings.extraPrograms.filter(
+    (id) => !BASE_PROGRAM_IDS.has(id),
+  );
+
   const template = defineStandardPolicy({
     mint: String(getUsdcMint()),
     ...(opts.wallet ? { wallet: opts.wallet } : {}),
@@ -448,7 +492,6 @@ export async function compilePolicySettings(
     ...(maxSolLamports ? { maxSolLamports } : {}),
   });
 
-  const extras = settings.extraPrograms.filter((id) => !BASE_PROGRAM_IDS.has(id));
   let programs = appendAllowAll(template.programs, extras);
 
   const allowExpanded =
@@ -495,6 +538,8 @@ export async function applyPolicySettingsPatch(
         patch.recipientAllowlist !== undefined
           ? patch.recipientAllowlist
           : current.recipientAllowlist,
+      programAllowlist: patch.programAllowlist ?? current.programAllowlist,
+      includeStandardPrograms: true,
       extraPrograms:
         patch.extraPrograms !== undefined
           ? patch.extraPrograms

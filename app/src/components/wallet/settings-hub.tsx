@@ -18,6 +18,7 @@ import type { WalletRole } from "@/components/token/token-address-route";
 import { summarizePolicyDocument } from "@/lib/wallet/policy-settings";
 
 export type SettingsTarget =
+  | "sendProtections"
   | "spendingLimits"
   | "recipients"
   | "extraPrograms"
@@ -73,6 +74,8 @@ export function SettingsHub({
     return summarizePolicyDocument(policy.data.policy);
   }, [isOwner, policy.isLoading, policy.data]);
 
+  const protectionsOn = summary != null && summary !== "invalid";
+
   const visitorLimitsSubtitle =
     linkStatus === "linked_elsewhere"
       ? copy.wallet.setupDeviceLinkedElsewhere
@@ -80,7 +83,7 @@ export function SettingsHub({
         ? copy.wallet.setupDeviceSignIn
         : copy.wallet.limitsStatusRequiresClaim;
 
-  function withProgramsHint(base: string): string {
+  function withExceptionsHint(base: string): string {
     if (
       summary &&
       summary !== "invalid" &&
@@ -91,17 +94,29 @@ export function SettingsHub({
     return base;
   }
 
+  const masterSubtitle = !isOwner
+    ? undefined
+    : policy.isLoading
+      ? copy.common.loading
+      : summary === "invalid"
+        ? copy.wallet.limitsStatusInvalid
+        : protectionsOn
+          ? withExceptionsHint(copy.wallet.sendProtectionsOn)
+          : copy.wallet.sendProtectionsOff;
+
   const spendSubtitle = !isOwner
     ? visitorLimitsSubtitle
     : policy.isLoading
       ? copy.common.loading
       : summary === "invalid"
         ? copy.wallet.limitsStatusInvalid
-        : withProgramsHint(
-            summary?.spendCaps
-              ? copy.wallet.limitsStatusOn
-              : copy.wallet.limitsStatusOff,
-          );
+        : !protectionsOn
+          ? copy.wallet.sendProtectionsOff
+          : withExceptionsHint(
+              summary.spendCaps
+                ? copy.wallet.limitsStatusOn
+                : copy.wallet.limitsStatusOff,
+            );
 
   const recipientsSubtitle = !isOwner
     ? undefined
@@ -109,19 +124,21 @@ export function SettingsHub({
       ? copy.common.loading
       : summary === "invalid"
         ? copy.wallet.limitsStatusInvalid
-        : withProgramsHint(
-            summary?.recipientAllowlist
-              ? copy.wallet.recipientsAllowlist
-              : copy.wallet.recipientsAnyone,
-          );
+        : !protectionsOn
+          ? copy.wallet.sendProtectionsOff
+          : withExceptionsHint(
+              summary.recipientAllowlist
+                ? copy.wallet.recipientsAllowlist
+                : copy.wallet.recipientsAnyone,
+            );
 
-  const appsSubtitle = !isOwner
+  const exceptionsSubtitle = !isOwner
     ? undefined
     : policy.isLoading
       ? copy.common.loading
       : summary === "invalid"
         ? copy.wallet.limitsStatusInvalid
-        : !summary
+        : !protectionsOn
           ? copy.wallet.extraProgramsAllAllowed
           : summary.unrestrictedApps > 0
             ? copy.wallet.extraProgramsWithUnrestricted(
@@ -175,23 +192,33 @@ export function SettingsHub({
           footer={copy.wallet.policyDefaultSigningOnly}
         >
           <GroupedRow
-            onClick={() => onOpen("spendingLimits")}
-            subtitle={spendSubtitle}
+            onClick={() => onOpen("sendProtections")}
+            subtitle={masterSubtitle}
           >
-            {copy.wallet.spendingLimits}
+            {copy.wallet.sendProtections}
           </GroupedRow>
-          <GroupedRow
-            onClick={() => onOpen("recipients")}
-            subtitle={recipientsSubtitle}
-          >
-            {copy.wallet.recipients}
-          </GroupedRow>
-          <GroupedRow
-            onClick={() => onOpen("extraPrograms")}
-            subtitle={appsSubtitle}
-          >
-            {copy.wallet.extraPrograms}
-          </GroupedRow>
+          {protectionsOn ? (
+            <>
+              <GroupedRow
+                onClick={() => onOpen("spendingLimits")}
+                subtitle={spendSubtitle}
+              >
+                {copy.wallet.spendingLimits}
+              </GroupedRow>
+              <GroupedRow
+                onClick={() => onOpen("recipients")}
+                subtitle={recipientsSubtitle}
+              >
+                {copy.wallet.recipients}
+              </GroupedRow>
+              <GroupedRow
+                onClick={() => onOpen("extraPrograms")}
+                subtitle={exceptionsSubtitle}
+              >
+                {copy.wallet.extraPrograms}
+              </GroupedRow>
+            </>
+          ) : null}
         </GroupedList>
       ) : null}
 

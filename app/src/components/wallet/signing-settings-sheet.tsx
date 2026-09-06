@@ -33,7 +33,6 @@ import { sendTransaction } from "@/lib/solana/tx";
 import { tryParseAddress } from "@/lib/solana/address";
 import { toUserErrorMessage } from "@/lib/user-errors";
 import { createAppVerifierSigner } from "@/lib/wallet/verifier-fee-payer";
-import { cn } from "@/lib/utils";
 
 type View = "menu" | "warn" | "custom" | "holding" | "success";
 
@@ -212,7 +211,6 @@ export function SigningSettingsSheet({
         <Button
           type="button"
           size="lg"
-          className="mt-auto"
           disabled={!acked}
           onClick={() => setView("custom")}
         >
@@ -255,7 +253,6 @@ export function SigningSettingsSheet({
         <Button
           type="button"
           size="lg"
-          className={cn("mt-auto")}
           disabled={!acked}
           onClick={() => void saveCustom()}
         >

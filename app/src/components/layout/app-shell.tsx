@@ -60,7 +60,7 @@ export function AppShell({
   return (
     <ShellStageSlotContext.Provider value={stageApi}>
       <div className="relative flex min-h-dvh flex-1 flex-col items-center overflow-x-clip bg-background">
-        <LuminousAura intensity="soft" />
+        <LuminousAura intensity="default" />
         <main
           className={cn(
             "relative z-10 mx-auto flex w-full min-w-0 flex-1 flex-col self-center",

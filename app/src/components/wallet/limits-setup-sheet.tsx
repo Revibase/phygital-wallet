@@ -58,7 +58,6 @@ export function LimitsSetupSheet({
           type="button"
           size="lg"
           variant="outline"
-          className="mt-auto"
           onClick={onBack}
         >
           {copy.common.done}
@@ -67,7 +66,6 @@ export function LimitsSetupSheet({
         <Button
           type="button"
           size="lg"
-          className="mt-auto"
           onClick={() => redirectToLimitsSetup(phygitalTokenPda, screen)}
         >
           {copy.wallet.claimCta}
@@ -76,7 +74,6 @@ export function LimitsSetupSheet({
         <Button
           type="button"
           size="lg"
-          className="mt-auto"
           onClick={() => {
             if (onClaim) onClaim();
             else redirectToClaimSetup(phygitalTokenPda);

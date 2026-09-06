@@ -64,7 +64,6 @@ export function RpcConnectionSheet({ onBack }: { onBack: () => void }) {
         <Button
           type="button"
           size="lg"
-          className="mt-auto"
           onClick={() => useCustom()}
         >
           {copy.wallet.rpcSwitch}

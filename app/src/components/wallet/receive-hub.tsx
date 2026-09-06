@@ -93,7 +93,7 @@ export function ReceiveHub({
         type="button"
         variant="ghost"
         onClick={onReceiveNearby}
-        className="mt-auto h-auto min-h-0 w-full justify-start gap-3 rounded-3xl bg-muted/25 px-4 py-4 text-left font-normal hover:bg-muted/40"
+        className="h-auto min-h-0 w-full justify-start gap-3 rounded-3xl bg-muted/25 px-4 py-4 text-left font-normal hover:bg-muted/40"
       >
         <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-background text-muted-foreground">
           <QrCode className="size-5" aria-hidden />

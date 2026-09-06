@@ -30,7 +30,8 @@ export function RecipientsSheet({
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const effectiveMode = editor.settings?.recipientMode ?? "anyone";
-  const restricted = editor.policyEnabled && effectiveMode === "allowlist";
+  const protectionsOn = editor.policyEnabled;
+  const restricted = protectionsOn && effectiveMode === "allowlist";
   const extras = editor.settings?.extraPrograms.length ?? 0;
 
   useEffect(() => {
@@ -68,6 +69,8 @@ export function RecipientsSheet({
     }
     await editor.save(
       {
+        programAllowlist: true,
+        includeStandardPrograms: true,
         recipientMode: mode,
         recipientAllowlist: mode === "allowlist" ? allowlist : [],
       },
@@ -75,18 +78,21 @@ export function RecipientsSheet({
     );
   }
 
-  const statusTitle = restricted
-    ? copy.wallet.recipientsRestricted
-    : copy.wallet.recipientsAllAllowed;
-  const statusBody = restricted
-    ? copy.wallet.recipientsRestrictedBody
-    : editor.policyEnabled
-      ? copy.wallet.recipientsAnyoneActiveBody
-      : copy.wallet.recipientsAllAllowedBody;
+  const statusTitle = !protectionsOn
+    ? copy.wallet.sendProtectionsOff
+    : restricted
+      ? copy.wallet.recipientsRestricted
+      : copy.wallet.recipientsAllAllowed;
+  const statusBody = !protectionsOn
+    ? copy.wallet.sendProtectionsRequired
+    : restricted
+      ? copy.wallet.recipientsRestrictedBody
+      : copy.wallet.recipientsAnyoneActiveBody;
 
   const showSave =
-    mode === "allowlist" ||
-    (editor.policyEnabled && effectiveMode === "allowlist");
+    protectionsOn &&
+    (mode === "allowlist" ||
+      (protectionsOn && effectiveMode === "allowlist"));
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
@@ -109,130 +115,148 @@ export function RecipientsSheet({
             <p className="mt-1 text-sm text-muted-foreground">{statusBody}</p>
           </div>
 
-          {extras > 0 ? (
-            <div className="rounded-2xl bg-destructive/10 px-4 py-3 text-sm text-destructive">
-              {copy.wallet.unrestrictedAppsWarn}
-            </div>
-          ) : null}
-
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => setAdvancedOpen((o) => !o)}
-            className="h-auto min-h-11 w-full justify-between rounded-2xl bg-muted/25 px-4 py-3 text-sm font-medium hover:bg-muted/40"
-          >
-            {advancedOpen
-              ? copy.wallet.recipientsAdvancedHide
-              : copy.wallet.recipientsAdvanced}
-            {advancedOpen ? (
-              <ChevronUp className="size-4 text-muted-foreground" />
-            ) : (
-              <ChevronDown className="size-4 text-muted-foreground" />
-            )}
-          </Button>
-
-          {advancedOpen ? (
-            <div className="flex min-h-0 flex-1 flex-col gap-4">
-              <p className="text-xs text-muted-foreground">
-                {copy.wallet.recipientsAdvancedHint}
-              </p>
-
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant={mode === "anyone" ? "default" : "outline"}
-                  className="flex-1 rounded-full"
-                  onClick={() => setMode("anyone")}
-                >
-                  {copy.wallet.recipientsAnyone}
-                </Button>
-                <Button
-                  type="button"
-                  variant={mode === "allowlist" ? "default" : "outline"}
-                  className="flex-1 rounded-full"
-                  onClick={() => setMode("allowlist")}
-                >
-                  {copy.wallet.recipientsAllowlist}
-                </Button>
-              </div>
-
-              {mode === "allowlist" ? (
-                <div className="flex flex-col gap-2">
-                  <div className="flex gap-2">
-                    <Input
-                      value={draft}
-                      onChange={(e) => setDraft(e.target.value)}
-                      placeholder={copy.wallet.pasteAddress}
-                      className="flex-1 font-mono text-sm"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      aria-label={copy.wallet.tapAccessory}
-                      onClick={() => void pickNfc()}
-                    >
-                      <Nfc className="size-4" />
-                    </Button>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => addAddress(draft)}
-                  >
-                    {copy.wallet.add}
-                  </Button>
-                  {allowlist.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      {copy.wallet.recipientsEmpty}
-                    </p>
-                  ) : (
-                    <ul className="flex flex-col gap-1">
-                      {allowlist.map((addr) => (
-                        <li
-                          key={addr}
-                          className="flex items-center justify-between rounded-xl bg-muted/25 px-3 py-2 text-sm"
-                        >
-                          <span className="font-mono">
-                            {shortAddress(addr, 6)}
-                          </span>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label={copy.common.remove}
-                            onClick={() =>
-                              setAllowlist((prev) =>
-                                prev.filter((a) => a !== addr),
-                              )
-                            }
-                          >
-                            <Trash2 className="size-4 text-muted-foreground" />
-                          </Button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+          {!protectionsOn ? (
+            <Button
+              type="button"
+              size="lg"
+              className="w-full rounded-full"
+              disabled={editor.busy}
+              onClick={() => void editor.enableProtections(onBack)}
+            >
+              {editor.saving ? (
+                <Spinner className="size-4" />
+              ) : (
+                copy.wallet.sendProtectionsTurnOn
+              )}
+            </Button>
+          ) : (
+            <>
+              {extras > 0 ? (
+                <div className="rounded-2xl bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                  {copy.wallet.unrestrictedAppsWarn}
                 </div>
               ) : null}
 
-              {showSave ? (
-                <Button
-                  type="button"
-                  size="lg"
-                  className="mt-auto w-full rounded-full"
-                  disabled={editor.busy}
-                  onClick={() => void save()}
-                >
-                  {editor.saving ? (
-                    <Spinner className="size-4" />
-                  ) : (
-                    copy.wallet.save
-                  )}
-                </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setAdvancedOpen((o) => !o)}
+                className="h-auto min-h-11 w-full justify-between rounded-2xl bg-muted/25 px-4 py-3 text-sm font-medium hover:bg-muted/40"
+              >
+                {advancedOpen
+                  ? copy.wallet.recipientsAdvancedHide
+                  : copy.wallet.recipientsAdvanced}
+                {advancedOpen ? (
+                  <ChevronUp className="size-4 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="size-4 text-muted-foreground" />
+                )}
+              </Button>
+
+              {advancedOpen ? (
+                <div className="flex min-h-0 flex-1 flex-col gap-4">
+                  <p className="text-xs text-muted-foreground">
+                    {copy.wallet.recipientsAdvancedHint}
+                  </p>
+
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant={mode === "anyone" ? "default" : "outline"}
+                      className="flex-1 rounded-full"
+                      onClick={() => setMode("anyone")}
+                    >
+                      {copy.wallet.recipientsAnyone}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={mode === "allowlist" ? "default" : "outline"}
+                      className="flex-1 rounded-full"
+                      onClick={() => setMode("allowlist")}
+                    >
+                      {copy.wallet.recipientsAllowlist}
+                    </Button>
+                  </div>
+
+                  {mode === "allowlist" ? (
+                    <div className="flex flex-col gap-2">
+                      <div className="flex gap-2">
+                        <Input
+                          value={draft}
+                          onChange={(e) => setDraft(e.target.value)}
+                          placeholder={copy.wallet.pasteAddress}
+                          className="flex-1 font-mono text-sm"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          aria-label={copy.wallet.tapAccessory}
+                          onClick={() => void pickNfc()}
+                        >
+                          <Nfc className="size-4" />
+                        </Button>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => addAddress(draft)}
+                      >
+                        {copy.wallet.add}
+                      </Button>
+                      {allowlist.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                          {copy.wallet.recipientsEmpty}
+                        </p>
+                      ) : (
+                        <ul className="flex flex-col gap-1">
+                          {allowlist.map((addr) => (
+                            <li
+                              key={addr}
+                              className="flex items-center justify-between rounded-xl bg-muted/25 px-3 py-2 text-sm"
+                            >
+                              <span className="font-mono">
+                                {shortAddress(addr, 6)}
+                              </span>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label={copy.common.remove}
+                                onClick={() =>
+                                  setAllowlist((prev) =>
+                                    prev.filter((a) => a !== addr),
+                                  )
+                                }
+                              >
+                                <Trash2 className="size-4 text-muted-foreground" />
+                              </Button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  ) : null}
+
+                  {showSave ? (
+                    <Button
+                      type="button"
+                      size="lg"
+                      className="w-full rounded-full"
+                      disabled={editor.busy}
+                      onClick={() => void save()}
+                    >
+                      {editor.saving ? (
+                        <Spinner className="size-4" />
+                      ) : (
+                        copy.wallet.save
+                      )}
+                    </Button>
+                  ) : null}
+                </div>
               ) : null}
-            </div>
-          ) : null}
+            </>
+          )}
         </>
       )}
     </div>

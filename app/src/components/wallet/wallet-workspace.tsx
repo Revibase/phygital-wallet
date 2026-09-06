@@ -15,6 +15,7 @@ import { ReceiveNearbySheet } from "@/components/wallet/receive-nearby-sheet";
 import { OpenApprovalsSheet } from "@/components/wallet/open-approvals-sheet";
 import { SettingsHub, type SettingsTarget } from "@/components/wallet/settings-hub";
 import { LimitsSetupSheet } from "@/components/wallet/limits-setup-sheet";
+import { SendProtectionsSheet } from "@/components/wallet/send-protections-sheet";
 import { SpendingLimitsSheet } from "@/components/wallet/spending-limits-sheet";
 import { RecipientsSheet } from "@/components/wallet/recipients-sheet";
 import { ExtraProgramsSheet } from "@/components/wallet/extra-programs-sheet";
@@ -434,6 +435,13 @@ function WalletWorkspaceInner({
         screen={screen}
         onBack={() => setScreen("settings")}
         onClaim={requestClaim}
+      />
+    );
+  } else if (isOwner && screen === "sendProtections") {
+    body = (
+      <SendProtectionsSheet
+        phygitalTokenPda={tokenAddress}
+        onBack={() => setScreen("settings")}
       />
     );
   } else if (isOwner && screen === "spendingLimits") {

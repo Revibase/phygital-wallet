@@ -177,21 +177,19 @@ export function FeeBalanceSheet({
         />
       </div>
 
-      <div className="mt-auto">
-        <Button
-          type="button"
-          size="lg"
-          className="w-full"
-          disabled={!canTopUp}
-          onClick={() => void runTopUp()}
-        >
-          {busy ? (
-            <Spinner className="size-4" />
-          ) : (
-            copy.wallet.holdToTopUp
-          )}
-        </Button>
-      </div>
+      <Button
+        type="button"
+        size="lg"
+        className="w-full"
+        disabled={!canTopUp}
+        onClick={() => void runTopUp()}
+      >
+        {busy ? (
+          <Spinner className="size-4" />
+        ) : (
+          copy.wallet.holdToTopUp
+        )}
+      </Button>
     </div>
   );
 }

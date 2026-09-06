@@ -93,15 +93,38 @@ export function usePolicyEditor(phygitalToken: string) {
   async function save(patch: Partial<PolicySettings>, onBack: () => void) {
     if (!settings || busy) return;
     try {
+      const nextCapsUsdc =
+        patch.maxTransferUsdc !== undefined
+          ? patch.maxTransferUsdc
+          : settings.maxTransferUsdc;
+      const nextCapsSol =
+        patch.maxTransferSol !== undefined
+          ? patch.maxTransferSol
+          : settings.maxTransferSol;
+      const nextRecipients =
+        patch.recipientMode ?? settings.recipientMode;
+      const nextExtras = patch.extraPrograms ?? settings.extraPrograms;
       const merged: PolicySettings = {
         ...settings,
         ...patch,
+        maxTransferUsdc: nextCapsUsdc,
+        maxTransferSol: nextCapsSol,
         recipientAllowlist:
           patch.recipientAllowlist ?? settings.recipientAllowlist,
-        extraPrograms: patch.extraPrograms ?? settings.extraPrograms,
+        extraPrograms: nextExtras,
+        includeStandardPrograms: true,
+        programAllowlist:
+          patch.programAllowlist === true ||
+          settings.programAllowlist ||
+          hasSpendCaps({
+            ...settings,
+            maxTransferUsdc: nextCapsUsdc,
+            maxTransferSol: nextCapsSol,
+          }) ||
+          nextRecipients === "allowlist" ||
+          nextExtras.length > 0,
       };
 
-      // No knobs left → delete so we never leave a silent built-in-only doc.
       if (!hasStandingPolicyContent(merged)) {
         if (doc == null && status !== "invalid") {
           onBack();
@@ -142,9 +165,21 @@ export function usePolicyEditor(phygitalToken: string) {
     }
   }
 
+  /** Turn Send protections on — built-in programs only. */
+  async function enableProtections(onBack: () => void) {
+    if (busy) return;
+    await save(
+      {
+        programAllowlist: true,
+        includeStandardPrograms: true,
+      },
+      onBack,
+    );
+  }
+
   /**
    * Clear spend caps only. Deletes the document when nothing else remains;
-   * otherwise recompiles with null caps so recipients/programs stay.
+   * otherwise recompiles with null caps so recipients/exceptions stay.
    */
   async function clearSpendCaps(onBack: () => void) {
     if (!settings || busy) return;
@@ -166,6 +201,7 @@ export function usePolicyEditor(phygitalToken: string) {
     busy,
     save,
     turnOff,
+    enableProtections,
     clearSpendCaps,
     policyEnabled: status === "ok" && doc != null,
     policyInvalid: status === "invalid",

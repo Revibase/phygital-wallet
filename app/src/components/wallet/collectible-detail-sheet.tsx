@@ -59,7 +59,7 @@ export function CollectibleDetailSheet({
 
         <Separator />
 
-        <div className="mt-auto flex flex-col gap-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+        <div className="flex flex-col gap-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
           <Button
             type="button"
             size="lg"

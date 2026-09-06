@@ -3,7 +3,6 @@
 import type { ReactNode } from "react";
 
 import { CollectibleOrb } from "@/components/token/collectible-orb";
-import { LuminousAura } from "@/components/shared/luminous-aura";
 import { copyBlockClass, ctaBlockClass } from "@/lib/layout";
 import { galleryAnimate, staggerStyle } from "@/lib/motion";
 import { cn } from "@/lib/utils";
@@ -11,6 +10,7 @@ import { cn } from "@/lib/utils";
 /**
  * Shared Hold ceremony — unlock, verify, claim, send, nearby, fees, policies.
  * Full-screen focused coach with progress ring affordance on the orb.
+ * Atmosphere comes from AppShell’s LuminousAura (do not nest a clipped wash).
  */
 export function NfcHoldStatus({
   title,
@@ -54,7 +54,6 @@ export function NfcHoldStatus({
         className,
       )}
     >
-      <LuminousAura intensity="default" breathing={!busy || tone !== "success"} />
       {header ? (
         <div
           className={cn("relative z-10 w-full max-w-sm", galleryAnimate.rise)}

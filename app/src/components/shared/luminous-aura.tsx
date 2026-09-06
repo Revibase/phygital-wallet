@@ -4,8 +4,9 @@ import { cn } from "@/lib/utils";
 import { galleryAnimate } from "@/lib/motion";
 
 /**
- * Soft atmospheric wash behind wallet / reveal surfaces.
- * Optional hue overrides sample from collectible art via CSS vars.
+ * Soft atmospheric wash — radial fades into the page background.
+ * Mount once at the shell (full viewport). Do not nest inside content stacks;
+ * clipped boxes turn the wash into a hard-edged panel.
  */
 export function LuminousAura({
   className,
@@ -20,34 +21,33 @@ export function LuminousAura({
     intensity === "strong"
       ? "opacity-100"
       : intensity === "soft"
-        ? "opacity-60"
-        : "opacity-80";
+        ? "opacity-55"
+        : "opacity-75";
 
   return (
     <div
       aria-hidden
       className={cn(
-        "pointer-events-none absolute inset-0 -z-10 overflow-hidden",
+        "pointer-events-none absolute inset-0 -z-10",
         className,
       )}
     >
       <div
         className={cn(
-          "absolute -left-1/4 top-[-10%] size-[70vmax] rounded-full bg-aura blur-3xl",
+          "absolute inset-0",
           opacity,
           breathing && galleryAnimate.auraBreath,
         )}
+        style={{
+          backgroundImage: [
+            "radial-gradient(ellipse 90% 70% at 28% 8%, var(--aura) 0%, transparent 72%)",
+            "radial-gradient(ellipse 80% 55% at 88% 92%, var(--aura-secondary) 0%, transparent 68%)",
+            "radial-gradient(ellipse 55% 40% at 50% 42%, color-mix(in oklab, var(--aura) 35%, transparent) 0%, transparent 70%)",
+          ].join(", "),
+        }}
       />
       <div
-        className={cn(
-          "absolute -right-1/5 bottom-[-5%] size-[55vmax] rounded-full bg-aura-secondary blur-3xl",
-          opacity,
-          breathing && galleryAnimate.auraBreath,
-        )}
-        style={{ animationDelay: "1.1s" }}
-      />
-      <div
-        className="absolute inset-0 opacity-[0.035] mix-blend-overlay"
+        className="absolute inset-0 opacity-[0.03] mix-blend-overlay"
         style={{
           backgroundImage:
             "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",

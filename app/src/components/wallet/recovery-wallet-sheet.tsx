@@ -230,7 +230,6 @@ export function RecoveryWalletSheet({
           type="button"
           size="lg"
           variant="destructive"
-          className="mt-auto"
           onClick={() => void clearRecovery()}
         >
           {copy.wallet.recoveryWalletClearConfirmCta}
@@ -317,7 +316,6 @@ export function RecoveryWalletSheet({
       <Button
         type="button"
         size="lg"
-        className="mt-auto"
         disabled={!canSave}
         onClick={() => void saveRecovery()}
       >

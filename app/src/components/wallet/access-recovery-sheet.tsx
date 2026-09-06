@@ -9,10 +9,7 @@ import { GroupedList, GroupedRow } from "@/components/shared/grouped-list";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import type { WalletRole } from "@/components/token/token-address-route";
-import {
-  recoveryWalletSubtitle,
-  useRecoveryWallet,
-} from "@/hooks/wallet/use-recovery-wallet";
+import { useRecoveryWallet } from "@/hooks/wallet/use-recovery-wallet";
 import { useTokenVerifier } from "@/hooks/wallet/use-token-verifier";
 import { copy } from "@/lib/copy/phygital";
 import { queryKeys } from "@/lib/queries";
@@ -27,7 +24,7 @@ import { redirectToClaimSetup, clearClaimDismiss } from "@/lib/wallet/claim-setu
 import { redirectToLimitsSetup } from "@/lib/wallet/limits-setup-href";
 import { cn } from "@/lib/utils";
 
-/** Access: recovery status and unlink teardown (owners); claim path (visitors). */
+/** Access: link / unlink this phone (owners); claim path (visitors). */
 export function AccessRecoverySheet({
   phygitalTokenPda,
   role,
@@ -59,9 +56,10 @@ export function AccessRecoverySheet({
   const claimedQuiet = claimed === true && !isOwner && !linkedElsewhere;
   const teardownLoading =
     isOwner && (recovery.isLoading || verifier.isLoading);
+  /** Only surface when set — must clear before unlink. Managed in Safety otherwise. */
   const needsRecoveryClear = Boolean(recovery.data?.configured);
   const needsSigningRestore = Boolean(verifier.data?.custom);
-  const showTeardownChecklist =
+  const showUnlinkBlockers =
     isOwner &&
     !teardownLoading &&
     (needsRecoveryClear || needsSigningRestore);
@@ -111,11 +109,6 @@ export function AccessRecoverySheet({
     }
   }
 
-  const recoverySubtitle = recoveryWalletSubtitle(
-    recovery.data,
-    recovery.isLoading,
-  );
-
   if (confirmUnlink) {
     return (
       <div className="flex flex-1 flex-col gap-4">
@@ -126,7 +119,7 @@ export function AccessRecoverySheet({
         <p className="text-sm leading-relaxed text-muted-foreground">
           {copy.wallet.deviceUnlinkConfirmBody}
         </p>
-        <div className="mt-auto flex flex-col gap-2">
+        <div className="flex flex-col gap-2">
           <Button
             type="button"
             size="lg"
@@ -185,23 +178,10 @@ export function AccessRecoverySheet({
         </p>
       </div>
 
-      {isOwner && onOpenRecovery && !showTeardownChecklist ? (
-        <GroupedList>
-          <GroupedRow
-            onClick={onOpenRecovery}
-            subtitle={
-              recovery.isLoading ? copy.common.loading : recoverySubtitle
-            }
-          >
-            {copy.wallet.accessRecoveryRow}
-          </GroupedRow>
-        </GroupedList>
-      ) : null}
-
-      {showTeardownChecklist ? (
+      {showUnlinkBlockers ? (
         <GroupedList
-          label={copy.wallet.deviceUnlink}
-          footer={copy.wallet.deviceUnlinkPolicyWarn}
+          label={copy.wallet.deviceUnlinkBefore}
+          footer={copy.wallet.deviceUnlinkBlockersFooter}
         >
           {needsRecoveryClear ? (
             <TeardownStep
@@ -220,7 +200,7 @@ export function AccessRecoverySheet({
         </GroupedList>
       ) : null}
 
-      <div className="mt-auto flex flex-col gap-2">
+      <div className="flex flex-col gap-2">
         {isOwner && canUnlink ? (
           <p className="text-xs text-muted-foreground">
             {copy.wallet.deviceUnlinkPolicyWarn}

@@ -19,7 +19,7 @@ function formatCap(value: string | null | undefined): string {
   return String(n);
 }
 
-/** Max per-send USDC / SOL — independent of recipients / programs. */
+/** Max per-send USDC / SOL on the built-in send surface. */
 export function SpendingLimitsSheet({
   phygitalTokenPda,
   onBack,
@@ -43,24 +43,29 @@ export function SpendingLimitsSheet({
     }
   }, [editor.settings, editor.spendCapsEnabled]);
 
+  const protectionsOn = editor.policyEnabled;
   const enabled = editor.spendCapsEnabled;
   const invalid = editor.policyInvalid;
   const extras = editor.settings?.extraPrograms.length ?? 0;
 
-  const statusTitle = invalid
-    ? copy.wallet.spendingLimitsInvalid
-    : enabled
-      ? copy.wallet.spendingLimitsOn
-      : copy.wallet.spendingLimitsOff;
+  const statusTitle = !protectionsOn
+    ? copy.wallet.sendProtectionsOff
+    : invalid
+      ? copy.wallet.spendingLimitsInvalid
+      : enabled
+        ? copy.wallet.spendingLimitsOn
+        : copy.wallet.spendingLimitsOff;
 
-  const statusBody = invalid
-    ? copy.wallet.spendingLimitsInvalidBody
-    : enabled
-      ? copy.wallet.spendingLimitsOnBody(
-          formatCap(editor.settings?.maxTransferUsdc),
-          formatCap(editor.settings?.maxTransferSol),
-        )
-      : copy.wallet.spendingLimitsOffBody;
+  const statusBody = !protectionsOn
+    ? copy.wallet.sendProtectionsRequired
+    : invalid
+      ? copy.wallet.spendingLimitsInvalidBody
+      : enabled
+        ? copy.wallet.spendingLimitsOnBody(
+            formatCap(editor.settings?.maxTransferUsdc),
+            formatCap(editor.settings?.maxTransferSol),
+          )
+        : copy.wallet.spendingLimitsOffBody;
 
   function saveCaps() {
     const usdc = maxPerSend.trim() || null;
@@ -75,6 +80,8 @@ export function SpendingLimitsSheet({
     }
     void editor.save(
       {
+        programAllowlist: true,
+        includeStandardPrograms: true,
         maxTransferUsdc: usdc,
         maxTransferSol: sol,
       },
@@ -103,96 +110,114 @@ export function SpendingLimitsSheet({
             <p className="mt-1 text-sm text-muted-foreground">{statusBody}</p>
           </div>
 
-          {extras > 0 ? (
-            <div className="rounded-2xl bg-destructive/10 px-4 py-3 text-sm text-destructive">
-              {copy.wallet.unrestrictedAppsWarn}
-            </div>
-          ) : null}
-
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => setAdvancedOpen((o) => !o)}
-            className="h-auto min-h-11 w-full justify-between rounded-2xl bg-muted/25 px-4 py-3 text-sm font-medium hover:bg-muted/40"
-          >
-            {advancedOpen
-              ? copy.wallet.spendingLimitsAdvancedHide
-              : copy.wallet.spendingLimitsAdvanced}
-            {advancedOpen ? (
-              <ChevronUp className="size-4 text-muted-foreground" />
-            ) : (
-              <ChevronDown className="size-4 text-muted-foreground" />
-            )}
-          </Button>
-
-          {advancedOpen ? (
-            <div className="flex min-h-0 flex-1 flex-col gap-4">
-              <p className="text-xs text-muted-foreground">
-                {copy.wallet.spendingLimitsAdvancedHint}
-              </p>
-
-              <FieldLabel className="normal-case tracking-normal text-xs">
-                {copy.wallet.maxPerSend}
-              </FieldLabel>
-              <Input
-                inputMode="decimal"
-                value={maxPerSend}
-                onChange={(e) =>
-                  setMaxPerSend(e.target.value.replace(/[^0-9.]/g, ""))
-                }
-                placeholder="50"
-              />
-              <FieldLabel className="normal-case tracking-normal text-xs">
-                {copy.wallet.maxSolPerSend}
-              </FieldLabel>
-              <Input
-                inputMode="decimal"
-                value={maxSol}
-                onChange={(e) =>
-                  setMaxSol(e.target.value.replace(/[^0-9.]/g, ""))
-                }
-                placeholder="0.1"
-              />
-
-              {!enabled && !invalid ? (
-                <p className="text-xs text-muted-foreground">
-                  {copy.wallet.spendingLimitsSaveTurnsOn}
-                </p>
+          {!protectionsOn ? (
+            <Button
+              type="button"
+              size="lg"
+              className="w-full rounded-full"
+              disabled={editor.busy}
+              onClick={() => void editor.enableProtections(onBack)}
+            >
+              {editor.saving ? (
+                <Spinner className="size-4" />
+              ) : (
+                copy.wallet.sendProtectionsTurnOn
+              )}
+            </Button>
+          ) : (
+            <>
+              {extras > 0 ? (
+                <div className="rounded-2xl bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                  {copy.wallet.unrestrictedAppsWarn}
+                </div>
               ) : null}
 
-              <div className="mt-auto flex flex-col gap-2">
-                <Button
-                  type="button"
-                  size="lg"
-                  className="w-full rounded-full"
-                  disabled={editor.busy}
-                  onClick={saveCaps}
-                >
-                  {editor.saving || editor.turningOff ? (
-                    <Spinner className="size-4" />
-                  ) : (
-                    copy.wallet.save
-                  )}
-                </Button>
-                {enabled ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="lg"
-                    className="w-full rounded-full"
-                    disabled={editor.busy}
-                    onClick={() => void editor.clearSpendCaps(onBack)}
-                  >
-                    {editor.turningOff || editor.saving ? (
-                      <Spinner className="size-4" />
-                    ) : (
-                      copy.wallet.limitsTurnOff
-                    )}
-                  </Button>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setAdvancedOpen((o) => !o)}
+                className="h-auto min-h-11 w-full justify-between rounded-2xl bg-muted/25 px-4 py-3 text-sm font-medium hover:bg-muted/40"
+              >
+                {advancedOpen
+                  ? copy.wallet.spendingLimitsAdvancedHide
+                  : copy.wallet.spendingLimitsAdvanced}
+                {advancedOpen ? (
+                  <ChevronUp className="size-4 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="size-4 text-muted-foreground" />
+                )}
+              </Button>
+
+              {advancedOpen ? (
+                <div className="flex min-h-0 flex-1 flex-col gap-4">
+                  <p className="text-xs text-muted-foreground">
+                    {copy.wallet.spendingLimitsAdvancedHint}
+                  </p>
+
+                  <FieldLabel className="normal-case tracking-normal text-xs">
+                    {copy.wallet.maxPerSend}
+                  </FieldLabel>
+                  <Input
+                    inputMode="decimal"
+                    value={maxPerSend}
+                    onChange={(e) =>
+                      setMaxPerSend(e.target.value.replace(/[^0-9.]/g, ""))
+                    }
+                    placeholder="50"
+                  />
+                  <FieldLabel className="normal-case tracking-normal text-xs">
+                    {copy.wallet.maxSolPerSend}
+                  </FieldLabel>
+                  <Input
+                    inputMode="decimal"
+                    value={maxSol}
+                    onChange={(e) =>
+                      setMaxSol(e.target.value.replace(/[^0-9.]/g, ""))
+                    }
+                    placeholder="0.1"
+                  />
+
+                  {!enabled && !invalid ? (
+                    <p className="text-xs text-muted-foreground">
+                      {copy.wallet.spendingLimitsSaveTurnsOn}
+                    </p>
+                  ) : null}
+
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      type="button"
+                      size="lg"
+                      className="w-full rounded-full"
+                      disabled={editor.busy}
+                      onClick={saveCaps}
+                    >
+                      {editor.saving || editor.turningOff ? (
+                        <Spinner className="size-4" />
+                      ) : (
+                        copy.wallet.save
+                      )}
+                    </Button>
+                    {enabled ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="lg"
+                        className="w-full rounded-full"
+                        disabled={editor.busy}
+                        onClick={() => void editor.clearSpendCaps(onBack)}
+                      >
+                        {editor.turningOff || editor.saving ? (
+                          <Spinner className="size-4" />
+                        ) : (
+                          copy.wallet.limitsTurnOff
+                        )}
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
+            </>
+          )}
         </>
       )}
     </div>

@@ -43,7 +43,7 @@ export async function createAppVerifierSigner(
   const verifiers = configAccount.data.verifiers as readonly Address[];
   const first = verifiers.find((v) => String(v) !== SYSTEM);
   if (!first) {
-    throw new Error("No default signing service configured");
+    throw new Error("No default transaction verifier configured");
   }
   return createHttpSigner(first, DEFAULT_ENDPOINT);
 }
