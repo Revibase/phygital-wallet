@@ -1,0 +1,320 @@
+"use client";
+
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+
+import { InAppBrowserGate } from "@/components/shared/in-app-browser-gate";
+import { StageTransition } from "@/components/shared/stage-transition";
+import { ClaimItemSheet } from "@/components/wallet/claim-item-sheet";
+import { OpenApprovalsSheet } from "@/components/wallet/open-approvals-sheet";
+import type { SettingsTarget } from "@/components/wallet/settings-hub";
+import { useTokenSession } from "@/components/token/token-session";
+import { useTokenWalletChip } from "@/hooks/wallet/use-token-wallet-chip";
+import { useWalletPda } from "@/hooks/wallet/use-wallet-pda";
+import { useOpenApprovals } from "@/hooks/wallet/use-open-approvals";
+import { useResolvedDasCollectible } from "@/hooks/token/use-das-collectible";
+import { useIsInAppBrowser } from "@/hooks/layout/use-is-in-app-browser";
+import { tokenHasLinkedMint } from "@/lib/phygital/token";
+import type { Collectible } from "@/lib/tokens/collectible";
+import { copy } from "@/lib/copy/phygital";
+import { shellLayoutClass } from "@/lib/layout";
+import { cn } from "@/lib/utils";
+import { isClaimDismissed } from "@/lib/wallet/claim-setup-href";
+import {
+  settingsFromDenyCode,
+  tokenHref,
+  walletHref,
+  walletSendHref,
+  walletSettingsHref,
+} from "@/lib/wallet/token-routes";
+import {
+  isCollectibleSendKind,
+  type SendAssetRef,
+} from "@/lib/wallet/send-asset-ref";
+import { invalidateWalletBalances } from "@/lib/queries";
+import type { LinkStatus } from "@/lib/wallet/device-auth-client";
+import type { PhygitalToken } from "@/lib/phygital/token";
+import type { WalletRole } from "@/components/token/token-address-route";
+
+/** Allowlisted wallet soft-nav targets. */
+export type WalletGo =
+  | [to: "send" | "receive" | "tokens" | "collectibles" | "activity" | "settings"]
+  | [to: "receive", nested: "nearby"]
+  | [to: "collectibles", mint: string];
+
+type WalletRouteValue = {
+  token: PhygitalToken;
+  role: WalletRole;
+  linkStatus?: LinkStatus;
+  claimed?: boolean;
+  tokenAddress: string;
+  walletAddress: string;
+  mint: string | null;
+  collectible: Collectible | null;
+  isOwner: boolean;
+  linkedElsewhere: boolean;
+  unclaimed: boolean;
+  claimedQuiet: boolean;
+  requestClaim: () => void;
+  go: (...args: WalletGo) => void;
+  goSettings: (target?: SettingsTarget) => void;
+  goSend: (asset?: SendAssetRef | null) => void;
+  goHome: () => void;
+  goCard: () => void;
+  refresh: () => void;
+};
+
+const WalletRouteContext = createContext<WalletRouteValue | null>(null);
+
+export function useWalletRoute(): WalletRouteValue {
+  const ctx = useContext(WalletRouteContext);
+  if (!ctx) {
+    throw new Error("useWalletRoute requires WalletRouteShell");
+  }
+  return ctx;
+}
+
+export function useRequestClaim(): () => void {
+  return useWalletRoute().requestClaim;
+}
+
+/**
+ * Shared chrome for `/token/[address]/wallet/**`.
+ * Claim + open-approvals overlays stay local; leaf pages render as children.
+ */
+export function WalletRouteShell({ children }: { children: ReactNode }) {
+  const session = useTokenSession();
+  const { token, role, linkStatus, claimed } = session;
+  const tokenAddress = String(token.address);
+  const router = useRouter();
+  const pathname = usePathname();
+  const queryClient = useQueryClient();
+  const inApp = useIsInAppBrowser();
+  const mint = tokenHasLinkedMint(token) ? String(token.mint) : null;
+  const { walletAddress } = useWalletPda(tokenAddress);
+  const { collectible } = useResolvedDasCollectible(mint);
+
+  const isOwner = role === "owner";
+  const isWalletHome =
+    pathname === walletHref(tokenAddress) ||
+    pathname === `${walletHref(tokenAddress)}/`;
+
+  const [deferSecondary, setDeferSecondary] = useState(false);
+  useEffect(() => {
+    const id = window.requestAnimationFrame(() => setDeferSecondary(true));
+    return () => window.cancelAnimationFrame(id);
+  }, []);
+
+  const openApprovals = useOpenApprovals(
+    isOwner && deferSecondary ? tokenAddress : null,
+  );
+  const [dismissApprovals, setDismissApprovals] = useState(false);
+  const [claimSessionDismissed, setClaimSessionDismissed] = useState(() =>
+    isClaimDismissed(tokenAddress),
+  );
+  const [forceClaim, setForceClaim] = useState(false);
+
+  useEffect(() => {
+    if (openApprovals.approvals.length > 0) setDismissApprovals(false);
+  }, [openApprovals.approvals.length]);
+
+  useEffect(() => {
+    setClaimSessionDismissed(isClaimDismissed(tokenAddress));
+    setForceClaim(false);
+  }, [tokenAddress]);
+
+  const linkedElsewhere = linkStatus === "linked_elsewhere";
+  const unclaimed = claimed === false;
+  const claimedQuiet = claimed === true && !isOwner && !linkedElsewhere;
+  const needsClaim =
+    !isOwner && unclaimed && !linkedElsewhere && !claimSessionDismissed;
+  const showClaimSheet =
+    needsClaim || (forceClaim && !isOwner && !linkedElsewhere && !claimedQuiet);
+
+  const showOpenApprovals =
+    isOwner &&
+    !dismissApprovals &&
+    openApprovals.approvals.length > 0 &&
+    isWalletHome &&
+    !showClaimSheet;
+
+  const requestClaim = useCallback(() => {
+    setForceClaim(true);
+    router.push(walletHref(tokenAddress));
+  }, [router, tokenAddress]);
+
+  const goCard = useCallback(() => {
+    router.push(tokenHref(tokenAddress));
+  }, [router, tokenAddress]);
+
+  const go = useCallback(
+    (...args: WalletGo) => {
+      router.push(walletHref(tokenAddress, ...args));
+    },
+    [router, tokenAddress],
+  );
+
+  const goSettings = useCallback(
+    (target?: SettingsTarget) => {
+      router.push(walletSettingsHref(tokenAddress, target));
+    },
+    [router, tokenAddress],
+  );
+
+  const goSend = useCallback(
+    (asset?: SendAssetRef | null) => {
+      router.push(
+        walletSendHref(
+          tokenAddress,
+          asset
+            ? {
+                mint: asset.mint,
+                collectible: isCollectibleSendKind(asset.kind),
+              }
+            : null,
+        ),
+      );
+    },
+    [router, tokenAddress],
+  );
+
+  const goHome = useCallback(() => {
+    router.push(walletHref(tokenAddress));
+  }, [router, tokenAddress]);
+
+  const refresh = useCallback(() => {
+    if (!walletAddress) return;
+    invalidateWalletBalances(queryClient, {
+      wallets: [walletAddress],
+      tokens: [tokenAddress],
+    });
+  }, [queryClient, walletAddress, tokenAddress]);
+
+  useTokenWalletChip({
+    onToggle: goCard,
+    viewingWallet: true,
+    enabled: Boolean(mint),
+  });
+
+  const routeValue = useMemo((): WalletRouteValue | null => {
+    if (!walletAddress) return null;
+    return {
+      token,
+      role,
+      linkStatus,
+      claimed,
+      tokenAddress,
+      walletAddress,
+      mint,
+      collectible,
+      isOwner,
+      linkedElsewhere,
+      unclaimed,
+      claimedQuiet,
+      requestClaim,
+      go,
+      goSettings,
+      goSend,
+      goHome,
+      goCard,
+      refresh,
+    };
+  }, [
+    token,
+    role,
+    linkStatus,
+    claimed,
+    tokenAddress,
+    walletAddress,
+    mint,
+    collectible,
+    isOwner,
+    linkedElsewhere,
+    unclaimed,
+    claimedQuiet,
+    requestClaim,
+    go,
+    goSettings,
+    goSend,
+    goHome,
+    goCard,
+    refresh,
+  ]);
+
+  if (!routeValue) {
+    return (
+      <p className="py-10 text-center text-sm text-muted-foreground">
+        {copy.common.loading}
+      </p>
+    );
+  }
+
+  if (inApp) {
+    return <InAppBrowserGate body={copy.gate.openInBrowserBody} />;
+  }
+
+  let body: ReactNode = children;
+  if (showClaimSheet) {
+    body = (
+      <ClaimItemSheet
+        phygitalTokenPda={tokenAddress}
+        onClaimed={() => {
+          setForceClaim(false);
+          setClaimSessionDismissed(true);
+          router.push(walletHref(tokenAddress));
+        }}
+        onDismiss={() => {
+          setForceClaim(false);
+          setClaimSessionDismissed(true);
+        }}
+      />
+    );
+  } else if (showOpenApprovals) {
+    body = (
+      <OpenApprovalsSheet
+        phygitalTokenPda={tokenAddress}
+        approvals={openApprovals.approvals}
+        onChangeLimits={(code) => {
+          setDismissApprovals(true);
+          router.push(
+            walletSettingsHref(tokenAddress, settingsFromDenyCode(code)),
+          );
+        }}
+        onDone={() => {
+          setDismissApprovals(true);
+          void openApprovals.refetch();
+        }}
+      />
+    );
+  }
+
+  const stageKey = showClaimSheet
+    ? "claim"
+    : showOpenApprovals
+      ? "approvals"
+      : "wallet";
+
+  return (
+    <WalletRouteContext.Provider value={routeValue}>
+      <div
+        className={cn(
+          "mx-auto flex w-full flex-1 flex-col",
+          shellLayoutClass.compact,
+        )}
+      >
+        <StageTransition stageKey={stageKey} variant="fade">
+          {body}
+        </StageTransition>
+      </div>
+    </WalletRouteContext.Provider>
+  );
+}

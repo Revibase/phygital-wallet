@@ -4,63 +4,47 @@ import {
   getQueryErrorStatus,
   QueryHttpError,
 } from "@/lib/queries/http";
-import { tokenHomeHref } from "@/lib/wallet/token-home-href";
+import {
+  isPolicySetupScreen,
+  parseTokenWalletPath,
+  settingsFromSegment,
+  type PolicySetupScreen,
+  walletSettingsHref,
+} from "@/lib/wallet/token-routes";
 
-export type PolicySetupScreen =
-  | "spendingLimits"
-  | "recipients"
-  | "extraPrograms";
-
-const SETUP_SCREENS = new Set<string>([
-  "spendingLimits",
-  "recipients",
-  "extraPrograms",
-]);
-
-export function isPolicySetupScreen(
-  value: string | null | undefined,
-): value is PolicySetupScreen {
-  return Boolean(value && SETUP_SCREENS.has(value));
-}
+export type { PolicySetupScreen };
+export { isPolicySetupScreen };
 
 export function tokenLimitsReturnPath(
   token: string,
   screen: PolicySetupScreen,
 ): string {
-  return `${tokenHomeHref(token)}&screen=${encodeURIComponent(screen)}`;
+  return walletSettingsHref(token, screen);
 }
 
 /**
- * Parse a same-origin `/token?address=&screen=` return path.
- * Rejects absolute/protocol-relative URLs and unknown screens.
+ * Parse a same-origin return path into a limits setup screen.
+ * Accepts `/token/{address}/wallet/settings/{spending-limits|recipients|exceptions}`.
  */
 export function parseSetupReturnPath(
   raw: string | null | undefined,
 ): { token: string; screen: PolicySetupScreen; path: string } | null {
-  if (!raw) return null;
-  const trimmed = raw.trim();
-  if (!trimmed.startsWith("/token")) return null;
-  if (trimmed.startsWith("//") || /[\x00-\x1f\\]/.test(trimmed)) return null;
-  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed)) return null;
-  try {
-    const u = new URL(trimmed, "https://revibase.invalid");
-    if (u.username || u.password || u.host !== "revibase.invalid") return null;
-    if (u.pathname !== "/token") return null;
-    const address = u.searchParams.get("address")?.trim();
-    if (!address) return null;
-    const screen = u.searchParams.get("screen");
-    if (!isPolicySetupScreen(screen)) return null;
-    return {
-      token: address,
-      screen,
-      path: tokenLimitsReturnPath(address, screen),
-    };
-  } catch {
-    return null;
-  }
+  const parsed = parseTokenWalletPath(raw);
+  if (!parsed || parsed.kind !== "wallet") return null;
+  const [head, seg] = parsed.segments;
+  if (head !== "settings" || !seg) return null;
+
+  const target = settingsFromSegment(seg);
+  if (!target || !isPolicySetupScreen(target)) return null;
+
+  return {
+    token: parsed.token,
+    screen: target,
+    path: tokenLimitsReturnPath(parsed.token, target),
+  };
 }
 
-/** Home setup intent from `/?setup=limits&return=/token?...`. */
+/** Home setup intent from `/?setup=limits&return=…`. */
 export function parseLimitsSetupIntent(args: {
   setup: string | null;
   returnPath: string | null;

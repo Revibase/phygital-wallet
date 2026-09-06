@@ -1,31 +1,24 @@
 /** Deep links for Home claim ceremony → return to token wallet. */
 
-import { tokenHomeHref } from "@/lib/wallet/token-home-href";
+import { parseTokenWalletPath, walletHref } from "@/lib/wallet/token-routes";
 
 /**
- * Parse a same-origin `/token?address=` return path for claim setup.
+ * Parse a same-origin `/token/{address}` (or wallet home) return path for claim.
+ * Always normalizes to wallet home — claim overlay lives under wallet layout.
  */
 export function parseClaimReturnPath(
   raw: string | null | undefined,
 ): { token: string; path: string } | null {
-  if (!raw) return null;
-  const trimmed = raw.trim();
-  if (!trimmed.startsWith("/token")) return null;
-  if (trimmed.startsWith("//") || /[\x00-\x1f\\]/.test(trimmed)) return null;
-  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed)) return null;
-  try {
-    const u = new URL(trimmed, "https://revibase.invalid");
-    if (u.username || u.password || u.host !== "revibase.invalid") return null;
-    if (u.pathname !== "/token") return null;
-    const address = u.searchParams.get("address")?.trim();
-    if (!address) return null;
-    return { token: address, path: tokenHomeHref(address) };
-  } catch {
+  const parsed = parseTokenWalletPath(raw);
+  if (!parsed) return null;
+  // Card or wallet root only — not a deep settings path.
+  if (parsed.kind === "wallet" && parsed.segments.length > 0) {
     return null;
   }
+  return { token: parsed.token, path: walletHref(parsed.token) };
 }
 
-/** Home setup intent from `/?setup=claim&return=/token?address=…`. */
+/** Home setup intent from `/?setup=claim&return=…`. */
 export function parseClaimSetupIntent(args: {
   setup: string | null;
   returnPath: string | null;
@@ -39,7 +32,7 @@ export function parseClaimSetupIntent(args: {
 export function claimSetupHomeHref(token: string): string {
   const params = new URLSearchParams({
     setup: "claim",
-    return: tokenHomeHref(token),
+    return: walletHref(token),
   });
   return `/?${params.toString()}`;
 }

@@ -1,23 +1,14 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useSearchParams } from "next/navigation";
-import type { ReactNode } from "react";
+import { useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { RouteBoot } from "@/components/layout/route-boot";
-import {
-  TokenAddressRoute,
-  type WalletRole,
-} from "@/components/token/token-address-route";
-import { TokenMintedHome } from "@/components/token/token-minted-home";
 import { TokenNfcApp } from "@/components/token/token-nfc-app";
-import { TokenUnmintedHome } from "@/components/token/token-unminted-home";
 import { copy } from "@/lib/copy/phygital";
-import {
-  tokenHasLinkedMint,
-  type PhygitalToken,
-} from "@/lib/phygital/token";
-import type { LinkStatus } from "@/lib/wallet/device-auth-client";
+import { tryParseAddress } from "@/lib/solana/address";
+import { tokenHref } from "@/lib/wallet/token-routes";
 
 const TokenRouteShell = dynamic(
   () =>
@@ -32,56 +23,36 @@ const TOKEN_NFC_COPY = {
   holdBody: copy.verify.introBody,
 };
 
-function TokenHome({
-  token,
-  role,
-  linkStatus,
-  claimed,
-}: {
-  token: PhygitalToken;
-  role: WalletRole;
-  linkStatus?: LinkStatus;
-  claimed?: boolean;
-}): ReactNode {
-  if (tokenHasLinkedMint(token)) {
+/** Compat: `/token?address=X` → `/token/X` (unminted card page redirects to wallet). */
+function TokenAddressQueryRedirect({ address }: { address: string }) {
+  const router = useRouter();
+  const parsed = tryParseAddress(address);
+
+  useEffect(() => {
+    if (!parsed) return;
+    router.replace(tokenHref(String(parsed)));
+  }, [parsed, router]);
+
+  if (!parsed) {
     return (
-      <TokenMintedHome
-        token={token}
-        role={role}
-        linkStatus={linkStatus}
-        claimed={claimed}
-      />
+      <TokenRouteShell layout="compact">
+        <p className="py-10 text-center text-sm text-muted-foreground">
+          {copy.token.itemNotOnChain}
+        </p>
+      </TokenRouteShell>
     );
   }
-  return (
-    <TokenUnmintedHome
-      token={token}
-      role={role}
-      linkStatus={linkStatus}
-      claimed={claimed}
-    />
-  );
+
+  return <RouteBoot />;
 }
 
-/** Route `/token` — possession unlock; no platform passkey gate. */
+/** Route `/token` — NFC cold start, or redirect legacy `?address=` into path tree. */
 export function TokenApp() {
   const searchParams = useSearchParams();
   const address = searchParams.get("address")?.trim() ?? "";
 
   if (address) {
-    return (
-      <TokenAddressRoute
-        tokenAddress={address}
-        renderHome={({ token, role, linkStatus, claimed }) => (
-          <TokenHome
-            token={token}
-            role={role}
-            linkStatus={linkStatus}
-            claimed={claimed}
-          />
-        )}
-      />
-    );
+    return <TokenAddressQueryRedirect address={address} />;
   }
 
   return (

@@ -31,7 +31,7 @@ import {
 } from "@/lib/wallet/device-auth-client";
 import { parseLimitsSetupIntent } from "@/lib/wallet/limits-setup-href";
 import { parseClaimSetupIntent } from "@/lib/wallet/claim-setup-href";
-import { tokenHomeHref } from "@/lib/wallet/token-home-href";
+import { tokenHref, walletHref } from "@/lib/wallet/token-routes";
 
 /** Home: signed-out passkey door, or signed-in linked items (+ setup intent). */
 export function OwnedHome() {
@@ -371,7 +371,7 @@ function HomeLinksScreen() {
       return pda;
     },
     onSuccess: (pda) => {
-      router.push(tokenHomeHref(pda));
+      router.push(walletHref(pda));
     },
   });
 
@@ -455,14 +455,14 @@ function HomeLinksScreen() {
           <FormFactorSection
             label={copy.home.cards}
             items={cards}
-            onOpen={(token) => router.push(tokenHomeHref(token))}
+            onOpen={(token) => router.push(tokenHref(token))}
           />
         ) : null}
         {accessories.length > 0 ? (
           <FormFactorSection
             label={copy.home.accessories}
             items={accessories}
-            onOpen={(token) => router.push(tokenHomeHref(token))}
+            onOpen={(token) => router.push(walletHref(token))}
           />
         ) : null}
       </div>

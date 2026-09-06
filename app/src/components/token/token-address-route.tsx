@@ -1,7 +1,7 @@
 "use client";
 
 import { Nfc } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useIsRestoring, useQuery } from "@tanstack/react-query";
 import { findPhygitalTokenPda } from "phygital-token-sdk";
 
@@ -49,34 +49,16 @@ function layoutForToken(token: PhygitalToken): ShellLayout {
 /** Possession-first token home — platform session optional (owner convenience). */
 export function TokenAddressRoute({
   tokenAddress,
-  renderHome,
+  children,
 }: {
   tokenAddress: string;
-  renderHome: (args: TokenHomeRenderArgs) => ReactNode;
-}) {
-  return (
-    <TokenAddressRouteInner
-      tokenAddress={tokenAddress}
-      renderHome={renderHome}
-    />
-  );
-}
-
-function TokenAddressRouteInner({
-  tokenAddress,
-  renderHome,
-}: {
-  tokenAddress: string;
-  renderHome: (args: TokenHomeRenderArgs) => ReactNode;
+  children?: ReactNode | ((args: TokenHomeRenderArgs) => ReactNode);
 }) {
   const isRestoring = useIsRestoring();
   const tokenQuery = usePhygitalTokenByAddress(tokenAddress);
-  const [hydrated, setHydrated] = useState(false);
-  useEffect(() => {
-    setHydrated(true);
-  }, []);
 
-  const token = hydrated && !isRestoring ? tokenQuery.data : undefined;
+  // Under client-only layout: wait for persist restore, then use cached/fetched token.
+  const token = !isRestoring ? tokenQuery.data : undefined;
   const mint = token && tokenHasLinkedMint(token) ? String(token.mint) : null;
   const { collectible } = useResolvedDasCollectible(mint);
 
@@ -114,7 +96,6 @@ function TokenAddressRouteInner({
   const layout: ShellLayout =
     unlocked && token ? layoutForToken(token) : "compact";
   const waitingToken =
-    !hydrated ||
     isRestoring ||
     (!token &&
       (tokenQuery.isPending ||
@@ -168,19 +149,32 @@ function TokenAddressRouteInner({
     return () => window.clearTimeout(id);
   }, [waiting]);
 
+  const sessionValue = useMemo((): TokenHomeRenderArgs | null => {
+    if (!unlocked || !token) return null;
+    return {
+      token,
+      role,
+      linkStatus: session.data ? linkStatus.data : undefined,
+      claimed: claimed.isError ? undefined : claimed.data,
+    };
+  }, [
+    unlocked,
+    token,
+    role,
+    session.data,
+    linkStatus.data,
+    claimed.isError,
+    claimed.data,
+  ]);
+
   return (
     <TokenRouteShell layout={layout}>
-      {unlocked && token ? (
-        renderHome({
-          token,
-          role,
-          linkStatus: session.data ? linkStatus.data : undefined,
-          claimed: claimed.isError
-            ? undefined
-            : claimed.data === undefined
-              ? undefined
-              : claimed.data,
-        })
+      {sessionValue ? (
+        typeof children === "function" ? (
+          children(sessionValue)
+        ) : (
+          (children ?? null)
+        )
       ) : waiting && !timedOut ? (
         <CeremonyShell>
           <NfcHoldStatus

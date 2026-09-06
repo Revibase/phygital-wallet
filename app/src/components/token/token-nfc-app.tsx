@@ -15,7 +15,8 @@ import { useTapVerify } from "@/hooks/token/use-tap-verify";
 import { copy } from "@/lib/copy/phygital";
 import { toUserErrorMessage } from "@/lib/user-errors";
 import { storeAccessoryProof, storePossessionToken } from "@/lib/wallet/device-auth-client";
-import { tokenHomeHref } from "@/lib/wallet/token-home-href";
+import { tokenHasLinkedMint } from "@/lib/phygital/token";
+import { tokenHref, walletHref } from "@/lib/wallet/token-routes";
 
 export type TokenNfcCopy = {
   inAppCheck: string;
@@ -43,7 +44,9 @@ export function TokenNfcApp({ nfcCopy }: { nfcCopy: TokenNfcCopy }) {
     if (result?.possessionToken) {
       storePossessionToken(pda, result.possessionToken);
     }
-    router.replace(tokenHomeHref(pda));
+    router.replace(
+      tokenHasLinkedMint(tokenQuery.data) ? tokenHref(pda) : walletHref(pda),
+    );
   }, [tokenQuery.data, result?.possessionToken, router]);
 
   async function holdToOpen() {
@@ -57,7 +60,8 @@ export function TokenNfcApp({ nfcCopy }: { nfcCopy: TokenNfcCopy }) {
         message: auth.message,
         response: auth.response,
       });
-      router.replace(tokenHomeHref(pda));
+      // Address page redirects unminted → wallet; minted lands on card.
+      router.replace(tokenHref(pda));
     } catch (e) {
       setHoldError(toUserErrorMessage(e));
     }

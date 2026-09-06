@@ -7,14 +7,60 @@ import {
   parseSetupReturnPath,
   tokenLimitsReturnPath,
 } from "./limits-setup-href";
+import { parseTokenWalletPath, walletHref, walletSettingsHref } from "./token-routes";
+
+/** Valid base58 pubkey for parser tests. */
+const TOKEN = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
+
+describe("parseTokenWalletPath", () => {
+  it("accepts card and wallet roots", () => {
+    expect(parseTokenWalletPath(`/token/${TOKEN}`)).toEqual({
+      kind: "card",
+      token: TOKEN,
+      path: `/token/${TOKEN}`,
+    });
+    expect(parseTokenWalletPath(`/token/${TOKEN}/wallet`)).toEqual({
+      kind: "wallet",
+      token: TOKEN,
+      segments: [],
+      path: `/token/${TOKEN}/wallet`,
+    });
+  });
+
+  it("accepts allowlisted wallet segments", () => {
+    expect(parseTokenWalletPath(walletHref(TOKEN, "activity"))).toEqual({
+      kind: "wallet",
+      token: TOKEN,
+      segments: ["activity"],
+      path: walletHref(TOKEN, "activity"),
+    });
+    expect(
+      parseTokenWalletPath(walletSettingsHref(TOKEN, "spendingLimits")),
+    ).toEqual({
+      kind: "wallet",
+      token: TOKEN,
+      segments: ["settings", "spending-limits"],
+      path: walletSettingsHref(TOKEN, "spendingLimits"),
+    });
+  });
+
+  it("rejects open redirects and unknown segments", () => {
+    expect(parseTokenWalletPath("https://evil.example/phish")).toBeNull();
+    expect(parseTokenWalletPath("//evil.example/phish")).toBeNull();
+    expect(parseTokenWalletPath(`/token/${TOKEN}/wallet/../settings`)).toBeNull();
+    expect(parseTokenWalletPath(`/token/${TOKEN}/wallet/claim`)).toBeNull();
+    expect(parseTokenWalletPath(`/token/not-a-pubkey/wallet`)).toBeNull();
+    expect(
+      parseTokenWalletPath(`/token/${TOKEN}/wallet/settings/unknown`),
+    ).toBeNull();
+  });
+});
 
 describe("parseSetupReturnPath", () => {
-  const token = "TokenPda111111111111111111111111111111111";
-
-  it("accepts a matching /token return path", () => {
-    const raw = tokenLimitsReturnPath(token, "spendingLimits");
+  it("accepts a matching settings return path", () => {
+    const raw = tokenLimitsReturnPath(TOKEN, "spendingLimits");
     expect(parseSetupReturnPath(raw)).toEqual({
-      token,
+      token: TOKEN,
       screen: "spendingLimits",
       path: raw,
     });
@@ -27,7 +73,8 @@ describe("parseSetupReturnPath", () => {
 
   it("rejects other app routes and missing screen", () => {
     expect(parseSetupReturnPath("/home")).toBeNull();
-    expect(parseSetupReturnPath(`/token?address=${token}`)).toBeNull();
+    expect(parseSetupReturnPath(`/token/${TOKEN}`)).toBeNull();
+    expect(parseSetupReturnPath(`/token/${TOKEN}/wallet`)).toBeNull();
   });
 
   it("isPolicySetupScreen only allows known sheets", () => {
@@ -37,25 +84,23 @@ describe("parseSetupReturnPath", () => {
 });
 
 describe("limits setup intent", () => {
-  const token = "TokenPda111111111111111111111111111111111";
-
-  it("home href only carries setup + return (no duplicate token/screen)", () => {
-    const href = limitsSetupHomeHref({ token, screen: "recipients" });
+  it("home href only carries setup + return", () => {
+    const href = limitsSetupHomeHref({ token: TOKEN, screen: "recipients" });
     const u = new URL(href, "https://revibase.invalid");
     expect(u.searchParams.get("setup")).toBe("limits");
     expect(u.searchParams.get("return")).toBe(
-      tokenLimitsReturnPath(token, "recipients"),
+      tokenLimitsReturnPath(TOKEN, "recipients"),
     );
     expect(u.searchParams.get("token")).toBeNull();
     expect(u.searchParams.get("screen")).toBeNull();
   });
 
   it("parseLimitsSetupIntent requires setup=limits and a valid return", () => {
-    const returnPath = tokenLimitsReturnPath(token, "spendingLimits");
+    const returnPath = tokenLimitsReturnPath(TOKEN, "spendingLimits");
     expect(
       parseLimitsSetupIntent({ setup: "limits", returnPath }),
     ).toEqual({
-      token,
+      token: TOKEN,
       screen: "spendingLimits",
       returnTo: returnPath,
     });

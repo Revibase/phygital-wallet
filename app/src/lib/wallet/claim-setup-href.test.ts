@@ -5,15 +5,22 @@ import {
   parseClaimReturnPath,
   parseClaimSetupIntent,
 } from "./claim-setup-href";
-import { tokenHomeHref } from "./token-home-href";
+import { tokenHref, walletHref } from "./token-routes";
+
+const TOKEN = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 
 describe("parseClaimReturnPath", () => {
-  const token = "TokenPda111111111111111111111111111111111";
+  it("accepts /token/{address} and normalizes to wallet home", () => {
+    expect(parseClaimReturnPath(tokenHref(TOKEN))).toEqual({
+      token: TOKEN,
+      path: walletHref(TOKEN),
+    });
+  });
 
-  it("accepts /token?address= return paths", () => {
-    expect(parseClaimReturnPath(tokenHomeHref(token))).toEqual({
-      token,
-      path: tokenHomeHref(token),
+  it("accepts wallet root as claim return", () => {
+    expect(parseClaimReturnPath(walletHref(TOKEN))).toEqual({
+      token: TOKEN,
+      path: walletHref(TOKEN),
     });
   });
 
@@ -22,29 +29,28 @@ describe("parseClaimReturnPath", () => {
     expect(parseClaimReturnPath("//evil.example/phish")).toBeNull();
   });
 
-  it("rejects other routes and missing address", () => {
+  it("rejects other routes and deep wallet paths", () => {
     expect(parseClaimReturnPath("/")).toBeNull();
     expect(parseClaimReturnPath("/token")).toBeNull();
+    expect(parseClaimReturnPath(walletHref(TOKEN, "activity"))).toBeNull();
   });
 });
 
 describe("claim setup intent", () => {
-  const token = "TokenPda111111111111111111111111111111111";
-
   it("home href carries setup=claim and return only", () => {
-    const href = claimSetupHomeHref(token);
+    const href = claimSetupHomeHref(TOKEN);
     const u = new URL(href, "https://revibase.invalid");
     expect(u.searchParams.get("setup")).toBe("claim");
-    expect(u.searchParams.get("return")).toBe(tokenHomeHref(token));
+    expect(u.searchParams.get("return")).toBe(walletHref(TOKEN));
     expect(u.searchParams.get("token")).toBeNull();
   });
 
   it("parseClaimSetupIntent requires setup=claim and a valid return", () => {
-    const returnPath = tokenHomeHref(token);
+    const returnPath = walletHref(TOKEN);
     expect(
       parseClaimSetupIntent({ setup: "claim", returnPath }),
     ).toEqual({
-      token,
+      token: TOKEN,
       returnTo: returnPath,
     });
     expect(
