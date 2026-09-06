@@ -34,26 +34,6 @@ export function ReceiveHub({
     });
   }, [queryClient]);
 
-  async function shareAddress() {
-    const payload = {
-      title: brand.company,
-      text: walletAddress,
-      url: payUrl,
-    };
-    try {
-      if (navigator.share) {
-        await navigator.share(payload);
-      } else {
-        await navigator.clipboard.writeText(walletAddress);
-      }
-      toast.success(copy.wallet.shareAddress);
-    } catch (e) {
-      // Ignore user-cancelled share (AbortError / NotAllowedError)
-      if (e instanceof DOMException && (e.name === "AbortError" || e.name === "NotAllowedError")) return;
-      console.warn("[receive-hub] Share failed", e);
-    }
-  }
-
   return (
     <div className="flex flex-1 flex-col gap-6">
       <NavBar
@@ -76,18 +56,6 @@ export function ReceiveHub({
       </div>
 
       <WalletAddressRow address={walletAddress} length={6} />
-
-      <div className="grid grid-cols-1 gap-3">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => void shareAddress()}
-          className="h-auto min-h-11 w-full gap-2 rounded-2xl border-border/60 bg-muted/20 px-4 py-3 text-sm font-medium hover:bg-muted/30"
-        >
-          <Share2 className="size-4" aria-hidden />
-          {copy.wallet.share}
-        </Button>
-      </div>
 
       <Button
         type="button"
