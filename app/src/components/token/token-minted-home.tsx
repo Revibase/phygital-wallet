@@ -25,10 +25,12 @@ export function TokenMintedHome({
   token: tokenProp,
   role = "visitor",
   linkStatus,
+  claimed,
 }: {
   token: PhygitalToken;
   role?: WalletRole;
   linkStatus?: LinkStatus;
+  claimed?: boolean;
 }) {
   const session = useTokenVerifySession(tokenProp);
   const mint = tokenHasLinkedMint(session.token)
@@ -66,6 +68,7 @@ export function TokenMintedHome({
           token={session.token}
           role={role}
           linkStatus={linkStatus}
+          claimed={claimed}
           onBackToCard={() => setShowWallet(false)}
           cardLabel={collectible?.name ?? copy.wallet.backToCard}
         />

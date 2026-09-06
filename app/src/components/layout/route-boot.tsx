@@ -5,12 +5,19 @@ import type { ReactNode } from "react";
 import { AppShell } from "@/components/layout/app-shell";
 import { brand } from "@/lib/copy/phygital";
 import { galleryAnimate } from "@/lib/motion";
+import type { ShellLayout } from "@/lib/layout";
 import { cn } from "@/lib/utils";
 
-/** Compact route loading splash (Suspense / dynamic import). */
-export function RouteBoot({ children }: { children?: ReactNode }) {
+/** Shared route loading splash (Suspense / dynamic import). */
+export function RouteBoot({
+  layout = "compact",
+  children,
+}: {
+  layout?: ShellLayout;
+  children?: ReactNode;
+}) {
   return (
-    <AppShell layout="compact">
+    <AppShell layout={layout}>
       <div className="flex flex-1 flex-col items-center justify-center gap-4 py-14">
         <div
           className={cn(

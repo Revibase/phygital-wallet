@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, type ReactNode } from "react";
+import { useLayoutEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 import { useShellStageSlot } from "@/components/layout/app-shell";
@@ -81,6 +81,12 @@ export function NavBar({
   const mount = stage?.mount ?? null;
   const setActive = stage?.setActive;
   const inShell = Boolean(stage);
+  // Portal target is client-only; keep SSR + first paint null so they match.
+  const [canPortal, setCanPortal] = useState(false);
+
+  useLayoutEffect(() => {
+    setCanPortal(true);
+  }, []);
 
   useLayoutEffect(() => {
     if (!setActive) return;
@@ -98,7 +104,7 @@ export function NavBar({
   );
 
   if (inShell) {
-    if (!mount) return null;
+    if (!canPortal || !mount) return null;
     return createPortal(frame, mount);
   }
 

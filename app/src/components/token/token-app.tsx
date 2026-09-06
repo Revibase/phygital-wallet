@@ -36,18 +36,30 @@ function TokenHome({
   token,
   role,
   linkStatus,
+  claimed,
 }: {
   token: PhygitalToken;
   role: WalletRole;
   linkStatus?: LinkStatus;
+  claimed?: boolean;
 }): ReactNode {
   if (tokenHasLinkedMint(token)) {
     return (
-      <TokenMintedHome token={token} role={role} linkStatus={linkStatus} />
+      <TokenMintedHome
+        token={token}
+        role={role}
+        linkStatus={linkStatus}
+        claimed={claimed}
+      />
     );
   }
   return (
-    <TokenUnmintedHome token={token} role={role} linkStatus={linkStatus} />
+    <TokenUnmintedHome
+      token={token}
+      role={role}
+      linkStatus={linkStatus}
+      claimed={claimed}
+    />
   );
 }
 
@@ -60,11 +72,12 @@ export function TokenApp() {
     return (
       <TokenAddressRoute
         tokenAddress={address}
-        renderHome={({ token, role, linkStatus }) => (
+        renderHome={({ token, role, linkStatus, claimed }) => (
           <TokenHome
             token={token}
             role={role}
             linkStatus={linkStatus}
+            claimed={claimed}
           />
         )}
       />

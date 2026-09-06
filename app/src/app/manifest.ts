@@ -2,6 +2,10 @@ import type { MetadataRoute } from "next";
 
 import { brand, products } from "@/lib/copy/phygital";
 
+/**
+ * Light defaults for install splash. `color_scheme_dark` is the emerging
+ * manifest override (viewport themeColor media queries cover in-browser chrome).
+ */
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: brand.company,
@@ -9,8 +13,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: products.home.tagline,
     start_url: "/",
     display: "standalone",
-    background_color: "#f2f2f4",
-    theme_color: "#f2f2f4",
+    background_color: brand.chromeLight,
+    theme_color: brand.chromeLight,
     icons: [
       {
         src: "/icon",
@@ -25,5 +29,9 @@ export default function manifest(): MetadataRoute.Manifest {
         purpose: "maskable",
       },
     ],
-  };
+    color_scheme_dark: {
+      background_color: brand.chromeDark,
+      theme_color: brand.chromeDark,
+    },
+  } as MetadataRoute.Manifest;
 }

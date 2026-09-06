@@ -67,6 +67,8 @@ export const queryKeys = {
     links: () => [...queryKeys.deviceAuth.all(), "links"] as const,
     linkStatus: (token: string | null) =>
       [...queryKeys.deviceAuth.all(), "status", token] as const,
+    claimed: (token: string | null) =>
+      [...queryKeys.deviceAuth.all(), "claimed", token] as const,
   },
 
   walletPda: {

@@ -65,6 +65,12 @@ export function storePossessionToken(
   } catch {
     /* private mode / quota */
   }
+  try {
+    // New possession = new unlock session → resurface claim prompt.
+    sessionStorage.removeItem(`revibase.claimDismissed.${phygitalToken}`);
+  } catch {
+    /* ignore */
+  }
 }
 
 export function clearPossessionToken(phygitalToken: string): void {
@@ -118,6 +124,11 @@ export function storeAccessoryProof(
     );
   } catch {
     /* private mode / quota */
+  }
+  try {
+    sessionStorage.removeItem(`revibase.claimDismissed.${phygitalToken}`);
+  } catch {
+    /* ignore */
   }
 }
 
@@ -229,6 +240,20 @@ export async function fetchLinkStatus(
     "Couldn’t check link status",
   );
   return body.status;
+}
+
+/** Public: whether any phone has claimed this token (no session). */
+export async function fetchTokenClaimed(
+  phygitalToken: string,
+): Promise<boolean> {
+  const res = await queryFetch(
+    `/auth/device/links/claimed?phygitalToken=${encodeURIComponent(phygitalToken)}`,
+  );
+  const body = await readJson<{ claimed: boolean }>(
+    res,
+    "Couldn’t check claim status",
+  );
+  return Boolean(body.claimed);
 }
 
 /** Accessory Hold for link (reuses authenticateToken crypto). */

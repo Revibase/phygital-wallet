@@ -3,13 +3,13 @@ import { Suspense } from "react";
 
 import { RouteBoot } from "@/components/layout/route-boot";
 import { TokenApp } from "@/components/token/token-app";
+import { products } from "@/lib/copy/phygital";
 
 export const metadata: Metadata = {
-  title: "Token",
-  description: "Check this phygital token",
+  title: products.token.name,
+  description: products.token.tagline,
 };
 
-/** Hold to Check, Safari NFC tap, authenticity, claim, and Pay when eligible. */
 export default function TokenPage() {
   return (
     <Suspense fallback={<RouteBoot />}>

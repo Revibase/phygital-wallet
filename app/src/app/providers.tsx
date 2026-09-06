@@ -15,9 +15,6 @@ import {
 } from "@/lib/queries/persist";
 import { queryOptions, shouldRetryQuery } from "@/lib/queries";
 
-/**
- * Shared by all routes: React Query + toasts.
- */
 export function AppProviders({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
     () =>
@@ -59,6 +56,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
   );
 }
 
+/** Must render under PersistQueryClientProvider (`useQueryClient`). */
 function ResumeQueryRefresh() {
   useResumeQueryRefresh();
   return null;

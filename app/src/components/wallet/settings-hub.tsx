@@ -32,12 +32,14 @@ export function SettingsHub({
   phygitalTokenPda,
   role = "visitor",
   linkStatus,
+  claimed,
 }: {
   onBack: () => void;
   onOpen: (target: SettingsTarget) => void;
   phygitalTokenPda?: string;
   role?: WalletRole;
   linkStatus?: LinkStatus;
+  claimed?: boolean;
 }) {
   const fee = useFeeBalance(phygitalTokenPda ?? null);
   const rpc = useRpcPreference();
@@ -57,10 +59,16 @@ export function SettingsHub({
       ? copy.wallet.setupDeviceLinkedHere
       : linkStatus === "linked_elsewhere"
         ? copy.wallet.setupDeviceLinkedElsewhere
-        : copy.wallet.setupDeviceNotLinked;
+        : claimed === true
+          ? copy.wallet.setupDeviceSignIn
+          : copy.wallet.setupDeviceNotLinked;
 
   const limitsSubtitle = !isOwner
-    ? copy.wallet.limitsStatusSetup
+    ? linkStatus === "linked_elsewhere"
+      ? copy.wallet.setupDeviceLinkedElsewhere
+      : claimed === true
+        ? copy.wallet.setupDeviceSignIn
+        : copy.wallet.limitsStatusRequiresClaim
     : policy.isLoading
       ? copy.common.loading
       : policy.data?.status === "invalid"

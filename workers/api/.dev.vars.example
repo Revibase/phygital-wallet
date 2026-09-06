@@ -12,5 +12,3 @@
 # Fee balance paymaster (SOL top-up accumulator + Helius webhook auth)
 # TOP_UP_ACCUMULATOR=
 # HELIUS_WEBHOOK_AUTH=
-
-# Verifier co-sign secrets live on api-signer (VERIFIER_SECRET_KEYS), not here.

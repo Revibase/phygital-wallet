@@ -36,6 +36,9 @@ export function FeeBalanceSheet({
   const [phase, setPhase] = useState<Phase>("form");
   const [busy, setBusy] = useState(false);
 
+  const balanceUi = fee.data?.balanceUi ?? "0";
+  const feeLow = Boolean(fee.data?.low);
+  const feeLoading = fee.isLoading;
   const canTopUp = Number(amount) > 0 && !busy;
 
   async function runTopUp() {
@@ -143,9 +146,9 @@ export function FeeBalanceSheet({
           {copy.wallet.feeBalanceHint}
         </p>
         <p className="font-(family-name:--font-display) text-3xl tabular-nums">
-          {fee.isLoading ? "…" : `${fee.data?.balanceUi ?? "0"} SOL`}
+          {feeLoading ? "…" : `${balanceUi} SOL`}
         </p>
-        {fee.data?.low ? (
+        {feeLow ? (
           <p className="text-sm text-muted-foreground">
             {copy.wallet.feeBalanceLow}
           </p>

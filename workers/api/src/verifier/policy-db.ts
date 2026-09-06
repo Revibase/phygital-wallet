@@ -120,7 +120,16 @@ export async function upsertPolicyDocument(
 export async function deletePolicyDocument(
   phygitalToken: string,
 ): Promise<void> {
-  await getD1()
+  const d1 = getD1();
+  await d1
+    .prepare(`DELETE FROM one_time_grants WHERE phygital_token = ?`)
+    .bind(phygitalToken)
+    .run();
+  await d1
+    .prepare(`DELETE FROM pending_approvals WHERE phygital_token = ?`)
+    .bind(phygitalToken)
+    .run();
+  await d1
     .prepare(`DELETE FROM token_policies WHERE phygital_token = ?`)
     .bind(phygitalToken)
     .run();

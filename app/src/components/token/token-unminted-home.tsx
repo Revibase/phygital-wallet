@@ -15,10 +15,12 @@ export function TokenUnmintedHome({
   token: tokenProp,
   role = "visitor",
   linkStatus,
+  claimed,
 }: {
   token: PhygitalToken;
   role?: WalletRole;
   linkStatus?: LinkStatus;
+  claimed?: boolean;
 }) {
   const session = useTokenVerifySession(tokenProp);
 
@@ -31,6 +33,7 @@ export function TokenUnmintedHome({
         token={session.token}
         role={role}
         linkStatus={linkStatus}
+        claimed={claimed}
       />
     </TokenVerifySessionGate>
   );

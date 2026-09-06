@@ -61,7 +61,7 @@ export function OpenApprovalsSheet({
   const approvalsKey = queryKeys.walletApprovals.byToken(phygitalTokenPda);
 
   const approve = useMutation({
-    mutationFn: (intentHash: string) =>
+    mutationFn: async (intentHash: string) =>
       createOneTimeGrant(phygitalTokenPda, intentHash),
     onSuccess: (_data, intentHash) => {
       toast.success(copy.wallet.openApprovalContinue);
@@ -77,7 +77,7 @@ export function OpenApprovalsSheet({
   });
 
   const cancel = useMutation({
-    mutationFn: (intentHash: string) =>
+    mutationFn: async (intentHash: string) =>
       cancelOpenApproval(phygitalTokenPda, intentHash),
     onSuccess: (_data, intentHash) => {
       queryClient.setQueryData(approvalsKey, (prev: OpenApproval[] | undefined) =>

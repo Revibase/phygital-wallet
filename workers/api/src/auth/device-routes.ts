@@ -22,6 +22,7 @@ import {
   getLinkStatus,
   insertCredential,
   insertLink,
+  isTokenClaimed,
   listLinksForCredential,
   updateCredentialCounter,
 } from "@/auth/device-db";
@@ -45,6 +46,8 @@ import {
   storeWebAuthnChallenge,
 } from "@/auth/webauthn-challenge";
 import { json } from "@/shared/http";
+import { deletePolicyDocument } from "@/verifier/policy-db";
+import { unlinkOwnerAndResetPolicy } from "@/auth/unlink-owner";
 
 export const deviceAuthRoutes = new Hono();
 
@@ -421,6 +424,22 @@ deviceAuthRoutes.get("/auth/device/links", async (c) => {
   });
 });
 
+deviceAuthRoutes.get("/auth/device/links/claimed", async (c) => {
+  const limited = await denyIfAuthRateLimited(c, "claimed");
+  if (limited) return limited;
+
+  const phygitalToken = c.req.query("phygitalToken")?.trim();
+  if (!phygitalToken) {
+    return json(
+      { error: "phygitalToken required", code: "invalid_transaction" },
+      { status: 400 },
+    );
+  }
+
+  const claimed = await isTokenClaimed(phygitalToken);
+  return json({ claimed, phygitalToken });
+});
+
 deviceAuthRoutes.get("/auth/device/links/status", async (c) => {
   const session = await requireDeviceSession(c);
   if (session instanceof Response) return session;
@@ -571,7 +590,10 @@ deviceAuthRoutes.delete("/auth/device/links/:phygitalToken", async (c) => {
     );
   }
 
-  const ok = await deleteLink(session.credentialId, phygitalToken);
+  const ok = await unlinkOwnerAndResetPolicy({
+    deleteLink: () => deleteLink(session.credentialId, phygitalToken),
+    deletePolicy: () => deletePolicyDocument(phygitalToken),
+  });
   if (!ok) {
     return json(
       { error: "Not linked on this phone", code: "not_owner" },

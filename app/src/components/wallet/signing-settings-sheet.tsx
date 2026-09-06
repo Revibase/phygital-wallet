@@ -273,6 +273,11 @@ export function SigningSettingsSheet({
         <p className="text-sm font-medium">
           {isCustom ? copy.wallet.signingCustom : copy.wallet.signingDefault}
         </p>
+        {isCustom && verifierStatus.data?.endpoint ? (
+          <p className="mt-1 truncate font-mono text-xs text-muted-foreground">
+            {verifierStatus.data.endpoint}
+          </p>
+        ) : null}
       </div>
       <Button
         type="button"

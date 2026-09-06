@@ -21,12 +21,15 @@ import { toUserErrorMessage } from "@/lib/user-errors";
 import {
   fetchDeviceSession,
   fetchLinkStatus,
+  fetchTokenClaimed,
   hasFreshPossession,
   storeAccessoryProof,
   type LinkStatus,
 } from "@/lib/wallet/device-auth-client";
+import { isClaimDismissed } from "@/lib/wallet/claim-setup-href";
 
 const LOAD_TIMEOUT_MS = 20_000;
+const CLAIMED_WAIT_MS = 3_000;
 
 export type WalletRole = "owner" | "visitor";
 
@@ -34,6 +37,8 @@ export type TokenHomeRenderArgs = {
   token: PhygitalToken;
   role: WalletRole;
   linkStatus?: LinkStatus;
+  /** Public claimed flag; undefined while loading / unknown. */
+  claimed?: boolean;
 };
 
 function layoutForToken(token: PhygitalToken): ShellLayout {
@@ -93,6 +98,13 @@ function TokenAddressRouteInner({
     if (hasFreshPossession(tokenAddress)) setPossessionOk(true);
   }, [tokenAddress]);
 
+  const claimed = useQuery({
+    queryKey: queryKeys.deviceAuth.claimed(tokenAddress),
+    queryFn: () => fetchTokenClaimed(tokenAddress),
+    enabled: Boolean(token) && (possessionOk || Boolean(session.data)),
+    ...queryOptions.deviceLinks,
+  });
+
   const isOwner = Boolean(session.data) && linkStatus.data === "linked_here";
   const unlocked = Boolean(token) && (isOwner || possessionOk);
 
@@ -120,7 +132,30 @@ function TokenAddressRouteInner({
     linkStatus.isPending &&
     !unlocked &&
     !possessionOk;
-  const waiting = waitingToken || waitingSession || waitingLink;
+  // Wait briefly for claimed so claim sheet doesn’t flash after wallet.
+  const waitingClaimed =
+    unlocked &&
+    !isOwner &&
+    claimed.isPending &&
+    !isClaimDismissed(tokenAddress);
+  const [claimedWaitTimedOut, setClaimedWaitTimedOut] = useState(false);
+  useEffect(() => {
+    if (!waitingClaimed) {
+      setClaimedWaitTimedOut(false);
+      return;
+    }
+    const id = window.setTimeout(
+      () => setClaimedWaitTimedOut(true),
+      CLAIMED_WAIT_MS,
+    );
+    return () => window.clearTimeout(id);
+  }, [waitingClaimed]);
+
+  const waiting =
+    waitingToken ||
+    waitingSession ||
+    waitingLink ||
+    (waitingClaimed && !claimedWaitTimedOut);
   const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
@@ -139,6 +174,11 @@ function TokenAddressRouteInner({
           token,
           role,
           linkStatus: session.data ? linkStatus.data : undefined,
+          claimed: claimed.isError
+            ? undefined
+            : claimed.data === undefined
+              ? undefined
+              : claimed.data,
         })
       ) : waiting && !timedOut ? (
         <NfcHoldStatus

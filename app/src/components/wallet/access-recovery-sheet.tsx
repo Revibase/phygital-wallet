@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { NavBar, NavBarBack } from "@/components/shared/nav-bar";
@@ -14,52 +13,101 @@ import {
   recoveryWalletSubtitle,
   useRecoveryWallet,
 } from "@/hooks/wallet/use-recovery-wallet";
-import { useWalletPolicy } from "@/hooks/wallet/use-wallet-policy";
+import { useTokenVerifier } from "@/hooks/wallet/use-token-verifier";
 import { copy } from "@/lib/copy/phygital";
 import { queryKeys } from "@/lib/queries";
 import { toUserErrorMessage } from "@/lib/user-errors";
-import { unlinkToken, clearAccessoryProof, clearPossessionToken, type LinkStatus } from "@/lib/wallet/device-auth-client";
+import {
+  unlinkToken,
+  clearAccessoryProof,
+  clearPossessionToken,
+  type LinkStatus,
+} from "@/lib/wallet/device-auth-client";
+import { redirectToClaimSetup, clearClaimDismiss } from "@/lib/wallet/claim-setup-href";
 import { redirectToLimitsSetup } from "@/lib/wallet/limits-setup-href";
+import { cn } from "@/lib/utils";
 
-/** Access: recovery status and unlink (owners); link path (visitors). */
+/** Access: recovery status and unlink teardown (owners); claim path (visitors). */
 export function AccessRecoverySheet({
   phygitalTokenPda,
   role,
   linkStatus,
+  claimed,
   onBack,
   onOpenRecovery,
+  onOpenSigning,
+  onClaim,
+  onUnlinked,
 }: {
   phygitalTokenPda: string;
   role: WalletRole;
   linkStatus?: LinkStatus;
+  claimed?: boolean;
   onBack: () => void;
-  /** Owner: open recovery set/clear sheet. */
   onOpenRecovery?: () => void;
+  onOpenSigning?: () => void;
+  onClaim?: () => void;
+  onUnlinked?: () => void;
 }) {
-  const router = useRouter();
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState(false);
+  const [confirmUnlink, setConfirmUnlink] = useState(false);
   const isOwner = role === "owner";
   const recovery = useRecoveryWallet(isOwner ? phygitalTokenPda : null);
-  const policy = useWalletPolicy(isOwner ? phygitalTokenPda : null);
-  const policyOn = policy.data?.status === "ok";
+  const verifier = useTokenVerifier(isOwner ? phygitalTokenPda : null);
   const linkedElsewhere = linkStatus === "linked_elsewhere";
+  const claimedQuiet = claimed === true && !isOwner && !linkedElsewhere;
+  const teardownLoading =
+    isOwner && (recovery.isLoading || verifier.isLoading);
+  const needsRecoveryClear = Boolean(recovery.data?.configured);
+  const needsSigningRestore = Boolean(verifier.data?.custom);
+  const showTeardownChecklist =
+    isOwner &&
+    !teardownLoading &&
+    (needsRecoveryClear || needsSigningRestore);
+  const canUnlink =
+    isOwner &&
+    !teardownLoading &&
+    !needsRecoveryClear &&
+    !needsSigningRestore;
 
   async function unlink() {
+    if (!canUnlink) return;
     setBusy(true);
     try {
       await unlinkToken(phygitalTokenPda);
       clearPossessionToken(phygitalTokenPda);
       clearAccessoryProof(phygitalTokenPda);
+      clearClaimDismiss(phygitalTokenPda);
+      queryClient.setQueryData(
+        queryKeys.deviceAuth.linkStatus(phygitalTokenPda),
+        "unlinked" as LinkStatus,
+      );
+      queryClient.setQueryData(
+        queryKeys.deviceAuth.claimed(phygitalTokenPda),
+        false,
+      );
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.deviceAuth.all(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.walletPolicy.all(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.recoveryWallet.byToken(phygitalTokenPda),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.tokenVerifier.byToken(phygitalTokenPda),
+        }),
+      ]);
       toast.success(copy.wallet.deviceUnlinked);
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.deviceAuth.all(),
-      });
-      router.push("/");
+      onUnlinked?.();
     } catch (e) {
       toast.error(toUserErrorMessage(e));
     } finally {
       setBusy(false);
+      setConfirmUnlink(false);
     }
   }
 
@@ -68,31 +116,81 @@ export function AccessRecoverySheet({
     recovery.isLoading,
   );
 
+  if (confirmUnlink) {
+    return (
+      <div className="flex flex-1 flex-col gap-4">
+        <NavBar
+          leading={<NavBarBack onClick={() => setConfirmUnlink(false)} />}
+          title={copy.wallet.deviceUnlinkConfirmTitle}
+        />
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          {copy.wallet.deviceUnlinkConfirmBody}
+        </p>
+        <div className="mt-auto flex flex-col gap-2">
+          <Button
+            type="button"
+            size="lg"
+            variant="destructive"
+            disabled={busy}
+            onClick={() => void unlink()}
+          >
+            {busy ? (
+              <Spinner className="size-4" />
+            ) : (
+              copy.wallet.deviceUnlinkConfirmCta
+            )}
+          </Button>
+          <Button
+            type="button"
+            size="lg"
+            variant="ghost"
+            disabled={busy}
+            onClick={() => setConfirmUnlink(false)}
+          >
+            {copy.wallet.deviceUnlinkConfirmCancel}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const visitorTitle = linkedElsewhere
+    ? copy.wallet.limitsLinkedElsewhereTitle
+    : claimedQuiet
+      ? copy.wallet.claimSignInTitle
+      : copy.wallet.claimTitle;
+  const visitorHint = linkedElsewhere || claimedQuiet
+    ? null
+    : copy.wallet.accessClaimHint;
+  const visitorBody = linkedElsewhere
+    ? copy.wallet.limitsLinkedElsewhereBody
+    : claimedQuiet
+      ? copy.wallet.claimSignInBody
+      : copy.wallet.deviceLinkBody;
+
   return (
     <div className="flex flex-1 flex-col gap-6">
       <NavBar
         leading={<NavBarBack onClick={onBack} />}
-        title={copy.wallet.accessAndRecovery}
+        title={isOwner ? copy.wallet.accessAndRecovery : visitorTitle}
       />
       <div className="space-y-2 px-1">
-        <p className="text-sm font-medium">{copy.wallet.accessAndRecoveryHint}</p>
+        {isOwner || visitorHint ? (
+          <p className="text-sm font-medium">
+            {isOwner ? copy.wallet.accessAndRecoveryHint : visitorHint}
+          </p>
+        ) : null}
         <p className="text-sm leading-relaxed text-muted-foreground">
-          {isOwner
-            ? copy.wallet.accessAndRecoveryBody
-            : linkedElsewhere
-              ? copy.wallet.limitsLinkedElsewhereBody
-              : copy.wallet.deviceLinkBody}
+          {isOwner ? copy.wallet.accessAndRecoveryBody : visitorBody}
         </p>
       </div>
 
-      {isOwner && onOpenRecovery ? (
+      {isOwner && onOpenRecovery && !showTeardownChecklist ? (
         <GroupedList>
           <GroupedRow
             onClick={onOpenRecovery}
             subtitle={
-              recovery.isLoading
-                ? copy.common.loading
-                : recoverySubtitle
+              recovery.isLoading ? copy.common.loading : recoverySubtitle
             }
           >
             {copy.wallet.accessRecoveryRow}
@@ -100,29 +198,49 @@ export function AccessRecoverySheet({
         </GroupedList>
       ) : null}
 
+      {showTeardownChecklist ? (
+        <GroupedList
+          label={copy.wallet.deviceUnlink}
+          footer={copy.wallet.deviceUnlinkPolicyWarn}
+        >
+          {needsRecoveryClear ? (
+            <TeardownStep
+              label={copy.wallet.accessRecoveryRow}
+              onAction={onOpenRecovery}
+              actionLabel={copy.wallet.deviceUnlinkClearRecoveryCta}
+            />
+          ) : null}
+          {needsSigningRestore ? (
+            <TeardownStep
+              label={copy.wallet.signing}
+              onAction={onOpenSigning}
+              actionLabel={copy.wallet.deviceUnlinkRestoreSigningCta}
+            />
+          ) : null}
+        </GroupedList>
+      ) : null}
+
       <div className="mt-auto flex flex-col gap-2">
-        {isOwner ? (
-          <p className="text-sm text-muted-foreground">
-            {copy.wallet.deviceAuthReady}
-          </p>
-        ) : null}
-        {isOwner && policyOn ? (
+        {isOwner && canUnlink ? (
           <p className="text-xs text-muted-foreground">
             {copy.wallet.deviceUnlinkPolicyWarn}
           </p>
         ) : null}
-        {isOwner ? (
+        {isOwner && teardownLoading ? (
+          <Button type="button" size="lg" className="w-full" disabled>
+            <Spinner className="size-4" />
+          </Button>
+        ) : isOwner && canUnlink ? (
           <Button
             type="button"
             variant="outline"
             size="lg"
             className="w-full"
-            disabled={busy}
-            onClick={() => void unlink()}
+            onClick={() => setConfirmUnlink(true)}
           >
-            {busy ? <Spinner className="size-4" /> : copy.wallet.deviceUnlink}
+            {copy.wallet.deviceUnlink}
           </Button>
-        ) : linkedElsewhere ? (
+        ) : isOwner ? null : linkedElsewhere ? (
           <Button
             type="button"
             size="lg"
@@ -132,7 +250,7 @@ export function AccessRecoverySheet({
           >
             {copy.common.done}
           </Button>
-        ) : (
+        ) : claimedQuiet ? (
           <Button
             type="button"
             size="lg"
@@ -141,7 +259,19 @@ export function AccessRecoverySheet({
               redirectToLimitsSetup(phygitalTokenPda, "spendingLimits")
             }
           >
-            {copy.wallet.limitsSetupCta}
+            {copy.wallet.claimCta}
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            size="lg"
+            className="w-full"
+            onClick={() => {
+              if (onClaim) onClaim();
+              else redirectToClaimSetup(phygitalTokenPda);
+            }}
+          >
+            {copy.wallet.claimBannerAction}
           </Button>
         )}
       </div>
@@ -149,3 +279,32 @@ export function AccessRecoverySheet({
   );
 }
 
+function TeardownStep({
+  label,
+  onAction,
+  actionLabel,
+}: {
+  label: string;
+  onAction?: () => void;
+  actionLabel: string;
+}) {
+  return (
+    <GroupedRow
+      onClick={onAction}
+      subtitle={
+        <span className="flex w-full items-center justify-between gap-2">
+          <span className={cn("text-foreground")}>
+            {copy.wallet.deviceUnlinkStepNeeded}
+          </span>
+          {onAction ? (
+            <span className="text-xs font-medium text-foreground">
+              {actionLabel}
+            </span>
+          ) : null}
+        </span>
+      }
+    >
+      {label}
+    </GroupedRow>
+  );
+}

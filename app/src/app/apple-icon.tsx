@@ -1,28 +1,8 @@
-import { ImageResponse } from "next/og";
+import { brandMarkResponse } from "./brand-mark-response";
 
 export const size = { width: 180, height: 180 };
 export const contentType = "image/png";
 
 export default function AppleIcon() {
-  return new ImageResponse(
-    (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "#1c1d20",
-          color: "#f2f2f4",
-          fontSize: 88,
-          fontWeight: 600,
-          letterSpacing: "-0.06em",
-        }}
-      >
-        R
-      </div>
-    ),
-    size,
-  );
+  return brandMarkResponse({ ...size, fontSize: 88 });
 }

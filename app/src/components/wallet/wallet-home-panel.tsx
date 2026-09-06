@@ -70,6 +70,7 @@ export function WalletHomePanel({
   onVisitorNotice,
   visitorNoticeAction,
   onAddRecovery,
+  suppressFirstRun = false,
   status = "live",
   className,
 }: {
@@ -102,6 +103,8 @@ export function WalletHomePanel({
   visitorNotice?: string | null;
   visitorNoticeAction?: string;
   onVisitorNotice?: () => void;
+  /** Claim ceremony wins over empty-wallet first-run. */
+  suppressFirstRun?: boolean;
   status?: "live" | "refreshing" | "error";
   className?: string;
 }) {
@@ -121,8 +124,10 @@ export function WalletHomePanel({
       };
   const [firstRunDismissed, setFirstRunDismissed] = useLocalFlag(FIRST_RUN_FLAG);
   const [recoveryAcked, setRecoveryAcked] = useLocalFlag(RECOVERY_ACK_FLAG);
-  const showFirstRun = empty && !linkedMint && !firstRunDismissed;
-  const showRecoveryAck = Boolean(onAddRecovery) && hasFungible && !recoveryAcked;
+  const showFirstRun =
+    empty && !linkedMint && !firstRunDismissed && !suppressFirstRun;
+  const showRecoveryAck =
+    Boolean(onAddRecovery) && hasFungible && !recoveryAcked;
 
   const tokenPreview = useMemo(() => previewHoldings(holdings), [holdings]);
   const collectiblePreview = useMemo(

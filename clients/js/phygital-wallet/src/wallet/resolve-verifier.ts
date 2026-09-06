@@ -167,18 +167,23 @@ export async function resolveVerifier(
   if (!onChainConfig.exists) {
     throw new Error("Phygital wallet config account not found");
   }
-  if (onChainConfig.data.verifierCount === 0) {
+  const activeVerifiers = onChainConfig.data.verifiers.slice(
+    0,
+    onChainConfig.data.verifierCount,
+  );
+  if (activeVerifiers.length === 0) {
     throw new Error("No verifier configured for phygital-wallet execute");
   }
 
-  const [defaultVerifier] = onChainConfig.data.verifiers;
-  if (!defaultVerifier) {
+  const selectedVerifier =
+    activeVerifiers[Math.floor(Math.random() * activeVerifiers.length)];
+  if (!selectedVerifier) {
     throw new Error("No verifier configured for phygital-wallet execute");
   }
 
   const apiBase = DEFAULT_VERIFIER_API_BASE;
   return {
-    verifier: createVerifierEndpointSigner(defaultVerifier, {
+    verifier: createVerifierEndpointSigner(selectedVerifier, {
       endpoint: verifierSignUrl(apiBase),
       fetch: config.fetch,
     }),

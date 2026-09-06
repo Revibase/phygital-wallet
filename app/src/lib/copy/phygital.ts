@@ -11,12 +11,19 @@
 export const brand = {
   company: "Revibase",
   companyLegal: "Revibase",
+  /** Hex for PWA / OG / viewport chrome (CSS uses oklch separately). */
+  chromeLight: "#f2f2f4",
+  chromeDark: "#1c1d20",
 } as const;
 
 export const products = {
   home: {
     name: "Cards & Accessories",
     tagline: "Your cards and accessories",
+  },
+  token: {
+    name: "Token",
+    tagline: "Check this phygital token",
   },
 } as const;
 
@@ -84,7 +91,7 @@ export const copy = {
     holdToOpenCta: "Hold to open",
     setupStepPasskey: "Step 1 of 2 · This phone",
     setupStepLink: "Step 2 of 2 · Link item",
-    continueWithPasskey: "Continue with Face ID",
+    continueWithPasskey: "Continue",
     setUpThisPhone: "Set up this phone",
     newPhoneHint: "New on this phone?",
     max: "Max",
@@ -158,6 +165,7 @@ export const copy = {
     accessAndRecoveryHint: "Link and recovery",
     accessAndRecoveryBody:
       "This item authorizes spends. Linking it to this phone lets you change limits and approve exceptions.",
+    accessClaimHint: "Claim",
     accessRecoveryRow: "Recovery address",
     recoveryWallet: "Recovery address",
     recoveryWalletBody:
@@ -191,37 +199,70 @@ export const copy = {
     recoveryAckSkip: "Not now",
     deviceLoginTitle: "Sign in",
     deviceLoginBody:
-      "Manage linked items and spending limits with Face ID or your passkey.",
+      "Manage linked items and spending limits with Face ID, fingerprint, or your screen lock.",
     homeSetupPasskeyBody:
-      "Continue with Face ID, then hold this item to link it.",
+      "Continue, then hold this item to claim it.",
     homeHaveItemHint: "Have an item? Hold it to your phone",
-    homeLinkSetupTitle: "Hold to link",
-    homeLinkSetupBody: "Hold this item flat against the phone to finish setup.",
+    homeLinkSetupTitle: "Hold to claim",
+    homeLinkSetupBody: "Hold this item flat against the phone to finish claiming.",
+    homeSetupPasskeyClaimTitle: "Claim this item",
     deviceLinkBody:
-      "Link this item to change limits and approve larger sends on this phone.",
-    deviceLinkCta: "Hold to link",
+      "Claim this item so only this phone can change limits, recovery, and signing.",
+    deviceLinkCta: "Hold to claim",
     deviceVisitorNotice: "Linked to another phone",
-    deviceVisitorUnlinkedNotice: "This phone isn’t linked yet",
-    deviceVisitorLinkAction: "Link",
+    deviceVisitorUnlinkedNotice: "Not claimed on this phone",
+    deviceVisitorLinkAction: "Claim",
     deviceVisitorSoftDeny:
       "Over the owner’s limits. Ask them to approve once on their linked phone.",
     deviceAuthReady: "Signed in on this phone",
     deviceSignOut: "Sign out",
     deviceUnlink: "Unlink this item",
+    deviceUnlinkConfirmTitle: "Unlink this item?",
+    deviceUnlinkConfirmBody:
+      "Limits turn off. Anyone who holds it can claim it on their phone.",
+    deviceUnlinkConfirmCta: "Unlink",
+    deviceUnlinkConfirmCancel: "Cancel",
     deviceUnlinkPolicyWarn:
-      "Spending limits stay on. Soft denies may have no phone to approve them until you link again.",
-    deviceUnlinked: "Item unlinked",
+      "Recovery and custom signing can only be changed while this phone is linked. Limits turn off when you unlink.",
+    deviceUnlinkNeedsRecovery:
+      "Clear the recovery address before unlinking.",
+    deviceUnlinkNeedsSigning:
+      "Switch back to Revibase signing before unlinking.",
+    deviceUnlinkClearRecoveryCta: "Clear recovery",
+    deviceUnlinkRestoreSigningCta: "Use Revibase",
+    deviceUnlinkStepNeeded: "Required",
+    deviceUnlinked: "Unlinked. Limits are off.",
     deviceAddAccessory: "Hold to add",
+    claimTitle: "Claim this item",
+    claimBody:
+      "Anyone who holds it can claim it on their phone. Claim it here so only this phone can change limits, recovery, and signing.",
+    claimCta: "Continue",
+    claimContinue: "Claim",
+    claimNotNow: "Not now",
+    claimHoldToContinue: "Hold to continue",
+    claimHoldBody: "Hold this item flat against the phone to finish claiming.",
+    claimDesktopHint:
+      "Open this on your phone to claim with Face ID, fingerprint, or screen lock.",
+    claimTryAgain: "Try again",
+    claimBannerAction: "Claim",
+    claimSuccessTitle: "This phone is linked",
+    claimSuccessBody:
+      "Only this phone can change limits, recovery, and signing.",
+    claimSuccessCta: "Continue",
+    claimSignInTitle: "Sign in",
+    claimSignInBody:
+      "Continue to manage limits, recovery, and signing on this phone.",
     limitsSetupTitle: "Set up spending limits",
     limitsSetupBody:
-      "Link this phone, then choose your caps. Limits apply with the Revibase cosigner.",
+      "Claim this item, then choose your caps. Limits apply with the Revibase cosigner.",
     limitsSetupCta: "Continue",
     limitsLinkedElsewhereTitle: "Linked to another phone",
     limitsLinkedElsewhereBody:
-      "Unlink on that phone first, then come back here to set limits.",
+      "Unlink on that phone first, then come back here to claim.",
     limitsStatusOff: "Not set",
     limitsStatusOn: "On",
-    limitsStatusSetup: "Set up",
+    limitsStatusSetup: "Claim",
+    limitsStatusRequiresClaim: "Requires claim",
     limitsStatusInvalid: "Needs fix",
     limitsInvalidBody:
       "Saved limits are invalid. Save again to restore protection.",
@@ -255,6 +296,7 @@ export const copy = {
     verifierPubkey: "Cosigner address",
     setupDeviceNotLinked: "Not linked",
     setupDeviceLinkedElsewhere: "Linked elsewhere",
+    setupDeviceSignIn: "Sign in",
     setupDeviceLinkedHere: "Linked here",
     policyDefaultSigningOnly:
       "Off means sends are unrestricted with Revibase. Limits apply after you save.",

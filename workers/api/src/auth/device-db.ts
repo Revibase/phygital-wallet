@@ -129,6 +129,12 @@ export async function getLinkStatus(
   return "linked_elsewhere";
 }
 
+/** True when any device has claimed this token (no credential leak). */
+export async function isTokenClaimed(phygitalToken: string): Promise<boolean> {
+  const link = await getLinkForToken(phygitalToken);
+  return link != null;
+}
+
 export async function listLinksForCredential(
   credentialId: string,
 ): Promise<DeviceTokenLink[]> {

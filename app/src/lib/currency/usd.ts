@@ -11,9 +11,11 @@ export function formatUsd(value: number | null | undefined): string {
   const maximumFractionDigits =
     abs >= 1000 ? 0 : abs >= 1 ? 2 : abs >= 0.01 ? 4 : 4;
 
-  return new Intl.NumberFormat(undefined, {
+  // Fixed locale avoids SSR/client hydration mismatches from `undefined`.
+  return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
+    currencyDisplay: "narrowSymbol",
     maximumFractionDigits,
   }).format(value);
 }

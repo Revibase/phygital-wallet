@@ -22,6 +22,7 @@ import { SigningSettingsSheet } from "@/components/wallet/signing-settings-sheet
 import { RecoveryWalletSheet } from "@/components/wallet/recovery-wallet-sheet";
 import { FeeBalanceSheet } from "@/components/wallet/fee-balance-sheet";
 import { AccessRecoverySheet } from "@/components/wallet/access-recovery-sheet";
+import { ClaimItemSheet } from "@/components/wallet/claim-item-sheet";
 import { ContactsSheet } from "@/components/wallet/contacts-sheet";
 import { RpcConnectionSheet } from "@/components/wallet/rpc-connection-sheet";
 import { TokensAllSheet } from "@/components/wallet/tokens-all-sheet";
@@ -48,6 +49,7 @@ import {
 import {
   isPolicySetupScreen,
 } from "@/lib/wallet/limits-setup-href";
+import { isClaimDismissed } from "@/lib/wallet/claim-setup-href";
 
 type Screen =
   | "home"
@@ -81,12 +83,15 @@ export function WalletWorkspace({
   token,
   role = "visitor",
   linkStatus,
+  claimed,
   onBackToCard,
   cardLabel,
 }: {
   token: PhygitalToken;
   role?: WalletRole;
   linkStatus?: LinkStatus;
+  /** Public claimed flag; undefined while unknown (fail open). */
+  claimed?: boolean;
   /** Return to mint metadata (card chip toggle / collectible “Open card”). */
   onBackToCard?: () => void;
   cardLabel?: string;
@@ -97,6 +102,7 @@ export function WalletWorkspace({
         token={token}
         role={role}
         linkStatus={linkStatus}
+        claimed={claimed}
         onBackToCard={onBackToCard}
         cardLabel={cardLabel}
       />
@@ -108,12 +114,14 @@ function WalletWorkspaceInner({
   token,
   role,
   linkStatus,
+  claimed,
   onBackToCard,
   cardLabel,
 }: {
   token: PhygitalToken;
   role: WalletRole;
   linkStatus?: LinkStatus;
+  claimed?: boolean;
   onBackToCard?: () => void;
   cardLabel?: string;
 }) {
@@ -188,11 +196,40 @@ function WalletWorkspaceInner({
     isOwner && deferSecondary ? tokenAddress : null,
   );
   const [dismissApprovals, setDismissApprovals] = useState(false);
+  const [claimSessionDismissed, setClaimSessionDismissed] = useState(() =>
+    isClaimDismissed(tokenAddress),
+  );
+  const [forceClaim, setForceClaim] = useState(false);
+  const [claimReturnScreen, setClaimReturnScreen] = useState<Screen>("home");
   const rpc = useRpcPreference();
 
   useEffect(() => {
     if (openApprovals.approvals.length > 0) setDismissApprovals(false);
   }, [openApprovals.approvals.length]);
+
+  useEffect(() => {
+    setClaimSessionDismissed(isClaimDismissed(tokenAddress));
+    setForceClaim(false);
+    setClaimReturnScreen("home");
+  }, [tokenAddress]);
+
+  const linkedElsewhere = linkStatus === "linked_elsewhere";
+  const unclaimed = claimed === false;
+  /** Claimed on platform but this phone isn’t owner — no claim sheet. */
+  const claimedQuiet = claimed === true && !isOwner && !linkedElsewhere;
+  const needsClaim =
+    !isOwner &&
+    unclaimed &&
+    !linkedElsewhere &&
+    !claimSessionDismissed;
+  const showClaimSheet =
+    needsClaim || (forceClaim && !isOwner && !linkedElsewhere && !claimedQuiet);
+
+  const requestClaim = useCallback(() => {
+    setClaimReturnScreen(screen);
+    setForceClaim(true);
+    setScreen("home");
+  }, [screen]);
 
   const refresh = useCallback(() => {
     invalidateWalletBalances(queryClient, {
@@ -236,7 +273,26 @@ function WalletWorkspaceInner({
 
   let body: ReactNode;
 
-  if (showOpenApprovals) {
+  if (showClaimSheet) {
+    body = (
+      <ClaimItemSheet
+        phygitalTokenPda={tokenAddress}
+        onClaimed={() => {
+          setForceClaim(false);
+          setClaimSessionDismissed(true);
+          setClaimReturnScreen("home");
+          setScreen("home");
+        }}
+        onDismiss={() => {
+          const back = claimReturnScreen;
+          setForceClaim(false);
+          setClaimSessionDismissed(true);
+          setClaimReturnScreen("home");
+          setScreen(back);
+        }}
+      />
+    );
+  } else if (showOpenApprovals) {
     body = (
       <OpenApprovalsSheet
         phygitalTokenPda={tokenAddress}
@@ -348,6 +404,7 @@ function WalletWorkspaceInner({
         phygitalTokenPda={tokenAddress}
         role={role}
         linkStatus={linkStatus}
+        claimed={claimed}
         onBack={() => setScreen("home")}
         onOpen={(target) => {
           if (target === "recoveryWallet") {
@@ -370,8 +427,10 @@ function WalletWorkspaceInner({
       <LimitsSetupSheet
         phygitalTokenPda={tokenAddress}
         linkStatus={linkStatus}
+        claimed={claimed}
         screen={screen}
         onBack={() => setScreen("settings")}
+        onClaim={requestClaim}
       />
     );
   } else if (isOwner && screen === "spendingLimits") {
@@ -415,10 +474,20 @@ function WalletWorkspaceInner({
         phygitalTokenPda={tokenAddress}
         role={role}
         linkStatus={linkStatus}
+        claimed={claimed}
         onBack={() => setScreen("settings")}
         onOpenRecovery={
           isOwner ? () => openRecovery("access") : undefined
         }
+        onOpenSigning={
+          isOwner ? () => setScreen("signing") : undefined
+        }
+        onClaim={!isOwner ? requestClaim : undefined}
+        onUnlinked={() => {
+          setClaimSessionDismissed(false);
+          setForceClaim(false);
+          setScreen("home");
+        }}
       />
     );
   } else if (screen === "contacts") {
@@ -450,21 +519,30 @@ function WalletWorkspaceInner({
           onAddRecovery={
             isOwner ? () => openRecovery("home") : undefined
           }
+          suppressFirstRun={needsClaim}
           visitorNotice={
             isOwner
               ? null
-              : linkStatus === "linked_elsewhere"
+              : linkedElsewhere
                 ? copy.wallet.deviceVisitorNotice
-                : copy.wallet.deviceVisitorUnlinkedNotice
+                : unclaimed || claimed === undefined
+                  ? copy.wallet.deviceVisitorUnlinkedNotice
+                  : null
           }
           visitorNoticeAction={
-            !isOwner && linkStatus !== "linked_elsewhere"
-              ? copy.wallet.deviceVisitorLinkAction
+            !isOwner &&
+            !linkedElsewhere &&
+            !claimedQuiet &&
+            (unclaimed || claimed === undefined)
+              ? copy.wallet.claimBannerAction
               : undefined
           }
           onVisitorNotice={
-            !isOwner && linkStatus !== "linked_elsewhere"
-              ? () => setScreen("access")
+            !isOwner &&
+            !linkedElsewhere &&
+            !claimedQuiet &&
+            (unclaimed || claimed === undefined)
+              ? requestClaim
               : undefined
           }
           feeBalanceLow={feeBalance.data?.low}
@@ -497,9 +575,11 @@ function WalletWorkspaceInner({
     <>
       <StageTransition
         stageKey={
-          screen === "send"
-            ? `send-${sendHoldPhase ?? "form"}`
-            : screen
+          showClaimSheet
+            ? "claim"
+            : screen === "send"
+              ? `send-${sendHoldPhase ?? "form"}`
+              : screen
         }
         variant="fade"
       >

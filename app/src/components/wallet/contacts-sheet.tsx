@@ -22,9 +22,10 @@ export function ContactsSheet({ onBack }: { onBack: () => void }) {
       />
 
       {contacts.length === 0 ? (
-        <p className="px-4 py-8 text-center text-sm text-muted-foreground">
-          {copy.wallet.noContacts}
-        </p>
+        <div className="space-y-2 px-4 py-8 text-center">
+          <p className="text-sm text-muted-foreground">{copy.wallet.noContacts}</p>
+          <p className="text-xs text-muted-foreground">{copy.wallet.contactsHint}</p>
+        </div>
       ) : (
         <GroupedList footer={copy.wallet.contactsHint}>
           {contacts.map((entry) => (

@@ -30,6 +30,7 @@ import {
   type LinkStatus,
 } from "@/lib/wallet/device-auth-client";
 import { parseLimitsSetupIntent } from "@/lib/wallet/limits-setup-href";
+import { parseClaimSetupIntent } from "@/lib/wallet/claim-setup-href";
 import { tokenHomeHref } from "@/lib/wallet/token-home-href";
 
 /** Home: signed-out passkey door, or signed-in linked items (+ setup intent). */
@@ -43,10 +44,16 @@ export function OwnedHome() {
 
 function OwnedHomeRoot() {
   const searchParams = useSearchParams();
-  const intent = parseLimitsSetupIntent({
+  const limitsIntent = parseLimitsSetupIntent({
     setup: searchParams.get("setup"),
     returnPath: searchParams.get("return"),
   });
+  const claimIntent = parseClaimSetupIntent({
+    setup: searchParams.get("setup"),
+    returnPath: searchParams.get("return"),
+  });
+  const setupIntent = claimIntent ?? limitsIntent;
+  const setupMode = Boolean(setupIntent);
 
   const session = useQuery({
     queryKey: queryKeys.deviceAuth.session(),
@@ -59,19 +66,34 @@ function OwnedHomeRoot() {
   }
 
   if (!session.data) {
-    return <HomePasskeyScreen setupMode={Boolean(intent)} />;
+    return (
+      <HomePasskeyScreen
+        setupMode={setupMode}
+        claimMode={Boolean(claimIntent)}
+      />
+    );
   }
 
-  if (intent) {
+  if (setupIntent) {
     return (
-      <HomeLinkSetup tokenAddress={intent.token} returnTo={intent.returnTo} />
+      <HomeLinkSetup
+        tokenAddress={setupIntent.token}
+        returnTo={setupIntent.returnTo}
+        claimMode={Boolean(claimIntent)}
+      />
     );
   }
 
   return <HomeLinksScreen />;
 }
 
-function HomePasskeyScreen({ setupMode }: { setupMode: boolean }) {
+function HomePasskeyScreen({
+  setupMode,
+  claimMode,
+}: {
+  setupMode: boolean;
+  claimMode: boolean;
+}) {
   const queryClient = useQueryClient();
 
   function onAuthSuccess(next: Awaited<ReturnType<typeof loginDevice>>) {
@@ -105,7 +127,9 @@ function HomePasskeyScreen({ setupMode }: { setupMode: boolean }) {
         ) : null}
         <h1 className="text-display-md tracking-tight">
           {setupMode
-            ? copy.wallet.limitsSetupTitle
+            ? claimMode
+              ? copy.wallet.homeSetupPasskeyClaimTitle
+              : copy.wallet.limitsSetupTitle
             : copy.wallet.deviceLoginTitle}
         </h1>
         <p className="max-w-sm text-sm text-muted-foreground">
@@ -174,9 +198,11 @@ function HomePasskeyScreen({ setupMode }: { setupMode: boolean }) {
 function HomeLinkSetup({
   tokenAddress,
   returnTo,
+  claimMode,
 }: {
   tokenAddress: string;
   returnTo: string;
+  claimMode: boolean;
 }) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -209,6 +235,10 @@ function HomeLinkSetup({
       queryClient.setQueryData(
         queryKeys.deviceAuth.linkStatus(tokenAddress),
         "linked_here" as LinkStatus,
+      );
+      queryClient.setQueryData(
+        queryKeys.deviceAuth.claimed(tokenAddress),
+        true,
       );
       await queryClient.invalidateQueries({
         queryKey: queryKeys.deviceAuth.links(),
@@ -276,7 +306,11 @@ function HomeLinkSetup({
             className="w-full"
             onClick={() => link.mutate()}
           >
-            {error ? copy.common.tryAgain : copy.wallet.deviceLinkCta}
+            {error
+              ? copy.common.tryAgain
+              : claimMode
+                ? copy.wallet.claimHoldToContinue
+                : copy.wallet.deviceLinkCta}
           </Button>
         }
       />
