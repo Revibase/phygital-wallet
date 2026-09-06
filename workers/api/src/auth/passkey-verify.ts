@@ -1,4 +1,11 @@
-import { findPhygitalTokenPda, verifyResponse } from "phygital-token-sdk";
+import { createSolanaRpc } from "@solana/kit";
+import {
+  fetchPhygitalTokenByIdentifier,
+  findPhygitalTokenPda,
+  verifyResponse,
+} from "phygital-token-sdk";
+
+import { getRpcUrl } from "@/shared/solana/cluster";
 
 export type AuthenticationResponseJSON = {
   id: string;
@@ -47,12 +54,20 @@ export async function verifyPasskeyAndResolveToken(args: {
   };
 }
 
-/** Resolve token PDA from a verify-tap pubkey (no WebAuthn). */
-export async function resolveTokenFromPasskeyPubkey(
-  secp256r1PublicKey: string,
+/**
+ * Resolve token PDA from a verify-tap chip identifier (NFC URL `pk`).
+ * PDA is seeded by on-chain passkey `publicKey`, not the identifier.
+ */
+export async function resolveTokenFromIdentifier(
+  identifier: string,
 ): Promise<string | null> {
   try {
-    return String(await findPhygitalTokenPda(secp256r1PublicKey));
+    const account = await fetchPhygitalTokenByIdentifier(
+      createSolanaRpc(getRpcUrl()),
+      identifier,
+    );
+    if (!account) return null;
+    return String(await findPhygitalTokenPda(account.publicKey));
   } catch {
     return null;
   }

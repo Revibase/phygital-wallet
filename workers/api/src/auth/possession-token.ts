@@ -1,6 +1,6 @@
 /**
  * Short-lived possession proof from verify-tap / Hold — not the app session.
- * Bound to secp256r1PublicKey; used for POST /auth/device/links.
+ * Bound to chip `identifier` (NFC URL `pk`); used for POST /auth/device/links.
  */
 import { base64UrlToBytes, bytesToBase64Url } from "@/shared/crypto/base64";
 import { getEnv } from "@/shared/request-context";
@@ -40,20 +40,20 @@ function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
 }
 
 export async function mintPossessionToken(args: {
-  secp256r1PublicKey: string;
+  identifier: string;
   now?: number;
 }): Promise<{ token: string; expiresAt: number }> {
   const now = args.now ?? Date.now();
   const exp = now + POSSESSION_TTL_MS;
   const jti = crypto.randomUUID();
-  const payload = `${args.secp256r1PublicKey.trim()}|${exp}|${jti}`;
+  const payload = `${args.identifier.trim()}|${exp}|${jti}`;
   const mac = await hmacSha256(requireSecret(), payload);
   const token = `${bytesToBase64Url(new TextEncoder().encode(payload))}.${bytesToBase64Url(mac)}`;
   return { token, expiresAt: exp };
 }
 
 export type PossessionProof = {
-  secp256r1PublicKey: string;
+  identifier: string;
   exp: number;
   jti: string;
 };
@@ -70,11 +70,11 @@ export async function parsePossessionToken(
     const expectedMac = await hmacSha256(requireSecret(), payload);
     const actualMac = base64UrlToBytes(macB64);
     if (!timingSafeEqual(expectedMac, actualMac)) return null;
-    const [secp256r1PublicKey, expStr, jti] = payload.split("|");
+    const [identifier, expStr, jti] = payload.split("|");
     const exp = Number(expStr);
-    if (!secp256r1PublicKey || !jti || !Number.isFinite(exp)) return null;
+    if (!identifier || !jti || !Number.isFinite(exp)) return null;
     if (exp <= now) return null;
-    return { secp256r1PublicKey, exp, jti };
+    return { identifier, exp, jti };
   } catch {
     return null;
   }

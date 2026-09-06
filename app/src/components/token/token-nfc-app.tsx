@@ -8,6 +8,7 @@ import { InAppBrowserGate } from "@/components/shared/in-app-browser-gate";
 import { NfcHoldStatus } from "@/components/shared/nfc-hold-status";
 import { Button } from "@/components/ui/button";
 import { useAccessoryHold } from "@/hooks/token/use-accessory-hold";
+import { usePhygitalToken } from "@/hooks/token/use-phygital-token";
 import { useTapVerify } from "@/hooks/token/use-tap-verify";
 import { copy } from "@/lib/copy/phygital";
 import { toUserErrorMessage } from "@/lib/user-errors";
@@ -27,33 +28,24 @@ export function TokenNfcApp({ nfcCopy }: { nfcCopy: TokenNfcCopy }) {
   const { hasTapProof, verify, verifyPending, result, verifyError } =
     useTapVerify();
   const accessory = useAccessoryHold();
-  const [routeError, setRouteError] = useState<string | null>(null);
+  const [holdError, setHoldError] = useState<string | null>(null);
+
+  // Tap URL `pk` is the chip identifier — resolve PDA via GPA, not findPda(pk).
+  const identifier =
+    hasTapProof && verify === "verified" ? (result?.identifier ?? null) : null;
+  const tokenQuery = usePhygitalToken(identifier);
 
   useEffect(() => {
-    if (!hasTapProof || verify !== "verified" || !result?.secp256r1PublicKey) {
-      return;
+    if (!tokenQuery.data) return;
+    const pda = String(tokenQuery.data.address);
+    if (result?.possessionToken) {
+      storePossessionToken(pda, result.possessionToken);
     }
-    let cancelled = false;
-    void (async () => {
-      try {
-        const pda = String(
-          await findPhygitalTokenPda(result.secp256r1PublicKey!),
-        );
-        if (result.possessionToken) {
-          storePossessionToken(pda, result.possessionToken);
-        }
-        if (!cancelled) router.replace(tokenHomeHref(pda));
-      } catch (e) {
-        if (!cancelled) setRouteError(toUserErrorMessage(e));
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [hasTapProof, verify, result, router]);
+    router.replace(tokenHomeHref(pda));
+  }, [tokenQuery.data, result?.possessionToken, router]);
 
   async function holdToOpen() {
-    setRouteError(null);
+    setHoldError(null);
     const auth = await accessory.hold();
     if (!auth) return;
     try {
@@ -65,7 +57,7 @@ export function TokenNfcApp({ nfcCopy }: { nfcCopy: TokenNfcCopy }) {
       });
       router.replace(tokenHomeHref(pda));
     } catch (e) {
-      setRouteError(toUserErrorMessage(e));
+      setHoldError(toUserErrorMessage(e));
     }
   }
 
@@ -75,8 +67,8 @@ export function TokenNfcApp({ nfcCopy }: { nfcCopy: TokenNfcCopy }) {
 
   if (
     hasTapProof &&
-    (verifyPending || verify === "pending" || verify === "verified") &&
-    !routeError
+    !tokenQuery.isError &&
+    (verifyPending || verify === "pending" || verify === "verified")
   ) {
     return (
       <NfcHoldStatus
@@ -102,7 +94,8 @@ export function TokenNfcApp({ nfcCopy }: { nfcCopy: TokenNfcCopy }) {
 
   const error =
     accessory.error ??
-    routeError ??
+    holdError ??
+    (tokenQuery.error ? toUserErrorMessage(tokenQuery.error) : null) ??
     (hasTapProof && verify === "failed"
       ? toUserErrorMessage(verifyError)
       : null);

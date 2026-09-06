@@ -18,15 +18,15 @@ function getCounterKv(): KVNamespace {
 }
 
 export async function readCounterSession(
-  publicKey: string,
+  identifier: string,
 ): Promise<CounterState | null> {
-  return parseCounterState(await getCounterKv().get(publicKey));
+  return parseCounterState(await getCounterKv().get(identifier));
 }
 
 /** Persist a newly consumed counter. */
 export async function writeCounterSession(
-  publicKey: string,
+  identifier: string,
   state: CounterState,
 ): Promise<void> {
-  await getCounterKv().put(publicKey, JSON.stringify({ c: state.c }));
+  await getCounterKv().put(identifier, JSON.stringify({ c: state.c, t: Date.now() }));
 }

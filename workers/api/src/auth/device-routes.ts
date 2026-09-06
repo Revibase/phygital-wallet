@@ -33,7 +33,7 @@ import {
 } from "@/auth/device-session";
 import {
   type AuthenticationResponseJSON as AccessoryAuthResponse,
-  resolveTokenFromPasskeyPubkey,
+  resolveTokenFromIdentifier,
   verifyPasskeyAndResolveToken,
 } from "@/auth/passkey-verify";
 import { consumePossessionToken } from "@/auth/possession-token";
@@ -407,7 +407,7 @@ deviceAuthRoutes.post("/auth/device/links", async (c) => {
           { status: 400 },
         );
       }
-      const pda = await resolveTokenFromPasskeyPubkey(proof.secp256r1PublicKey);
+      const pda = await resolveTokenFromIdentifier(proof.identifier);
       if (pda && pda !== phygitalToken) {
         return json(
           { error: "That isn’t the same accessory.", code: "passkey_invalid" },

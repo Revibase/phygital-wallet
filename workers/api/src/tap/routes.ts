@@ -35,14 +35,14 @@ verifyTapRoutes.get("/verify-tap", async (c) => {
       );
     }
 
-    const { isVerified, counter, secp256r1PublicKey } =
+    const { isVerified, counter, identifier } =
       verifyDynamicUrlWithoutCounterCheck(params);
 
     if (!isVerified) {
       return json({ isVerified: false, error: "Invalid signature" }, { status: 400 });
     }
 
-    const state = await readCounterSession(secp256r1PublicKey);
+    const state = await readCounterSession(identifier);
     const verdict = evaluateCounter(state, counter);
 
     if (verdict === "replay") {
@@ -55,12 +55,12 @@ verifyTapRoutes.get("/verify-tap", async (c) => {
       );
     }
 
-    await writeCounterSession(secp256r1PublicKey, { c: counter });
+    await writeCounterSession(identifier, { c: counter });
 
     let possessionToken: string | undefined;
     let possessionExpiresAt: number | undefined;
     try {
-      const minted = await mintPossessionToken({ secp256r1PublicKey });
+      const minted = await mintPossessionToken({ identifier });
       possessionToken = minted.token;
       possessionExpiresAt = minted.expiresAt;
     } catch {
@@ -69,7 +69,7 @@ verifyTapRoutes.get("/verify-tap", async (c) => {
 
     return json({
       isVerified: true,
-      secp256r1PublicKey,
+      identifier,
       counter,
       ...(possessionToken ? { possessionToken } : {}),
       ...(possessionExpiresAt != null

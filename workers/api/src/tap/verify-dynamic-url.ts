@@ -5,7 +5,7 @@ import { base64UrlToBytes } from "@/shared/crypto/base64";
 
 export type VerifyDynamicUrlResult = {
   isVerified: boolean;
-  secp256r1PublicKey: string;
+  identifier: string;
   counter: number;
 };
 
@@ -51,15 +51,15 @@ function normalizeSignatureToLowS(signature: Uint8Array): Uint8Array {
 export function verifyDynamicUrlWithoutCounterCheck(
   params: URLSearchParams,
 ): VerifyDynamicUrlResult {
-  const secp256r1PublicKey = params.get("pk");
+  const identifier = params.get("pk");
   const signature = params.get("s");
   const counter = params.get("c");
   const nonce = params.get("n");
-  if (!secp256r1PublicKey || !signature || !counter || !nonce) {
+  if (!identifier || !signature || !counter || !nonce) {
     throw new Error("Missing query params");
   }
 
-  const compressedPk = base64UrlToBytes(secp256r1PublicKey);
+  const compressedPk = base64UrlToBytes(identifier);
   if (compressedPk.length !== 33) {
     throw new Error(
       `pk must be 33-byte compressed P-256 key, got ${compressedPk.length} bytes`,
@@ -94,7 +94,7 @@ export function verifyDynamicUrlWithoutCounterCheck(
   const isVerified = p256.verify(normalizedSig, message, compressedPk);
   return {
     isVerified,
-    secp256r1PublicKey,
+    identifier,
     counter: currentCounter,
   };
 }

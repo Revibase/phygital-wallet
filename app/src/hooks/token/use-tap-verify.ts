@@ -11,7 +11,7 @@ export type TapVerifyStatus = "pending" | "verified" | "failed";
 
 export type TapVerifyResult = {
   status: "verified" | "failed";
-  secp256r1PublicKey?: string;
+  identifier?: string;
   counter?: number;
   possessionToken?: string;
   possessionExpiresAt?: number;
@@ -27,7 +27,7 @@ async function fetchTapVerification(
   const res = await queryFetch(`/verify-tap?${params.toString()}`);
   const body = await readJson<{
     isVerified?: boolean;
-    secp256r1PublicKey?: string;
+    identifier?: string;
     counter?: number;
     possessionToken?: string;
     possessionExpiresAt?: number;
@@ -40,7 +40,7 @@ async function fetchTapVerification(
 
   return {
     status: "verified",
-    secp256r1PublicKey: body.secp256r1PublicKey,
+    identifier: body.identifier,
     counter: body.counter,
     possessionToken: body.possessionToken,
     possessionExpiresAt: body.possessionExpiresAt,
