@@ -13,6 +13,11 @@
       "migrations_dir": "d1/migrations"
     }
   ],
+  "vars": {
+    "SOLANA_CLUSTER": "mainnet",
+    "SOLANA_RPC_URL": "https://rpc.revibase.com",
+    "TOP_UP_ACCUMULATOR": "BExDpnx6E1LW3ofkCPxXvBRAmxqPVsmwnPb4oM5FUutv"
+  },
   "kv_namespaces": [
     {
       "binding": "revibase_counter",

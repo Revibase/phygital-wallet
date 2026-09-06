@@ -13,6 +13,12 @@
       "database_id": "356d6b15-cd60-47b5-a014-648246bd27b5"
     }
   ],
+  "vars": {
+    "SOLANA_CLUSTER": "devnet",
+    "SOLANA_RPC_URL": "https://api.devnet.solana.com",
+    "VERIFIER_SIGNER_BACKEND": "secrets",
+    "TOP_UP_ACCUMULATOR": "BExDpnx6E1LW3ofkCPxXvBRAmxqPVsmwnPb4oM5FUutv"
+  },
   "observability": {
     "enabled": true,
     "logs": {
