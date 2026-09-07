@@ -71,47 +71,27 @@ After resolving the verifier, the SDK uses the API **base** (`token_verifier.end
 - Co-sign: `POST {base}/sign`
 
 Soft denials throw `PolicyDeniedError` with `code`, `soft`, and `intentHash`.
-Preview uses `credentials: "include"` so an **owner** Revibase tab (device
-session + link) can skip creating an open-approval inbox row. Visitors and
-external dapps still upsert when an owner exists; **unlinked** tokens never
-upsert.
+Pass a custom `fetch` (on `getPhygitalWalletSigner` / `resolveVerifier` /
+`previewWalletIntent`) when the host app must send cookies — e.g. Revibase
+uses `credentials: "include"` so an **owner** tab (device session + link) can
+skip creating an open-approval inbox row. The SDK itself does not set
+`credentials`. Config co-sign (token verifier / recovery wallet) is app-owned.
+When `resolveVerifier(...).requiresOwnerCosignAssertion` is true (Config
+default verifier), mint a `cosignConfig` WebAuthn challenge for the message
+hash and pass it via `createVerifierEndpointSigner({ enrichSignBody })` (or
+POST `/sign` with `challengeId` + `assertion`). Custom token verifiers skip
+that step.
 
-## Token verifier override
+## Token verifier / recovery wallet
 
-```typescript
-import {
-  buildSetTokenVerifierChallenge,
-  getSetTokenVerifierInstructions,
-} from "phygital-wallet-sdk";
-import {
-  authenticatePasskeyForSecp256r1Verify,
-  buildSecp256r1VerifyInstruction,
-} from "phygital-token-sdk";
+Passkey challenges for `set_token_verifier`, `clear_token_verifier`,
+`set_recovery_wallet`, and `clear_recovery_wallet` are
+`buildSetTokenVerifierChallenge`, `buildClearTokenVerifierChallenge`,
+`buildSetRecoveryWalletChallenge`, and `buildClearRecoveryWalletChallenge`.
 
-const { slotNumber, messageHash } = await buildSetTokenVerifierChallenge(
-  rpc,
-  phygitalTokenPda,
-  overrideVerifier,
-  "https://verifier.example.com", // API base; /sign and /preview are appended
-);
-const tap = await authenticatePasskeyForSecp256r1Verify({ rpc, messageHash });
-const verify = await buildSecp256r1VerifyInstruction(tap);
-
-const instructions = await getSetTokenVerifierInstructions({
-  rpc,
-  payer: feePayer,
-  overrideVerifier,
-  endpoint: "https://verifier.example.com",
-  passkeyAuth: {
-    secp256r1VerifyInstruction: verify.secp256r1VerifyInstruction,
-    phygitalTokenPda: verify.phygitalTokenPda,
-    secp256r1VerifyArgs: verify.secp256r1VerifyArgs,
-    slotNumber,
-  },
-});
-```
-
-Clear uses `buildClearTokenVerifierChallenge(rpc, phygitalTokenPda)` and `getClearTokenVerifierInstructions({ rpc, passkeyAuth })`. Rent is refunded to the original token verifier payer automatically.
+Instruction assembly lives in the app (generated `getSetTokenVerifierInstruction`
+/ `getClearTokenVerifierInstruction` / recovery equivalents + verifier fee payer).
+Rent on clear is refunded to the original PDA payer.
 
 ## Regenerate
 

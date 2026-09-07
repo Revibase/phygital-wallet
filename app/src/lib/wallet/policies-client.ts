@@ -32,7 +32,8 @@ export type MutationBinding =
   | { kind: "setPolicy"; policy: PolicyDocument }
   | { kind: "clearPolicy" }
   | { kind: "createGrant"; intentHash: string }
-  | { kind: "removeOwner" };
+  | { kind: "removeOwner" }
+  | { kind: "cosignConfig"; messageHash: string };
 
 /** Fetch DO-minted WebAuthn options bound to this write and collect assertion. */
 export async function assertPolicyMutation(

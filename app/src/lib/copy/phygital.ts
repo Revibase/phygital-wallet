@@ -98,6 +98,9 @@ export const copy = {
     nearbyChangeDetails: "Change amount",
     nearbyChangePayer: "Use a different item",
     holdToSave: "Hold to save",
+    /** NFC + owner phone passkey when Config default verifier co-signs. */
+    configChangeHoldBody:
+      "Hold your accessory, then confirm on this phone with Face ID, fingerprint, or screen lock.",
     save: "Save",
     holdToOpenTitle: "Hold to open",
     holdToOpenBody: "Hold your accessory to the top of your phone.",
@@ -137,7 +140,8 @@ export const copy = {
     viewReceipt: "Receipt",
     openCard: "Open card",
     feeBalance: "Network fees",
-    feeBalanceHint: "Prepaid SOL used to cover network fees on your sends.",
+    feeBalanceHint:
+      "New wallets start with 0.001 SOL for network fees. Top up with SOL from this wallet when it runs low.",
     feeBalanceLow: "Network fees are low. Top up before sending.",
     feeBalanceInsufficient: "Not enough network fees. Top up to continue.",
     topUpFees: "Top up",
@@ -172,8 +176,7 @@ export const copy = {
       "Receive money here. Hold your accessory to your phone when you send.",
     firstRunCta: "Receive",
     firstRunDismiss: "Not now",
-    networkFeeSponsored: (amountUi: string) =>
-      `Network fee ~${amountUi} SOL (sponsored)`,
+    networkFee: (amountUi: string) => `Network fee ~${amountUi} SOL`,
     networkFeeShort: (amountUi: string) => `~${amountUi} SOL network fee`,
     copySignature: "Copy signature",
     viewOnExplorer: "View on explorer",

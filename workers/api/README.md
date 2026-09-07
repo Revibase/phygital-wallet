@@ -60,7 +60,8 @@ pnpm --filter api dev
 Per-token prepaid balance lives in the **TokenSigner DO** (not D1):
 
 1. **Top-up:** SOL → `TOP_UP_ACCUMULATOR` + memo; Helius webhook → DO credit  
-2. **Gate:** DO on preview/sign  
+   (new token ledgers start with 0.001 SOL)  
+2. **Gate:** DO on preview/sign (`execute`: fee + policy; config: owner WebAuthn + fee)  
 3. **Debit:** webhook → DO debit on confirmed execute  
 
 ## Env / bindings

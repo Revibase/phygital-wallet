@@ -1,7 +1,13 @@
 /**
- * POST /sign — proxy to TokenSigner Durable Object (fee + authorize + co-sign).
+ * POST /sign — proxy to TokenSigner Durable Object.
+ *
+ * `execute`: fee + standing policy.
+ * Config (token verifier / recovery wallet): fee first; owner WebAuthn
+ * (`challengeId` + `assertion`) only when the co-signer is a Config default
+ * verifier.
  */
 import { Hono } from "hono";
+import type { AuthenticationResponseJSON } from "@simplewebauthn/server";
 
 import { json } from "@/shared/http";
 import { decodeWireTransaction } from "@/verifier/decode-tx";
@@ -12,7 +18,11 @@ export const signRoutes = new Hono<{ Bindings: Env }>();
 
 signRoutes.post("/sign", async (c) => {
   try {
-    const body = (await c.req.json()) as { transactions?: string[] };
+    const body = (await c.req.json()) as {
+      transactions?: string[];
+      challengeId?: string;
+      assertion?: AuthenticationResponseJSON;
+    };
     if (!Array.isArray(body.transactions) || body.transactions.length === 0) {
       return json(
         { error: "transactions required", code: "invalid_transaction" },
@@ -30,6 +40,11 @@ signRoutes.post("/sign", async (c) => {
     const { phygitalToken } = decodeWireTransaction(first);
     const result = await tokenSigner(c.env, phygitalToken).signTransactions(
       body.transactions,
+      {
+        challengeId: body.challengeId ?? null,
+        assertion: body.assertion ?? null,
+        origin: c.req.header("Origin") ?? null,
+      },
     );
     if (!result.ok) {
       return json(result.body, { status: result.status });

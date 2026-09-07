@@ -26,8 +26,12 @@ export function mapCodedVerifierError(err: unknown): CodedVerifierError {
     status:
       code === "signer_misconfigured"
         ? 500
-        : code === "verifier_mismatch"
-          ? 403
-          : 400,
+        : code === "device_session_required" ||
+            code === "owner_assertion_required" ||
+            code === "challenge_invalid"
+          ? 401
+          : code === "verifier_mismatch" || code === "not_owner"
+            ? 403
+            : 400,
   };
 }

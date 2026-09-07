@@ -1,89 +1,105 @@
 import {
-  getBase64EncodedWireTransaction,
-  getBase64Encoder,
   type Address,
   type Rpc,
   type SolanaRpcApi,
-  type SignatureDictionary,
+  type Transaction,
   type TransactionPartialSigner,
+  type TransactionWithLifetime,
+  type TransactionWithinSizeLimit,
 } from "@solana/kit";
 import {
-  fetchMaybeTokenVerifier,
-  fetchConfig,
-  findConfigPda,
-  findTokenVerifierPda,
+  createVerifierEndpointSigner,
+  resolveVerifier,
+  verifierSignUrl,
 } from "phygital-wallet-sdk";
 
-const DEFAULT_ENDPOINT = "https://api.revibase.com/sign";
-const SYSTEM = "11111111111111111111111111111111";
-const base64Encoder = getBase64Encoder();
+import { getApiBaseUrl } from "@/lib/api-base";
+import { bytesToBase64Url } from "@/lib/crypto/base64";
+import { queryFetch } from "@/lib/queries/http";
+import { assertPolicyMutation } from "@/lib/wallet/policies-client";
 
-/** HTTP verifier signer used as fee payer for set/clear token verifier. */
+const DEFAULT_VERIFIER_API_ORIGIN = "https://api.revibase.com";
+
+type SignableTransaction = Transaction &
+  TransactionWithinSizeLimit &
+  TransactionWithLifetime;
+
+/**
+ * App fetch for verifier `/preview` + `/sign`.
+ * Sends cookies and rewrites the default Revibase origin to this app's API base.
+ */
+export function appVerifierFetch(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<Response> {
+  const raw =
+    typeof input === "string"
+      ? input
+      : input instanceof URL
+        ? input.toString()
+        : String(input);
+  const rewritten = raw.startsWith(DEFAULT_VERIFIER_API_ORIGIN)
+    ? `${getApiBaseUrl()}${raw.slice(DEFAULT_VERIFIER_API_ORIGIN.length)}`
+    : raw;
+  return queryFetch(rewritten, init);
+}
+
+export type AppVerifierSigner = TransactionPartialSigner & {
+  /** True when `/sign` needs owner `cosignConfig` WebAuthn (Config default key). */
+  requiresOwnerCosignAssertion: boolean;
+};
+
+/**
+ * Single HTTP verifier signer used as fee payer **and** instruction `payer` /
+ * `verifier` for set/clear token verifier and recovery wallet.
+ *
+ * When the co-signer is a Config default verifier, prompts the owner phone
+ * passkey (WebAuthn) bound to the transaction message hash before `/sign`.
+ * Custom token verifiers skip that step.
+ */
 export async function createAppVerifierSigner(
   rpc: Rpc<SolanaRpcApi>,
   phygitalToken: Address,
-): Promise<TransactionPartialSigner> {
-  const [[tokenVerifierPda], [configPda]] = await Promise.all([
-    findTokenVerifierPda({ phygitalToken }),
-    findConfigPda(),
-  ]);
+): Promise<AppVerifierSigner> {
+  const { endpoint, requiresOwnerCosignAssertion, verifier } =
+    await resolveVerifier(rpc, phygitalToken, {
+      fetch: appVerifierFetch,
+    });
+  const token = String(phygitalToken);
 
-  const [override, configAccount] = await Promise.all([
-    fetchMaybeTokenVerifier(rpc, tokenVerifierPda),
-    fetchConfig(rpc, configPda),
-  ]);
-
-  if (override.exists) {
-    return createHttpSigner(
-      override.data.verifier,
-      override.data.endpoint || DEFAULT_ENDPOINT,
-    );
-  }
-
-  const verifiers = configAccount.data.verifiers as readonly Address[];
-  const first = verifiers.find((v) => String(v) !== SYSTEM);
-  if (!first) {
-    throw new Error("No default transaction verifier configured");
-  }
-  return createHttpSigner(first, DEFAULT_ENDPOINT);
-}
-
-function createHttpSigner(
-  verifierAddress: Address,
-  endpoint: string,
-): TransactionPartialSigner {
-  return {
-    address: verifierAddress,
-    signTransactions: async (transactions, options) => {
-      options?.abortSignal?.throwIfAborted();
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          transactions: transactions.map((transaction) =>
-            getBase64EncodedWireTransaction(transaction),
+  const signer = createVerifierEndpointSigner(verifier.address, {
+    endpoint: verifierSignUrl(endpoint),
+    fetch: appVerifierFetch,
+    enrichSignBody: async (transactions) => {
+      if (!requiresOwnerCosignAssertion) return undefined;
+      if (transactions.length !== 1) {
+        throw new Error("Config co-sign accepts exactly one transaction");
+      }
+      const [transaction] = transactions as readonly SignableTransaction[];
+      if (!transaction) {
+        throw new Error("Config co-sign accepts exactly one transaction");
+      }
+      const ownerAuth = await assertPolicyMutation(
+        token,
+        {
+          kind: "cosignConfig",
+          messageHash: bytesToBase64Url(
+            new Uint8Array(transaction.messageBytes),
           ),
-        }),
-        signal: options?.abortSignal,
-      });
-      const body = (await response.json().catch(() => ({}))) as {
-        signatures?: string[];
-        error?: string;
+        },
+        "Confirmation was cancelled",
+      );
+      return {
+        challengeId: ownerAuth.challengeId,
+        assertion: ownerAuth.assertion,
       };
-      if (!response.ok) {
-        throw new Error(
-          body.error ?? `Verifier sign request failed (${response.status})`,
-        );
-      }
-      if (!body.signatures || body.signatures.length !== transactions.length) {
-        throw new Error("Verifier returned unexpected signatures");
-      }
-      return body.signatures.map((signature) => {
-        const bytes = new Uint8Array(base64Encoder.encode(signature));
-        return Object.freeze({
-          [verifierAddress]: Object.freeze(bytes),
-        }) as SignatureDictionary;
-      });
     },
+  });
+
+  return {
+    address: signer.address,
+    requiresOwnerCosignAssertion,
+    signTransactions: (transactions, options) =>
+      signer.signTransactions(transactions, options),
   };
 }

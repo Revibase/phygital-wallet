@@ -16,10 +16,12 @@ import { FieldLabel, Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { copy } from "@/lib/copy/phygital";
 import {
+  applyOptimisticFeeBalance,
   applyOptimisticPortfolioDelta,
   applyOptimisticWalletActivity,
   invalidateWalletBalances,
   patchOptimisticWalletActivity,
+  restoreFeeBalanceSnapshot,
   restorePortfolioSnapshot,
   restoreWalletActivitySnapshot,
   type WalletActivitySnapshot,
@@ -32,6 +34,7 @@ import { identifyAccessory } from "@/lib/wallet/identify-accessory";
 import { createOneTimeGrant } from "@/lib/wallet/policies-client";
 import { handleOwnerAuthFailure } from "@/lib/wallet/device-sign-in-href";
 import { policyApprovalDetailRows, policySoftDenyBody } from "@/lib/wallet/policy-deny-copy";
+import type { FeeBalance } from "@/lib/wallet/fee-balance-client";
 import type { WalletPortfolio } from "@/lib/wallet/portfolio-types";
 import { sendAssetFromWallet } from "@/lib/wallet/send-asset";
 import type { PhygitalWalletSignPhase } from "@/lib/wallet/sign-phase-copy";
@@ -42,9 +45,10 @@ import {
   type SendAssetRef,
 } from "@/lib/wallet/send-asset-ref";
 import {
-  estimateSponsoredFeeLamports,
-  formatSponsoredFeeUi,
-} from "@/lib/wallet/sponsored-fee";
+  estimateNetworkFeeLamports,
+  formatNetworkFeeUi,
+  lamportsToSolUi,
+} from "@/lib/wallet/network-fee";
 import { sanitizeDecimalInput } from "@/lib/tokens/amount";
 import { snapEnter, snapEnterTransition, easeOut } from "@/lib/motion";
 import type { SendHoldRecap } from "@/components/wallet/send-hold-stage";
@@ -171,11 +175,11 @@ export function SendDialog({
   );
 
   const feeEstimateLamports = asset
-    ? estimateSponsoredFeeLamports(asset.kind)
+    ? estimateNetworkFeeLamports(asset.kind)
     : 0;
-  const feeEstimateUi = formatSponsoredFeeUi(feeEstimateLamports);
+  const feeEstimateUi = formatNetworkFeeUi(feeEstimateLamports);
   const feeLabel = asset
-    ? copy.wallet.networkFeeSponsored(feeEstimateUi)
+    ? copy.wallet.networkFee(feeEstimateUi)
     : null;
   const feeShortLabel = asset
     ? copy.wallet.networkFeeShort(feeEstimateUi)
@@ -228,6 +232,7 @@ export function SendDialog({
     let submittedSignature: string | null = null;
     let portfolioBefore: WalletPortfolio | undefined;
     let activityBefore: WalletActivitySnapshot | undefined;
+    let feeBefore: FeeBalance | undefined;
 
     const showHolding = () => {
       setPhase("holding");
@@ -258,6 +263,13 @@ export function SendDialog({
 
       submittedSignature = signature;
       showHolding();
+      if (feeEstimateLamports > 0) {
+        feeBefore = applyOptimisticFeeBalance(queryClient, {
+          token: phygitalTokenPda,
+          amountUi: lamportsToSolUi(feeEstimateLamports),
+          direction: "out",
+        });
+      }
       activityBefore = applyOptimisticWalletActivity(queryClient, {
         id: signature,
         walletAddress,
@@ -304,6 +316,7 @@ export function SendDialog({
       onSent();
     } catch (e) {
       if (submittedSignature) {
+        restoreFeeBalanceSnapshot(queryClient, phygitalTokenPda, feeBefore);
         restorePortfolioSnapshot(queryClient, walletAddress, portfolioBefore);
         restoreWalletActivitySnapshot(queryClient, activityBefore);
       }

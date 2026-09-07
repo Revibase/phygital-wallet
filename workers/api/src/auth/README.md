@@ -10,7 +10,7 @@ Owner-app authentication and standing-policy HTTP surface.
 | `session-hmac.ts` | Shared HMAC mint/parse for both session cookies |
 | `session-cookie-attrs.ts` | Cookie secure / SameSite / Domain for app middleware visibility |
 | `device-db.ts` | `device_credentials` + listing index `device_token_links` |
-| `policies-routes.ts` | Policy/grant HTTP; mutations require platform WebAuthn verified in TokenSigner DO |
+| `policies-routes.ts` | Policy/grant HTTP; mutations require platform WebAuthn verified in TokenSigner DO; `cosignConfig` binding used for Config-default verifier config tx co-sign via `/sign` |
 | `pending-approvals-db.ts` | Soft-deny inbox (API D1 only; never authorizes spend) |
 
 Owner-of-record is the **TokenSigner DO** single-row `owner` (current only;

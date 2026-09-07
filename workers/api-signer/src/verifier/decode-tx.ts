@@ -1,14 +1,23 @@
+/**
+ * Decode verifier `/sign` wire txs (execute + config).
+ * Keep in sync with `workers/api/src/verifier/decode-tx.ts` (api also exports
+ * `instructionFromJson` for preview JSON).
+ */
 import {
   getBase64Encoder,
   getCompiledTransactionMessageDecoder,
   getInstructionsFromCompiledTransactionMessage,
   getTransactionDecoder,
   AccountRole,
+  type AccountMeta,
   type Instruction,
+  type InstructionWithAccounts,
+  type InstructionWithData,
+  type ReadonlyUint8Array,
 } from "@solana/kit";
 import {
-  EXECUTE_DISCRIMINATOR,
-  getExecuteInstructionDataDecoder,
+  parsePhygitalWalletInstruction,
+  PhygitalWalletInstruction,
   PHYGITAL_WALLET_PROGRAM_ADDRESS,
 } from "phygital-wallet-sdk";
 
@@ -21,8 +30,6 @@ import {
 const base64Encoder = getBase64Encoder();
 const txDecoder = getTransactionDecoder();
 const messageDecoder = getCompiledTransactionMessageDecoder();
-const executeDataDecoder = getExecuteInstructionDataDecoder();
-const EXECUTE_DISC = new Uint8Array(EXECUTE_DISCRIMINATOR);
 
 const TOP_LEVEL_OK = new Set<string>([
   COMPUTE_BUDGET_PROGRAM,
@@ -31,18 +38,114 @@ const TOP_LEVEL_OK = new Set<string>([
   MEMO_PROGRAM_ADDRESS,
 ]);
 
-function discEq(a: Uint8Array, b: Uint8Array): boolean {
-  if (a.length < b.length) return false;
-  for (let i = 0; i < b.length; i++) if (a[i] !== b[i]) return false;
-  return true;
+function coded(message: string, code: string): Error {
+  return Object.assign(new Error(message), { code });
 }
 
-type DecodedSignTx = {
-  messageBytes: Uint8Array;
-  /** Execute account meta 0 — must match a key in the signer Worker. */
+type WalletIx = Instruction &
+  InstructionWithAccounts<readonly AccountMeta[]> &
+  InstructionWithData<ReadonlyUint8Array>;
+
+function asWalletInstruction(ix: Instruction): WalletIx {
+  if (!ix.data?.length) {
+    throw coded("Phygital-wallet instruction missing data", "invalid_transaction");
+  }
+  if (!ix.accounts) {
+    throw coded(
+      "Phygital-wallet instruction missing accounts",
+      "invalid_transaction",
+    );
+  }
+  return ix as WalletIx;
+}
+
+function expandExecuteInner(
+  ix: WalletIx,
+  parsed: ReturnType<typeof parsePhygitalWalletInstruction>,
+): Instruction[] {
+  if (parsed.instructionType !== PhygitalWalletInstruction.Execute) {
+    throw coded("Expected execute instruction", "invalid_transaction");
+  }
+
+  // Fixed execute metas are accounts 0–7; remaining are compact CPI metas.
+  const remainingAddresses = ix.accounts.slice(8).map((a) => a.address);
+  return parsed.data.compactInstructions.map((ci) => {
+    const programAddress = remainingAddresses[ci.programIdIndex];
+    if (!programAddress) {
+      throw coded(
+        "Compact instruction program index out of range",
+        "invalid_transaction",
+      );
+    }
+    return {
+      programAddress,
+      accounts: [...ci.accountIndexes].map((idx) => {
+        const address = remainingAddresses[idx];
+        if (!address) {
+          throw coded(
+            "Compact instruction account index out of range",
+            "invalid_transaction",
+          );
+        }
+        return { address, role: AccountRole.READONLY };
+      }),
+      data: new Uint8Array(ci.data),
+    } satisfies Instruction;
+  });
+}
+
+function parseWalletTopLevel(ix: Instruction): {
+  kind: SignTxKind;
   verifier: string;
   phygitalToken: string;
   instructions: Instruction[];
+} {
+  const walletIx = asWalletInstruction(ix);
+  let parsed;
+  try {
+    parsed = parsePhygitalWalletInstruction(walletIx);
+  } catch {
+    throw coded(
+      "Unexpected phygital-wallet instruction",
+      "unexpected_instruction",
+    );
+  }
+
+  switch (parsed.instructionType) {
+    case PhygitalWalletInstruction.Execute:
+      return {
+        kind: "execute",
+        verifier: String(parsed.accounts.verifier.address),
+        phygitalToken: String(parsed.accounts.phygitalToken.address),
+        instructions: expandExecuteInner(walletIx, parsed),
+      };
+    case PhygitalWalletInstruction.SetTokenVerifier:
+    case PhygitalWalletInstruction.ClearTokenVerifier:
+    case PhygitalWalletInstruction.SetRecoveryWallet:
+    case PhygitalWalletInstruction.ClearRecoveryWallet:
+      return {
+        kind: "config",
+        verifier: String(parsed.accounts.verifier.address),
+        phygitalToken: String(parsed.accounts.phygitalToken.address),
+        instructions: [ix],
+      };
+    default:
+      throw coded(
+        "Unexpected phygital-wallet instruction",
+        "unexpected_instruction",
+      );
+  }
+}
+
+export type SignTxKind = "execute" | "config";
+
+export type DecodedSignTx = {
+  messageBytes: Uint8Array;
+  /** Verifier co-signer — must match a key in the signer Worker. */
+  verifier: string;
+  phygitalToken: string;
+  instructions: Instruction[];
+  kind: SignTxKind;
 };
 
 export function decodeWireTransaction(base64Tx: string): DecodedSignTx {
@@ -52,6 +155,7 @@ export function decodeWireTransaction(base64Tx: string): DecodedSignTx {
 
   const topLevel = getInstructionsFromCompiledTransactionMessage(compiled);
 
+  let kind: SignTxKind | null = null;
   let phygitalToken: string | null = null;
   let verifier: string | null = null;
   let inner: Instruction[] = [];
@@ -59,68 +163,31 @@ export function decodeWireTransaction(base64Tx: string): DecodedSignTx {
   for (const ix of topLevel) {
     const program = String(ix.programAddress);
     if (!TOP_LEVEL_OK.has(program)) {
-      throw Object.assign(
-        new Error(`Unexpected top-level program ${program}`),
-        { code: "unexpected_instruction" },
+      throw coded(
+        `Unexpected top-level program ${program}`,
+        "unexpected_instruction",
       );
     }
 
-    const ixData = ix.data ? new Uint8Array(ix.data) : new Uint8Array();
-    if (
-      program === PHYGITAL_WALLET_PROGRAM_ADDRESS &&
-      discEq(ixData, EXECUTE_DISC)
-    ) {
-      const accounts = ix.accounts ?? [];
-      // Fixed execute metas: 0 verifier, 1 config, 2 phygital_token, …, 7 program; then remaining
-      const verifierMeta = accounts[0];
-      const tokenMeta = accounts[2];
-      if (!verifierMeta?.address) {
-        throw Object.assign(new Error("Execute missing verifier"), {
-          code: "invalid_transaction",
-        });
-      }
-      if (!tokenMeta?.address) {
-        throw Object.assign(new Error("Execute missing phygitalToken"), {
-          code: "invalid_transaction",
-        });
-      }
-      verifier = String(verifierMeta.address);
-      phygitalToken = String(tokenMeta.address);
+    if (program !== PHYGITAL_WALLET_PROGRAM_ADDRESS) continue;
 
-      const remainingAddresses = accounts.slice(8).map((a) => a.address);
-
-      const decoded = executeDataDecoder.decode(ixData);
-      inner = decoded.compactInstructions.map((ci) => {
-        const programAddress = remainingAddresses[ci.programIdIndex];
-        if (!programAddress) {
-          throw Object.assign(
-            new Error("Compact instruction program index out of range"),
-            { code: "invalid_transaction" },
-          );
-        }
-        const instruction: Instruction = {
-          programAddress,
-          accounts: [...ci.accountIndexes].map((idx) => {
-            const accountAddress = remainingAddresses[idx];
-            if (!accountAddress) {
-              throw Object.assign(
-                new Error("Compact instruction account index out of range"),
-                { code: "invalid_transaction" },
-              );
-            }
-            return { address: accountAddress, role: AccountRole.READONLY };
-          }),
-          data: new Uint8Array(ci.data),
-        };
-        return instruction;
-      });
+    const parsed = parseWalletTopLevel(ix);
+    if (kind) {
+      throw coded(
+        "Transaction mixes multiple phygital-wallet instructions",
+        "unexpected_instruction",
+      );
     }
+    kind = parsed.kind;
+    verifier = parsed.verifier;
+    phygitalToken = parsed.phygitalToken;
+    inner = parsed.instructions;
   }
 
-  if (!phygitalToken || !verifier) {
-    throw Object.assign(
-      new Error("Transaction missing phygital-wallet execute"),
-      { code: "unexpected_instruction" },
+  if (!kind || !phygitalToken || !verifier) {
+    throw coded(
+      "Transaction missing phygital-wallet execute or config instruction",
+      "unexpected_instruction",
     );
   }
 
@@ -129,5 +196,6 @@ export function decodeWireTransaction(base64Tx: string): DecodedSignTx {
     verifier,
     phygitalToken,
     instructions: inner,
+    kind,
   };
 }

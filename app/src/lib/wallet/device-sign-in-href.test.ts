@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   deviceSignInHomeHref,
+  isOwnerAuthFailure,
   isPolicySetupScreen,
   parseDeviceSignInIntent,
   parseSafeTokenReturnPath,
@@ -125,5 +126,38 @@ describe("device sign-in intent", () => {
     });
     const u = new URL(href, "https://revibase.invalid");
     expect(u.searchParams.get("return")).toBe(walletHref(TOKEN));
+  });
+});
+
+describe("isOwnerAuthFailure", () => {
+  it("treats device-session PolicyDeniedError as owner auth failure", async () => {
+    const { PolicyDeniedError } = await import("phygital-wallet-sdk");
+    expect(
+      isOwnerAuthFailure(
+        new PolicyDeniedError({
+          code: "device_session_required",
+          error: "Sign in with this phone to continue.",
+          soft: false,
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      isOwnerAuthFailure(
+        new PolicyDeniedError({
+          code: "not_owner",
+          error: "Only the owner phone can do this.",
+          soft: false,
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      isOwnerAuthFailure(
+        new PolicyDeniedError({
+          code: "insufficient_fee_balance",
+          error: "Fee balance is too low",
+          soft: false,
+        }),
+      ),
+    ).toBe(false);
   });
 });

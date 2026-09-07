@@ -15,10 +15,12 @@ import { useFeeBalance } from "@/hooks/wallet/use-fee-balance";
 import { useWalletPda } from "@/hooks/wallet/use-wallet-pda";
 import { copy } from "@/lib/copy/phygital";
 import {
+  applyOptimisticFeeBalance,
   applyOptimisticPortfolioDelta,
   applyOptimisticWalletActivity,
   invalidateWalletBalances,
   patchOptimisticWalletActivity,
+  restoreFeeBalanceSnapshot,
   restorePortfolioSnapshot,
   restoreWalletActivitySnapshot,
   type WalletActivitySnapshot,
@@ -26,6 +28,7 @@ import {
 import { toUserErrorMessage } from "@/lib/user-errors";
 import { topUpFeeBalance } from "@/lib/wallet/top-up-fee-balance";
 import { NATIVE_SOL_MINT } from "@/lib/tokens/payment-token";
+import type { FeeBalance } from "@/lib/wallet/fee-balance-client";
 import type { WalletPortfolio } from "@/lib/wallet/portfolio-types";
 import {
   walletSignPhaseCopy,
@@ -64,6 +67,7 @@ export function FeeBalanceSheet({
     let submittedSignature: string | null = null;
     let portfolioBefore: WalletPortfolio | undefined;
     let activityBefore: WalletActivitySnapshot | undefined;
+    let feeBefore: FeeBalance | undefined;
     try {
       const { signature, confirmed } = await topUpFeeBalance({
         phygitalTokenPda,
@@ -78,6 +82,11 @@ export function FeeBalanceSheet({
       });
       submittedSignature = signature;
       setPhase("holding");
+      feeBefore = applyOptimisticFeeBalance(queryClient, {
+        token: phygitalTokenPda,
+        amountUi: amount,
+        direction: "in",
+      });
       if (walletAddress) {
         activityBefore = applyOptimisticWalletActivity(queryClient, {
           id: signature,
@@ -100,7 +109,6 @@ export function FeeBalanceSheet({
           pending: true,
           source: "local",
         });
-        // SOL leaves the wallet on submit; fee credit stays invalidate-only (webhook).
         portfolioBefore = applyOptimisticPortfolioDelta(queryClient, {
           owner: walletAddress,
           mint: NATIVE_SOL_MINT,
@@ -127,9 +135,12 @@ export function FeeBalanceSheet({
       });
     } catch (e) {
       setSignPhase(null);
-      if (submittedSignature && walletAddress) {
-        restorePortfolioSnapshot(queryClient, walletAddress, portfolioBefore);
-        restoreWalletActivitySnapshot(queryClient, activityBefore);
+      if (submittedSignature) {
+        restoreFeeBalanceSnapshot(queryClient, phygitalTokenPda, feeBefore);
+        if (walletAddress) {
+          restorePortfolioSnapshot(queryClient, walletAddress, portfolioBefore);
+          restoreWalletActivitySnapshot(queryClient, activityBefore);
+        }
       }
       setPhase("form");
       if (e instanceof PolicyDeniedError) {

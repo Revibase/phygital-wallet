@@ -1,4 +1,4 @@
-/** Display / “low balance” floor (~0.001 SOL). */
+/** Display / “low balance” floor and starter grant (~0.001 SOL). */
 export const FEE_BALANCE_LOW_LAMPORTS = 1_000_000;
 
 export const MEMO_PROGRAM_ADDRESS =

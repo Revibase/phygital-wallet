@@ -22,7 +22,9 @@ export type MutationBinding =
   | { kind: "setPolicy"; policy: PolicyDocument }
   | { kind: "clearPolicy" }
   | { kind: "createGrant"; intentHash: string }
-  | { kind: "removeOwner" };
+  | { kind: "removeOwner" }
+  /** Owner step-up to co-sign a config tx (token verifier / recovery wallet). */
+  | { kind: "cosignConfig"; messageHash: string };
 
 export function resolveWebAuthnRp(originHeader: string | null): {
   rpId: string;
@@ -75,6 +77,9 @@ function normalizeBindingHashInput(binding: MutationBinding): MutationBinding {
   }
   if (binding.kind === "addOwner") {
     return { kind: "addOwner", credentialId: binding.credentialId.trim() };
+  }
+  if (binding.kind === "cosignConfig") {
+    return { kind: "cosignConfig", messageHash: binding.messageHash.trim() };
   }
   return binding;
 }

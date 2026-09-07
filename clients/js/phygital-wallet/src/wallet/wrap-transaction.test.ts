@@ -342,6 +342,10 @@ describe("createVerifierEndpointSigner", () => {
     ]);
 
     expect(signatures[CONFIG_VERIFIER]).toHaveLength(64);
+    expect(mockFetch).toHaveBeenCalledWith(
+      "https://example.com/sign",
+      expect.objectContaining({ method: "POST" }),
+    );
   });
 
   it("uses the default Revi endpoint for config verifiers", async () => {

@@ -15,6 +15,8 @@ export type TokenVerifierStatus = {
   custom: boolean;
   verifier: string | null;
   endpoint: string | null;
+  /** Rent payer of the override PDA (for clear). */
+  payer: string | null;
 };
 
 /** On-chain token verifier override for a phygital token (signing settings). */
@@ -27,12 +29,18 @@ export function useTokenVerifier(phygitalToken: string | null) {
       const [pda] = await findTokenVerifierPda({ phygitalToken: token });
       const account = await fetchMaybeTokenVerifier(rpc, pda);
       if (!account.exists) {
-        return { custom: false, verifier: null, endpoint: null };
+        return {
+          custom: false,
+          verifier: null,
+          endpoint: null,
+          payer: null,
+        };
       }
       return {
         custom: true,
         verifier: String(account.data.verifier),
         endpoint: account.data.endpoint || null,
+        payer: String(account.data.payer),
       };
     },
     enabled: Boolean(phygitalToken),

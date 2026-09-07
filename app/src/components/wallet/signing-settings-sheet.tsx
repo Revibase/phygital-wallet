@@ -8,16 +8,13 @@ import { toast } from "sonner";
 import {
   buildClearTokenVerifierChallenge,
   buildSetTokenVerifierChallenge,
-  getClearTokenVerifierInstructions,
-  getSetTokenVerifierInstructions,
 } from "phygital-wallet-sdk";
 import {
   authenticatePasskeyForSecp256r1Verify,
   buildSecp256r1VerifyInstruction,
 } from "phygital-token-sdk";
 
-import { NfcHoldStatus } from "@/components/shared/nfc-hold-status";
-import { CeremonyShell } from "@/components/shared/ceremony-shell";
+import { ConfigChangeHoldCeremony } from "@/components/wallet/config-change-hold-ceremony";
 import { NavBar, NavBarBack } from "@/components/shared/nav-bar";
 import { Button } from "@/components/ui/button";
 import { FieldLabel, Input } from "@/components/ui/input";
@@ -32,6 +29,11 @@ import { getSolanaRpc } from "@/lib/solana/rpc";
 import { sendTransaction } from "@/lib/solana/tx";
 import { tryParseAddress } from "@/lib/solana/address";
 import { toUserErrorMessage } from "@/lib/user-errors";
+import { handleOwnerAuthFailure } from "@/lib/wallet/device-sign-in-href";
+import {
+  getClearTokenVerifierInstructions,
+  getSetTokenVerifierInstructions,
+} from "@/lib/wallet/token-verifier";
 import { createAppVerifierSigner } from "@/lib/wallet/verifier-fee-payer";
 
 type View = "menu" | "warn" | "custom" | "holding" | "success";
@@ -49,6 +51,7 @@ export function SigningSettingsSheet({
   const [endpoint, setEndpoint] = useState("https://");
   const [verifier, setVerifier] = useState("");
   const [acked, setAcked] = useState(false);
+  const [needsPhoneConfirm, setNeedsPhoneConfirm] = useState(false);
 
   const verifierStatus = useTokenVerifier(phygitalTokenPda);
   const isCustom = verifierStatus.data?.custom === true;
@@ -72,21 +75,23 @@ export function SigningSettingsSheet({
     try {
       const rpc = getSolanaRpc();
       const tokenPda = address(phygitalTokenPda);
-      const feePayer = await createAppVerifierSigner(rpc, tokenPda);
-      const { slotNumber, messageHash } = await buildSetTokenVerifierChallenge(
-        rpc,
-        tokenPda,
-        verifierAddr,
-        endpoint.trim(),
-      );
+      const [signer, { slotNumber, messageHash }] = await Promise.all([
+        createAppVerifierSigner(rpc, tokenPda),
+        buildSetTokenVerifierChallenge(
+          rpc,
+          tokenPda,
+          verifierAddr,
+          endpoint.trim(),
+        ),
+      ]);
+      setNeedsPhoneConfirm(signer.requiresOwnerCosignAssertion);
       const tap = await authenticatePasskeyForSecp256r1Verify({
         rpc,
         messageHash,
       });
       const verify = await buildSecp256r1VerifyInstruction(tap);
       const instructions = await getSetTokenVerifierInstructions({
-        rpc,
-        payer: feePayer,
+        verifier: signer,
         overrideVerifier: verifierAddr,
         endpoint: endpoint.trim(),
         passkeyAuth: {
@@ -98,13 +103,14 @@ export function SigningSettingsSheet({
       });
       const { confirmed } = await sendTransaction({
         instructions,
-        feePayer,
+        feePayer: signer,
       });
       await confirmed;
       afterSigningTxConfirmed();
       setView("success");
       toast.success(copy.wallet.signingCustomSaved);
     } catch (e) {
+      if (handleOwnerAuthFailure(phygitalTokenPda, e)) return;
       setView("custom");
       toast.error(toUserErrorMessage(e));
     }
@@ -115,9 +121,11 @@ export function SigningSettingsSheet({
     try {
       const rpc = getSolanaRpc();
       const tokenPda = address(phygitalTokenPda);
-      const feePayer = await createAppVerifierSigner(rpc, tokenPda);
-      const { slotNumber, messageHash } =
-        await buildClearTokenVerifierChallenge(rpc, tokenPda);
+      const [signer, { slotNumber, messageHash }] = await Promise.all([
+        createAppVerifierSigner(rpc, tokenPda),
+        buildClearTokenVerifierChallenge(rpc, tokenPda),
+      ]);
+      setNeedsPhoneConfirm(signer.requiresOwnerCosignAssertion);
       const tap = await authenticatePasskeyForSecp256r1Verify({
         rpc,
         messageHash,
@@ -125,6 +133,10 @@ export function SigningSettingsSheet({
       const verify = await buildSecp256r1VerifyInstruction(tap);
       const instructions = await getClearTokenVerifierInstructions({
         rpc,
+        verifier: signer,
+        rentReceiver: verifierStatus.data?.payer
+          ? address(verifierStatus.data.payer)
+          : undefined,
         passkeyAuth: {
           secp256r1VerifyInstruction: verify.secp256r1VerifyInstruction,
           phygitalTokenPda: verify.phygitalTokenPda,
@@ -134,13 +146,14 @@ export function SigningSettingsSheet({
       });
       const { confirmed } = await sendTransaction({
         instructions,
-        feePayer,
+        feePayer: signer,
       });
       await confirmed;
       afterSigningTxConfirmed();
       setView("success");
       toast.success(copy.wallet.signingRestored);
     } catch (e) {
+      if (handleOwnerAuthFailure(phygitalTokenPda, e)) return;
       setView("menu");
       toast.error(toUserErrorMessage(e));
     }
@@ -148,40 +161,17 @@ export function SigningSettingsSheet({
 
   if (view === "holding" || view === "success") {
     return (
-      <CeremonyShell
-        leading={
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="self-start"
-            onClick={onClose}
-          >
-            {copy.common.cancel}
+      <ConfigChangeHoldCeremony
+        phase={view}
+        needsPhoneConfirm={needsPhoneConfirm}
+        onLeadingClick={onClose}
+        leadingLabel={copy.common.cancel}
+        successAction={
+          <Button type="button" size="lg" className="w-full" onClick={onClose}>
+            {copy.common.done}
           </Button>
         }
-      >
-        <NfcHoldStatus
-          size="lg"
-          pulsing={view === "holding"}
-          busy={view === "holding"}
-          tone={view === "success" ? "success" : "default"}
-          title={view === "success" ? copy.common.done : copy.wallet.holdToSave}
-          body={view === "success" ? undefined : copy.verify.holdStillBody}
-          action={
-            view === "success" ? (
-              <Button
-                type="button"
-                size="lg"
-                className="w-full"
-                onClick={onClose}
-              >
-                {copy.common.done}
-              </Button>
-            ) : undefined
-          }
-        />
-      </CeremonyShell>
+      />
     );
   }
 

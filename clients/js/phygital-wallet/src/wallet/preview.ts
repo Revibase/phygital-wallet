@@ -42,7 +42,6 @@ export async function previewWalletIntent(args: {
   const response = await httpFetch(verifierPreviewUrl(args.endpoint), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    credentials: "include",
     body: JSON.stringify({
       phygitalToken: String(args.phygitalToken),
       instructions: args.instructions.map((ix) => ({

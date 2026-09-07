@@ -91,7 +91,14 @@ export type TokenSignerRpc = {
         httpStatus?: number;
       }
   >;
-  signTransactions(wires: string[]): Promise<
+  signTransactions(
+    wires: string[],
+    auth?: {
+      challengeId?: string | null;
+      assertion?: unknown;
+      origin?: string | null;
+    },
+  ): Promise<
     | { ok: true; signatures: string[] }
     | {
         ok: false;

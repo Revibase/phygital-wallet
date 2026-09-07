@@ -4,14 +4,17 @@ import type { PolicyDocument } from "phygital-verifier-sdk";
 
 import { queryKeys } from "./index";
 import {
+  applyOptimisticFeeBalance,
   applyOptimisticPortfolioDelta,
   applyOptimisticWalletActivity,
   applyWalletPolicy,
   invalidatePhygitalToken,
   patchOptimisticWalletActivity,
+  restoreFeeBalanceSnapshot,
   restorePortfolioSnapshot,
   restoreWalletActivitySnapshot,
 } from "./mutations";
+import type { FeeBalance } from "@/lib/wallet/fee-balance-client";
 import type {
   WalletActivityItem,
   WalletPortfolio,
@@ -196,5 +199,32 @@ describe("applyOptimisticWalletActivity / restoreWalletActivitySnapshot", () => 
 
     restoreWalletActivitySnapshot(qc, snapshot);
     expect(qc.getQueryData(key)).toBeUndefined();
+  });
+});
+
+describe("applyOptimisticFeeBalance / restoreFeeBalanceSnapshot", () => {
+  it("credits lamports and restores the prior snapshot", () => {
+    const qc = new QueryClient();
+    const key = queryKeys.feeBalance.byToken("token");
+    const previous: FeeBalance = {
+      balanceLamports: 500_000,
+      balanceUi: "0.0005",
+      low: true,
+    };
+    qc.setQueryData(key, previous);
+
+    const snapshot = applyOptimisticFeeBalance(qc, {
+      token: "token",
+      amountUi: "0.01",
+      direction: "in",
+    });
+
+    expect(snapshot).toEqual(previous);
+    const next = qc.getQueryData<FeeBalance>(key);
+    expect(next?.balanceLamports).toBe(10_500_000);
+    expect(next?.low).toBe(false);
+
+    restoreFeeBalanceSnapshot(qc, "token", snapshot);
+    expect(qc.getQueryData(key)).toEqual(previous);
   });
 });

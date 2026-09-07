@@ -9,7 +9,11 @@ import type { PolicyDocument } from "phygital-verifier-sdk";
 
 import { createVerifierSignerBackend } from "@/backend/create";
 import type { VerifierSignerBackend } from "@/backend/types";
+import {
+  resolveVerifierFeeContext,
+} from "@/fees/default-verifier";
 import { assertFeeBalance } from "@/fees/fee-balance-gate";
+import { bytesToBase64Url } from "@/shared/crypto/base64";
 import { createLogger, withLoggedRpc, type Logger } from "@/shared/log";
 import { runWithRequestStore } from "@/shared/request-context";
 import { authorizeIntent } from "@/verifier/approval";
@@ -41,20 +45,26 @@ type AddOwnerInput = {
   mint?: string | null;
 };
 
-type AddOwnerResult =
-  | { ok: true }
-  | { ok: false; code: string; error: string };
+type AddOwnerResult = { ok: true } | { ok: false; code: string; error: string };
 
 type MutationResult<T = unknown> =
   | ({ ok: true } & T)
-  | { ok: false; code: string; error: string; details?: Record<string, unknown> };
+  | {
+      ok: false;
+      code: string;
+      error: string;
+      details?: Record<string, unknown>;
+    };
 
 /** Resolve DO name / token from Durable Object id (name-based ids). */
 function tokenFromName(name: string | null | undefined): string {
   if (!name?.trim()) {
-    throw Object.assign(new Error("TokenSigner requires idFromName(phygitalToken)"), {
-      code: "signer_misconfigured",
-    });
+    throw Object.assign(
+      new Error("TokenSigner requires idFromName(phygitalToken)"),
+      {
+        code: "signer_misconfigured",
+      },
+    );
   }
   return name.trim();
 }
@@ -138,8 +148,10 @@ export class TokenSigner extends DurableObject<Env> {
   // --- reads (no auth) ---
 
   async getPolicy(): Promise<EffectivePolicy> {
-    return this.#rpc("getPolicy", { phygitalToken: this.#getToken() }, async () =>
-      this.#getStore().getEffectivePolicy(),
+    return this.#rpc(
+      "getPolicy",
+      { phygitalToken: this.#getToken() },
+      async () => this.#getStore().getEffectivePolicy(),
     );
   }
 
@@ -147,13 +159,17 @@ export class TokenSigner extends DurableObject<Env> {
     return this.#rpc(
       "getFeeBalance",
       { phygitalToken: this.#getToken() },
-      async () => ({ balanceLamports: this.#getStore().getFeeBalanceLamports() }),
+      async () => ({
+        balanceLamports: this.#getStore().getFeeBalanceLamports(),
+      }),
     );
   }
 
   async hasOwner(): Promise<boolean> {
-    return this.#rpc("hasOwner", { phygitalToken: this.#getToken() }, async () =>
-      this.#getStore().hasOwner(),
+    return this.#rpc(
+      "hasOwner",
+      { phygitalToken: this.#getToken() },
+      async () => this.#getStore().hasOwner(),
     );
   }
 
@@ -176,11 +192,13 @@ export class TokenSigner extends DurableObject<Env> {
 
   // --- claim owner (WebAuthn; api gates device session) ---
 
-  async addOwner(input: AddOwnerInput & {
-    challengeId: string;
-    assertion: AuthenticationResponseJSON;
-    origin: string;
-  }): Promise<AddOwnerResult> {
+  async addOwner(
+    input: AddOwnerInput & {
+      challengeId: string;
+      assertion: AuthenticationResponseJSON;
+      origin: string;
+    },
+  ): Promise<AddOwnerResult> {
     return this.#rpc(
       "addOwner",
       {
@@ -332,7 +350,9 @@ export class TokenSigner extends DurableObject<Env> {
     challengeId: string;
     assertion: AuthenticationResponseJSON;
     origin: string;
-  }): Promise<MutationResult<{ grantId: string; expiresAt: number; intentHash: string }>> {
+  }): Promise<
+    MutationResult<{ grantId: string; expiresAt: number; intentHash: string }>
+  > {
     return this.#rpc(
       "createGrant",
       {
@@ -353,7 +373,10 @@ export class TokenSigner extends DurableObject<Env> {
         if (!auth.ok) {
           return { ok: false, code: auth.code, error: auth.error };
         }
-        const ttlSeconds = Math.min(Math.max(input.ttlSeconds ?? 300, 60), 3600);
+        const ttlSeconds = Math.min(
+          Math.max(input.ttlSeconds ?? 300, 60),
+          3600,
+        );
         const grant = this.#getStore().createGrant(intentHash, ttlSeconds);
         return {
           ok: true,
@@ -424,9 +447,7 @@ export class TokenSigner extends DurableObject<Env> {
 
   // --- fees ---
 
-  async applyFeeEvents(
-    events: FeeEvent[],
-  ): Promise<{ applied: number }> {
+  async applyFeeEvents(events: FeeEvent[]): Promise<{ applied: number }> {
     return this.#rpc(
       "applyFeeEvents",
       { phygitalToken: this.#getToken(), events: events.length },
@@ -504,12 +525,20 @@ export class TokenSigner extends DurableObject<Env> {
     );
   }
 
-  async signTransactions(wires: string[]): Promise<SignTransactionsResult> {
+  async signTransactions(
+    wires: string[],
+    auth: {
+      challengeId?: string;
+      assertion?: AuthenticationResponseJSON;
+      origin?: string;
+    } = {},
+  ): Promise<SignTransactionsResult> {
     return this.#rpc(
       "signTransactions",
       {
         phygitalToken: this.#getToken(),
         transactions: Array.isArray(wires) ? wires.length : 0,
+        hasOwnerAssertion: Boolean(auth.challengeId?.trim() && auth.assertion),
       },
       () =>
         this.#withEnv(async () => {
@@ -528,17 +557,33 @@ export class TokenSigner extends DurableObject<Env> {
 
             const backend = this.#getBackend();
             const signatures: string[] = [];
+            let kindSeen: "execute" | "config" | null = null;
 
             for (const wire of wires) {
               const decoded = decodeWireTransaction(wire);
               this.#bindToken(decoded.phygitalToken);
+
+              if (kindSeen && kindSeen !== decoded.kind) {
+                return {
+                  ok: false as const,
+                  status: 400,
+                  body: {
+                    error:
+                      "Transaction batch mixes execute with a config change",
+                    code: "unexpected_instruction",
+                    soft: false,
+                  },
+                };
+              }
+              kindSeen = decoded.kind;
 
               if (!(await backend.canSign(decoded.verifier))) {
                 return {
                   ok: false as const,
                   status: 403,
                   body: {
-                    error: "Transaction verifier does not match this signing service",
+                    error:
+                      "Transaction verifier does not match this signing service",
                     code: "verifier_mismatch",
                     soft: false,
                     details: {
@@ -549,47 +594,131 @@ export class TokenSigner extends DurableObject<Env> {
                 };
               }
 
-              const fee = await assertFeeBalance({
-                phygitalToken: decoded.phygitalToken,
-                instructions: decoded.instructions,
-              });
-              if (!fee.ok) {
-                return {
-                  ok: false as const,
-                  status: 403,
-                  body: {
-                    error: fee.error,
-                    code: fee.code,
-                    soft: fee.soft,
-                    details: {
-                      ...fee.details,
-                      phygitalToken: decoded.phygitalToken,
+              // Config (token verifier / recovery wallet): fee first so a deny
+              // never consumes WebAuthn. Owner assertion only when co-signer is
+              // a Config default verifier. Standing spend policy does not apply.
+              if (decoded.kind === "config") {
+                if (wires.length !== 1) {
+                  return {
+                    ok: false as const,
+                    status: 400,
+                    body: {
+                      error: "Config co-sign accepts exactly one transaction",
+                      code: "invalid_transaction",
+                      soft: false,
                     },
-                  },
-                };
-              }
+                  };
+                }
 
-              const result = await authorizeIntent({
-                phygitalToken: decoded.phygitalToken,
-                instructions: decoded.instructions,
-                mode: "sign",
-              });
+                const feeCtx = await resolveVerifierFeeContext({
+                  phygitalToken: decoded.phygitalToken,
+                  verifier: decoded.verifier,
+                });
 
-              if (!result.ok) {
-                return {
-                  ok: false as const,
-                  status: 403,
-                  body: {
-                    error: result.error,
-                    code: result.code,
-                    soft: result.soft,
-                    details: {
-                      ...result.details,
-                      phygitalToken: decoded.phygitalToken,
-                      intentHash: result.intentHash,
+                const fee = await assertFeeBalance({
+                  phygitalToken: decoded.phygitalToken,
+                  instructions: decoded.instructions,
+                  usesDefaultPaymaster: feeCtx.usesDefaultPaymaster,
+                });
+                if (!fee.ok) {
+                  return {
+                    ok: false as const,
+                    status: 403,
+                    body: {
+                      error: fee.error,
+                      code: fee.code,
+                      soft: fee.soft,
+                      details: {
+                        ...fee.details,
+                        phygitalToken: decoded.phygitalToken,
+                      },
                     },
-                  },
-                };
+                  };
+                }
+
+                if (feeCtx.isConfigDefault) {
+                  const challengeId = auth.challengeId?.trim() ?? "";
+                  const origin = auth.origin?.trim() ?? "";
+                  if (!challengeId || !auth.assertion || !origin) {
+                    return {
+                      ok: false as const,
+                      status: 401,
+                      body: {
+                        error: "Confirm on this phone to continue.",
+                        code: "owner_assertion_required",
+                        soft: false,
+                      },
+                    };
+                  }
+
+                  const messageHash = bytesToBase64Url(decoded.messageBytes);
+                  const authResult = await verifyMutationAssertion({
+                    store: this.#getStore(),
+                    challengeId,
+                    binding: { kind: "cosignConfig", messageHash },
+                    assertion: auth.assertion,
+                    origin,
+                  });
+                  if (!authResult.ok) {
+                    return {
+                      ok: false as const,
+                      status:
+                        authResult.code === "not_owner"
+                          ? 403
+                          : authResult.code === "challenge_invalid"
+                            ? 401
+                            : 400,
+                      body: {
+                        error: authResult.error,
+                        code: authResult.code,
+                        soft: false,
+                      },
+                    };
+                  }
+                }
+              } else {
+                const fee = await assertFeeBalance({
+                  phygitalToken: decoded.phygitalToken,
+                  instructions: decoded.instructions,
+                });
+                if (!fee.ok) {
+                  return {
+                    ok: false as const,
+                    status: 403,
+                    body: {
+                      error: fee.error,
+                      code: fee.code,
+                      soft: fee.soft,
+                      details: {
+                        ...fee.details,
+                        phygitalToken: decoded.phygitalToken,
+                      },
+                    },
+                  };
+                }
+
+                const result = await authorizeIntent({
+                  phygitalToken: decoded.phygitalToken,
+                  instructions: decoded.instructions,
+                  mode: "sign",
+                });
+
+                if (!result.ok) {
+                  return {
+                    ok: false as const,
+                    status: 403,
+                    body: {
+                      error: result.error,
+                      code: result.code,
+                      soft: result.soft,
+                      details: {
+                        ...result.details,
+                        phygitalToken: decoded.phygitalToken,
+                        intentHash: result.intentHash,
+                      },
+                    },
+                  };
+                }
               }
 
               signatures.push(

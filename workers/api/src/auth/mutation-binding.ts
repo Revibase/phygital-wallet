@@ -11,7 +11,8 @@ export type MutationBinding =
   | { kind: "setPolicy"; policy: PolicyDocument }
   | { kind: "clearPolicy" }
   | { kind: "createGrant"; intentHash: string }
-  | { kind: "removeOwner" };
+  | { kind: "removeOwner" }
+  | { kind: "cosignConfig"; messageHash: string };
 
 /** Owner-settings bindings only — claim uses `addOwner` via device routes. */
 export function parseMutationBinding(
@@ -32,5 +33,11 @@ export function parseMutationBinding(
     return { kind: "createGrant", intentHash };
   }
   if (kind === "removeOwner") return { kind: "removeOwner" };
+  if (kind === "cosignConfig") {
+    const messageHash =
+      typeof raw.messageHash === "string" ? raw.messageHash.trim() : "";
+    if (!messageHash) return null;
+    return { kind: "cosignConfig", messageHash };
+  }
   return null;
 }

@@ -1,24 +1,26 @@
 /**
  * Post-mutation cache updates for React Query.
  *
- * Prefer invalidate for chain/API-derived balances (fees credit async via
- * webhook; portfolio shapes are hard to patch safely). Prefer setQueryData
- * only when the client already knows the exact next value (policy PUT).
- *
- * For sends/receives: applyOptimisticPortfolioDelta + applyOptimisticWalletActivity
- * as soon as the RPC accepts the tx; restore snapshots if confirmation fails;
- * invalidate on land.
+ * Prefer setQueryData when the client already knows the next value (policy
+ * PUT, optimistic portfolio/activity/fee patches). Prefer invalidate for
+ * shapes that are hard to patch safely. For sends/receives/fee top-ups:
+ * patch on submit, restore on failed confirm, invalidate after land.
  */
 
 import type { QueryClient, QueryKey } from "@tanstack/react-query";
 
 import { formatTokenAmount, uiAmountToRaw } from "@/lib/tokens/amount";
 import type { PaymentTokenHolding } from "@/lib/tokens/payment-token";
+import type { FeeBalance } from "@/lib/wallet/fee-balance-client";
 import type {
   WalletActivityItem,
   WalletPortfolio,
 } from "@/lib/wallet/portfolio-types";
 import type { EffectivePolicy } from "@/lib/wallet/policies-client";
+import {
+  FEE_BALANCE_LOW_LAMPORTS,
+  lamportsToSolUi,
+} from "@/lib/wallet/network-fee";
 
 import { queryKeys } from "./keys";
 
@@ -119,6 +121,57 @@ export function restorePortfolioSnapshot(
   previous: WalletPortfolio | undefined,
 ): void {
   const key = queryKeys.walletPortfolio.byOwner(owner);
+  if (previous === undefined) {
+    void queryClient.invalidateQueries({ queryKey: key });
+    return;
+  }
+  queryClient.setQueryData(key, previous);
+}
+
+const SOL_DECIMALS = 9;
+
+/**
+ * Credit or debit prepaid network fees. Returns the previous cache value so
+ * callers can restoreFeeBalanceSnapshot if the tx does not land.
+ */
+export function applyOptimisticFeeBalance(
+  queryClient: QueryClient,
+  args: {
+    token: string;
+    amountUi: string;
+    direction: "in" | "out";
+  },
+): FeeBalance | undefined {
+  const key = queryKeys.feeBalance.byToken(args.token);
+  const previous = queryClient.getQueryData<FeeBalance>(key);
+  queryClient.setQueryData<FeeBalance>(key, (prev) => {
+    try {
+      const delta = Number(uiAmountToRaw(args.amountUi, SOL_DECIMALS));
+      if (!Number.isFinite(delta) || delta <= 0) return prev;
+      const current = prev?.balanceLamports ?? 0;
+      const nextLamports =
+        args.direction === "out"
+          ? Math.max(0, current - delta)
+          : current + delta;
+      return {
+        balanceLamports: nextLamports,
+        balanceUi: lamportsToSolUi(nextLamports),
+        low: nextLamports < FEE_BALANCE_LOW_LAMPORTS,
+      };
+    } catch {
+      return prev;
+    }
+  });
+  return previous;
+}
+
+/** Undo applyOptimisticFeeBalance after a failed confirmation. */
+export function restoreFeeBalanceSnapshot(
+  queryClient: QueryClient,
+  token: string,
+  previous: FeeBalance | undefined,
+): void {
+  const key = queryKeys.feeBalance.byToken(token);
   if (previous === undefined) {
     void queryClient.invalidateQueries({ queryKey: key });
     return;

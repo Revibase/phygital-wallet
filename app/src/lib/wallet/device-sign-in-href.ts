@@ -4,6 +4,7 @@ import {
   getQueryErrorStatus,
   QueryHttpError,
 } from "@/lib/queries/http";
+import { PolicyDeniedError } from "phygital-wallet-sdk";
 import {
   isPolicySetupScreen,
   parseTokenWalletPath,
@@ -56,7 +57,12 @@ export function deviceSignInHomeHref(args: {
 /** True when owner APIs need Home re-auth / re-link. */
 export function isOwnerAuthFailure(e: unknown): boolean {
   const status = getQueryErrorStatus(e);
-  const code = e instanceof QueryHttpError ? e.code : null;
+  const code =
+    e instanceof QueryHttpError
+      ? e.code
+      : e instanceof PolicyDeniedError
+        ? e.code
+        : null;
   return (
     status === 401 ||
     status === 403 ||

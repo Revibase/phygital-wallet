@@ -50,7 +50,21 @@ export function assertHttpsEndpoint(
 
 export function createVerifierEndpointSigner<TAddress extends Address>(
   verifierAddress: TAddress,
-  config: { /** Full `/sign` URL */ endpoint: string; fetch?: typeof fetch },
+  config: {
+    /** Full `/sign` URL */
+    endpoint: string;
+    fetch?: typeof fetch;
+    /**
+     * Optional fields merged into the POST `/sign` JSON body
+     * (e.g. `challengeId` + `assertion` for config cosign).
+     */
+    enrichSignBody?: (
+      transactions: readonly SignableTransaction[],
+    ) =>
+      | Record<string, unknown>
+      | undefined
+      | Promise<Record<string, unknown> | undefined>;
+  },
 ): TransactionPartialSigner<TAddress> {
   const httpFetch = config.fetch ?? fetch;
 
@@ -63,6 +77,7 @@ export function createVerifierEndpointSigner<TAddress extends Address>(
       options?.abortSignal?.throwIfAborted();
 
       const endpoint = assertHttpsEndpoint(config.endpoint);
+      const extra = (await config.enrichSignBody?.(transactions)) ?? {};
 
       const response = await httpFetch(endpoint, {
         method: "POST",
@@ -71,6 +86,7 @@ export function createVerifierEndpointSigner<TAddress extends Address>(
           transactions: transactions.map((transaction) =>
             getBase64EncodedWireTransaction(transaction),
           ),
+          ...extra,
         }),
         signal: options?.abortSignal,
       });
@@ -128,6 +144,11 @@ type ResolvedVerifier = {
   endpoint: string;
   configPda: Address;
   tokenVerifierPda: Address;
+  /**
+   * True when the co-signer pubkey is a Config default verifier.
+   * Host apps use this to require owner WebAuthn for config txs.
+   */
+  requiresOwnerCosignAssertion: boolean;
 };
 
 export async function resolveVerifier(
@@ -145,6 +166,17 @@ export async function resolveVerifier(
     configPda,
   ]);
 
+  const onChainConfig = decodeConfig(configEncoded);
+  const defaults = new Set<string>();
+  if (onChainConfig.exists) {
+    for (const v of onChainConfig.data.verifiers.slice(
+      0,
+      onChainConfig.data.verifierCount,
+    )) {
+      defaults.add(String(v));
+    }
+  }
+
   const tokenVerifier = decodeTokenVerifier(tokenVerifierEncoded);
   if (tokenVerifier.exists) {
     const apiBase = normalizeVerifierApiBase(
@@ -152,18 +184,19 @@ export async function resolveVerifier(
         maxLen: MAX_ENDPOINT_LEN,
       }),
     );
+    const verifierAddress = tokenVerifier.data.verifier;
     return {
-      verifier: createVerifierEndpointSigner(tokenVerifier.data.verifier, {
+      verifier: createVerifierEndpointSigner(verifierAddress, {
         endpoint: verifierSignUrl(apiBase),
         fetch: config.fetch,
       }),
       endpoint: apiBase,
       configPda,
       tokenVerifierPda,
+      requiresOwnerCosignAssertion: defaults.has(String(verifierAddress)),
     };
   }
 
-  const onChainConfig = decodeConfig(configEncoded);
   if (!onChainConfig.exists) {
     throw new Error("Phygital wallet config account not found");
   }
@@ -190,5 +223,6 @@ export async function resolveVerifier(
     endpoint: apiBase,
     configPda,
     tokenVerifierPda,
+    requiresOwnerCosignAssertion: true,
   };
 }

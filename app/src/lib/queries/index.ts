@@ -8,6 +8,7 @@
 export { shouldRetryQuery } from "./http";
 export { queryKeys } from "./keys";
 export {
+  applyOptimisticFeeBalance,
   applyOptimisticPortfolioDelta,
   applyOptimisticWalletActivity,
   applyWalletPolicy,
@@ -15,6 +16,7 @@ export {
   invalidateRpcDependentQueries,
   invalidateWalletBalances,
   patchOptimisticWalletActivity,
+  restoreFeeBalanceSnapshot,
   restorePortfolioSnapshot,
   restoreWalletActivitySnapshot,
   type WalletActivitySnapshot,

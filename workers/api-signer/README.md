@@ -17,7 +17,7 @@ It is **not** publicly routed. Only [`api`](../api/) calls it through the
 
 | Method | Auth | Behavior |
 |--------|------|----------|
-| `signTransactions(wires)` | none | canSign → fee → authorize(`sign`) → `backend.sign` |
+| `signTransactions(wires, { challengeId?, assertion?, origin? })` | config + Config default verifier: owner WebAuthn (`cosignConfig`); custom token verifier / execute: none | canSign → (config: fee → optional assertion) → (execute: fee → authorize) → `backend.sign` |
 | `previewAuthorize({ instructions })` | none | wallet PDA → authorize(`preview`) → fee |
 | `getPolicy` / `getFeeBalance` / `hasOwner` / `isOwner` / `getOwnerCredentialId` | none | reads |
 | `createMutationChallenge` | none (api gates session) | mint short-TTL challenge bound to write intent; returns `challengeId` + options |

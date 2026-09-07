@@ -5,6 +5,20 @@ export {
   type PhygitalWalletSignerConfig,
 } from "./wallet/signer.js";
 export { PolicyDeniedError } from "./wallet/preview.js";
+export {
+  assertHttpsEndpoint,
+  createVerifierEndpointSigner,
+  resolveVerifier,
+} from "./wallet/resolve-verifier.js";
+export {
+  normalizeVerifierApiBase,
+  verifierPreviewUrl,
+  verifierSignUrl,
+} from "./wallet/verifier-endpoint.js";
+export {
+  DEFAULT_VERIFIER_API_BASE,
+  MAX_ENDPOINT_LEN,
+} from "./constants.js";
 
 export {
   buildClearRecoveryWalletChallenge,
@@ -12,15 +26,5 @@ export {
   buildSetRecoveryWalletChallenge,
   buildSetTokenVerifierChallenge,
 } from "./utils/challenges.js";
-
-export {
-  getClearRecoveryWalletInstructions,
-  getSetRecoveryWalletInstructions,
-} from "./wallet/recovery-wallet.js";
-
-export {
-  getClearTokenVerifierInstructions,
-  getSetTokenVerifierInstructions,
-} from "./wallet/token-verifier.js";
 
 export * from "./generated/index.js";

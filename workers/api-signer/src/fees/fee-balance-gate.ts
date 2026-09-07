@@ -9,7 +9,7 @@ import type { Instruction } from "phygital-verifier-sdk";
 
 /**
  * Top-up intents (SOL → accumulator + optional memo) must not require fee
- * balance or empty wallets could never fund the paymaster.
+ * balance or empty wallets could never fund network fees.
  */
 function isFeeBalanceTopUpIntent(
   instructions: readonly Instruction[],
@@ -32,22 +32,27 @@ function isFeeBalanceTopUpIntent(
 }
 
 /**
- * Fee gate for default-verifier paymaster sponsorship.
+ * Fee gate for the default-verifier fee balance.
  * Evaluated inside the private signer Worker on both `/preview` and `/sign`.
- * On `/sign`, runs before authorize so a failed fee check cannot consume a grant.
- * On `/preview`, runs only after authorize succeeds (skip fee RPC on deny).
- * Does not debit — webhook debits after confirmed success.
+ * On `/sign` config: runs before owner WebAuthn so a fee deny cannot consume
+ * the challenge. On `/sign` execute: before authorize. On `/preview`: after
+ * authorize succeeds (skip fee RPC on deny). Does not debit — webhook debits
+ * after confirmed success.
  */
 export async function assertFeeBalance(args: {
   phygitalToken: string;
   instructions: readonly Instruction[];
+  /** Skip Solana lookup when already resolved for this request. */
+  usesDefaultPaymaster?: boolean;
 }) {
   const accumulator = getEnv().TOP_UP_ACCUMULATOR?.trim() ?? "";
   if (isFeeBalanceTopUpIntent(args.instructions, accumulator)) {
     return { ok: true as const };
   }
 
-  const usesDefault = await usesDefaultVerifierPaymaster(args.phygitalToken);
+  const usesDefault =
+    args.usesDefaultPaymaster ??
+    (await usesDefaultVerifierPaymaster(args.phygitalToken));
   if (!usesDefault) {
     return { ok: true as const };
   }
@@ -59,7 +64,7 @@ export async function assertFeeBalance(args: {
     return {
       ok: false as const,
       code: "insufficient_fee_balance",
-      error: "Fee balance is too low to sponsor this transaction",
+      error: "Fee balance is too low for this transaction",
       soft: false as const,
       details: { balanceLamports, requiredLamports },
     };

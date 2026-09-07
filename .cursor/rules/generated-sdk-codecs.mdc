@@ -1,0 +1,13 @@
+---
+description: Always use generated phygital-wallet SDK codecs — never hand-roll encode/decode
+alwaysApply: true
+---
+
+# Generated SDK encode / decode only
+
+When reading or writing Solana instruction/account bytes for `phygital-wallet` (or other Codama-generated clients in this repo):
+
+- **Do** use generated helpers: `parsePhygitalWalletInstruction`, `identifyPhygitalWalletInstruction`, `get*Instruction`, `get*InstructionDataEncoder` / `Decoder`, `parse*Instruction`, account `fetch*` / `decode*`.
+- **Do not** hand-roll discriminators, account index layouts, or custom byte parsers/encoders that duplicate generated code.
+- Prefer named accounts from parsed instructions (`parsed.accounts.verifier`) over magic indexes.
+- If a helper is missing, regenerate or extend Codama output — do not invent a parallel decoder.

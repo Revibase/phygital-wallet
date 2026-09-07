@@ -1,6 +1,12 @@
 import { queryFetch, readJson } from "@/lib/queries/http";
 
-export async function fetchFeeBalance(phygitalToken: string) {
+export type FeeBalance = {
+  balanceLamports: number;
+  balanceUi: string;
+  low: boolean;
+};
+
+export async function fetchFeeBalance(phygitalToken: string): Promise<FeeBalance> {
   const res = await queryFetch(
     `/tokens/fee-balance?phygitalToken=${encodeURIComponent(phygitalToken)}`,
   );

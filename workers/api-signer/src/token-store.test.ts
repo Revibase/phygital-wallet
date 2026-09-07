@@ -254,7 +254,11 @@ describe("hashMutationBinding", () => {
       kind: "addOwner",
       credentialId: "cred-a",
     });
-    expect(new Set([clear, unlink, grant, claim]).size).toBe(4);
+    const cosign = await hashMutationBinding({
+      kind: "cosignConfig",
+      messageHash: "msg-hash",
+    });
+    expect(new Set([clear, unlink, grant, claim, cosign]).size).toBe(5);
   });
 });
 
@@ -324,6 +328,7 @@ describe("TokenStore grants and fees", () => {
     initTokenSchema(sql);
     const store = new TokenStore(sql, "Token111");
     store.ensureToken("Token111");
+    expect(store.getFeeBalanceLamports()).toBe(1_000_000);
     expect(
       store.applyFeeEvent({
         signature: "sig:credit",
@@ -338,7 +343,18 @@ describe("TokenStore grants and fees", () => {
         lamports: 1000,
       }),
     ).toBe(false);
-    expect(store.getFeeBalanceLamports()).toBe(1000);
+    expect(store.getFeeBalanceLamports()).toBe(1_001_000);
+  });
+
+  it("seeds starter fee balance once on ensureToken", () => {
+    const sql = memorySql();
+    initTokenSchema(sql);
+    const store = new TokenStore(sql, "Token111");
+    expect(store.getFeeBalanceLamports()).toBe(0);
+    store.ensureToken("Token111");
+    expect(store.getFeeBalanceLamports()).toBe(1_000_000);
+    store.ensureToken("Token111");
+    expect(store.getFeeBalanceLamports()).toBe(1_000_000);
   });
 
   it("rejects second owner credential", () => {

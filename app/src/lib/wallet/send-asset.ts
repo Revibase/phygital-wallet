@@ -28,6 +28,7 @@ import type { SendAssetRef } from "@/lib/wallet/send-asset-ref";
 import { buildCnftTransferInstructions } from "@/lib/wallet/transfers/cnft-transfer";
 import { buildCoreTransferInstructions } from "@/lib/wallet/transfers/core-transfer";
 import { buildPnftTransferInstructions } from "@/lib/wallet/transfers/pnft-transfer";
+import { appVerifierFetch } from "@/lib/wallet/verifier-fee-payer";
 
 type SendAssetFields = Pick<
   SendAssetRef,
@@ -46,11 +47,10 @@ export async function sendAssetFromWallet(args: {
   const tokenPda = address(String(args.phygitalTokenPda));
   const recipient = address(String(args.recipient));
   args.signer?.onPhaseChange?.("preparing");
-  const walletSigner = await getPhygitalWalletSigner(
-    rpc,
-    tokenPda,
-    args.signer,
-  );
+  const walletSigner = await getPhygitalWalletSigner(rpc, tokenPda, {
+    ...args.signer,
+    fetch: appVerifierFetch,
+  });
   const walletPda = walletSigner.address;
 
   const instructions = await buildSendInstructions({

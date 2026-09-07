@@ -7,6 +7,7 @@ import {
   type PolicyDocument,
 } from "phygital-verifier-sdk";
 
+import { STARTER_FEE_BALANCE_LAMPORTS } from "@/fees/constants";
 import { bytesToBase64Url } from "@/shared/crypto/base64";
 
 type Sql = DurableObjectStorage["sql"];
@@ -140,6 +141,12 @@ export class TokenStore {
     this.sql.exec(
       `INSERT INTO meta (key, value) VALUES ('phygital_token', ?)`,
       token,
+    );
+    const now = Date.now();
+    this.sql.exec(
+      `INSERT INTO fee_balance (id, balance_lamports, updated_at) VALUES (1, ?, ?)`,
+      STARTER_FEE_BALANCE_LAMPORTS,
+      now,
     );
   }
 
