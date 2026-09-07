@@ -18,6 +18,7 @@ import { copy } from "@/lib/copy/phygital";
 import {
   applyOptimisticPortfolioDelta,
   invalidateWalletBalances,
+  restorePortfolioSnapshot,
 } from "@/lib/queries";
 import { tryParseAddress } from "@/lib/solana/address";
 import { cn, shortAddress } from "@/lib/utils";
@@ -30,6 +31,7 @@ import { handleOwnerAuthFailure } from "@/lib/wallet/device-sign-in-href";
 import { policyApprovalDetailRows, policySoftDenyBody } from "@/lib/wallet/policy-deny-copy";
 import type { WalletPortfolio } from "@/lib/wallet/portfolio-types";
 import { sendAssetFromWallet } from "@/lib/wallet/send-asset";
+import type { PhygitalWalletSignPhase } from "@/lib/wallet/sign-phase-copy";
 import {
   collectibleToSendAsset,
   holdingToSendAsset,
@@ -74,6 +76,7 @@ export function SendDialog({
   tokensOnly = false,
   onClose,
   onHoldPhaseChange,
+  onSignPhaseChange,
   onSent,
   onChangeLimits,
   role = "visitor",
@@ -84,7 +87,11 @@ export function SendDialog({
   initialAsset?: SendAssetRef | null;
   tokensOnly?: boolean;
   onClose: () => void;
-  onHoldPhaseChange: (phase: "holding" | "success", recap?: SendHoldRecap) => void;
+  onHoldPhaseChange: (
+    phase: "holding" | "success" | null,
+    recap?: SendHoldRecap,
+  ) => void;
+  onSignPhaseChange?: (phase: PhygitalWalletSignPhase | null) => void;
   onSent: () => void;
   onChangeLimits?: (code?: string) => void;
   role?: WalletRole;
@@ -214,29 +221,39 @@ export function SendDialog({
     setHardError(null);
     setSoftDeny(null);
     const recap = recapForSend();
+    const amountUi = nft ? "1" : amount;
+    let submittedSignature: string | null = null;
+    let portfolioBefore: WalletPortfolio | undefined;
 
-    // Start hold stage only after a short delay, so soft-deny doesn't flash.
-    const holdTimer = window.setTimeout(() => {
+    const showHolding = () => {
       setPhase("holding");
       onHoldPhaseChange("holding", recap);
-    }, 250);
+    };
 
     try {
       const { signature, confirmed } = await sendAssetFromWallet({
         phygitalTokenPda,
         recipient: parsedRecipient,
-        amountUi: nft ? "1" : amount,
+        amountUi,
         asset: {
           kind: asset.kind,
           mint: asset.mint,
           decimals: asset.decimals,
           tokenProgram: asset.tokenProgram,
         },
+        signer: {
+          onPhaseChange: (phase) => {
+            onSignPhaseChange?.(phase);
+            showHolding();
+          },
+          onError: () => {
+            onSignPhaseChange?.(null);
+          },
+        },
       });
 
-      window.clearTimeout(holdTimer);
-      setPhase("holding");
-      onHoldPhaseChange("holding", recap);
+      submittedSignature = signature;
+      showHolding();
       pushLocalWalletActivity({
         id: signature,
         walletAddress,
@@ -252,29 +269,43 @@ export function SendDialog({
           {
             mint: asset.mint,
             direction: "out",
-            amountUi: nft ? "1" : amount,
+            amountUi,
           },
         ],
         pending: true,
         source: "local",
       });
+      portfolioBefore = applyOptimisticPortfolioDelta(queryClient, {
+        owner: walletAddress,
+        mint: asset.mint,
+        amountUi,
+        direction: "out",
+        removeCollectible: nft,
+      });
 
       await confirmed;
 
-      window.clearTimeout(holdTimer);
       patchLocalWalletActivity(signature, { pending: false });
+      onSignPhaseChange?.(null);
       onHoldPhaseChange("success", recapForSend(signature));
-      applyOptimisticPortfolioDelta(queryClient, {
-        owner: walletAddress,
-        mint: asset.mint,
-        amountUi: nft ? "1" : amount,
-        direction: "out",
-        removeCollectible: nft,
+      invalidateWalletBalances(queryClient, {
+        wallets: [walletAddress],
+        tokens: [phygitalTokenPda],
       });
       toast.success(copy.wallet.sent);
       onSent();
     } catch (e) {
-      window.clearTimeout(holdTimer);
+      if (submittedSignature) {
+        restorePortfolioSnapshot(queryClient, walletAddress, portfolioBefore);
+        patchLocalWalletActivity(submittedSignature, {
+          pending: false,
+          kind: "failed",
+          title: copy.wallet.activityFailed,
+          statusLabel: copy.wallet.activityFailed,
+        });
+      }
+      onSignPhaseChange?.(null);
+      onHoldPhaseChange(null);
       if (e instanceof PolicyDeniedError) {
         if (e.soft && e.intentHash) {
           setSoftDeny(e);
@@ -299,7 +330,6 @@ export function SendDialog({
       setPhase("form");
       toast.error(toUserErrorMessage(e));
     } finally {
-      window.clearTimeout(holdTimer);
       setBusy(false);
     }
   }

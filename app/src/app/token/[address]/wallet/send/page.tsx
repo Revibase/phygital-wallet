@@ -18,6 +18,7 @@ import {
 } from "@/lib/wallet/send-asset-ref";
 import { tryParseAddress } from "@/lib/solana/address";
 import { settingsFromDenyCode } from "@/lib/wallet/token-routes";
+import type { PhygitalWalletSignPhase } from "@/lib/wallet/sign-phase-copy";
 
 export default function WalletSendPage() {
   const {
@@ -31,6 +32,9 @@ export default function WalletSendPage() {
   const portfolio = useWalletPortfolio(walletAddress);
   const searchParams = useSearchParams();
   const [holdPhase, setHoldPhase] = useState<"holding" | "success" | null>(
+    null,
+  );
+  const [signPhase, setSignPhase] = useState<PhygitalWalletSignPhase | null>(
     null,
   );
   const [recap, setRecap] = useState<SendHoldRecap | null>(null);
@@ -59,6 +63,7 @@ export default function WalletSendPage() {
       {holdPhase ? (
         <SendHoldStage
           phase={holdPhase}
+          signPhase={signPhase}
           imageSrc={initialAsset?.icon ?? collectible?.image}
           recap={recap}
           onClose={backHome}
@@ -74,8 +79,10 @@ export default function WalletSendPage() {
           onClose={backHome}
           onHoldPhaseChange={(phase, nextRecap) => {
             setHoldPhase(phase);
+            if (phase == null) setSignPhase(null);
             if (nextRecap) setRecap(nextRecap);
           }}
+          onSignPhaseChange={setSignPhase}
           onSent={() => {}}
           onChangeLimits={(code) => goSettings(settingsFromDenyCode(code))}
         />

@@ -65,6 +65,9 @@ export function ClaimItemSheet({
   const [elsewhere, setElsewhere] = useState(false);
   const [success, setSuccess] = useState(false);
   const [preferRegister, setPreferRegister] = useState(false);
+  const [enteredWithSession, setEnteredWithSession] = useState<boolean | null>(
+    null,
+  );
   const canAuth = platformAuthAvailable();
   const onClaimedRef = useRef(onClaimed);
   const finishedRef = useRef(false);
@@ -75,6 +78,11 @@ export function ClaimItemSheet({
     queryFn: fetchDeviceSession,
     ...queryOptions.deviceSession,
   });
+
+  useEffect(() => {
+    if (session.isPending || enteredWithSession !== null) return;
+    setEnteredWithSession(Boolean(session.data));
+  }, [session.isPending, session.data, enteredWithSession]);
 
   function finishClaimed() {
     if (finishedRef.current) return;
@@ -190,16 +198,19 @@ export function ClaimItemSheet({
         : signedIn
           ? copy.wallet.homeLinkConfirmBody
           : copy.wallet.claimBody;
+  const stepLabel = !signedIn
+    ? copy.wallet.setupStepPasskey
+    : enteredWithSession === false
+      ? copy.wallet.setupStepConfirm
+      : null;
 
   return (
     <CeremonyShell>
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 px-4 py-16 text-center">
         <div className="space-y-2">
-          <p className="text-eyebrow text-primary/80">
-            {signedIn
-              ? copy.wallet.setupStepLink
-              : copy.wallet.setupStepPasskey}
-          </p>
+          {stepLabel ? (
+            <p className="text-eyebrow text-primary/80">{stepLabel}</p>
+          ) : null}
           <h1 className="text-large-title tracking-tight">{title}</h1>
           <p className="mx-auto max-w-sm text-sm leading-relaxed text-muted-foreground">
             {body}

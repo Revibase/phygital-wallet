@@ -25,7 +25,17 @@ import {
   PolicyDeniedError,
 } from "phygital-wallet-sdk";
 
-const source = await getPhygitalWalletSigner(rpc, phygitalTokenPda);
+const source = await getPhygitalWalletSigner(rpc, phygitalTokenPda, {
+  onPhaseChange: (phase) => {
+    // preparing → previewing → awaitingPasskey → building → coSigning → complete
+  },
+  onPasskeyPrompt: () => {
+    // Show “Hold your accessory” before WebAuthn.
+  },
+  onError: (error) => {
+    // Update UI; error is still rethrown.
+  },
+});
 
 const instructions = [
   getTransferSolInstruction({

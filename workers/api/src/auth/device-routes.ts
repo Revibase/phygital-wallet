@@ -617,7 +617,6 @@ deviceAuthRoutes.delete("/auth/device/links/:phygitalToken", async (c) => {
 
     await deleteLink(session.credentialId, phygitalToken);
     await clearPendingApprovalsForToken(phygitalToken);
-    clearBrowseUnlockCookie(c);
     return json({ ok: true });
   } catch (err) {
     return json(

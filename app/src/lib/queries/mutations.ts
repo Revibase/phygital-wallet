@@ -4,6 +4,9 @@
  * Prefer invalidate for chain/API-derived balances (fees credit async via
  * webhook; portfolio shapes are hard to patch safely). Prefer setQueryData
  * only when the client already knows the exact next value (policy PUT).
+ *
+ * For sends/receives: applyOptimisticPortfolioDelta as soon as the RPC accepts
+ * the tx; restorePortfolioSnapshot if confirmation fails; invalidate on land.
  */
 
 import type { QueryClient } from "@tanstack/react-query";
@@ -55,7 +58,10 @@ function adjustHolding(
   }
 }
 
-/** Light optimistic portfolio patch before invalidate catches up. */
+/**
+ * Light optimistic portfolio patch. Returns the previous cache value so callers
+ * can restorePortfolioSnapshot if the tx does not land.
+ */
 export function applyOptimisticPortfolioDelta(
   queryClient: QueryClient,
   args: {
@@ -66,27 +72,41 @@ export function applyOptimisticPortfolioDelta(
     /** Remove collectible from cache instead of adjusting a fungible holding. */
     removeCollectible?: boolean;
   },
-): void {
-  queryClient.setQueryData<WalletPortfolio>(
-    queryKeys.walletPortfolio.byOwner(args.owner),
-    (prev) => {
-      if (!prev) return prev;
-      if (args.removeCollectible) {
-        return {
-          ...prev,
-          collectibles: prev.collectibles.filter((c) => c.mint !== args.mint),
-        };
-      }
+): WalletPortfolio | undefined {
+  const key = queryKeys.walletPortfolio.byOwner(args.owner);
+  const previous = queryClient.getQueryData<WalletPortfolio>(key);
+  queryClient.setQueryData<WalletPortfolio>(key, (prev) => {
+    if (!prev) return prev;
+    if (args.removeCollectible) {
       return {
         ...prev,
-        holdings: prev.holdings.map((h) =>
-          h.mint === args.mint
-            ? adjustHolding(h, args.amountUi, args.direction)
-            : h,
-        ),
+        collectibles: prev.collectibles.filter((c) => c.mint !== args.mint),
       };
-    },
-  );
+    }
+    return {
+      ...prev,
+      holdings: prev.holdings.map((h) =>
+        h.mint === args.mint
+          ? adjustHolding(h, args.amountUi, args.direction)
+          : h,
+      ),
+    };
+  });
+  return previous;
+}
+
+/** Undo applyOptimisticPortfolioDelta after a failed confirmation. */
+export function restorePortfolioSnapshot(
+  queryClient: QueryClient,
+  owner: string,
+  previous: WalletPortfolio | undefined,
+): void {
+  const key = queryKeys.walletPortfolio.byOwner(owner);
+  if (previous === undefined) {
+    void queryClient.invalidateQueries({ queryKey: key });
+    return;
+  }
+  queryClient.setQueryData(key, previous);
 }
 
 /** Portfolio + fee balance after a send, receive, or fee top-up. */

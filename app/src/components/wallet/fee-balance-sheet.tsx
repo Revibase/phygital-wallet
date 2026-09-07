@@ -14,11 +14,19 @@ import { Spinner } from "@/components/ui/spinner";
 import { useFeeBalance } from "@/hooks/wallet/use-fee-balance";
 import { useWalletPda } from "@/hooks/wallet/use-wallet-pda";
 import { copy } from "@/lib/copy/phygital";
-import { invalidateWalletBalances } from "@/lib/queries";
+import { invalidateWalletBalances, applyOptimisticPortfolioDelta, restorePortfolioSnapshot } from "@/lib/queries";
 import { toUserErrorMessage } from "@/lib/user-errors";
-import { pushLocalWalletActivity } from "@/lib/wallet/activity-local";
+import {
+  patchLocalWalletActivity,
+  pushLocalWalletActivity,
+} from "@/lib/wallet/activity-local";
 import { topUpFeeBalance } from "@/lib/wallet/top-up-fee-balance";
 import { NATIVE_SOL_MINT } from "@/lib/tokens/payment-token";
+import type { WalletPortfolio } from "@/lib/wallet/portfolio-types";
+import {
+  walletSignPhaseCopy,
+  type PhygitalWalletSignPhase,
+} from "@/lib/wallet/sign-phase-copy";
 
 type Phase = "form" | "holding" | "success";
 
@@ -35,6 +43,9 @@ export function FeeBalanceSheet({
   const queryClient = useQueryClient();
   const [amount, setAmount] = useState("0.01");
   const [phase, setPhase] = useState<Phase>("form");
+  const [signPhase, setSignPhase] = useState<PhygitalWalletSignPhase | null>(
+    null,
+  );
   const [busy, setBusy] = useState(false);
 
   const balanceUi = fee.data?.balanceUi ?? "0";
@@ -45,16 +56,23 @@ export function FeeBalanceSheet({
   async function runTopUp() {
     if (!canTopUp) return;
     setBusy(true);
-    const holdTimer = window.setTimeout(() => setPhase("holding"), 250);
+    setSignPhase(null);
+    let submittedSignature: string | null = null;
+    let portfolioBefore: WalletPortfolio | undefined;
     try {
       const { signature, confirmed } = await topUpFeeBalance({
         phygitalTokenPda,
         amountUi: amount,
+        signer: {
+          onPhaseChange: (phase) => {
+            setSignPhase(phase);
+            setPhase("holding");
+          },
+          onError: () => setSignPhase(null),
+        },
       });
-      window.clearTimeout(holdTimer);
+      submittedSignature = signature;
       setPhase("holding");
-      await confirmed;
-      setPhase("success");
       if (walletAddress) {
         pushLocalWalletActivity({
           id: signature,
@@ -74,18 +92,41 @@ export function FeeBalanceSheet({
               amountUi: amount,
             },
           ],
-          pending: false,
+          pending: true,
           source: "local",
         });
+        // SOL leaves the wallet on submit; fee credit stays invalidate-only (webhook).
+        portfolioBefore = applyOptimisticPortfolioDelta(queryClient, {
+          owner: walletAddress,
+          mint: NATIVE_SOL_MINT,
+          amountUi: amount,
+          direction: "out",
+        });
       }
+
+      await confirmed;
+
+      if (submittedSignature) {
+        patchLocalWalletActivity(submittedSignature, { pending: false });
+      }
+      setSignPhase(null);
+      setPhase("success");
       toast.success(copy.wallet.topUpSuccess);
-      // Fee credit is webhook-async; SOL left the wallet immediately.
       invalidateWalletBalances(queryClient, {
         wallets: [walletAddress],
         tokens: [phygitalTokenPda],
       });
     } catch (e) {
-      window.clearTimeout(holdTimer);
+      setSignPhase(null);
+      if (submittedSignature && walletAddress) {
+        restorePortfolioSnapshot(queryClient, walletAddress, portfolioBefore);
+        patchLocalWalletActivity(submittedSignature, {
+          pending: false,
+          kind: "failed",
+          title: copy.wallet.activityFailed,
+          statusLabel: copy.wallet.activityFailed,
+        });
+      }
       setPhase("form");
       if (e instanceof PolicyDeniedError) {
         toast.error(e.message);
@@ -93,12 +134,18 @@ export function FeeBalanceSheet({
         toast.error(toUserErrorMessage(e));
       }
     } finally {
-      window.clearTimeout(holdTimer);
       setBusy(false);
     }
   }
 
   if (phase === "holding" || phase === "success") {
+    const holdingCopy = signPhase
+      ? walletSignPhaseCopy(signPhase)
+      : {
+          title: copy.wallet.holdToTopUp,
+          body: copy.wallet.holdCeremonyBody,
+          pulse: true,
+        };
     return (
       <CeremonyShell
         leading={
@@ -113,19 +160,19 @@ export function FeeBalanceSheet({
       >
         <NfcHoldStatus
           size="lg"
-          pulsing={phase === "holding"}
-          busy={phase === "holding"}
+          pulsing={phase === "holding" && holdingCopy.pulse}
+          busy={phase === "holding" && !holdingCopy.pulse}
           progress={phase === "holding"}
           tone={phase === "success" ? "success" : "default"}
           title={
             phase === "success"
               ? copy.wallet.topUpSuccess
-              : copy.wallet.holdToTopUp
+              : holdingCopy.title
           }
           body={
             phase === "success"
               ? copy.wallet.topUpPending
-              : copy.wallet.holdCeremonyBody
+              : holdingCopy.body
           }
           action={
             phase === "success" ? (

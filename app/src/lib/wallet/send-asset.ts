@@ -11,7 +11,10 @@ import {
   getTransferCheckedInstruction,
 } from "@solana-program/token";
 import { getTransferCheckedInstruction as getTransferChecked2022 } from "@solana-program/token-2022";
-import { getPhygitalWalletSigner } from "phygital-wallet-sdk";
+import {
+  getPhygitalWalletSigner,
+  type PhygitalWalletSignerCallbacks,
+} from "phygital-wallet-sdk";
 
 import { getSolanaRpc } from "@/lib/solana/rpc";
 import { sendTransaction } from "@/lib/solana/tx";
@@ -36,11 +39,18 @@ export async function sendAssetFromWallet(args: {
   recipient: Address | string;
   amountUi: string;
   asset: SendAssetFields;
+  /** Ceremony UI hooks from `getPhygitalWalletSigner`. */
+  signer?: PhygitalWalletSignerCallbacks;
 }): Promise<{ signature: string; confirmed: Promise<void> }> {
   const rpc = getSolanaRpc();
   const tokenPda = address(String(args.phygitalTokenPda));
   const recipient = address(String(args.recipient));
-  const walletSigner = await getPhygitalWalletSigner(rpc, tokenPda);
+  args.signer?.onPhaseChange?.("preparing");
+  const walletSigner = await getPhygitalWalletSigner(
+    rpc,
+    tokenPda,
+    args.signer,
+  );
   const walletPda = walletSigner.address;
 
   const instructions = await buildSendInstructions({
@@ -67,6 +77,7 @@ export async function receiveAssetFromNearbyPayer(args: {
   recipientWallet: Address | string;
   amountUi: string;
   asset: SendAssetFields;
+  signer?: PhygitalWalletSignerCallbacks;
 }): Promise<{ signature: string; confirmed: Promise<void> }> {
   const payerToken = address(String(args.payerPhygitalTokenPda));
   const walletPda = await walletPdaForToken(payerToken);
@@ -79,6 +90,7 @@ export async function receiveAssetFromNearbyPayer(args: {
     recipient: args.recipientWallet,
     amountUi: args.amountUi,
     asset: args.asset,
+    signer: args.signer,
   });
 }
 

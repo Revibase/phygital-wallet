@@ -122,7 +122,7 @@ function HomePasskeyScreen({
     <CeremonyShell>
       <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center gap-6 px-4 py-16 text-center">
         <div className="relative z-10 space-y-2">
-          {setupMode ? (
+          {setupMode && claimMode ? (
             <p className="text-eyebrow text-primary/80">
               {copy.wallet.setupStepPasskey}
             </p>
@@ -275,9 +275,6 @@ function HomeLinkSetup({
     return (
       <CeremonyShell>
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-4 py-16 text-center">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {copy.wallet.setupStepLink}
-          </p>
           <h1 className="text-display-md tracking-tight">
             {copy.wallet.limitsLinkedElsewhereTitle}
           </h1>
@@ -303,9 +300,11 @@ function HomeLinkSetup({
       <CeremonyShell>
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 px-4 py-16 text-center">
           <div className="space-y-2">
-            <p className="text-eyebrow text-primary/80">
-              {copy.wallet.setupStepLink}
-            </p>
+            {claimMode ? (
+              <p className="text-eyebrow text-primary/80">
+                {copy.wallet.setupStepLink}
+              </p>
+            ) : null}
             <h1 className="text-large-title tracking-tight">
               {copy.wallet.homeLinkConfirmTitle}
             </h1>
@@ -356,7 +355,15 @@ function HomeLinkSetup({
 
   if (hold.isPending) {
     return (
-      <CeremonyShell>
+      <CeremonyShell
+        leading={
+          claimMode ? (
+            <p className="px-4 pt-4 text-center text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {copy.wallet.setupStepLink}
+            </p>
+          ) : undefined
+        }
+      >
         <NfcHoldStatus
           size="lg"
           pulsing
@@ -371,9 +378,11 @@ function HomeLinkSetup({
   return (
     <CeremonyShell
       leading={
-        <p className="px-4 pt-4 text-center text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {copy.wallet.setupStepLink}
-        </p>
+        claimMode ? (
+          <p className="px-4 pt-4 text-center text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            {copy.wallet.setupStepLink}
+          </p>
+        ) : undefined
       }
     >
       <NfcHoldStatus

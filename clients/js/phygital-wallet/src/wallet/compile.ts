@@ -6,12 +6,9 @@ import {
   type Address,
   type Instruction,
 } from "@solana/kit";
-
-import {
-  PHYGITAL_TOKEN_PROGRAM_ADDRESS,
-  PHYGITAL_WALLET_PROGRAM_ADDRESS,
-} from "../constants.js";
 import type { CompactInstructionArgs } from "../generated/types/compactInstruction.js";
+import { PHYGITAL_TOKEN_PROGRAM_ADDRESS } from "phygital-token-sdk";
+import { PHYGITAL_WALLET_PROGRAM_ADDRESS } from "../generated/programs/phygitalWallet.js";
 
 const DENIED_PROGRAMS = new Set<string>([
   PHYGITAL_WALLET_PROGRAM_ADDRESS,

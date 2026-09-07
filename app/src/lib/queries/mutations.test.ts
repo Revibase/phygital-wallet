@@ -3,11 +3,45 @@ import { QueryClient } from "@tanstack/react-query";
 import type { PolicyDocument } from "phygital-verifier-sdk";
 
 import { queryKeys } from "./index";
-import { applyWalletPolicy, invalidatePhygitalToken } from "./mutations";
+import {
+  applyOptimisticPortfolioDelta,
+  applyWalletPolicy,
+  invalidatePhygitalToken,
+  restorePortfolioSnapshot,
+} from "./mutations";
+import type { WalletPortfolio } from "@/lib/wallet/portfolio-types";
 
 const base: PolicyDocument = {
   version: "2.0",
   programs: [{ programId: "11111111111111111111111111111111", allowAll: true }],
+};
+
+const portfolio: WalletPortfolio = {
+  holdings: [
+    {
+      mint: "UsdcMint",
+      symbol: "USDC",
+      name: "USD Coin",
+      decimals: 6,
+      balanceRaw: "1000000",
+      balanceUi: "1",
+      pricePerTokenUsd: 1,
+      valueUsd: 1,
+      tokenProgram: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      icon: null,
+    },
+  ],
+  collectibles: [
+    {
+      mint: "NftMint",
+      name: "Art",
+      image: null,
+      collectionName: null,
+      interface: "V1_NFT",
+      compressed: false,
+      tokenProgram: null,
+    },
+  ],
 };
 
 describe("applyWalletPolicy", () => {
@@ -53,5 +87,46 @@ describe("invalidatePhygitalToken", () => {
       queryKey: queryKeys.phygitalToken.byIdentifier("pk"),
     });
     expect(identifierQuery && predicate?.(identifierQuery)).toBe(true);
+  });
+});
+
+describe("applyOptimisticPortfolioDelta / restorePortfolioSnapshot", () => {
+  it("decrements holding and restores prior snapshot", () => {
+    const qc = new QueryClient();
+    const key = queryKeys.walletPortfolio.byOwner("wallet");
+    qc.setQueryData(key, portfolio);
+
+    const previous = applyOptimisticPortfolioDelta(qc, {
+      owner: "wallet",
+      mint: "UsdcMint",
+      amountUi: "0.5",
+      direction: "out",
+    });
+
+    expect(previous).toEqual(portfolio);
+    expect(qc.getQueryData<WalletPortfolio>(key)?.holdings[0]?.balanceUi).toBe(
+      "0.5",
+    );
+
+    restorePortfolioSnapshot(qc, "wallet", previous);
+    expect(qc.getQueryData(key)).toEqual(portfolio);
+  });
+
+  it("removes collectible and restores it on rollback", () => {
+    const qc = new QueryClient();
+    const key = queryKeys.walletPortfolio.byOwner("wallet");
+    qc.setQueryData(key, portfolio);
+
+    const previous = applyOptimisticPortfolioDelta(qc, {
+      owner: "wallet",
+      mint: "NftMint",
+      amountUi: "1",
+      direction: "out",
+      removeCollectible: true,
+    });
+
+    expect(qc.getQueryData<WalletPortfolio>(key)?.collectibles).toHaveLength(0);
+    restorePortfolioSnapshot(qc, "wallet", previous);
+    expect(qc.getQueryData<WalletPortfolio>(key)?.collectibles).toHaveLength(1);
   });
 });

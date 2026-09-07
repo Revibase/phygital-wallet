@@ -8,11 +8,11 @@ import {
   type VerifyFailDetails,
 } from "phygital-verifier-sdk";
 import {
-  PHYGITAL_TOKEN_PROGRAM_ADDRESS,
   PHYGITAL_WALLET_PROGRAM_ADDRESS,
 } from "phygital-wallet-sdk";
 import { COMPUTE_BUDGET_PROGRAM } from "@/verifier/constants";
 import { getUsdcMint, USDC_DECIMALS } from "@/tokens/usdc-mint";
+import { PHYGITAL_TOKEN_PROGRAM_ADDRESS } from "phygital-token-sdk";
 
 const verify = createVerifier({ parsers: [...STANDARD_PARSERS] });
 

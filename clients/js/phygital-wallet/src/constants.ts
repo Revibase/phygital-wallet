@@ -1,9 +1,3 @@
-export const PHYGITAL_WALLET_PROGRAM_ADDRESS =
-  "Fjbi9JrRAmSBdxQxbkcxYDp6JUwnLbFhU2GsieWQBLSg" as const;
-
-export const PHYGITAL_TOKEN_PROGRAM_ADDRESS =
-  "DuPpckdjjgVAnYok2aTMAt264ZPBXqq3JSazJjCUzTJQ" as const;
-
 export const SLOT_HASHES_SYSVAR_ADDRESS =
   "SysvarS1otHashes111111111111111111111111111" as const;
 

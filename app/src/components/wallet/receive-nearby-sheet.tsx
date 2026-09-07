@@ -25,14 +25,23 @@ import { brand, copy } from "@/lib/copy/phygital";
 import {
   applyOptimisticPortfolioDelta,
   invalidateWalletBalances,
+  restorePortfolioSnapshot,
 } from "@/lib/queries";
 import { shortAddress } from "@/lib/utils";
 import { toUserErrorMessage } from "@/lib/user-errors";
-import { pushLocalWalletActivity } from "@/lib/wallet/activity-local";
+import {
+  patchLocalWalletActivity,
+  pushLocalWalletActivity,
+} from "@/lib/wallet/activity-local";
 import { identifyAccessory } from "@/lib/wallet/identify-accessory";
 import { policySoftDenyBody } from "@/lib/wallet/policy-deny-copy";
 import { ALL_LIST_SEARCH_THRESHOLD } from "@/lib/wallet/portfolio-preview";
+import type { WalletPortfolio } from "@/lib/wallet/portfolio-types";
 import { receiveAssetFromNearbyPayer } from "@/lib/wallet/send-asset";
+import {
+  walletSignPhaseCopy,
+  type PhygitalWalletSignPhase,
+} from "@/lib/wallet/sign-phase-copy";
 import {
   paymentTokenToSendAsset,
   type SendAssetRef,
@@ -76,6 +85,9 @@ export function ReceiveNearbySheet({
   const [amount, setAmount] = useState("");
   const [from, setFrom] = useState<LinkedPayer | null>(null);
   const [phase, setPhase] = useState<Phase>("form");
+  const [signPhase, setSignPhase] = useState<PhygitalWalletSignPhase | null>(
+    null,
+  );
   const [busy, setBusy] = useState(false);
   const [hardError, setHardError] = useState<string | null>(null);
   const [handoffDeny, setHandoffDeny] = useState<PolicyDeniedError | null>(
@@ -161,7 +173,10 @@ export function ReceiveNearbySheet({
     setBusy(true);
     setHardError(null);
     setHandoffDeny(null);
-    const holdTimer = window.setTimeout(() => setPhase("holding"), 250);
+    setSignPhase(null);
+    let submittedSignature: string | null = null;
+    let recipientBefore: WalletPortfolio | undefined;
+    let payerBefore: WalletPortfolio | undefined;
     try {
       const { signature, confirmed } = await receiveAssetFromNearbyPayer({
         payerPhygitalTokenPda: from.tokenPda,
@@ -174,11 +189,16 @@ export function ReceiveNearbySheet({
           decimals: asset.decimals,
           tokenProgram: asset.tokenProgram,
         },
+        signer: {
+          onPhaseChange: (phase) => {
+            setSignPhase(phase);
+            setPhase("holding");
+          },
+          onError: () => setSignPhase(null),
+        },
       });
-      window.clearTimeout(holdTimer);
+      submittedSignature = signature;
       setPhase("holding");
-      await confirmed;
-      setPhase("success");
       pushLocalWalletActivity({
         id: signature,
         walletAddress: recipientWallet,
@@ -197,29 +217,47 @@ export function ReceiveNearbySheet({
             amountUi: amount,
           },
         ],
-        pending: false,
+        pending: true,
         source: "local",
       });
-      toast.success(copy.wallet.received);
-      applyOptimisticPortfolioDelta(queryClient, {
+      recipientBefore = applyOptimisticPortfolioDelta(queryClient, {
         owner: recipientWallet,
         mint: asset.mint,
         amountUi: amount,
         direction: "in",
       });
-      applyOptimisticPortfolioDelta(queryClient, {
+      payerBefore = applyOptimisticPortfolioDelta(queryClient, {
         owner: from.walletPda,
         mint: asset.mint,
         amountUi: amount,
         direction: "out",
       });
+
+      await confirmed;
+
+      patchLocalWalletActivity(signature, { pending: false });
+      setSignPhase(null);
+      setPhase("success");
+      toast.success(copy.wallet.received);
       invalidateWalletBalances(queryClient, {
         wallets: [recipientWallet, from.walletPda],
         tokens: [from.tokenPda],
       });
       onReceived();
     } catch (e) {
-      window.clearTimeout(holdTimer);
+      setSignPhase(null);
+      if (submittedSignature) {
+        restorePortfolioSnapshot(queryClient, recipientWallet, recipientBefore);
+        if (from) {
+          restorePortfolioSnapshot(queryClient, from.walletPda, payerBefore);
+        }
+        patchLocalWalletActivity(submittedSignature, {
+          pending: false,
+          kind: "failed",
+          title: copy.wallet.activityFailed,
+          statusLabel: copy.wallet.activityFailed,
+        });
+      }
       if (e instanceof PolicyDeniedError) {
         setPhase("handoff");
         setHandoffDeny(e);
@@ -233,7 +271,6 @@ export function ReceiveNearbySheet({
       setPhase("summary");
       toast.error(toUserErrorMessage(e));
     } finally {
-      window.clearTimeout(holdTimer);
       setBusy(false);
     }
   }
@@ -241,6 +278,13 @@ export function ReceiveNearbySheet({
   if (phase === "identifying" || phase === "holding" || phase === "success") {
     const success = phase === "success";
     const identifying = phase === "identifying";
+    const holdingCopy = signPhase
+      ? walletSignPhaseCopy(signPhase)
+      : {
+          title: copy.wallet.holdToReceive,
+          body: copy.verify.holdStillBody,
+          pulse: true,
+        };
     return (
       <CeremonyShell
         leading={
@@ -255,8 +299,12 @@ export function ReceiveNearbySheet({
       >
         <NfcHoldStatus
           size="lg"
-          pulsing={!success}
-          busy={!success}
+          pulsing={
+            identifying || (phase === "holding" && holdingCopy.pulse)
+          }
+          busy={
+            identifying || (phase === "holding" && !holdingCopy.pulse)
+          }
           progress={!success}
           tone={success ? "success" : "default"}
           imageSrc={asset?.icon}
@@ -265,14 +313,14 @@ export function ReceiveNearbySheet({
               ? copy.wallet.received
               : identifying
                 ? copy.wallet.tapTheirAccessory
-                : copy.wallet.holdToReceive
+                : holdingCopy.title
           }
           body={
             success
               ? undefined
               : identifying
                 ? copy.wallet.holdCeremonyBody
-                : copy.verify.holdStillBody
+                : holdingCopy.body
           }
           action={
             success ? (

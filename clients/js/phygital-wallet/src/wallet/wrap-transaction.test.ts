@@ -28,9 +28,9 @@ import {
 
 import {
   DEFAULT_VERIFIER_API_BASE,
-  PHYGITAL_WALLET_PROGRAM_ADDRESS,
   SLOT_HASHES_SYSVAR_ADDRESS,
 } from "../constants.js";
+import { PHYGITAL_WALLET_PROGRAM_ADDRESS } from "../generated/programs/phygitalWallet.js";
 import {
   getConfigEncoder,
   type ConfigArgs,
@@ -187,21 +187,25 @@ const SECP256R1_PROGRAM = address(
 const FEE_PAYER = address("11111111111111111111111111111113");
 const MEMO_PROGRAM = address("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr");
 
-vi.mock("phygital-token-sdk", () => ({
-  authenticatePasskeyForSecp256r1Verify: vi.fn(async () => ({ mocked: true })),
-  buildSecp256r1VerifyInstruction: vi.fn(async () => ({
-    secp256r1VerifyInstruction: {
-      programAddress: SECP256R1_PROGRAM,
-      data: new Uint8Array([1]),
-    },
-    phygitalTokenPda: PHYGITAL_TOKEN,
-    secp256r1VerifyArgs: {
-      verifyArgsRelativeIndex: 0,
-      signedMessageIndex: 0,
-      clientDataJson: new Uint8Array([0x7b, 0x7d]),
-    },
-  })),
-}));
+vi.mock("phygital-token-sdk", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("phygital-token-sdk")>();
+  return {
+    ...actual,
+    authenticatePasskeyForSecp256r1Verify: vi.fn(async () => ({ mocked: true })),
+    buildSecp256r1VerifyInstruction: vi.fn(async () => ({
+      secp256r1VerifyInstruction: {
+        programAddress: SECP256R1_PROGRAM,
+        data: new Uint8Array([1]),
+      },
+      phygitalTokenPda: PHYGITAL_TOKEN,
+      secp256r1VerifyArgs: {
+        verifyArgsRelativeIndex: 0,
+        signedMessageIndex: 0,
+        clientDataJson: new Uint8Array([0x7b, 0x7d]),
+      },
+    })),
+  };
+});
 
 function mockInstruction(
   programAddress: Address,
@@ -597,5 +601,58 @@ describe("getPhygitalWalletSigner modifyAndSignTransactions", () => {
       blockhash: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
       lastValidBlockHeight: 1_200n,
     });
+  });
+
+  it("invokes optional UI callbacks in phase order", async () => {
+    const rpc = await createMockRpc({
+      config: defaultConfigArgs(CONFIG_VERIFIER),
+    });
+    const [walletPda] = await findWalletPda({ phygitalToken: PHYGITAL_TOKEN });
+    const phases: string[] = [];
+    const events: string[] = [];
+    const signer = await getPhygitalWalletSigner(rpc as never, PHYGITAL_TOKEN, {
+      onPhaseChange: (phase) => phases.push(phase),
+      onPreviewed: () => events.push("previewed"),
+      onPasskeyPrompt: () => events.push("passkeyPrompt"),
+      onPasskeyAuthenticated: () => events.push("passkeyAuthenticated"),
+      onSigned: () => events.push("signed"),
+    });
+
+    const transfer = mockInstruction(SYSTEM_PROGRAM, [
+      { address: walletPda, role: AccountRole.WRITABLE_SIGNER },
+      { address: RECIPIENT, role: AccountRole.WRITABLE },
+    ]);
+
+    await signer.modifyAndSignTransactions([compileUnsigned([transfer])]);
+
+    expect(phases).toEqual([
+      "preparing",
+      "previewing",
+      "awaitingPasskey",
+      "building",
+      "coSigning",
+      "complete",
+    ]);
+    expect(events).toEqual([
+      "previewed",
+      "passkeyPrompt",
+      "passkeyAuthenticated",
+      "signed",
+    ]);
+  });
+
+  it("calls onError when signing fails", async () => {
+    const rpc = await createMockRpc({
+      config: defaultConfigArgs(CONFIG_VERIFIER),
+    });
+    const errors: unknown[] = [];
+    const signer = await getPhygitalWalletSigner(rpc as never, PHYGITAL_TOKEN, {
+      onError: (error) => errors.push(error),
+    });
+
+    await expect(
+      signer.modifyAndSignTransactions([compileUnsigned([])]),
+    ).rejects.toThrow(/no instructions to wrap/i);
+    expect(errors).toHaveLength(1);
   });
 });

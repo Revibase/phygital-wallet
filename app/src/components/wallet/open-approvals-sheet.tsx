@@ -61,31 +61,49 @@ export function OpenApprovalsSheet({
   const approve = useMutation({
     mutationFn: async (intentHash: string) =>
       createOneTimeGrant(phygitalTokenPda, intentHash),
-    onSuccess: (_data, intentHash) => {
-      toast.success(copy.wallet.openApprovalContinue);
+    onMutate: async (intentHash) => {
+      await queryClient.cancelQueries({ queryKey: approvalsKey });
+      const previous = queryClient.getQueryData<OpenApproval[]>(approvalsKey);
       queryClient.setQueryData(approvalsKey, (prev: OpenApproval[] | undefined) =>
         removeApproval(prev, intentHash),
       );
-      void queryClient.invalidateQueries({ queryKey: approvalsKey });
+      return { previous };
     },
-    onError: (e) => {
+    onSuccess: () => {
+      toast.success(copy.wallet.openApprovalContinue);
+    },
+    onError: (e, _intentHash, context) => {
+      if (context?.previous !== undefined) {
+        queryClient.setQueryData(approvalsKey, context.previous);
+      }
       if (handleOwnerAuthFailure(phygitalTokenPda, e)) return;
       toast.error(toUserErrorMessage(e));
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: approvalsKey });
     },
   });
 
   const cancel = useMutation({
     mutationFn: async (intentHash: string) =>
       cancelOpenApproval(phygitalTokenPda, intentHash),
-    onSuccess: (_data, intentHash) => {
+    onMutate: async (intentHash) => {
+      await queryClient.cancelQueries({ queryKey: approvalsKey });
+      const previous = queryClient.getQueryData<OpenApproval[]>(approvalsKey);
       queryClient.setQueryData(approvalsKey, (prev: OpenApproval[] | undefined) =>
         removeApproval(prev, intentHash),
       );
-      void queryClient.invalidateQueries({ queryKey: approvalsKey });
+      return { previous };
     },
-    onError: (e) => {
+    onError: (e, _intentHash, context) => {
+      if (context?.previous !== undefined) {
+        queryClient.setQueryData(approvalsKey, context.previous);
+      }
       if (handleOwnerAuthFailure(phygitalTokenPda, e)) return;
       toast.error(toUserErrorMessage(e));
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: approvalsKey });
     },
   });
 

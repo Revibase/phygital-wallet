@@ -13,6 +13,7 @@ export {
   invalidatePhygitalToken,
   invalidateRpcDependentQueries,
   invalidateWalletBalances,
+  restorePortfolioSnapshot,
 } from "./mutations";
 
 const SECOND = 1000;

@@ -19,7 +19,8 @@
     "@simplewebauthn/server": "^14.0.0",
     "@solana/kit": "^8.1.0",
     "phygital-verifier-sdk": "workspace:*",
-    "phygital-wallet-sdk": "workspace:*"
+    "phygital-wallet-sdk": "workspace:*",
+    "phygital-token-sdk":"^1.0.3"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250726.0",

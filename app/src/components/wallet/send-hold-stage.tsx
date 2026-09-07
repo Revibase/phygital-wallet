@@ -17,6 +17,10 @@ import { Button } from "@/components/ui/button";
 import { copy } from "@/lib/copy/phygital";
 import { snapEnter, snapEnterTransition } from "@/lib/motion";
 import type { WalletActivityItem } from "@/lib/wallet/portfolio-types";
+import {
+  walletSignPhaseCopy,
+  type PhygitalWalletSignPhase,
+} from "@/lib/wallet/sign-phase-copy";
 
 export type SendHoldRecap = {
   amountLabel: string;
@@ -32,11 +36,14 @@ export type SendHoldRecap = {
 
 export function SendHoldStage({
   phase,
+  signPhase,
   imageSrc,
   recap,
   onClose,
 }: {
   phase: "holding" | "success";
+  /** Live wrap/sign stage while `phase === "holding"`. */
+  signPhase?: PhygitalWalletSignPhase | null;
   imageSrc?: string | null;
   recap?: SendHoldRecap | null;
   onClose: () => void;
@@ -44,6 +51,14 @@ export function SendHoldStage({
   const prefersReducedMotion = useReducedMotion();
   const enter = snapEnter(prefersReducedMotion);
   const [receiptOpen, setReceiptOpen] = useState(false);
+
+  const holdingCopy = signPhase
+    ? walletSignPhaseCopy(signPhase)
+    : {
+        title: copy.wallet.holdCeremonyTitle,
+        body: copy.wallet.holdCeremonyBody,
+        pulse: true,
+      };
 
   const receiptItem: WalletActivityItem | null =
     phase === "success" && recap?.signature && recap.walletAddress
@@ -75,6 +90,9 @@ export function SendHoldStage({
         }
       : null;
 
+  const stageKey =
+    phase === "success" ? "success" : `holding-${signPhase ?? "idle"}`;
+
   return (
     <LazyMotion features={domAnimation}>
       <CeremonyShell
@@ -90,7 +108,7 @@ export function SendHoldStage({
       >
         <AnimatePresence mode="wait" initial={false}>
           <m.div
-            key={phase}
+            key={stageKey}
             initial={enter.initial}
             animate={enter.animate}
             exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0 }}
@@ -99,21 +117,15 @@ export function SendHoldStage({
           >
             <NfcHoldStatus
               size="lg"
-              pulsing={phase === "holding"}
-              busy={phase === "holding"}
+              pulsing={phase === "holding" && holdingCopy.pulse}
+              busy={phase === "holding" && !holdingCopy.pulse}
               progress={phase === "holding"}
               tone={phase === "success" ? "success" : "default"}
               imageSrc={imageSrc}
               title={
-                phase === "success"
-                  ? copy.wallet.sent
-                  : copy.wallet.holdCeremonyTitle
+                phase === "success" ? copy.wallet.sent : holdingCopy.title
               }
-              body={
-                phase === "success"
-                  ? undefined
-                  : copy.wallet.holdCeremonyBody
-              }
+              body={phase === "success" ? undefined : holdingCopy.body}
               action={
                 <div className="flex w-full flex-col items-center gap-3">
                   {recap ? (
@@ -148,7 +160,12 @@ export function SendHoldStage({
                           {copy.wallet.viewReceipt}
                         </Button>
                       ) : null}
-                      <Button type="button" size="lg" className="w-full" onClick={onClose}>
+                      <Button
+                        type="button"
+                        size="lg"
+                        className="w-full"
+                        onClick={onClose}
+                      >
                         {copy.common.done}
                       </Button>
                     </m.div>

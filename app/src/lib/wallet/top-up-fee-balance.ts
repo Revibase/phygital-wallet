@@ -3,7 +3,10 @@ import {
   type Address,
 } from "@solana/kit";
 import { getTransferSolInstruction } from "@solana-program/system";
-import { getPhygitalWalletSigner } from "phygital-wallet-sdk";
+import {
+  getPhygitalWalletSigner,
+  type PhygitalWalletSignerCallbacks,
+} from "phygital-wallet-sdk";
 
 import { getSolanaRpc } from "@/lib/solana/rpc";
 import { sendTransaction } from "@/lib/solana/tx";
@@ -25,11 +28,17 @@ function getTopUpAccumulator(): Address {
 export async function topUpFeeBalance(args: {
   phygitalTokenPda: Address | string;
   amountUi: string;
+  signer?: PhygitalWalletSignerCallbacks;
 }): Promise<{ signature: string; confirmed: Promise<void> }> {
   const rpc = getSolanaRpc();
   const tokenPda = address(String(args.phygitalTokenPda));
   const accumulator = getTopUpAccumulator();
-  const walletSigner = await getPhygitalWalletSigner(rpc, tokenPda);
+  args.signer?.onPhaseChange?.("preparing");
+  const walletSigner = await getPhygitalWalletSigner(
+    rpc,
+    tokenPda,
+    args.signer,
+  );
 
   const lamports = uiAmountToRaw(args.amountUi, 9);
   if (lamports <= 0n) {
