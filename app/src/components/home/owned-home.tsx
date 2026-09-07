@@ -184,17 +184,6 @@ function HomePasskeyScreen({
               </span>
             )}
           </Button>
-          {!setupMode ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="lg"
-              className="w-full rounded-full"
-              asChild
-            >
-              <a href="/token">{copy.wallet.homeHaveItemHint}</a>
-            </Button>
-          ) : null}
         </div>
       </div>
     </CeremonyShell>

@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-import { brand, products } from "@/lib/copy/phygital";
+import { brand } from "@/lib/copy/phygital";
 
 /**
  * Light defaults for install splash. `color_scheme_dark` is the emerging
@@ -10,20 +10,20 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: brand.company,
     short_name: brand.company,
-    description: products.home.tagline,
+    description: brand.description,
     start_url: "/",
     display: "standalone",
     background_color: brand.chromeLight,
     theme_color: brand.chromeLight,
     icons: [
       {
-        src: "/icon",
+        src: "/revibase-mark-teal-on-dark.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "any",
       },
       {
-        src: "/icon",
+        src: "/revibase-mark-maskable.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable",

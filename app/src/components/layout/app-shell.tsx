@@ -8,11 +8,10 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import Link from "next/link";
 
 import { LuminousAura } from "@/components/shared/luminous-aura";
 import { Badge } from "@/components/ui/badge";
-import { brand, copy } from "@/lib/copy/phygital";
+import { copy } from "@/lib/copy/phygital";
 import {
   shellLayoutClass,
   shellPaddingClass,
@@ -32,17 +31,15 @@ export function useShellStageSlot() {
   return useContext(ShellStageSlotContext);
 }
 
-/** Chrome for every route: brand on roots; stage nav on pushed screens. */
+/** Chrome for every route: stage nav on pushed screens; no company wordmark. */
 export function AppShell({
   children,
   layout = "compact",
   headerExtra,
-  showWordmark = true,
 }: {
   children: ReactNode;
   layout?: ShellLayout;
   headerExtra?: ReactNode;
-  showWordmark?: boolean;
 }) {
   const [showDevnet, setShowDevnet] = useState(false);
   const [stageMount, setStageMount] = useState<HTMLElement | null>(null);
@@ -94,15 +91,6 @@ export function AppShell({
                     <span className="w-4" aria-hidden />
                   )}
                 </div>
-
-                {showWordmark ? (
-                  <Link
-                    href="/"
-                    className="absolute left-1/2 max-w-[50%] -translate-x-1/2 truncate font-(family-name:--font-display) text-sm font-semibold tracking-tight text-foreground hover:opacity-80"
-                  >
-                    {brand.company}
-                  </Link>
-                ) : null}
 
                 <div className="flex min-w-0 flex-1 items-center justify-end gap-1">
                   {headerExtra}

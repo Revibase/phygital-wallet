@@ -19,6 +19,7 @@
     "NEXT_PUBLIC_SOLANA_RPC_URL": "https://rpc.revibase.com",
     "NEXT_PUBLIC_SOLANA_CLUSTER": "mainnet",
     "NEXT_PUBLIC_API_BASE_URL": "https://api.revibase.com",
+    "NEXT_PUBLIC_APP_URL": "https://app.revibase.com",
     "NEXT_PUBLIC_TOP_UP_ACCUMULATOR": "BExDpnx6E1LW3ofkCPxXvBRAmxqPVsmwnPb4oM5FUutv"
   },
   "observability": {

@@ -17,7 +17,7 @@ type SetHeaderExtra = (node: ReactNode) => void;
 const ShellHeaderContext = createContext<SetHeaderExtra | null>(null);
 
 /**
- * Register trailing chrome in the AppShell nav row (same level as Revibase).
+ * Register trailing chrome in the AppShell nav row.
  * - `undefined` — leave whatever is currently set (another owner)
  * - `null` / node — set, and clear on unmount or when deps change away
  */
@@ -32,7 +32,7 @@ export function useShellHeaderExtra(extra: ReactNode | undefined) {
   }, [setHeaderExtra, extra]);
 }
 
-/** Chrome for `/token` — wordmark + optional headerExtra from descendants. */
+/** Chrome for `/token` — optional headerExtra from descendants. */
 export function TokenRouteShell({
   children,
   layout = "compact",
@@ -47,7 +47,7 @@ export function TokenRouteShell({
 
   return (
     <ShellHeaderContext.Provider value={setHeaderExtra}>
-      <AppShell layout={layout} showWordmark headerExtra={headerExtra}>
+      <AppShell layout={layout} headerExtra={headerExtra}>
         {children}
       </AppShell>
     </ShellHeaderContext.Provider>

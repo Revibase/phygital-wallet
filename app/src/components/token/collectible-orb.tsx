@@ -1,14 +1,15 @@
 "use client";
 
 import { useState, type CSSProperties } from "react";
-import { CheckCircle2, Nfc } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 
+import { RevibaseMark } from "@/components/brand/revibase-mark";
 import { galleryAnimate } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { Spinner } from "@/components/ui/spinner";
 
 /**
- * Circular hold target — DAS mint art when available, NFC glyph fallback.
+ * Circular hold target — DAS mint art when available, brand mark fallback.
  * Soft outer pulse + optional SVG progress ring for ceremony affordance.
  */
 export function CollectibleOrb({
@@ -120,7 +121,7 @@ export function CollectibleOrb({
               onError={() => setFailedSrc(src!)}
             />
           ) : (
-            <Nfc className={icon} />
+            <RevibaseMark className={icon} />
           )}
         </div>
       </div>

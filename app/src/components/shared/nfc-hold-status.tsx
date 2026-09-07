@@ -35,7 +35,7 @@ export function NfcHoldStatus({
   tone?: "default" | "success";
   action?: ReactNode;
   header?: ReactNode;
-  /** DAS mint art for the circular hold target; NFC glyph if missing. */
+  /** DAS mint art for the circular hold target; brand mark if missing. */
   imageSrc?: string | null;
   imageAlt?: string;
   /** Animate hold progress ring while busy. */

@@ -1,10 +1,10 @@
 "use client";
 
-import { Nfc } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useIsRestoring, useQuery, useQueryClient } from "@tanstack/react-query";
 import { findPhygitalTokenPda } from "phygital-token-sdk";
 
+import { RevibaseMark } from "@/components/brand/revibase-mark";
 import { GateMessage } from "@/components/layout/gate-message";
 import { CeremonyShell } from "@/components/shared/ceremony-shell";
 import { InAppBrowserGate } from "@/components/shared/in-app-browser-gate";
@@ -220,7 +220,7 @@ export function TokenAddressRoute({
         />
       ) : (
         <GateMessage
-          icon={<Nfc className="size-5 text-muted-foreground" />}
+          icon={<RevibaseMark className="size-5 text-muted-foreground" />}
           title={timedOut ? copy.verify.loadTimedOut : copy.token.itemLoadFailed}
           body={
             timedOut

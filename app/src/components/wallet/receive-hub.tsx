@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
-import { QrCode, Share2 } from "lucide-react";
+import { QrCode } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
 
 import { WalletAddressRow } from "@/components/shared/copyable-address";
 import { WalletQrCode } from "@/components/wallet/wallet-qr";
@@ -51,7 +50,6 @@ export function ReceiveHub({
         </div>
         <div className="space-y-1">
           <p className="text-sm font-medium">{copy.wallet.receiveAnything}</p>
-          <p className="text-xs text-muted-foreground">{brand.company}</p>
         </div>
       </div>
 

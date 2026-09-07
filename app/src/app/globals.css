@@ -75,8 +75,8 @@
 }
 
 :root {
-  /* Luminous Object — Outfit via next/font (--font-outfit). */
-  --font-display: var(--font-outfit), "Segoe UI", system-ui, sans-serif;
+  /* Product UI — Space Grotesk via next/font (--font-space-grotesk). */
+  --font-display: var(--font-space-grotesk), "Segoe UI", system-ui, sans-serif;
   --font-system-mono:
     ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Monaco, monospace;
 

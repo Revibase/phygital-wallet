@@ -10,20 +10,24 @@
 
 export const brand = {
   company: "Revibase",
-  companyLegal: "Revibase",
   /** Hex for PWA / OG / viewport chrome (Luminous Object pearl / warm dark). */
   chromeLight: "#F7F4EF",
   chromeDark: "#1A1F1E",
+  /**
+   * Default meta / PWA description — product, not company slogan.
+   * Screen titles still come from `products.*`.
+   */
+  description: "NFC wallets linked to your accessories.",
 } as const;
 
 export const products = {
   home: {
-    name: "Your keys",
-    tagline: "Accessories linked to this phone",
+    name: "Revibase",
+    tagline: "Cards & Accessories",
   },
   token: {
     name: "Wallet",
-    tagline: "Your luminous NFC wallet",
+    tagline: "Your NFC wallet",
   },
 } as const;
 
@@ -229,7 +233,6 @@ export const copy = {
     deviceLoginBody:
       "Manage linked accessories and spending limits with Face ID, fingerprint, or your screen lock.",
     homeSetupPasskeyBody: "Continue, then hold your accessory to claim it.",
-    homeHaveItemHint: "Have an accessory? Hold it to your phone",
     homeLinkSetupTitle: "Hold to claim",
     homeLinkSetupBody:
       "Hold your accessory to the top of your phone to finish claiming.",

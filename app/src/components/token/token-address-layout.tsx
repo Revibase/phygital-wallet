@@ -1,9 +1,9 @@
 "use client";
 
-import { Nfc } from "lucide-react";
 import { useParams } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { RevibaseMark } from "@/components/brand/revibase-mark";
 import { GateMessage } from "@/components/layout/gate-message";
 import { TokenRouteShell } from "@/components/token/token-route-shell";
 import {
@@ -32,7 +32,7 @@ export function TokenAddressLayout({ children }: { children: ReactNode }) {
     return (
       <TokenRouteShell layout="compact">
         <GateMessage
-          icon={<Nfc className="size-5 text-muted-foreground" />}
+          icon={<RevibaseMark className="size-5 text-muted-foreground" />}
           title={copy.token.itemLoadFailed}
           body={copy.token.itemNotOnChain}
         />
