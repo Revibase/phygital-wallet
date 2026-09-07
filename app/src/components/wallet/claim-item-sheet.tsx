@@ -13,6 +13,7 @@ import { QueryHttpError } from "@/lib/queries/http";
 import { toUserErrorMessage } from "@/lib/user-errors";
 import {
   fetchDeviceSession,
+  fetchLinkStatus,
   linkToken,
   loginDevice,
   registerDevice,
@@ -62,7 +63,6 @@ export function ClaimItemSheet({
   onDismiss: () => void;
 }) {
   const queryClient = useQueryClient();
-  const [elsewhere, setElsewhere] = useState(false);
   const [success, setSuccess] = useState(false);
   const [preferRegister, setPreferRegister] = useState(false);
   const [enteredWithSession, setEnteredWithSession] = useState<boolean | null>(
@@ -70,8 +70,10 @@ export function ClaimItemSheet({
   );
   const canAuth = platformAuthAvailable();
   const onClaimedRef = useRef(onClaimed);
+  const onDismissRef = useRef(onDismiss);
   const finishedRef = useRef(false);
   onClaimedRef.current = onClaimed;
+  onDismissRef.current = onDismiss;
 
   const session = useQuery({
     queryKey: queryKeys.deviceAuth.session(),
@@ -90,6 +92,21 @@ export function ClaimItemSheet({
     onClaimedRef.current();
   }
 
+  function exitLinkedElsewhere() {
+    if (finishedRef.current) return;
+    finishedRef.current = true;
+    queryClient.setQueryData(
+      queryKeys.deviceAuth.linkStatus(phygitalTokenPda),
+      "linked_elsewhere" as LinkStatus,
+    );
+    queryClient.setQueryData(
+      queryKeys.deviceAuth.claimed(phygitalTokenPda),
+      true,
+    );
+    dismissClaim(phygitalTokenPda);
+    onDismissRef.current();
+  }
+
   useEffect(() => {
     if (!success) return;
     const id = window.setTimeout(() => finishClaimed(), SUCCESS_AUTO_MS);
@@ -105,6 +122,16 @@ export function ClaimItemSheet({
       queryClient.setQueryData(queryKeys.deviceAuth.session(), sessionInfo);
       return sessionInfo;
     },
+    onSuccess: async () => {
+      const status = await fetchLinkStatus(phygitalTokenPda);
+      queryClient.setQueryData(
+        queryKeys.deviceAuth.linkStatus(phygitalTokenPda),
+        status,
+      );
+      if (status === "linked_elsewhere") {
+        exitLinkedElsewhere();
+      }
+    },
   });
 
   const claim = useMutation({
@@ -113,12 +140,14 @@ export function ClaimItemSheet({
         await linkToken({ phygitalToken: phygitalTokenPda });
       } catch (e) {
         if (e instanceof QueryHttpError && e.code === "linked_elsewhere") {
-          setElsewhere(true);
+          exitLinkedElsewhere();
+          return;
         }
         throw e;
       }
     },
     onSuccess: async () => {
+      if (finishedRef.current) return;
       queryClient.setQueryData(
         queryKeys.deviceAuth.linkStatus(phygitalTokenPda),
         "linked_here" as LinkStatus,
@@ -154,24 +183,6 @@ export function ClaimItemSheet({
             </Button>
           }
         />
-      </CeremonyShell>
-    );
-  }
-
-  if (elsewhere) {
-    return (
-      <CeremonyShell>
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-4 py-16 text-center">
-          <h1 className="text-display-md tracking-tight">
-            {copy.wallet.limitsLinkedElsewhereTitle}
-          </h1>
-          <p className="max-w-sm text-sm text-muted-foreground">
-            {copy.wallet.limitsLinkedElsewhereBody}
-          </p>
-          <Button type="button" size="lg" variant="outline" onClick={onDismiss}>
-            {copy.common.done}
-          </Button>
-        </div>
       </CeremonyShell>
     );
   }

@@ -156,8 +156,7 @@ export function WalletRouteShell({ children }: { children: ReactNode }) {
 
   const requestClaim = useCallback(() => {
     setForceClaim(true);
-    router.push(walletHref(tokenAddress));
-  }, [router, tokenAddress]);
+  }, []);
 
   const goCard = useCallback(() => {
     router.push(tokenHref(tokenAddress));

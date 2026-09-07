@@ -220,7 +220,10 @@ function HomeLinkSetup({
   });
 
   useEffect(() => {
-    if (status.data === "linked_here") {
+    if (
+      status.data === "linked_here" ||
+      status.data === "linked_elsewhere"
+    ) {
       router.replace(returnTo);
     }
   }, [status.data, router, returnTo]);
@@ -267,31 +270,12 @@ function HomeLinkSetup({
     },
   });
 
-  if (status.isPending || status.data === "linked_here") {
+  if (
+    status.isPending ||
+    status.data === "linked_here" ||
+    status.data === "linked_elsewhere"
+  ) {
     return <LoadingStatus />;
-  }
-
-  if (status.data === "linked_elsewhere") {
-    return (
-      <CeremonyShell>
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-4 py-16 text-center">
-          <h1 className="text-display-md tracking-tight">
-            {copy.wallet.limitsLinkedElsewhereTitle}
-          </h1>
-          <p className="max-w-sm text-sm text-muted-foreground">
-            {copy.wallet.limitsLinkedElsewhereBody}
-          </p>
-          <Button
-            type="button"
-            variant="outline"
-            size="lg"
-            onClick={() => router.push("/")}
-          >
-            {copy.common.done}
-          </Button>
-        </div>
-      </CeremonyShell>
-    );
   }
 
   if (phase === "confirm") {
