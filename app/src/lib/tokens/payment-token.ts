@@ -45,6 +45,16 @@ export function isDefaultMint(mint: string | Address): boolean {
   return String(mint) === String(getUsdcMint());
 }
 
+/** Prefer vendored SOL/USDC marks — remote Jupiter URLs often fail to paint. */
+export function resolveTokenIconSrc(
+  mint: string,
+  icon: string | null | undefined,
+): string | null {
+  if (mint === NATIVE_SOL_MINT) return SOL_ICON_URL;
+  if (isDefaultMint(mint)) return USDC_ICON_URL;
+  return icon?.trim() || null;
+}
+
 export function isNativeSolHolding(h: {
   mint: string;
   tokenProgram?: string;

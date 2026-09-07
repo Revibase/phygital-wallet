@@ -54,6 +54,7 @@ import {
   MIN_ATTEMPT_FEE_LAMPORTS,
 } from "@/lib/wallet/network-fee";
 import { sanitizeDecimalInput } from "@/lib/tokens/amount";
+import { resolveTokenIconSrc } from "@/lib/tokens/payment-token";
 import { snapEnter, snapEnterTransition, easeOut } from "@/lib/motion";
 import type { SendHoldRecap } from "@/components/wallet/send-hold-stage";
 import { Spinner } from "@/components/ui/spinner";
@@ -221,6 +222,9 @@ export function SendDialog({
       mint: asset?.mint ?? null,
       amountUi: nft ? "1" : amount,
       walletAddress,
+      imageSrc: asset
+        ? resolveTokenIconSrc(asset.mint, asset.icon)
+        : null,
     };
   }
 

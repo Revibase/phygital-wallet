@@ -32,6 +32,8 @@ export type SendHoldRecap = {
   mint?: string | null;
   amountUi?: string | null;
   walletAddress?: string | null;
+  /** Icon for the asset actually being sent (not the URL-preselected one). */
+  imageSrc?: string | null;
 };
 
 export function SendHoldStage({
@@ -121,7 +123,7 @@ export function SendHoldStage({
               busy={phase === "holding" && !holdingCopy.pulse}
               progress={phase === "holding"}
               tone={phase === "success" ? "success" : "default"}
-              imageSrc={imageSrc}
+              imageSrc={recap?.imageSrc ?? imageSrc}
               title={
                 phase === "success" ? copy.wallet.sent : holdingCopy.title
               }

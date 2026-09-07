@@ -38,6 +38,7 @@ import { policySoftDenyBody } from "@/lib/wallet/policy-deny-copy";
 import { ALL_LIST_SEARCH_THRESHOLD } from "@/lib/wallet/portfolio-preview";
 import type { WalletPortfolio } from "@/lib/wallet/portfolio-types";
 import { receiveAssetFromNearbyPayer } from "@/lib/wallet/send-asset";
+import { resolveTokenIconSrc } from "@/lib/tokens/payment-token";
 import {
   isWalletSignCeremonyPhase,
   walletSignPhaseCopy,
@@ -304,7 +305,11 @@ export function ReceiveNearbySheet({
           }
           progress={!success}
           tone={success ? "success" : "default"}
-          imageSrc={asset?.icon}
+          imageSrc={
+            asset
+              ? resolveTokenIconSrc(asset.mint, asset.icon)
+              : null
+          }
           title={
             success
               ? copy.wallet.received

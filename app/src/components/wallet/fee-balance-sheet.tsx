@@ -26,7 +26,10 @@ import {
 } from "@/lib/queries";
 import { toUserErrorMessage } from "@/lib/user-errors";
 import { topUpFeeBalance } from "@/lib/wallet/top-up-fee-balance";
-import { NATIVE_SOL_MINT } from "@/lib/tokens/payment-token";
+import {
+  NATIVE_SOL_MINT,
+  resolveTokenIconSrc,
+} from "@/lib/tokens/payment-token";
 import type { FeeBalance } from "@/lib/wallet/fee-balance-client";
 import type { WalletPortfolio } from "@/lib/wallet/portfolio-types";
 import {
@@ -175,6 +178,7 @@ export function FeeBalanceSheet({
           busy={phase === "holding" && !holdingCopy.pulse}
           progress={phase === "holding"}
           tone={phase === "success" ? "success" : "default"}
+          imageSrc={resolveTokenIconSrc(NATIVE_SOL_MINT, null)}
           title={
             phase === "success"
               ? copy.wallet.topUpSuccess
