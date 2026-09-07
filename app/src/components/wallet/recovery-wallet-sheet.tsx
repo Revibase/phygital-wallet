@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { address } from "@solana/kit";
+import { address, type Instruction } from "@solana/kit";
 import { toast } from "sonner";
 import {
   buildClearRecoveryWalletChallenge,
@@ -14,7 +14,10 @@ import {
 } from "phygital-token-sdk";
 
 import { CopyableAddress } from "@/components/shared/copyable-address";
-import { ConfigChangeHoldCeremony } from "@/components/wallet/config-change-hold-ceremony";
+import {
+  ConfigChangeHoldCeremony,
+  type ConfigChangeCeremonyPhase,
+} from "@/components/wallet/config-change-hold-ceremony";
 import { NavBar, NavBarBack } from "@/components/shared/nav-bar";
 import { Button } from "@/components/ui/button";
 import { FieldLabel, Input } from "@/components/ui/input";
@@ -24,16 +27,25 @@ import { copy } from "@/lib/copy/phygital";
 import { queryKeys } from "@/lib/queries";
 import { tryParseAddress } from "@/lib/solana/address";
 import { getSolanaRpc } from "@/lib/solana/rpc";
-import { sendTransaction } from "@/lib/solana/tx";
 import { toUserErrorMessage } from "@/lib/user-errors";
 import { handleOwnerAuthFailure } from "@/lib/wallet/device-sign-in-href";
 import {
   getClearRecoveryWalletInstructions,
   getSetRecoveryWalletInstructions,
 } from "@/lib/wallet/recovery-wallet";
-import { createAppVerifierSigner } from "@/lib/wallet/verifier-fee-payer";
+import {
+  createAppVerifierSigner,
+  sendConfigTransaction,
+  type AppVerifierSigner,
+} from "@/lib/wallet/verifier-fee-payer";
 
-type View = "form" | "confirmClear" | "holding" | "success";
+type View = "form" | "confirmClear" | "ceremony";
+
+type PendingConfigTx = {
+  signer: AppVerifierSigner;
+  instructions: Instruction[];
+  onSuccess: () => void;
+};
 
 const SYSTEM_PROGRAM = "11111111111111111111111111111111";
 
@@ -48,9 +60,13 @@ export function RecoveryWalletSheet({
   const queryClient = useQueryClient();
   const status = useRecoveryWallet(phygitalTokenPda);
   const [view, setView] = useState<View>("form");
+  const [ceremonyPhase, setCeremonyPhase] =
+    useState<ConfigChangeCeremonyPhase>("holding");
   const [pubkeyInput, setPubkeyInput] = useState("");
   const [acked, setAcked] = useState(false);
   const [needsPhoneConfirm, setNeedsPhoneConfirm] = useState(false);
+  const [confirmPending, setConfirmPending] = useState(false);
+  const pendingRef = useRef<PendingConfigTx | null>(null);
 
   const configured = status.data?.configured ?? false;
   const current = status.data?.recoveryWallet ?? null;
@@ -71,6 +87,43 @@ export function RecoveryWalletSheet({
     });
   }
 
+  async function finishConfigTx(pending: PendingConfigTx) {
+    const { confirmed } = await sendConfigTransaction({
+      instructions: pending.instructions,
+      signer: pending.signer,
+    });
+    await confirmed;
+    pending.onSuccess();
+    pendingRef.current = null;
+    setConfirmPending(false);
+    setCeremonyPhase("success");
+  }
+
+  async function runAfterNfc(pending: PendingConfigTx) {
+    pendingRef.current = pending;
+    setNeedsPhoneConfirm(pending.signer.requiresOwnerCosignAssertion);
+    if (pending.signer.requiresOwnerCosignAssertion) {
+      setCeremonyPhase("confirming");
+      return;
+    }
+    await finishConfigTx(pending);
+  }
+
+  async function onConfirmPhone() {
+    const pending = pendingRef.current;
+    if (!pending) return;
+    setConfirmPending(true);
+    try {
+      await finishConfigTx(pending);
+    } catch (e) {
+      if (handleOwnerAuthFailure(phygitalTokenPda, e)) return;
+      pendingRef.current = null;
+      setConfirmPending(false);
+      setView("form");
+      toast.error(toUserErrorMessage(e));
+    }
+  }
+
   async function saveRecovery() {
     const recoveryAddr = tryParseAddress(pubkeyInput.trim());
     if (!recoveryAddr || String(recoveryAddr) === SYSTEM_PROGRAM) {
@@ -81,7 +134,9 @@ export function RecoveryWalletSheet({
       toast.error(copy.wallet.recoveryWalletSame);
       return;
     }
-    setView("holding");
+    setCeremonyPhase("holding");
+    setConfirmPending(false);
+    setView("ceremony");
     try {
       const rpc = getSolanaRpc();
       const tokenPda = address(phygitalTokenPda);
@@ -105,24 +160,27 @@ export function RecoveryWalletSheet({
           slotNumber,
         },
       });
-      const { confirmed } = await sendTransaction({
+      await runAfterNfc({
+        signer,
         instructions,
-        feePayer: signer,
+        onSuccess: () => {
+          invalidate();
+          setPubkeyInput("");
+          toast.success(copy.wallet.recoveryWalletSaved);
+        },
       });
-      await confirmed;
-      invalidate();
-      setPubkeyInput("");
-      setView("success");
-      toast.success(copy.wallet.recoveryWalletSaved);
     } catch (e) {
       if (handleOwnerAuthFailure(phygitalTokenPda, e)) return;
+      pendingRef.current = null;
       setView("form");
       toast.error(toUserErrorMessage(e));
     }
   }
 
   async function clearRecovery() {
-    setView("holding");
+    setCeremonyPhase("holding");
+    setConfirmPending(false);
+    setView("ceremony");
     try {
       const rpc = getSolanaRpc();
       const tokenPda = address(phygitalTokenPda);
@@ -149,33 +207,36 @@ export function RecoveryWalletSheet({
           slotNumber,
         },
       });
-      const { confirmed } = await sendTransaction({
+      await runAfterNfc({
+        signer,
         instructions,
-        feePayer: signer,
+        onSuccess: () => {
+          invalidate();
+          setPubkeyInput("");
+          toast.success(copy.wallet.recoveryWalletCleared);
+        },
       });
-      await confirmed;
-      invalidate();
-      setPubkeyInput("");
-      setView("success");
-      toast.success(copy.wallet.recoveryWalletCleared);
     } catch (e) {
       if (handleOwnerAuthFailure(phygitalTokenPda, e)) return;
+      pendingRef.current = null;
       setView("form");
       toast.error(toUserErrorMessage(e));
     }
   }
 
-  if (view === "holding" || view === "success") {
+  if (view === "ceremony") {
     return (
       <ConfigChangeHoldCeremony
-        phase={view}
+        phase={ceremonyPhase}
         needsPhoneConfirm={needsPhoneConfirm}
+        confirmPending={confirmPending}
         onLeadingClick={() =>
-          view === "holding" ? setView("form") : onClose()
+          ceremonyPhase === "success" ? onClose() : setView("form")
         }
         leadingLabel={
-          view === "holding" ? copy.common.cancel : copy.common.done
+          ceremonyPhase === "success" ? copy.common.done : copy.common.cancel
         }
+        onConfirmPhone={() => void onConfirmPhone()}
         successBody={copy.wallet.recoveryWalletRecoverSiteNote}
         successAction={
           <Button type="button" size="lg" className="w-full" onClick={onClose}>
@@ -190,9 +251,7 @@ export function RecoveryWalletSheet({
     return (
       <div className="flex flex-1 flex-col gap-4">
         <NavBar
-          leading={
-            <NavBarBack onClick={() => setView("form")} />
-          }
+          leading={<NavBarBack onClick={() => setView("form")} />}
           title={copy.wallet.recoveryWalletClearConfirmTitle}
         />
         <p className="text-sm leading-relaxed text-muted-foreground">

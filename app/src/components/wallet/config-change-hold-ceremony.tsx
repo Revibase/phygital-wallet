@@ -7,22 +7,65 @@ import { NfcHoldStatus } from "@/components/shared/nfc-hold-status";
 import { Button } from "@/components/ui/button";
 import { copy } from "@/lib/copy/phygital";
 
-/** Shared hold / success frame for token verifier + recovery config changes. */
+export type ConfigChangeCeremonyPhase = "holding" | "confirming" | "success";
+
+/** Shared hold → optional phone confirm CTA → success for config changes. */
 export function ConfigChangeHoldCeremony({
   phase,
   needsPhoneConfirm,
+  confirmPending = false,
   onLeadingClick,
   leadingLabel,
+  onConfirmPhone,
   successBody,
   successAction,
 }: {
-  phase: "holding" | "success";
+  phase: ConfigChangeCeremonyPhase;
+  /** True when Config default verifier needs a manual phone passkey step. */
   needsPhoneConfirm: boolean;
+  /** True while waiting for the platform WebAuthn prompt after CTA. */
+  confirmPending?: boolean;
   onLeadingClick: () => void;
   leadingLabel: string;
+  /** User-gesture handler — starts platform WebAuthn + send. */
+  onConfirmPhone?: () => void;
   successBody?: string;
   successAction?: ReactNode;
 }) {
+  const confirming = phase === "confirming";
+  const success = phase === "success";
+
+  const title = success
+    ? copy.common.done
+    : confirming
+      ? copy.wallet.configChangeConfirmTitle
+      : copy.wallet.holdToSave;
+
+  const body = success
+    ? successBody
+    : confirming
+      ? confirmPending
+        ? copy.wallet.configChangeConfirmPending
+        : copy.wallet.configChangeConfirmBody
+      : needsPhoneConfirm
+        ? copy.wallet.configChangeHoldBody
+        : copy.wallet.holdCeremonyBody;
+
+  const action = success
+    ? successAction
+    : confirming && onConfirmPhone && !confirmPending
+      ? (
+          <Button
+            type="button"
+            size="lg"
+            className="w-full"
+            onClick={onConfirmPhone}
+          >
+            {copy.wallet.configChangeConfirmCta}
+          </Button>
+        )
+      : undefined;
+
   return (
     <CeremonyShell
       leading={
@@ -40,17 +83,11 @@ export function ConfigChangeHoldCeremony({
       <NfcHoldStatus
         size="lg"
         pulsing={phase === "holding"}
-        busy={phase === "holding"}
-        tone={phase === "success" ? "success" : "default"}
-        title={phase === "success" ? copy.common.done : copy.wallet.holdToSave}
-        body={
-          phase === "success"
-            ? successBody
-            : needsPhoneConfirm
-              ? copy.wallet.configChangeHoldBody
-              : copy.wallet.holdCeremonyBody
-        }
-        action={phase === "success" ? successAction : undefined}
+        busy={phase === "holding" || confirmPending}
+        tone={success ? "success" : "default"}
+        title={title}
+        body={body}
+        action={action}
       />
     </CeremonyShell>
   );

@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronRight } from "lucide-react";
-import { address } from "@solana/kit";
+import { address, type Instruction } from "@solana/kit";
 import { toast } from "sonner";
 import {
   buildClearTokenVerifierChallenge,
@@ -14,7 +14,10 @@ import {
   buildSecp256r1VerifyInstruction,
 } from "phygital-token-sdk";
 
-import { ConfigChangeHoldCeremony } from "@/components/wallet/config-change-hold-ceremony";
+import {
+  ConfigChangeHoldCeremony,
+  type ConfigChangeCeremonyPhase,
+} from "@/components/wallet/config-change-hold-ceremony";
 import { NavBar, NavBarBack } from "@/components/shared/nav-bar";
 import { Button } from "@/components/ui/button";
 import { FieldLabel, Input } from "@/components/ui/input";
@@ -26,7 +29,6 @@ import {
 } from "@/lib/queries";
 import { useTokenVerifier } from "@/hooks/wallet/use-token-verifier";
 import { getSolanaRpc } from "@/lib/solana/rpc";
-import { sendTransaction } from "@/lib/solana/tx";
 import { tryParseAddress } from "@/lib/solana/address";
 import { toUserErrorMessage } from "@/lib/user-errors";
 import { handleOwnerAuthFailure } from "@/lib/wallet/device-sign-in-href";
@@ -34,9 +36,20 @@ import {
   getClearTokenVerifierInstructions,
   getSetTokenVerifierInstructions,
 } from "@/lib/wallet/token-verifier";
-import { createAppVerifierSigner } from "@/lib/wallet/verifier-fee-payer";
+import {
+  createAppVerifierSigner,
+  sendConfigTransaction,
+  type AppVerifierSigner,
+} from "@/lib/wallet/verifier-fee-payer";
 
-type View = "menu" | "warn" | "custom" | "holding" | "success";
+type View = "menu" | "warn" | "custom" | "ceremony";
+
+type PendingConfigTx = {
+  signer: AppVerifierSigner;
+  instructions: Instruction[];
+  onSuccess: () => void;
+  errorView: View;
+};
 
 /** Cosigner settings — Revibase by default; custom requires explicit ack. */
 export function SigningSettingsSheet({
@@ -48,10 +61,14 @@ export function SigningSettingsSheet({
 }) {
   const queryClient = useQueryClient();
   const [view, setView] = useState<View>("menu");
+  const [ceremonyPhase, setCeremonyPhase] =
+    useState<ConfigChangeCeremonyPhase>("holding");
   const [endpoint, setEndpoint] = useState("https://");
   const [verifier, setVerifier] = useState("");
   const [acked, setAcked] = useState(false);
   const [needsPhoneConfirm, setNeedsPhoneConfirm] = useState(false);
+  const [confirmPending, setConfirmPending] = useState(false);
+  const pendingRef = useRef<PendingConfigTx | null>(null);
 
   const verifierStatus = useTokenVerifier(phygitalTokenPda);
   const isCustom = verifierStatus.data?.custom === true;
@@ -64,6 +81,43 @@ export function SigningSettingsSheet({
     });
   }
 
+  async function finishConfigTx(pending: PendingConfigTx) {
+    const { confirmed } = await sendConfigTransaction({
+      instructions: pending.instructions,
+      signer: pending.signer,
+    });
+    await confirmed;
+    pending.onSuccess();
+    pendingRef.current = null;
+    setConfirmPending(false);
+    setCeremonyPhase("success");
+  }
+
+  async function runAfterNfc(pending: PendingConfigTx) {
+    pendingRef.current = pending;
+    setNeedsPhoneConfirm(pending.signer.requiresOwnerCosignAssertion);
+    if (pending.signer.requiresOwnerCosignAssertion) {
+      setCeremonyPhase("confirming");
+      return;
+    }
+    await finishConfigTx(pending);
+  }
+
+  async function onConfirmPhone() {
+    const pending = pendingRef.current;
+    if (!pending) return;
+    setConfirmPending(true);
+    try {
+      await finishConfigTx(pending);
+    } catch (e) {
+      if (handleOwnerAuthFailure(phygitalTokenPda, e)) return;
+      pendingRef.current = null;
+      setConfirmPending(false);
+      setView(pending.errorView);
+      toast.error(toUserErrorMessage(e));
+    }
+  }
+
   async function saveCustom() {
     const verifierAddr = tryParseAddress(verifier.trim());
     if (!verifierAddr || !endpoint.trim().startsWith("https://")) {
@@ -71,7 +125,9 @@ export function SigningSettingsSheet({
       return;
     }
     if (!acked) return;
-    setView("holding");
+    setCeremonyPhase("holding");
+    setConfirmPending(false);
+    setView("ceremony");
     try {
       const rpc = getSolanaRpc();
       const tokenPda = address(phygitalTokenPda);
@@ -101,23 +157,27 @@ export function SigningSettingsSheet({
           slotNumber,
         },
       });
-      const { confirmed } = await sendTransaction({
+      await runAfterNfc({
+        signer,
         instructions,
-        feePayer: signer,
+        errorView: "custom",
+        onSuccess: () => {
+          afterSigningTxConfirmed();
+          toast.success(copy.wallet.signingCustomSaved);
+        },
       });
-      await confirmed;
-      afterSigningTxConfirmed();
-      setView("success");
-      toast.success(copy.wallet.signingCustomSaved);
     } catch (e) {
       if (handleOwnerAuthFailure(phygitalTokenPda, e)) return;
+      pendingRef.current = null;
       setView("custom");
       toast.error(toUserErrorMessage(e));
     }
   }
 
   async function restoreDefault() {
-    setView("holding");
+    setCeremonyPhase("holding");
+    setConfirmPending(false);
+    setView("ceremony");
     try {
       const rpc = getSolanaRpc();
       const tokenPda = address(phygitalTokenPda);
@@ -144,28 +204,32 @@ export function SigningSettingsSheet({
           slotNumber,
         },
       });
-      const { confirmed } = await sendTransaction({
+      await runAfterNfc({
+        signer,
         instructions,
-        feePayer: signer,
+        errorView: "menu",
+        onSuccess: () => {
+          afterSigningTxConfirmed();
+          toast.success(copy.wallet.signingRestored);
+        },
       });
-      await confirmed;
-      afterSigningTxConfirmed();
-      setView("success");
-      toast.success(copy.wallet.signingRestored);
     } catch (e) {
       if (handleOwnerAuthFailure(phygitalTokenPda, e)) return;
+      pendingRef.current = null;
       setView("menu");
       toast.error(toUserErrorMessage(e));
     }
   }
 
-  if (view === "holding" || view === "success") {
+  if (view === "ceremony") {
     return (
       <ConfigChangeHoldCeremony
-        phase={view}
+        phase={ceremonyPhase}
         needsPhoneConfirm={needsPhoneConfirm}
+        confirmPending={confirmPending}
         onLeadingClick={onClose}
         leadingLabel={copy.common.cancel}
+        onConfirmPhone={() => void onConfirmPhone()}
         successAction={
           <Button type="button" size="lg" className="w-full" onClick={onClose}>
             {copy.common.done}
@@ -179,9 +243,7 @@ export function SigningSettingsSheet({
     return (
       <div className="flex flex-1 flex-col gap-4">
         <NavBar
-          leading={
-            <NavBarBack onClick={() => setView("menu")} />
-          }
+          leading={<NavBarBack onClick={() => setView("menu")} />}
           title={copy.wallet.signing}
         />
         <p className="rounded-2xl bg-destructive/10 px-4 py-3 text-sm text-destructive">
@@ -214,9 +276,7 @@ export function SigningSettingsSheet({
     return (
       <div className="flex flex-1 flex-col gap-4">
         <NavBar
-          leading={
-            <NavBarBack onClick={() => setView("warn")} />
-          }
+          leading={<NavBarBack onClick={() => setView("warn")} />}
           title={copy.wallet.signing}
         />
         <p className="rounded-2xl bg-destructive/10 px-4 py-3 text-sm text-destructive">

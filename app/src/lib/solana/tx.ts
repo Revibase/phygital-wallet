@@ -71,27 +71,31 @@ export type SentTransaction = {
   confirmed: Promise<void>;
 };
 
-/**
- * Sign and broadcast. Returns as soon as the RPC accepts the tx so callers can
- * update UI without waiting for `confirmed`. Await `confirmed` when the next
- * step must not run until the tx has landed (e.g. claim).
- */
-export async function sendTransaction(params: {
+export type UnsignedTransactionMessage = Parameters<
+  typeof signTransactionMessageWithSigners
+>[0];
+
+/** Build an unsigned v0 message (blockhash + fee payer + instructions). */
+export async function buildUnsignedTransaction(params: {
   instructions: Instruction[];
   feePayer: TransactionSigner;
-}): Promise<SentTransaction> {
-  const { instructions, feePayer } = params;
-
+}): Promise<UnsignedTransactionMessage> {
   const { value: latestBlockhash } = await getSolanaRpc()
     .getLatestBlockhash()
     .send();
 
-  const unsigned = pipe(
+  return pipe(
     createTransactionMessage({ version: 0 }),
-    (m) => setTransactionMessageFeePayerSigner(feePayer, m),
+    (m) => setTransactionMessageFeePayerSigner(params.feePayer, m),
     (m) => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
-    (m) => appendTransactionMessageInstructions(instructions, m),
+    (m) => appendTransactionMessageInstructions(params.instructions, m),
   );
+}
+
+/** Sign an unsigned message and broadcast. */
+export async function signAndSendTransaction(
+  unsigned: UnsignedTransactionMessage,
+): Promise<SentTransaction> {
   const signedTransaction = await signTransactionMessageWithSigners(unsigned);
   assertIsTransactionWithBlockhashLifetime(signedTransaction);
 
@@ -101,4 +105,17 @@ export async function sendTransaction(params: {
     signature: getSignatureFromTransaction(signedTransaction),
     confirmed: confirmRecentTransaction()(signedTransaction),
   };
+}
+
+/**
+ * Sign and broadcast. Returns as soon as the RPC accepts the tx so callers can
+ * update UI without waiting for `confirmed`. Await `confirmed` when the next
+ * step must not run until the tx has landed (e.g. claim).
+ */
+export async function sendTransaction(params: {
+  instructions: Instruction[];
+  feePayer: TransactionSigner;
+}): Promise<SentTransaction> {
+  const unsigned = await buildUnsignedTransaction(params);
+  return signAndSendTransaction(unsigned);
 }

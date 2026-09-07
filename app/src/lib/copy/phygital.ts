@@ -98,9 +98,15 @@ export const copy = {
     nearbyChangeDetails: "Change amount",
     nearbyChangePayer: "Use a different item",
     holdToSave: "Hold to save",
-    /** NFC + owner phone passkey when Config default verifier co-signs. */
+    /** NFC step when Config default verifier will also need phone confirm. */
     configChangeHoldBody:
       "Hold your accessory, then confirm on this phone with Face ID, fingerprint, or screen lock.",
+    configChangeConfirmTitle: "Confirm on this phone",
+    configChangeConfirmBody:
+      "Tap below, then use Face ID, fingerprint, or screen lock to finish saving.",
+    configChangeConfirmCta: "Confirm with Passkey",
+    configChangeConfirmPending:
+      "Waiting for Face ID, fingerprint, or screen lock…",
     save: "Save",
     holdToOpenTitle: "Hold to open",
     holdToOpenBody: "Hold your accessory to the top of your phone.",
