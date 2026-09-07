@@ -30,6 +30,7 @@ import { NATIVE_SOL_MINT } from "@/lib/tokens/payment-token";
 import type { FeeBalance } from "@/lib/wallet/fee-balance-client";
 import type { WalletPortfolio } from "@/lib/wallet/portfolio-types";
 import {
+  isWalletSignCeremonyPhase,
   walletSignPhaseCopy,
   type PhygitalWalletSignPhase,
 } from "@/lib/wallet/sign-phase-copy";
@@ -74,7 +75,7 @@ export function FeeBalanceSheet({
         signer: {
           onPhaseChange: (phase) => {
             setSignPhase(phase);
-            setPhase("holding");
+            if (isWalletSignCeremonyPhase(phase)) setPhase("holding");
           },
           onError: () => setSignPhase(null),
         },

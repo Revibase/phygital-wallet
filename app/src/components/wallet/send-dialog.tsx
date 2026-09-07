@@ -38,7 +38,10 @@ import { policyApprovalDetailRows, policySoftDenyBody } from "@/lib/wallet/polic
 import type { FeeBalance } from "@/lib/wallet/fee-balance-client";
 import type { WalletPortfolio } from "@/lib/wallet/portfolio-types";
 import { sendAssetFromWallet } from "@/lib/wallet/send-asset";
-import type { PhygitalWalletSignPhase } from "@/lib/wallet/sign-phase-copy";
+import {
+  isWalletSignCeremonyPhase,
+  type PhygitalWalletSignPhase,
+} from "@/lib/wallet/sign-phase-copy";
 import {
   collectibleToSendAsset,
   holdingToSendAsset,
@@ -266,7 +269,7 @@ export function SendDialog({
         signer: {
           onPhaseChange: (phase) => {
             onSignPhaseChange?.(phase);
-            showHolding();
+            if (isWalletSignCeremonyPhase(phase)) showHolding();
           },
           onError: () => {
             onSignPhaseChange?.(null);

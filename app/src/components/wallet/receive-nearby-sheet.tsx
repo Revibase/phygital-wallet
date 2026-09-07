@@ -39,6 +39,7 @@ import { ALL_LIST_SEARCH_THRESHOLD } from "@/lib/wallet/portfolio-preview";
 import type { WalletPortfolio } from "@/lib/wallet/portfolio-types";
 import { receiveAssetFromNearbyPayer } from "@/lib/wallet/send-asset";
 import {
+  isWalletSignCeremonyPhase,
   walletSignPhaseCopy,
   type PhygitalWalletSignPhase,
 } from "@/lib/wallet/sign-phase-copy";
@@ -193,7 +194,7 @@ export function ReceiveNearbySheet({
         signer: {
           onPhaseChange: (phase) => {
             setSignPhase(phase);
-            setPhase("holding");
+            if (isWalletSignCeremonyPhase(phase)) setPhase("holding");
           },
           onError: () => setSignPhase(null),
         },
