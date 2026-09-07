@@ -75,7 +75,7 @@ export const copy = {
     rpcDefault: "Default",
     rpcCustom: "Custom",
     rpcCustomPrompt: "Use your own URL…",
-    rpcCustomHint: "Paste an HTTPS Solana RPC URL. Keys stay on this phone.",
+    rpcCustomHint: "Paste an HTTPS Solana RPC URL",
     rpcUrlLabel: "URL",
     rpcSwitch: "Switch",
     rpcSwitchedDefault: "Using default network",

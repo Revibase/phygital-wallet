@@ -14,9 +14,9 @@ const STORAGE_KEY = "phygital-wallet.react-query";
 
 /**
  * Bump to drop incompatible cached shapes after schema changes.
- * v16: wallet activity only fetched on Activity screen (lazy).
+ * v17: activity from client getTransactionsForAddress (cursor pagination).
  */
-const CACHE_BUSTER = "v16";
+const CACHE_BUSTER = "v17";
 
 export { CACHE_BUSTER };
 

@@ -15,3 +15,6 @@ LOG_LEVEL=debug
 # Fee balance paymaster (SOL top-up accumulator + Helius webhook auth)
 # TOP_UP_ACCUMULATOR=
 # HELIUS_WEBHOOK_AUTH=
+
+# JSON array of base58 pubkeys — must match the keys of api-signer VERIFIER_SECRET_KEYS
+# DEFAULT_VERIFIER_PUBKEYS=["YourVerifierPubkeyBase58"]

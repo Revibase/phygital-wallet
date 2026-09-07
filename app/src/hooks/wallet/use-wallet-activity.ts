@@ -12,15 +12,15 @@ const EMPTY_ACTIVITY: WalletActivityItem[] = [];
 export function useWalletActivity(
   walletAddress: string | null,
   limit = 20,
-  before?: string | null,
+  cursor?: string | null,
 ) {
   const remote = useQuery({
-    queryKey: queryKeys.walletActivity.byOwner(walletAddress, limit, before),
+    queryKey: queryKeys.walletActivity.byOwner(walletAddress, limit, cursor),
     queryFn: () =>
       fetchWalletActivity({
         walletAddress: walletAddress!,
         limit,
-        before,
+        cursor,
       }),
     enabled: Boolean(walletAddress),
     ...queryOptions.activity,

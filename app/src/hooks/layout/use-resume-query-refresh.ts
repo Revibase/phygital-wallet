@@ -10,8 +10,8 @@ import { queryKeys } from "@/lib/queries";
  * in-app browser. React Query's focus manager does not always run then,
  * so persisted token ownership can stay frozen until site data is cleared.
  *
- * Intentionally skips `walletActivity` — Helius Wallet History is expensive
- * (100 credits/req); optimistic React Query rows cover post-send UX.
+ * Intentionally skips `walletActivity` — history RPC is still costly relative
+ * to portfolio; optimistic React Query rows cover post-send UX.
  */
 export function useResumeQueryRefresh() {
   const queryClient = useQueryClient();

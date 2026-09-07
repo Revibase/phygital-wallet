@@ -15,7 +15,6 @@ import { verifyTapRoutes } from "@/tap/routes";
 import { tokenRoutes } from "@/tokens/routes";
 import { verifierRoutes } from "@/verifier";
 import { heliusWebhookRoutes } from "@/webhooks/helius";
-import { walletRoutes } from "@/wallet/routes";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -72,7 +71,6 @@ app.use("*", async (c, next) => {
 app.get("/health", (c) => c.json({ ok: true }));
 
 app.route("/", tokenRoutes);
-app.route("/", walletRoutes);
 app.route("/", verifyTapRoutes);
 app.route("/", verifierRoutes);
 app.route("/", policyRoutes);

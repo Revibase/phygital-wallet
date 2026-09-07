@@ -27,8 +27,8 @@ export const queryKeys = {
 
   walletActivity: {
     all: () => ["walletActivity"] as const,
-    byOwner: (owner: string | null, limit = 20, before?: string | null) =>
-      [...queryKeys.walletActivity.all(), owner, limit, before ?? null] as const,
+    byOwner: (owner: string | null, limit = 20, cursor?: string | null) =>
+      [...queryKeys.walletActivity.all(), owner, limit, cursor ?? null] as const,
   },
 
   activityMintMeta: {

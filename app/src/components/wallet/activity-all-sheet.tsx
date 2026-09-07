@@ -15,19 +15,19 @@ export function ActivityAllSheet({
   walletAddress: string;
   onBack: () => void;
 }) {
-  const [before, setBefore] = useState<string | null>(null);
+  const [cursor, setCursor] = useState<string | null>(null);
   const [pages, setPages] = useState<WalletActivityItem[]>([]);
-  const activity = useWalletActivity(walletAddress, 40, before);
+  const activity = useWalletActivity(walletAddress, 40, cursor);
 
   useEffect(() => {
-    setBefore(null);
+    setCursor(null);
     setPages([]);
   }, [walletAddress]);
 
   useEffect(() => {
-    if (before != null && activity.isFetching) return;
+    if (cursor != null && activity.isFetching) return;
 
-    if (before == null) {
+    if (cursor == null) {
       setPages(activity.items);
       return;
     }
@@ -37,9 +37,11 @@ export function ActivityAllSheet({
     setPages((prev) => {
       const byId = new Map(prev.map((item) => [item.id, item]));
       for (const item of activity.items) byId.set(item.id, item);
-      return [...byId.values()].sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
+      return [...byId.values()].sort(
+        (a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0),
+      );
     });
-  }, [activity.items, activity.isFetching, before]);
+  }, [activity.items, activity.isFetching, cursor]);
 
   return (
     <div className="flex flex-1 flex-col gap-4">
@@ -53,9 +55,11 @@ export function ActivityAllSheet({
         emptyLabel={copy.wallet.noActivity}
         assetMetaByMint={activity.mintMeta}
         hasMore={Boolean(activity.nextCursor)}
-        loadingMore={activity.isFetching && before != null}
+        loadingMore={activity.isFetching && cursor != null}
         onLoadMore={
-          activity.nextCursor ? () => setBefore(activity.nextCursor) : undefined
+          activity.nextCursor
+            ? () => setCursor(activity.nextCursor)
+            : undefined
         }
       />
     </div>

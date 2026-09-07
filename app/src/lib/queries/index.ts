@@ -72,7 +72,7 @@ export const queryOptions = {
   /** Changes after user actions; mutations already invalidate. */
   default: { refetchOnWindowFocus: false, staleTime: 5 * MINUTE },
   /**
-   * Costly Helius Wallet History — only mounted on the Activity screen.
+   * Activity via getTransactionsForAddress — only mounted on the Activity screen.
    * Same short stale window as portfolio; no focus refetch while on the tab.
    */
   activity: {

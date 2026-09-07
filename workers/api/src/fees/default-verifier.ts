@@ -1,53 +1,63 @@
-import {
-  createSolanaRpc,
-  fetchEncodedAccounts,
-} from "@solana/kit";
-import {
-  decodeConfig,
-  findConfigPda,
-} from "phygital-wallet-sdk";
+/**
+ * Default verifier / paymaster set for fee webhook sponsorship checks.
+ * Membership comes from `DEFAULT_VERIFIER_PUBKEYS` (JSON array of base58
+ * pubkeys) — must match the keys of api-signer `VERIFIER_SECRET_KEYS`.
+ * No on-chain Config RPC.
+ */
+import { getEnv } from "@/shared/request-context";
 
-import { getRpcUrl } from "@/shared/solana/cluster";
+let cached: Set<string> | null = null;
 
-let cachedDefaultVerifiers: { at: number; set: Set<string> } | null = null;
-const CONFIG_CACHE_MS = 60_000;
-
-function verifierSetFromConfig(
-  encoded: Awaited<ReturnType<typeof fetchEncodedAccounts>>[number],
-): Set<string> {
-  const config = decodeConfig(encoded);
+function parseDefaultVerifierPubkeys(raw: string | undefined): Set<string> {
+  if (!raw?.trim()) {
+    throw Object.assign(
+      new Error("DEFAULT_VERIFIER_PUBKEYS is not configured"),
+      { code: "fee_misconfigured" },
+    );
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw Object.assign(
+      new Error("DEFAULT_VERIFIER_PUBKEYS must be valid JSON"),
+      { code: "fee_misconfigured" },
+    );
+  }
+  if (!Array.isArray(parsed)) {
+    throw Object.assign(
+      new Error("DEFAULT_VERIFIER_PUBKEYS must be a JSON array of base58 pubkeys"),
+      { code: "fee_misconfigured" },
+    );
+  }
   const set = new Set<string>();
-  if (config.exists) {
-    const count = config.data.verifierCount;
-    for (let i = 0; i < count; i++) {
-      const v = config.data.verifiers[i];
-      if (v) set.add(String(v));
+  for (const item of parsed) {
+    if (typeof item !== "string" || !item.trim()) {
+      throw Object.assign(
+        new Error("DEFAULT_VERIFIER_PUBKEYS entries must be non-empty strings"),
+        { code: "fee_misconfigured" },
+      );
     }
+    set.add(item.trim());
+  }
+  if (set.size === 0) {
+    throw Object.assign(
+      new Error("DEFAULT_VERIFIER_PUBKEYS must include at least one pubkey"),
+      { code: "fee_misconfigured" },
+    );
   }
   return set;
 }
 
-async function loadDefaultVerifierSet(): Promise<Set<string>> {
-  const now = Date.now();
-  if (
-    cachedDefaultVerifiers &&
-    now - cachedDefaultVerifiers.at < CONFIG_CACHE_MS
-  ) {
-    return cachedDefaultVerifiers.set;
-  }
-
-  const rpc = createSolanaRpc(getRpcUrl());
-  const [configPda] = await findConfigPda();
-  const [encoded] = await fetchEncodedAccounts(rpc, [configPda]);
-  const set = verifierSetFromConfig(encoded);
-  cachedDefaultVerifiers = { at: now, set };
-  return set;
+function getDefaultVerifierSet(): Set<string> {
+  if (cached) return cached;
+  cached = parseDefaultVerifierPubkeys(getEnv().DEFAULT_VERIFIER_PUBKEYS);
+  return cached;
 }
 
-/** True when this pubkey is a Config default verifier (paymaster). */
+/** True when this pubkey is a default verifier (paymaster). */
 export async function isDefaultConfigVerifier(
   verifier: string,
 ): Promise<boolean> {
-  const defaults = await loadDefaultVerifierSet();
-  return defaults.has(verifier);
+  return getDefaultVerifierSet().has(verifier);
 }

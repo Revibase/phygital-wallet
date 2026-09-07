@@ -29,6 +29,50 @@ function parseSeed(raw: string): Uint8Array {
 }
 
 /**
+ * Pubkeys from `VERIFIER_SECRET_KEYS` JSON map keys (no seed validation).
+ * Used as the Config-equivalent default verifier / paymaster set.
+ */
+export function parseVerifierSecretKeyPubkeys(
+  secretKeysJson: string | undefined,
+): Set<string> {
+  if (!secretKeysJson?.trim()) {
+    throw Object.assign(
+      new Error("VERIFIER_SECRET_KEYS is not configured"),
+      { code: "signer_misconfigured" },
+    );
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(secretKeysJson);
+  } catch {
+    throw Object.assign(
+      new Error("VERIFIER_SECRET_KEYS must be valid JSON"),
+      { code: "signer_misconfigured" },
+    );
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw Object.assign(
+      new Error("VERIFIER_SECRET_KEYS must be a JSON object map"),
+      { code: "signer_misconfigured" },
+    );
+  }
+  const keys = Object.keys(parsed as Record<string, unknown>);
+  if (keys.length === 0) {
+    throw Object.assign(
+      new Error("VERIFIER_SECRET_KEYS must include at least one key"),
+      { code: "signer_misconfigured" },
+    );
+  }
+  if (keys.length > MAX_VERIFIER_KEYS) {
+    throw Object.assign(
+      new Error(`VERIFIER_SECRET_KEYS supports at most ${MAX_VERIFIER_KEYS} keys`),
+      { code: "signer_misconfigured" },
+    );
+  }
+  return new Set(keys);
+}
+
+/**
  * In-process ed25519 signing from `VERIFIER_SECRET_KEYS` JSON map
  * `{ "<base58Pubkey>": "<seed|keypair>" }` (max {@link MAX_VERIFIER_KEYS}).
  */
@@ -94,6 +138,11 @@ export class SecretsVerifierBackend implements VerifierSignerBackend {
       }
       this.byPubkey.set(pubkey, seed);
     }
+  }
+
+  /** On-chain verifier pubkeys this Worker can co-sign for. */
+  listPubkeys(): string[] {
+    return [...this.byPubkey.keys()];
   }
 
   canSign(verifierPubkey: string): boolean {
