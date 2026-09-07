@@ -236,17 +236,28 @@ export function ReceiveNearbySheet({
         direction: "out",
       });
 
-      await confirmed;
-
-      patchOptimisticWalletActivity(queryClient, {
-        owner: recipientWallet,
-        id: signature,
-        patch: { pending: false },
-      });
       setPhase("success");
       setSignPhase(null);
       toast.success(copy.wallet.received);
       onReceived();
+
+      void confirmed.then(
+        () => {
+          patchOptimisticWalletActivity(queryClient, {
+            owner: recipientWallet,
+            id: signature,
+            patch: { pending: false },
+          });
+        },
+        (err) => {
+          restorePortfolioSnapshot(queryClient, recipientWallet, recipientBefore);
+          if (from) {
+            restorePortfolioSnapshot(queryClient, from.walletPda, payerBefore);
+          }
+          restoreWalletActivitySnapshot(queryClient, activityBefore);
+          toast.error(toUserErrorMessage(err));
+        },
+      );
     } catch (e) {
       setSignPhase(null);
       if (submittedSignature) {

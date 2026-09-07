@@ -319,17 +319,26 @@ export function SendDialog({
         removeCollectible: nft,
       });
 
-      await confirmed;
-
-      patchOptimisticWalletActivity(queryClient, {
-        owner: walletAddress,
-        id: signature,
-        patch: { pending: false },
-      });
       onHoldPhaseChange("success", recapForSend(signature));
       onSignPhaseChange?.(null);
       toast.success(copy.wallet.sent);
       onSent();
+
+      void confirmed.then(
+        () => {
+          patchOptimisticWalletActivity(queryClient, {
+            owner: walletAddress,
+            id: signature,
+            patch: { pending: false },
+          });
+        },
+        (err) => {
+          restoreFeeBalanceSnapshot(queryClient, phygitalTokenPda, feeBefore);
+          restorePortfolioSnapshot(queryClient, walletAddress, portfolioBefore);
+          restoreWalletActivitySnapshot(queryClient, activityBefore);
+          toast.error(toUserErrorMessage(err));
+        },
+      );
     } catch (e) {
       if (submittedSignature) {
         restoreFeeBalanceSnapshot(queryClient, phygitalTokenPda, feeBefore);

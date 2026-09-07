@@ -120,18 +120,29 @@ export function FeeBalanceSheet({
         });
       }
 
-      await confirmed;
-
-      if (submittedSignature && walletAddress) {
-        patchOptimisticWalletActivity(queryClient, {
-          owner: walletAddress,
-          id: submittedSignature,
-          patch: { pending: false },
-        });
-      }
       setPhase("success");
       setSignPhase(null);
       toast.success(copy.wallet.topUpSuccess);
+
+      void confirmed.then(
+        () => {
+          if (submittedSignature && walletAddress) {
+            patchOptimisticWalletActivity(queryClient, {
+              owner: walletAddress,
+              id: submittedSignature,
+              patch: { pending: false },
+            });
+          }
+        },
+        (err) => {
+          restoreFeeBalanceSnapshot(queryClient, phygitalTokenPda, feeBefore);
+          if (walletAddress) {
+            restorePortfolioSnapshot(queryClient, walletAddress, portfolioBefore);
+            restoreWalletActivitySnapshot(queryClient, activityBefore);
+          }
+          toast.error(toUserErrorMessage(err));
+        },
+      );
     } catch (e) {
       setSignPhase(null);
       if (submittedSignature) {

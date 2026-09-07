@@ -59,9 +59,10 @@ export function walletSignPhaseCopy(phase: PhygitalWalletSignPhase): {
         pulse: false,
       };
     case "complete":
+      // Wrap finished; UI often stays here through broadcast + confirmed.
       return {
-        title: copy.wallet.signBuildingTitle,
-        body: copy.wallet.signBuildingBody,
+        title: copy.wallet.signSendingTitle,
+        body: copy.wallet.signSendingBody,
         pulse: false,
       };
   }

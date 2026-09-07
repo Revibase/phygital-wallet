@@ -123,6 +123,8 @@ export const copy = {
     signBuildingBody: "Building your transaction…",
     signCoSigningTitle: "Confirming",
     signCoSigningBody: "Waiting for the verifier…",
+    signSendingTitle: "Sending",
+    signSendingBody: "Waiting for the network to confirm…",
     setupStepPasskey: "Step 1 of 2 · This phone",
     setupStepLink: "Step 2 of 2 · Link accessory",
     setupStepConfirm: "Step 2 of 2 · Confirm on this phone",
