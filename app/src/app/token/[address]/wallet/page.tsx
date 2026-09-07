@@ -1,18 +1,10 @@
 "use client";
 
-import { useCallback } from "react";
-import { Copy, EllipsisVertical, Settings } from "lucide-react";
-import { toast } from "sonner";
+import { ChevronLeft, Settings } from "lucide-react";
 
-import { IdentityChip } from "@/components/shared/identity-chip";
+import { CopyableAddress } from "@/components/shared/copyable-address";
 import { NavBar } from "@/components/shared/nav-bar";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { WalletHomePanel } from "@/components/wallet/wallet-home-panel";
 import {
   useWalletNav,
@@ -23,7 +15,6 @@ import { useFeeBalance } from "@/hooks/wallet/use-fee-balance";
 import { useRpcPreference } from "@/hooks/wallet/use-rpc-preference";
 import { copy } from "@/lib/copy/phygital";
 import { isClaimDismissed } from "@/lib/wallet/claim-setup-href";
-import { shortAddress } from "@/lib/utils";
 
 const timeFormatter = new Intl.DateTimeFormat(undefined, {
   hour: "numeric",
@@ -56,58 +47,47 @@ export default function WalletHomePage() {
       ? "refreshing"
       : "live";
 
-  const copyWalletAddress = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(walletAddress);
-      toast.success(copy.address.copiedToClipboard);
-    } catch {
-      toast.error(copy.wallet.addressCopyFailed);
-    }
-  }, [walletAddress]);
-
   return (
     <div className="flex flex-1 flex-col">
       <NavBar
         leading={
-          <div className="flex min-w-0 items-start gap-0.5">
+          <div className="flex min-w-0 items-center gap-0.5">
+            {mint ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label={copy.wallet.showCardAria}
+                onClick={goCard}
+                className="-ml-2 size-9 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
+              >
+                <ChevronLeft className="size-5" aria-hidden />
+              </Button>
+            ) : null}
             <div className="flex min-w-0 flex-col gap-0 leading-tight">
               <p className="truncate text-sm font-medium tracking-tight">
                 {resolvedLabel}
               </p>
-              <p
-                className="truncate py-0.5 font-mono text-[11px] text-muted-foreground tabular-nums"
-                title={walletAddress}
-              >
-                {shortAddress(walletAddress, 4)}
-              </p>
+              <CopyableAddress
+                address={walletAddress}
+                length={4}
+                label={copy.address.wallet}
+                className="min-h-0 py-0.5 text-[11px] text-muted-foreground"
+              />
             </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  aria-label={copy.wallet.moreAria}
-                  className="-mt-1 size-9 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
-                >
-                  <EllipsisVertical className="size-4" aria-hidden />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="min-w-44 w-auto">
-                <DropdownMenuItem onSelect={() => void copyWalletAddress()}>
-                  <Copy aria-hidden />
-                  {copy.wallet.copyAddress}
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => go("settings")}>
-                  <Settings aria-hidden />
-                  {copy.wallet.settings}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
         }
         trailing={
-          mint ? <IdentityChip viewingWallet onToggle={goCard} /> : undefined
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={copy.wallet.manageDevice}
+            onClick={() => go("settings")}
+            className="rounded-full text-muted-foreground hover:text-foreground"
+          >
+            <Settings className="size-4" aria-hidden />
+          </Button>
         }
       />
       <WalletHomePanel
