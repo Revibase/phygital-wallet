@@ -13,7 +13,7 @@ import type { WalletRole } from "@/components/token/token-address-route";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { FieldLabel, Input } from "@/components/ui/input";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { copy } from "@/lib/copy/phygital";
 import {
   applyOptimisticFeeBalance,
@@ -55,7 +55,7 @@ import {
 } from "@/lib/wallet/network-fee";
 import { sanitizeDecimalInput } from "@/lib/tokens/amount";
 import { resolveTokenIconSrc } from "@/lib/tokens/payment-token";
-import { snapEnter, snapEnterTransition, easeOut } from "@/lib/motion";
+import { snapEnter, snapEnterTransition } from "@/lib/motion";
 import type { SendHoldRecap } from "@/components/wallet/send-hold-stage";
 import { Spinner } from "@/components/ui/spinner";
 import { GroupedList, GroupedRow } from "@/components/shared/grouped-list";
@@ -326,8 +326,8 @@ export function SendDialog({
         id: signature,
         patch: { pending: false },
       });
-      onSignPhaseChange?.(null);
       onHoldPhaseChange("success", recapForSend(signature));
+      onSignPhaseChange?.(null);
       toast.success(copy.wallet.sent);
       onSent();
     } catch (e) {
@@ -750,135 +750,147 @@ export function SendDialog({
           </div>
         </SheetContent>
       </Sheet>
+
+      <Sheet
+        open={softDeny != null}
+        onOpenChange={(open) => {
+          if (!open && !busy) setSoftDeny(null);
+        }}
+      >
+        <SheetContent
+          side="bottom"
+          showCloseButton={false}
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => {
+            if (busy) e.preventDefault();
+            else setSoftDeny(null);
+          }}
+          className="mx-auto max-h-[85vh] max-w-lg overflow-y-auto rounded-t-3xl p-0"
+        >
+          {softDeny ? (
+            <ApprovalSheetBody
+              title={
+                role === "owner"
+                  ? copy.wallet.approveSendTitle
+                  : copy.wallet.nearbyPolicyTitle
+              }
+              body={
+                role === "owner"
+                  ? policySoftDenyBody(softDeny)
+                  : copy.wallet.deviceVisitorSoftDeny
+              }
+              amountLabel={
+                nft
+                  ? (asset?.name ?? "1")
+                  : typeof softDeny.details?.amountUi === "string"
+                    ? `${softDeny.details.amountUi}${asset?.symbol ? ` ${asset.symbol}` : ""}`
+                    : `${amount} ${asset?.symbol ?? ""}`
+              }
+              recipientLabel={shortAddress(
+                String(parsedRecipient ?? recipient),
+                6,
+              )}
+              detailRows={policyApprovalDetailRows(softDeny.details)}
+              busy={busy}
+              canApprove={role === "owner"}
+              onApprove={() => void approveOnce()}
+              onDeny={() => setSoftDeny(null)}
+            />
+          ) : null}
+        </SheetContent>
+      </Sheet>
       </m.div>
     </LazyMotion>
   );
 
-  if (softDeny) {
-    const displayAmount = nft
-      ? asset?.name ?? "1"
-      : `${amount} ${asset?.symbol ?? ""}`;
-    const detailRows = policyApprovalDetailRows(softDeny.details);
-
-    return (
-      <LazyMotion features={domAnimation}>
-        <m.div
-          className="flex flex-1 flex-col gap-6"
-          initial={enter.initial}
-          animate={enter.animate}
-          transition={snapEnterTransition}
-        >
-          <NavBar
-            className="mb-0"
-            leading={
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="-ml-2 text-muted-foreground hover:text-foreground"
-                onClick={() => setSoftDeny(null)}
-              >
-                {copy.common.cancel}
-              </Button>
-            }
-            title={copy.wallet.send}
-          />
-          <m.div
-            className="flex flex-1 flex-col items-center justify-center gap-4 px-2 text-center"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.16, ease: easeOut }}
-          >
-            <m.h2
-              className="font-(family-name:--font-display) text-2xl font-medium"
-              initial={{ opacity: 0, scale: 0.985 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={snapEnterTransition}
-            >
-              {role === "owner"
-                ? copy.wallet.approveSendTitle
-                : copy.wallet.nearbyPolicyTitle}
-            </m.h2>
-            <p className="max-w-sm text-sm text-muted-foreground">
-              {role === "owner"
-                ? policySoftDenyBody(softDeny)
-                : copy.wallet.deviceVisitorSoftDeny}
-            </p>
-            <m.div
-              className="w-full max-w-sm overflow-hidden rounded-2xl bg-muted/25 text-left"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={snapEnterTransition}
-            >
-              <div className="border-b border-border/40 px-4 py-3">
-                <p className="font-(family-name:--font-display) text-lg">
-                  {displayAmount}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {copy.wallet.to}{" "}
-                  {shortAddress(String(parsedRecipient ?? recipient), 6)}
-                </p>
-              </div>
-              {detailRows.map((row) => (
-                <div
-                  key={row.label}
-                  className="flex items-center justify-between gap-3 border-b border-border/40 px-4 py-3 text-sm last:border-b-0"
-                >
-                  <span className="text-muted-foreground">{row.label}</span>
-                  <span className="font-medium tabular-nums">{row.value}</span>
-                </div>
-              ))}
-            </m.div>
-          </m.div>
-          <m.div
-            className="flex flex-col gap-2"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={snapEnterTransition}
-          >
-            {role === "owner" ? (
-              <>
-                <Button
-                  type="button"
-                  size="lg"
-                  className="w-full"
-                  disabled={busy}
-                  onClick={() => void approveOnce()}
-                >
-                  {busy ? (
-                    <Spinner className="size-4" />
-                  ) : (
-                    copy.wallet.approveOnce
-                  )}
-                </Button>
-                {onChangeLimits ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="w-full"
-                    disabled={busy}
-                    onClick={() => onChangeLimits(softDeny.code)}
-                  >
-                    {copy.wallet.changeLimits}
-                  </Button>
-                ) : null}
-              </>
-            ) : (
-              <Button
-                type="button"
-                size="lg"
-                className="w-full"
-                onClick={() => setSoftDeny(null)}
-              >
-                {copy.common.done}
-              </Button>
-            )}
-          </m.div>
-        </m.div>
-      </LazyMotion>
-    );
-  }
-
   return form;
+}
+
+function ApprovalSheetBody({
+  title,
+  body,
+  amountLabel,
+  recipientLabel,
+  detailRows,
+  busy,
+  canApprove,
+  onApprove,
+  onDeny,
+}: {
+  title: string;
+  body: string;
+  amountLabel: string;
+  recipientLabel: string;
+  detailRows: { label: string; value: string }[];
+  busy: boolean;
+  canApprove: boolean;
+  onApprove: () => void;
+  onDeny: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-5 px-4 pb-8 pt-2">
+      <SheetHeader className="px-0 text-center sm:text-center">
+        <SheetTitle className="font-(family-name:--font-display) text-2xl font-medium">
+          {title}
+        </SheetTitle>
+        <SheetDescription className="text-sm text-muted-foreground">
+          {body}
+        </SheetDescription>
+      </SheetHeader>
+      <div className="overflow-hidden rounded-2xl bg-muted/25 text-left">
+        <div className="border-b border-border/40 px-4 py-3">
+          <p className="font-(family-name:--font-display) text-lg">
+            {amountLabel}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {copy.wallet.to} {recipientLabel}
+          </p>
+        </div>
+        {detailRows.map((row) => (
+          <div
+            key={row.label}
+            className="flex items-center justify-between gap-3 border-b border-border/40 px-4 py-3 text-sm last:border-b-0"
+          >
+            <span className="text-muted-foreground">{row.label}</span>
+            <span className="font-medium tabular-nums">{row.value}</span>
+          </div>
+        ))}
+      </div>
+      <SheetFooter className="gap-2 p-0 sm:flex-col">
+        {canApprove ? (
+          <>
+            <Button
+              type="button"
+              size="lg"
+              className="w-full"
+              disabled={busy}
+              onClick={onApprove}
+            >
+              {busy ? <Spinner className="size-4" /> : copy.wallet.approveOnce}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="lg"
+              className="w-full"
+              disabled={busy}
+              onClick={onDeny}
+            >
+              {copy.wallet.denyOnce}
+            </Button>
+          </>
+        ) : (
+          <Button
+            type="button"
+            size="lg"
+            className="w-full"
+            onClick={onDeny}
+          >
+            {copy.common.done}
+          </Button>
+        )}
+      </SheetFooter>
+    </div>
+  );
 }
 

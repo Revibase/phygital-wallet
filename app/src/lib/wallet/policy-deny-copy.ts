@@ -1,6 +1,7 @@
 import { PolicyDeniedError } from "phygital-wallet-sdk";
 
 import { copy } from "@/lib/copy/phygital";
+import { formatTokenAmount } from "@/lib/tokens/amount";
 import { shortAddress } from "@/lib/utils";
 
 export function policySoftDenyBody(deny: PolicyDeniedError): string {
@@ -49,18 +50,30 @@ export function policyApprovalDetailRows(
     });
   }
 
+  const amountUi =
+    typeof details.amountUi === "string" ? details.amountUi : null;
   const requestedUi =
     typeof details.requestedUi === "string" ? details.requestedUi : null;
   const amount = typeof details.amount === "string" ? details.amount : null;
-  if (requestedUi) {
+  const decimals =
+    typeof details.decimals === "number" ? details.decimals : null;
+
+  let displayAmount: string | null = amountUi;
+  if (!displayAmount && requestedUi) {
+    // USDC spend-limit enrichment is dollar-denominated.
+    displayAmount = `$${requestedUi}`;
+  }
+  if (!displayAmount && amount != null && decimals != null && decimals >= 0) {
+    try {
+      displayAmount = formatTokenAmount(BigInt(amount), decimals);
+    } catch {
+      /* ignore malformed raw amount */
+    }
+  }
+  if (displayAmount) {
     rows.push({
       label: copy.wallet.approveSendAmount,
-      value: `$${requestedUi}`,
-    });
-  } else if (amount) {
-    rows.push({
-      label: copy.wallet.approveSendAmount,
-      value: amount,
+      value: displayAmount,
     });
   }
 

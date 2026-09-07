@@ -79,6 +79,46 @@ function parsedAmount(parsed: ParsedIx): string | undefined {
   return undefined;
 }
 
+const SYSTEM_PROGRAM = "11111111111111111111111111111111";
+
+function parsedDecimals(parsed: ParsedIx): number | undefined {
+  const v = parsed.fields["decimals"];
+  if (v?.type === "number" && Number.isFinite(v.value)) {
+    return Number(v.value);
+  }
+  // Native SOL only — System transfers have no mint decimals field.
+  if (
+    parsed.programId === SYSTEM_PROGRAM &&
+    (parsed.instructionName === "transfer" ||
+      parsed.instructionName === "transferWithSeed")
+  ) {
+    return 9;
+  }
+  return undefined;
+}
+
+/** Format raw integer amount string with token decimals (no float drift). */
+export function rawAmountToUi(raw: string, decimals: number): string | undefined {
+  if (!/^-?\d+$/.test(raw) || !Number.isInteger(decimals) || decimals < 0) {
+    return undefined;
+  }
+  const negative = raw.startsWith("-");
+  const digits = negative ? raw.slice(1) : raw;
+  try {
+    const abs = BigInt(digits);
+    const base = 10n ** BigInt(decimals);
+    const whole = abs / base;
+    const frac = (abs % base)
+      .toString()
+      .padStart(decimals, "0")
+      .replace(/0+$/, "");
+    const formatted = frac.length > 0 ? `${whole}.${frac}` : whole.toString();
+    return negative ? `-${formatted}` : formatted;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Flat UX fields from a parsed instruction (mint / amount / destination). */
 function ixContextDetails(parsed: ParsedIx): VerifyFailDetails {
   let destination: string | undefined;
@@ -91,11 +131,18 @@ function ixContextDetails(parsed: ParsedIx): VerifyFailDetails {
   }
   const mint = parsedString(parsed, "mint");
   const amount = parsedAmount(parsed);
+  const decimals = parsedDecimals(parsed);
+  const amountUi =
+    amount != null && decimals != null
+      ? rawAmountToUi(amount, decimals)
+      : undefined;
   return {
     programId: parsed.programId,
     instructionName: parsed.instructionName,
     ...(mint != null ? { mint } : {}),
     ...(amount != null ? { amount } : {}),
+    ...(decimals != null ? { decimals } : {}),
+    ...(amountUi != null ? { amountUi } : {}),
     ...(destination != null ? { destination } : {}),
   };
 }

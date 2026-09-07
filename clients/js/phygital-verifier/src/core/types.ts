@@ -156,6 +156,14 @@ export type VerifyFailDetails = {
   /** Decoded amount as a decimal string (`amount` or `transferArgs.amount`). */
   amount?: string;
   /**
+   * Token decimals used to format {@link amountUi}.
+   * From `transferChecked.decimals` for SPL mints; `9` only for native
+   * System `transfer` / `transferWithSeed` (lamports).
+   */
+  decimals?: number;
+  /** Human-readable amount (`amount` ÷ 10^decimals). Prefer this for UX. */
+  amountUi?: string;
+  /**
    * Decoded send recipient (first of destinationOwner / newLeafOwner /
    * newOwner / wallet / destination).
    */

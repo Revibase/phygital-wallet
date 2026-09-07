@@ -31,7 +31,6 @@ import { shellLayoutClass } from "@/lib/layout";
 import { cn } from "@/lib/utils";
 import { isClaimDismissed } from "@/lib/wallet/claim-setup-href";
 import {
-  settingsFromDenyCode,
   tokenHref,
   walletHref,
   walletSendHref,
@@ -376,11 +375,7 @@ function WalletRouteOverlays({
     isWalletHome &&
     !showClaimSheet;
 
-  const stageKey = showClaimSheet
-    ? "claim"
-    : showOpenApprovals
-      ? "approvals"
-      : "wallet";
+  const stageKey = showClaimSheet ? "claim" : "wallet";
 
   let body: ReactNode = <WalletMain>{children}</WalletMain>;
   if (showClaimSheet) {
@@ -398,28 +393,24 @@ function WalletRouteOverlays({
         }}
       />
     );
-  } else if (showOpenApprovals) {
-    body = (
-      <OpenApprovalsSheet
-        phygitalTokenPda={tokenAddress}
-        approvals={openApprovals.approvals}
-        onChangeLimits={(code) => {
-          setDismissApprovals(true);
-          router.push(
-            walletSettingsHref(tokenAddress, settingsFromDenyCode(code)),
-          );
-        }}
-        onDone={() => {
-          setDismissApprovals(true);
-          void openApprovals.refetch();
-        }}
-      />
-    );
   }
 
   return (
-    <StageTransition stageKey={stageKey} variant="fade">
-      {body}
-    </StageTransition>
+    <>
+      <StageTransition stageKey={stageKey} variant="fade">
+        {body}
+      </StageTransition>
+      <OpenApprovalsSheet
+        phygitalTokenPda={tokenAddress}
+        approvals={openApprovals.approvals}
+        open={showOpenApprovals}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDismissApprovals(true);
+            void openApprovals.refetch();
+          }
+        }}
+      />
+    </>
   );
 }

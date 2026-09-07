@@ -129,8 +129,8 @@ export function FeeBalanceSheet({
           patch: { pending: false },
         });
       }
-      setSignPhase(null);
       setPhase("success");
+      setSignPhase(null);
       toast.success(copy.wallet.topUpSuccess);
     } catch (e) {
       setSignPhase(null);

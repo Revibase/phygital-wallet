@@ -44,6 +44,8 @@ Instruction-scoped failures include decoded context when a parser is registered:
 | `field`, `op`, `limit`, `actual` | Condition mismatch (when present) |
 | `mint` | Decoded mint pubkey |
 | `amount` | Decoded amount (`amount` or `transferArgs.amount`) as decimal string |
+| `decimals` | From `transferChecked` for SPL mints; `9` only for native System `transfer` |
+| `amountUi` | Human-readable amount (`amount` ÷ 10^decimals) — prefer for UX |
 | `destination` | Decoded send recipient (first of destinationOwner / newLeafOwner / newOwner / wallet / destination) |
 
 Use them for UX / co-signer mapping — no need to re-parse the instruction.

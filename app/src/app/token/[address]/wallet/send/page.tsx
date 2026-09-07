@@ -54,7 +54,7 @@ export default function WalletSendPage() {
 
   return (
     <StageTransition
-      stageKey={holdPhase ? `send-${holdPhase}` : "send-form"}
+      stageKey={holdPhase ? "send-ceremony" : "send-form"}
       variant="fade"
     >
       {holdPhase ? (

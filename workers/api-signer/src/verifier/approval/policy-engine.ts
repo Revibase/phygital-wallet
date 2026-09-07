@@ -11,7 +11,7 @@ import {
   PHYGITAL_WALLET_PROGRAM_ADDRESS,
 } from "phygital-wallet-sdk";
 import { COMPUTE_BUDGET_PROGRAM } from "@/verifier/constants";
-import { getUsdcMint, USDC_DECIMALS } from "@/tokens/usdc-mint";
+import { getUsdcMint } from "@/tokens/usdc-mint";
 import { PHYGITAL_TOKEN_PROGRAM_ADDRESS } from "phygital-token-sdk";
 
 const verify = createVerifier({ parsers: [...STANDARD_PARSERS] });
@@ -48,23 +48,63 @@ function softDeny(
 
 function enrichSpendDetails(fail: VerifyFail): SoftDetails {
   const details = fail.details ?? {};
-  const scale = 10 ** USDC_DECIMALS;
   const mint = typeof details.mint === "string" ? details.mint : null;
   const amount = typeof details.amount === "string" ? details.amount : null;
   const limitRaw = details.limit != null ? String(details.limit) : null;
   const isUsdc = mint === String(getUsdcMint());
+  const decimals =
+    typeof details.decimals === "number" ? details.decimals : undefined;
+  const amountUi =
+    typeof details.amountUi === "string"
+      ? details.amountUi
+      : amount != null && decimals != null
+        ? formatRawAmountUi(amount, decimals)
+        : undefined;
 
   return {
     ...details,
+    ...(amountUi != null ? { amountUi } : {}),
+    // Format USDC caps with the mint decimals from the failed ix (never assume 6).
     limitUi:
-      isUsdc && limitRaw != null
-        ? (Number(limitRaw) / scale).toFixed(2)
+      isUsdc && limitRaw != null && decimals != null
+        ? formatRawAmountUi(limitRaw, decimals)
         : undefined,
     requestedUi:
-      isUsdc && amount != null
-        ? (Number(amount) / scale).toFixed(2)
+      isUsdc && amount != null && decimals != null
+        ? formatRawAmountUi(amount, decimals)
         : undefined,
   };
+}
+
+function formatRawAmountUi(raw: string, decimals: number): string | undefined {
+  if (!/^-?\d+$/.test(raw) || !Number.isInteger(decimals) || decimals < 0) {
+    return undefined;
+  }
+  try {
+    const neg = raw.startsWith("-");
+    const abs = BigInt(neg ? raw.slice(1) : raw);
+    const base = 10n ** BigInt(decimals);
+    const whole = abs / base;
+    const frac = (abs % base)
+      .toString()
+      .padStart(decimals, "0")
+      .replace(/0+$/, "");
+    const ui = frac.length > 0 ? `${whole}.${frac}` : whole.toString();
+    return neg ? `-${ui}` : ui;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Prefer human-readable amount for soft-deny UX payloads. */
+function withAmountUi(details: SoftDetails): SoftDetails {
+  if (typeof details.amountUi === "string") return details;
+  const amount = typeof details.amount === "string" ? details.amount : null;
+  const decimals =
+    typeof details.decimals === "number" ? details.decimals : null;
+  if (amount == null || decimals == null) return details;
+  const amountUi = formatRawAmountUi(amount, decimals);
+  return amountUi != null ? { ...details, amountUi } : details;
 }
 
 /** Map SDK verify failure → Revibase soft UX codes / copy. */
@@ -84,7 +124,7 @@ function mapVerifyFail(fail: VerifyFail): PolicyVerdict {
     return softDeny(
       "approval_required",
       "Non-USDC token sends need a one-time approval.",
-      details,
+      withAmountUi(details),
     );
   }
 
@@ -92,7 +132,7 @@ function mapVerifyFail(fail: VerifyFail): PolicyVerdict {
     return softDeny(
       "recipient_denied",
       "Transfers to this address are blocked.",
-      details,
+      withAmountUi(details),
     );
   }
 
@@ -104,7 +144,7 @@ function mapVerifyFail(fail: VerifyFail): PolicyVerdict {
     return softDeny(
       "recipient_not_allowed",
       "This address isn’t on your allowed list.",
-      details,
+      withAmountUi(details),
     );
   }
 
@@ -129,7 +169,7 @@ function mapVerifyFail(fail: VerifyFail): PolicyVerdict {
   ) {
     error = "This action isn’t allowed by your settings.";
   }
-  return softDeny(fail.code, error, details);
+  return softDeny(fail.code, error, withAmountUi(details));
 }
 
 /**

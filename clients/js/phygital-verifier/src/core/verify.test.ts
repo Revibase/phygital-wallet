@@ -136,6 +136,8 @@ describe("defineStandardPolicy + verify", () => {
     expect(r.details?.instructionIndex).toBe(0);
     expect(r.details?.mint).toBe(String(USDC));
     expect(r.details?.amount).toBe("100000000");
+    expect(r.details?.decimals).toBe(6);
+    expect(r.details?.amountUi).toBe("100");
     expect(r.details?.destination).toBe(
       "Dst111111111111111111111111111111111111111",
     );

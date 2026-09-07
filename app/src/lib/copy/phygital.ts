@@ -364,6 +364,7 @@ export const copy = {
     approveSendProgram: "Program",
     approveSendInstruction: "Action",
     approveOnce: "Approve once",
+    denyOnce: "Deny",
     changeLimits: "Change settings",
     sendBlockedHard:
       "This can’t be approved once — it would fail on-chain.",

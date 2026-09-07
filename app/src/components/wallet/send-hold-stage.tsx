@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import {
-  AnimatePresence,
   LazyMotion,
   domAnimation,
   m,
@@ -92,9 +91,6 @@ export function SendHoldStage({
         }
       : null;
 
-  const stageKey =
-    phase === "success" ? "success" : `holding-${signPhase ?? "idle"}`;
-
   return (
     <LazyMotion features={domAnimation}>
       <CeremonyShell
@@ -108,75 +104,71 @@ export function SendHoldStage({
           />
         }
       >
-        <AnimatePresence mode="wait" initial={false}>
-          <m.div
-            key={stageKey}
-            initial={enter.initial}
-            animate={enter.animate}
-            exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0 }}
-            transition={snapEnterTransition}
-            className="flex min-h-0 flex-1 flex-col"
-          >
-            <NfcHoldStatus
-              size="lg"
-              pulsing={phase === "holding" && holdingCopy.pulse}
-              busy={phase === "holding" && !holdingCopy.pulse}
-              progress={phase === "holding"}
-              tone={phase === "success" ? "success" : "default"}
-              imageSrc={recap?.imageSrc ?? imageSrc}
-              title={
-                phase === "success" ? copy.wallet.sent : holdingCopy.title
-              }
-              body={phase === "success" ? undefined : holdingCopy.body}
-              action={
-                <div className="flex w-full flex-col items-center gap-3">
-                  {recap ? (
-                    <div className="w-full rounded-2xl bg-muted/25 px-4 py-3 text-center">
-                      <p className="font-(family-name:--font-display) text-lg">
-                        {recap.amountLabel}
+        {/*
+          Keep one mounted ceremony tree across signPhase changes and
+          holding→success so the orb does not remount / flicker.
+        */}
+        <div className="flex min-h-0 flex-1 flex-col">
+          <NfcHoldStatus
+            size="lg"
+            pulsing={phase === "holding" && holdingCopy.pulse}
+            busy={phase === "holding" && !holdingCopy.pulse}
+            progress={phase === "holding"}
+            tone={phase === "success" ? "success" : "default"}
+            imageSrc={recap?.imageSrc ?? imageSrc}
+            title={
+              phase === "success" ? copy.wallet.sent : holdingCopy.title
+            }
+            body={phase === "success" ? undefined : holdingCopy.body}
+            action={
+              <div className="flex w-full flex-col items-center gap-3">
+                {recap ? (
+                  <div className="w-full rounded-2xl bg-muted/25 px-4 py-3 text-center">
+                    <p className="font-(family-name:--font-display) text-lg">
+                      {recap.amountLabel}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {copy.wallet.to} {recap.recipientLabel}
+                    </p>
+                    {recap.feeLabel ? (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {recap.feeLabel}
                       </p>
-                      <p className="text-xs text-muted-foreground">
-                        {copy.wallet.to} {recap.recipientLabel}
-                      </p>
-                      {recap.feeLabel ? (
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {recap.feeLabel}
-                        </p>
-                      ) : null}
-                    </div>
-                  ) : null}
-                  {phase === "success" ? (
-                    <m.div
-                      className="flex w-full flex-col gap-2"
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                    >
-                      {receiptItem ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="lg"
-                          className="w-full"
-                          onClick={() => setReceiptOpen(true)}
-                        >
-                          {copy.wallet.viewReceipt}
-                        </Button>
-                      ) : null}
+                    ) : null}
+                  </div>
+                ) : null}
+                {phase === "success" ? (
+                  <m.div
+                    className="flex w-full flex-col gap-2"
+                    initial={enter.initial}
+                    animate={enter.animate}
+                    transition={snapEnterTransition}
+                  >
+                    {receiptItem ? (
                       <Button
                         type="button"
+                        variant="outline"
                         size="lg"
                         className="w-full"
-                        onClick={onClose}
+                        onClick={() => setReceiptOpen(true)}
                       >
-                        {copy.common.done}
+                        {copy.wallet.viewReceipt}
                       </Button>
-                    </m.div>
-                  ) : null}
-                </div>
-              }
-            />
-          </m.div>
-        </AnimatePresence>
+                    ) : null}
+                    <Button
+                      type="button"
+                      size="lg"
+                      className="w-full"
+                      onClick={onClose}
+                    >
+                      {copy.common.done}
+                    </Button>
+                  </m.div>
+                ) : null}
+              </div>
+            }
+          />
+        </div>
         <ActivityReceiptSheet
           item={receiptItem}
           open={receiptOpen}

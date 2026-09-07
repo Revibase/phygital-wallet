@@ -43,6 +43,7 @@ export { isPolicyCondition } from "./core/types.js";
 
 export {
   createVerifier,
+  rawAmountToUi,
   validatePolicy,
   type CreateVerifierOptions,
 } from "./core/verify.js";

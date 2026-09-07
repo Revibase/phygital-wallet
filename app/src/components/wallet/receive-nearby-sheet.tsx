@@ -243,8 +243,8 @@ export function ReceiveNearbySheet({
         id: signature,
         patch: { pending: false },
       });
-      setSignPhase(null);
       setPhase("success");
+      setSignPhase(null);
       toast.success(copy.wallet.received);
       onReceived();
     } catch (e) {
