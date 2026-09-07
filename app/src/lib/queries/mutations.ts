@@ -295,7 +295,10 @@ export function restoreWalletActivitySnapshot(
   }
 }
 
-/** Portfolio + fee balance after a send, receive, or fee top-up. */
+/**
+ * Portfolio + fee balance. Does **not** touch wallet activity (Helius history
+ * is expensive; optimistic rows cover post-send UX).
+ */
 export function invalidateWalletBalances(
   queryClient: QueryClient,
   args: {
@@ -306,10 +309,6 @@ export function invalidateWalletBalances(
   for (const owner of uniq(args.wallets ?? [])) {
     void queryClient.invalidateQueries({
       queryKey: queryKeys.walletPortfolio.byOwner(owner),
-    });
-    void queryClient.invalidateQueries({
-      queryKey: queryKeys.walletActivity.all(),
-      predicate: (query) => query.queryKey[1] === owner,
     });
   }
   for (const token of uniq(args.tokens ?? [])) {

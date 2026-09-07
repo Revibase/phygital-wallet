@@ -9,7 +9,10 @@ import {
   type SendHoldRecap,
 } from "@/components/wallet/send-hold-stage";
 import { StageTransition } from "@/components/shared/stage-transition";
-import { useWalletRoute } from "@/components/wallet/wallet-route-shell";
+import {
+  useWalletNav,
+  useWalletSession,
+} from "@/components/wallet/wallet-route-shell";
 import { useWalletPortfolio } from "@/hooks/wallet/use-wallet-portfolio";
 import {
   collectibleToSendAsset,
@@ -21,14 +24,8 @@ import { settingsFromDenyCode } from "@/lib/wallet/token-routes";
 import type { PhygitalWalletSignPhase } from "@/lib/wallet/sign-phase-copy";
 
 export default function WalletSendPage() {
-  const {
-    tokenAddress,
-    walletAddress,
-    role,
-    collectible,
-    backHome,
-    goSettings,
-  } = useWalletRoute();
+  const { tokenAddress, walletAddress, role, collectible } = useWalletSession();
+  const { backHome, goSettings } = useWalletNav();
   const portfolio = useWalletPortfolio(walletAddress);
   const searchParams = useSearchParams();
   const [holdPhase, setHoldPhase] = useState<"holding" | "success" | null>(

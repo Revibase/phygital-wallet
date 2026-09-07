@@ -1,11 +1,15 @@
 "use client";
 
 import { TokensAllSheet } from "@/components/wallet/tokens-all-sheet";
-import { useWalletRoute } from "@/components/wallet/wallet-route-shell";
+import {
+  useWalletNav,
+  useWalletSession,
+} from "@/components/wallet/wallet-route-shell";
 import { useWalletPortfolio } from "@/hooks/wallet/use-wallet-portfolio";
 
 export default function WalletTokensPage() {
-  const { walletAddress, backHome, goSend } = useWalletRoute();
+  const { walletAddress } = useWalletSession();
+  const { backHome, goSend } = useWalletNav();
   const portfolio = useWalletPortfolio(walletAddress);
 
   return (

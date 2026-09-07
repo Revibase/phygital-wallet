@@ -2,10 +2,12 @@
 
 import {
   createContext,
+  memo,
   useCallback,
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -52,7 +54,7 @@ export type WalletGo =
   | [to: "receive", nested: "nearby"]
   | [to: "collectibles", mint: string];
 
-type WalletRouteValue = {
+type WalletSessionValue = {
   token: PhygitalToken;
   role: WalletRole;
   linkStatus?: LinkStatus;
@@ -65,6 +67,9 @@ type WalletRouteValue = {
   linkedElsewhere: boolean;
   unclaimed: boolean;
   claimedQuiet: boolean;
+};
+
+type WalletNavValue = {
   requestClaim: () => void;
   go: (...args: WalletGo) => void;
   goSettings: (target?: SettingsTarget) => void;
@@ -80,23 +85,51 @@ type WalletRouteValue = {
   refresh: () => void;
 };
 
-const WalletRouteContext = createContext<WalletRouteValue | null>(null);
+type WalletRouteValue = WalletSessionValue & WalletNavValue;
 
-export function useWalletRoute(): WalletRouteValue {
-  const ctx = useContext(WalletRouteContext);
+const WalletSessionContext = createContext<WalletSessionValue | null>(null);
+const WalletNavContext = createContext<WalletNavValue | null>(null);
+
+/** Session / ownership / portfolio identity for the active wallet. */
+export function useWalletSession(): WalletSessionValue {
+  const ctx = useContext(WalletSessionContext);
   if (!ctx) {
-    throw new Error("useWalletRoute requires WalletRouteShell");
+    throw new Error("useWalletSession requires WalletRouteShell");
   }
   return ctx;
 }
 
-export function useRequestClaim(): () => void {
-  return useWalletRoute().requestClaim;
+/** Navigation helpers — stable across collectible/DAS identity churn. */
+export function useWalletNav(): WalletNavValue {
+  const ctx = useContext(WalletNavContext);
+  if (!ctx) {
+    throw new Error("useWalletNav requires WalletRouteShell");
+  }
+  return ctx;
 }
+
+/** Full route bag (session + nav). Prefer the narrower hooks when possible. */
+export function useWalletRoute(): WalletRouteValue {
+  return { ...useWalletSession(), ...useWalletNav() };
+}
+
+export function useRequestClaim(): () => void {
+  return useWalletNav().requestClaim;
+}
+
+/** Keeps page children stable while overlay host re-renders. */
+const WalletMain = memo(function WalletMain({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  return <>{children}</>;
+});
 
 /**
  * Shared chrome for `/token/[address]/wallet/**`.
- * Claim + open-approvals overlays stay local; leaf pages render as children.
+ * Claim + open-approvals live in an overlay host so their queries/state do not
+ * re-render leaf pages.
  */
 export function WalletRouteShell({ children }: { children: ReactNode }) {
   const session = useTokenSession();
@@ -115,47 +148,13 @@ export function WalletRouteShell({ children }: { children: ReactNode }) {
     pathname === walletHref(tokenAddress) ||
     pathname === `${walletHref(tokenAddress)}/`;
 
-  const [deferSecondary, setDeferSecondary] = useState(false);
-  useEffect(() => {
-    const id = window.requestAnimationFrame(() => setDeferSecondary(true));
-    return () => window.cancelAnimationFrame(id);
-  }, []);
-
-  const openApprovals = useOpenApprovals(
-    isOwner && deferSecondary ? tokenAddress : null,
-  );
-  const [dismissApprovals, setDismissApprovals] = useState(false);
-  const [claimSessionDismissed, setClaimSessionDismissed] = useState(() =>
-    isClaimDismissed(tokenAddress),
-  );
-  const [forceClaim, setForceClaim] = useState(false);
-
-  useEffect(() => {
-    if (openApprovals.approvals.length > 0) setDismissApprovals(false);
-  }, [openApprovals.approvals.length]);
-
-  useEffect(() => {
-    setClaimSessionDismissed(isClaimDismissed(tokenAddress));
-    setForceClaim(false);
-  }, [tokenAddress]);
-
   const linkedElsewhere = linkStatus === "linked_elsewhere";
   const unclaimed = claimed === false;
   const claimedQuiet = claimed === true && !isOwner && !linkedElsewhere;
-  const needsClaim =
-    !isOwner && unclaimed && !linkedElsewhere && !claimSessionDismissed;
-  const showClaimSheet =
-    needsClaim || (forceClaim && !isOwner && !linkedElsewhere && !claimedQuiet);
 
-  const showOpenApprovals =
-    isOwner &&
-    !dismissApprovals &&
-    openApprovals.approvals.length > 0 &&
-    isWalletHome &&
-    !showClaimSheet;
-
+  const claimRequestRef = useRef<(() => void) | null>(null);
   const requestClaim = useCallback(() => {
-    setForceClaim(true);
+    claimRequestRef.current?.();
   }, []);
 
   const goCard = useCallback(() => {
@@ -226,7 +225,7 @@ export function WalletRouteShell({ children }: { children: ReactNode }) {
     enabled: Boolean(mint),
   });
 
-  const routeValue = useMemo((): WalletRouteValue | null => {
+  const sessionValue = useMemo((): WalletSessionValue | null => {
     if (!walletAddress) return null;
     return {
       token,
@@ -241,16 +240,6 @@ export function WalletRouteShell({ children }: { children: ReactNode }) {
       linkedElsewhere,
       unclaimed,
       claimedQuiet,
-      requestClaim,
-      go,
-      goSettings,
-      goSend,
-      goHome,
-      goCard,
-      backHome,
-      backSettings,
-      backTo,
-      refresh,
     };
   }, [
     token,
@@ -265,19 +254,36 @@ export function WalletRouteShell({ children }: { children: ReactNode }) {
     linkedElsewhere,
     unclaimed,
     claimedQuiet,
-    requestClaim,
-    go,
-    goSettings,
-    goSend,
-    goHome,
-    goCard,
-    backHome,
-    backSettings,
-    backTo,
-    refresh,
   ]);
 
-  if (!routeValue) {
+  const navValue = useMemo(
+    (): WalletNavValue => ({
+      requestClaim,
+      go,
+      goSettings,
+      goSend,
+      goHome,
+      goCard,
+      backHome,
+      backSettings,
+      backTo,
+      refresh,
+    }),
+    [
+      requestClaim,
+      go,
+      goSettings,
+      goSend,
+      goHome,
+      goCard,
+      backHome,
+      backSettings,
+      backTo,
+      refresh,
+    ],
+  );
+
+  if (!sessionValue) {
     return (
       <p className="py-10 text-center text-sm text-muted-foreground">
         {copy.common.loading}
@@ -289,7 +295,101 @@ export function WalletRouteShell({ children }: { children: ReactNode }) {
     return <InAppBrowserGate body={copy.gate.openInBrowserBody} />;
   }
 
-  let body: ReactNode = children;
+  return (
+    <WalletSessionContext.Provider value={sessionValue}>
+      <WalletNavContext.Provider value={navValue}>
+        <div
+          className={cn(
+            "mx-auto flex w-full flex-1 flex-col",
+            shellLayoutClass.compact,
+          )}
+        >
+          <WalletRouteOverlays
+            tokenAddress={tokenAddress}
+            isOwner={isOwner}
+            isWalletHome={isWalletHome}
+            linkedElsewhere={linkedElsewhere}
+            unclaimed={unclaimed}
+            claimedQuiet={claimedQuiet}
+            registerRequestClaim={(fn) => {
+              claimRequestRef.current = fn;
+            }}
+          >
+            {children}
+          </WalletRouteOverlays>
+        </div>
+      </WalletNavContext.Provider>
+    </WalletSessionContext.Provider>
+  );
+}
+
+function WalletRouteOverlays({
+  children,
+  tokenAddress,
+  isOwner,
+  isWalletHome,
+  linkedElsewhere,
+  unclaimed,
+  claimedQuiet,
+  registerRequestClaim,
+}: {
+  children: ReactNode;
+  tokenAddress: string;
+  isOwner: boolean;
+  isWalletHome: boolean;
+  linkedElsewhere: boolean;
+  unclaimed: boolean;
+  claimedQuiet: boolean;
+  registerRequestClaim: (fn: () => void) => void;
+}) {
+  const router = useRouter();
+  const [deferSecondary, setDeferSecondary] = useState(false);
+  useEffect(() => {
+    const id = window.requestAnimationFrame(() => setDeferSecondary(true));
+    return () => window.cancelAnimationFrame(id);
+  }, []);
+
+  const openApprovals = useOpenApprovals(
+    isOwner && isWalletHome && deferSecondary ? tokenAddress : null,
+  );
+  const [dismissApprovals, setDismissApprovals] = useState(false);
+  const [claimSessionDismissed, setClaimSessionDismissed] = useState(() =>
+    isClaimDismissed(tokenAddress),
+  );
+  const [forceClaim, setForceClaim] = useState(false);
+
+  useEffect(() => {
+    registerRequestClaim(() => setForceClaim(true));
+  }, [registerRequestClaim]);
+
+  useEffect(() => {
+    if (openApprovals.approvals.length > 0) setDismissApprovals(false);
+  }, [openApprovals.approvals.length]);
+
+  useEffect(() => {
+    setClaimSessionDismissed(isClaimDismissed(tokenAddress));
+    setForceClaim(false);
+  }, [tokenAddress]);
+
+  const needsClaim =
+    !isOwner && unclaimed && !linkedElsewhere && !claimSessionDismissed;
+  const showClaimSheet =
+    needsClaim || (forceClaim && !isOwner && !linkedElsewhere && !claimedQuiet);
+
+  const showOpenApprovals =
+    isOwner &&
+    !dismissApprovals &&
+    openApprovals.approvals.length > 0 &&
+    isWalletHome &&
+    !showClaimSheet;
+
+  const stageKey = showClaimSheet
+    ? "claim"
+    : showOpenApprovals
+      ? "approvals"
+      : "wallet";
+
+  let body: ReactNode = <WalletMain>{children}</WalletMain>;
   if (showClaimSheet) {
     body = (
       <ClaimItemSheet
@@ -324,24 +424,9 @@ export function WalletRouteShell({ children }: { children: ReactNode }) {
     );
   }
 
-  const stageKey = showClaimSheet
-    ? "claim"
-    : showOpenApprovals
-      ? "approvals"
-      : "wallet";
-
   return (
-    <WalletRouteContext.Provider value={routeValue}>
-      <div
-        className={cn(
-          "mx-auto flex w-full flex-1 flex-col",
-          shellLayoutClass.compact,
-        )}
-      >
-        <StageTransition stageKey={stageKey} variant="fade">
-          {body}
-        </StageTransition>
-      </div>
-    </WalletRouteContext.Provider>
+    <StageTransition stageKey={stageKey} variant="fade">
+      {body}
+    </StageTransition>
   );
 }

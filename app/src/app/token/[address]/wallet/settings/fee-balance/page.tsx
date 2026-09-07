@@ -1,10 +1,14 @@
 "use client";
 
+import {
+  useWalletNav,
+  useWalletSession,
+} from "@/components/wallet/wallet-route-shell";
 import { FeeBalanceSheet } from "@/components/wallet/fee-balance-sheet";
-import { useWalletRoute } from "@/components/wallet/wallet-route-shell";
 
 export default function FeeBalancePage() {
-  const { tokenAddress, backSettings } = useWalletRoute();
+  const { tokenAddress } = useWalletSession();
+  const { backSettings } = useWalletNav();
   return (
     <FeeBalanceSheet
       phygitalTokenPda={tokenAddress}

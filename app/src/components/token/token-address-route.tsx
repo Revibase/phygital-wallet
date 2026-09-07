@@ -90,7 +90,8 @@ export function TokenAddressRoute({
       seedAuthCaches(queryClient, tokenAddress, data);
       return data;
     },
-    enabled: Boolean(token),
+    // Parallel with on-chain token — gate only needs the address from the URL.
+    enabled: Boolean(tokenAddress),
     ...queryOptions.deviceLinks,
   });
 
@@ -120,8 +121,8 @@ export function TokenAddressRoute({
       (tokenQuery.isPending ||
         tokenQuery.isLoading ||
         tokenQuery.isFetching));
-  // One gate request covers session / browse / link / claimed.
-  const waitingGate = Boolean(token) && gate.isPending && !unlocked;
+  // Gate runs in parallel with token; only block unlock when we still need it.
+  const waitingGate = gate.isPending && !unlocked;
   // Wait briefly for claimed so claim sheet doesn’t flash after wallet.
   const waitingClaimed =
     unlocked &&

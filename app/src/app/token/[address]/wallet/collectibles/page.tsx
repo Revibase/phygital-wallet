@@ -1,11 +1,15 @@
 "use client";
 
 import { CollectiblesAllSheet } from "@/components/wallet/collectibles-all-sheet";
-import { useWalletRoute } from "@/components/wallet/wallet-route-shell";
+import {
+  useWalletNav,
+  useWalletSession,
+} from "@/components/wallet/wallet-route-shell";
 import { useWalletPortfolio } from "@/hooks/wallet/use-wallet-portfolio";
 
 export default function WalletCollectiblesPage() {
-  const { walletAddress, mint, backHome, go } = useWalletRoute();
+  const { walletAddress, mint } = useWalletSession();
+  const { backHome, go } = useWalletNav();
   const portfolio = useWalletPortfolio(walletAddress);
 
   return (

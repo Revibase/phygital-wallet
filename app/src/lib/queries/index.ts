@@ -33,13 +33,12 @@ const MINUTE = 60 * SECOND;
 
 export const queryOptions = {
   /**
-   * Ownership / token accounts that change in another browser (wallet IAB)
-   * or via an NFC tap that cannot invalidate this tab's cache. Persist may
-   * paint instantly; always refetch on mount/focus/reconnect.
+   * On-chain token accounts. Short stale window + focus refetch; hard refresh
+   * via useResumeQueryRefresh / ownership mutations — not every remount.
    */
   volatile: {
-    staleTime: 0,
-    refetchOnMount: "always" as const,
+    staleTime: 30 * SECOND,
+    refetchOnMount: true,
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
   },

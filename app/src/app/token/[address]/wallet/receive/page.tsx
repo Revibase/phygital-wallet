@@ -1,10 +1,14 @@
 "use client";
 
 import { ReceiveHub } from "@/components/wallet/receive-hub";
-import { useWalletRoute } from "@/components/wallet/wallet-route-shell";
+import {
+  useWalletNav,
+  useWalletSession,
+} from "@/components/wallet/wallet-route-shell";
 
 export default function WalletReceivePage() {
-  const { walletAddress, backHome, go } = useWalletRoute();
+  const { walletAddress } = useWalletSession();
+  const { backHome, go } = useWalletNav();
   return (
     <ReceiveHub
       walletAddress={walletAddress}

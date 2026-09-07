@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { memo, useState } from "react";
 import { ArrowDownLeft, ArrowUpRight, BellRing, Clock3, RefreshCcw } from "lucide-react";
 
 import { GroupedList, GroupedRow } from "@/components/shared/grouped-list";
@@ -54,6 +54,86 @@ function formatActivityTime(timestamp: number | null): string {
   });
 }
 
+const ActivityRow = memo(function ActivityRow({
+  item,
+  assetMetaByMint,
+  onSelect,
+}: {
+  item: WalletActivityItem;
+  assetMetaByMint?: Record<string, { symbol: string; name: string }>;
+  onSelect: (item: WalletActivityItem) => void;
+}) {
+  const Icon = iconForKind(item.kind);
+  const subtitle = item.subtitle
+    ? shortAddress(item.subtitle, 4)
+    : item.statusLabel;
+
+  const deltas = item.balanceDeltas ?? [];
+  const deltaRows =
+    deltas.length > 0 ? (
+      <div className="flex flex-col items-end gap-0.5">
+        {deltas.slice(0, 2).map((d) => {
+          const color =
+            d.direction === "in" ? "text-success" : "text-destructive";
+          return (
+            <p
+              key={`${item.id}:${d.mint}:${d.direction}`}
+              className={cn("text-sm tabular-nums", color)}
+            >
+              {d.direction === "in" ? "+" : "-"}
+              {d.amountUi} {symbolForMint(d.mint, assetMetaByMint)}
+            </p>
+          );
+        })}
+        {deltas.length > 2 ? (
+          <p className="text-xs text-muted-foreground">
+            +{deltas.length - 2} more
+          </p>
+        ) : null}
+      </div>
+    ) : item.amountLabel ? (
+      <p
+        className={cn(
+          "text-sm tabular-nums",
+          item.kind === "received"
+            ? "text-success"
+            : item.kind === "sent"
+              ? "text-destructive"
+              : undefined,
+        )}
+      >
+        {item.amountLabel}
+        {item.mint ? ` ${symbolForMint(item.mint, assetMetaByMint)}` : ""}
+      </p>
+    ) : null;
+
+  const timeLabel = item.pending
+    ? "Pending"
+    : formatActivityTime(item.timestamp);
+
+  return (
+    <GroupedRow
+      onClick={() => onSelect(item)}
+      leading={
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-2xl bg-muted/30 text-muted-foreground">
+          <Icon className="size-4" aria-hidden />
+        </span>
+      }
+      subtitle={subtitle}
+      trailing={
+        <div className="shrink-0 text-right">
+          {deltaRows}
+          {timeLabel ? (
+            <p className="text-xs text-muted-foreground">{timeLabel}</p>
+          ) : null}
+        </div>
+      }
+    >
+      {item.title}
+    </GroupedRow>
+  );
+});
+
 export function ActivityList({
   items,
   onLoadMore,
@@ -84,81 +164,14 @@ export function ActivityList({
   return (
     <div className={cn("flex flex-col gap-3", className)}>
       <GroupedList>
-        {items.map((item) => {
-          const Icon = iconForKind(item.kind);
-          // Phantom: subtitle = counterparty when known; else omit (Failed via statusLabel).
-          const subtitle = item.subtitle
-            ? shortAddress(item.subtitle, 4)
-            : item.statusLabel;
-
-          const deltas = item.balanceDeltas ?? [];
-          const deltaRows =
-            deltas.length > 0 ? (
-              <div className="flex flex-col items-end gap-0.5">
-                {deltas.slice(0, 2).map((d) => {
-                  const color =
-                    d.direction === "in" ? "text-success" : "text-destructive";
-                  return (
-                    <p
-                      key={`${item.id}:${d.mint}:${d.direction}`}
-                      className={cn("text-sm tabular-nums", color)}
-                    >
-                      {d.direction === "in" ? "+" : "-"}
-                      {d.amountUi} {symbolForMint(d.mint, assetMetaByMint)}
-                    </p>
-                  );
-                })}
-                {deltas.length > 2 ? (
-                  <p className="text-xs text-muted-foreground">
-                    +{deltas.length - 2} more
-                  </p>
-                ) : null}
-              </div>
-            ) : item.amountLabel ? (
-              <p
-                className={cn(
-                  "text-sm tabular-nums",
-                  item.kind === "received"
-                    ? "text-success"
-                    : item.kind === "sent"
-                      ? "text-destructive"
-                      : undefined,
-                )}
-              >
-                {item.amountLabel}
-                {item.mint
-                  ? ` ${symbolForMint(item.mint, assetMetaByMint)}`
-                  : ""}
-              </p>
-            ) : null;
-
-          const timeLabel = item.pending
-            ? "Pending"
-            : formatActivityTime(item.timestamp);
-
-          return (
-            <GroupedRow
-              key={item.id}
-              onClick={() => setSelected(item)}
-              leading={
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-2xl bg-muted/30 text-muted-foreground">
-                  <Icon className="size-4" aria-hidden />
-                </span>
-              }
-              subtitle={subtitle}
-              trailing={
-                <div className="shrink-0 text-right">
-                  {deltaRows}
-                  {timeLabel ? (
-                    <p className="text-xs text-muted-foreground">{timeLabel}</p>
-                  ) : null}
-                </div>
-              }
-            >
-              {item.title}
-            </GroupedRow>
-          );
-        })}
+        {items.map((item) => (
+          <ActivityRow
+            key={item.id}
+            item={item}
+            assetMetaByMint={assetMetaByMint}
+            onSelect={setSelected}
+          />
+        ))}
       </GroupedList>
       {hasMore && onLoadMore ? (
         <Button
@@ -171,14 +184,16 @@ export function ActivityList({
           See more
         </Button>
       ) : null}
-      <ActivityReceiptSheet
-        item={selected}
-        open={selected != null}
-        onOpenChange={(open) => {
-          if (!open) setSelected(null);
-        }}
-        assetMetaByMint={assetMetaByMint}
-      />
+      {selected ? (
+        <ActivityReceiptSheet
+          item={selected}
+          open
+          onOpenChange={(open) => {
+            if (!open) setSelected(null);
+          }}
+          assetMetaByMint={assetMetaByMint}
+        />
+      ) : null}
     </div>
   );
 }

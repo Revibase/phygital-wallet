@@ -1,6 +1,6 @@
 "use client";
 
-import { m, useReducedMotion } from "framer-motion";
+import { memo } from "react";
 
 import { GroupedRow } from "@/components/shared/grouped-list";
 import { TokenIcon } from "@/components/shared/token-chip";
@@ -9,7 +9,7 @@ import { formatUsd } from "@/lib/currency/usd";
 import { holdingToSendAsset, type SendAssetRef } from "@/lib/wallet/send-asset-ref";
 
 /** Shared token row for home preview and See All. */
-export function TokenHoldingRow({
+export const TokenHoldingRow = memo(function TokenHoldingRow({
   holding,
   onSelect,
   className,
@@ -18,16 +18,11 @@ export function TokenHoldingRow({
   onSelect: (asset: SendAssetRef) => void;
   className?: string;
 }) {
-  const prefersReducedMotion = useReducedMotion();
   return (
-    <GroupedRow asChild className={className}>
-      <m.button
-        type="button"
-        onClick={() => onSelect(holdingToSendAsset(holding))}
-        whileHover={prefersReducedMotion ? undefined : { x: 1.5 }}
-        whileTap={prefersReducedMotion ? undefined : { scale: 0.995 }}
-        transition={{ duration: 0.18, ease: "easeOut" }}
-      >
+    <GroupedRow
+      className={className}
+      onClick={() => onSelect(holdingToSendAsset(holding))}
+      leading={
         <TokenIcon
           token={{
             mint: holding.mint,
@@ -36,10 +31,8 @@ export function TokenHoldingRow({
           }}
           className="size-8"
         />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium">{holding.symbol}</p>
-          <p className="truncate text-xs text-muted-foreground">{holding.name}</p>
-        </div>
+      }
+      trailing={
         <div className="shrink-0 text-right">
           <p className="text-sm tabular-nums">{holding.balanceUi}</p>
           {holding.valueUsd != null ? (
@@ -48,7 +41,10 @@ export function TokenHoldingRow({
             </p>
           ) : null}
         </div>
-      </m.button>
+      }
+      subtitle={holding.name}
+    >
+      {holding.symbol}
     </GroupedRow>
   );
-}
+});

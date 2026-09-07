@@ -28,6 +28,7 @@ import {
   unlockBrowseFromAccessory,
   type DeviceLink,
   type LinkStatus,
+  type TokenGate,
 } from "@/lib/wallet/device-auth-client";
 import { authenticateToken } from "@/lib/token/authenticate";
 import { parseClaimSetupIntent } from "@/lib/wallet/claim-setup-href";
@@ -263,9 +264,34 @@ function HomeLinkSetup({
         queryKeys.deviceAuth.claimed(tokenAddress),
         true,
       );
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.deviceAuth.links(),
-      });
+      queryClient.setQueryData(
+        queryKeys.deviceAuth.gate(tokenAddress),
+        (prev: TokenGate | undefined) =>
+          prev
+            ? {
+                ...prev,
+                linkStatus: "linked_here",
+                claimed: true,
+              }
+            : prev,
+      );
+      queryClient.setQueryData(
+        queryKeys.deviceAuth.links(),
+        (prev: DeviceLink[] | undefined) => {
+          if (!prev) return prev;
+          if (prev.some((l) => l.phygitalToken === tokenAddress)) return prev;
+          return [
+            ...prev,
+            {
+              phygitalToken: tokenAddress,
+              label: null,
+              imageUrl: null,
+              mint: null,
+              linkedAt: Date.now(),
+            },
+          ];
+        },
+      );
       router.replace(returnTo);
     },
   });
@@ -450,9 +476,10 @@ function HomeLinksScreen() {
           ];
         },
       );
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.deviceAuth.links(),
-      });
+      void queryClient.setQueryData(
+        queryKeys.deviceAuth.claimed(pda),
+        true,
+      );
       return pda;
     },
     onSuccess: (pda) => {

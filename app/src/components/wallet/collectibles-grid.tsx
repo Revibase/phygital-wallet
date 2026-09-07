@@ -1,5 +1,7 @@
 "use client";
 
+import { memo } from "react";
+
 import type { WalletCollectible } from "@/lib/wallet/portfolio-types";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -51,7 +53,7 @@ export function CollectiblesGrid({
   );
 }
 
-function CollectibleTile({
+const CollectibleTile = memo(function CollectibleTile({
   collectible: c,
   onSelect,
 }: {
@@ -94,4 +96,4 @@ function CollectibleTile({
       ) : null}
     </Button>
   );
-}
+});

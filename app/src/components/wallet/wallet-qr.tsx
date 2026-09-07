@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import QRCode from "qrcode";
 
 import { cn } from "@/lib/utils";
 
@@ -18,14 +17,16 @@ export function WalletQrCode({
 
   useEffect(() => {
     let cancelled = false;
-    void QRCode.toDataURL(value, {
-      width: size * 2,
-      margin: 1,
-      color: { dark: "#111111", light: "#ffffff" },
-      errorCorrectionLevel: "M",
-    }).then((url) => {
-      if (!cancelled) setSrc(url);
-    });
+    void import("qrcode").then((QRCode) =>
+      QRCode.toDataURL(value, {
+        width: size * 2,
+        margin: 1,
+        color: { dark: "#111111", light: "#ffffff" },
+        errorCorrectionLevel: "M",
+      }).then((url) => {
+        if (!cancelled) setSrc(url);
+      }),
+    );
     return () => {
       cancelled = true;
     };

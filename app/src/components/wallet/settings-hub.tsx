@@ -5,12 +5,7 @@ import { useMemo } from "react";
 import { NavBar, NavBarBack } from "@/components/shared/nav-bar";
 import { GroupedList, GroupedRow } from "@/components/shared/grouped-list";
 import { useFeeBalance } from "@/hooks/wallet/use-fee-balance";
-import {
-  recoveryWalletSubtitle,
-  useRecoveryWallet,
-} from "@/hooks/wallet/use-recovery-wallet";
 import { useRpcPreference } from "@/hooks/wallet/use-rpc-preference";
-import { useTokenVerifier } from "@/hooks/wallet/use-token-verifier";
 import { useWalletPolicy } from "@/hooks/wallet/use-wallet-policy";
 import { copy } from "@/lib/copy/phygital";
 import type { LinkStatus } from "@/lib/wallet/device-auth-client";
@@ -212,14 +207,18 @@ export function SettingsHub({
 
       {isOwner ? (
         <GroupedList label={copy.wallet.settingsSafety}>
-          <SigningSettingsRow
-            phygitalTokenPda={phygitalTokenPda}
-            onOpen={() => onOpen("signing")}
-          />
-          <RecoverySettingsRow
-            phygitalTokenPda={phygitalTokenPda}
-            onOpen={() => onOpen("recoveryWallet")}
-          />
+          <GroupedRow
+            onClick={() => onOpen("signing")}
+            subtitle={copy.wallet.signingDefault}
+          >
+            {copy.wallet.signing}
+          </GroupedRow>
+          <GroupedRow
+            onClick={() => onOpen("recoveryWallet")}
+            subtitle={copy.wallet.recoveryWalletNotConfigured}
+          >
+            {copy.wallet.recoveryWallet}
+          </GroupedRow>
         </GroupedList>
       ) : null}
 
@@ -236,45 +235,5 @@ export function SettingsHub({
         </GroupedRow>
       </GroupedList>
     </div>
-  );
-}
-
-function RecoverySettingsRow({
-  phygitalTokenPda,
-  onOpen,
-}: {
-  phygitalTokenPda?: string;
-  onOpen: () => void;
-}) {
-  const recovery = useRecoveryWallet(phygitalTokenPda ?? null);
-
-  return (
-    <GroupedRow
-      onClick={onOpen}
-      subtitle={recoveryWalletSubtitle(recovery.data, recovery.isLoading)}
-    >
-      {copy.wallet.recoveryWallet}
-    </GroupedRow>
-  );
-}
-
-function SigningSettingsRow({
-  phygitalTokenPda,
-  onOpen,
-}: {
-  phygitalTokenPda?: string;
-  onOpen: () => void;
-}) {
-  const verifier = useTokenVerifier(phygitalTokenPda ?? null);
-  const subtitle = verifier.isLoading
-    ? copy.common.loading
-    : verifier.data?.custom
-      ? copy.wallet.signingCustom
-      : copy.wallet.signingDefault;
-
-  return (
-    <GroupedRow onClick={onOpen} subtitle={subtitle}>
-      {copy.wallet.signing}
-    </GroupedRow>
   );
 }

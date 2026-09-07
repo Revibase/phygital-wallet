@@ -79,9 +79,6 @@ export function OpenApprovalsSheet({
       if (handleOwnerAuthFailure(phygitalTokenPda, e)) return;
       toast.error(toUserErrorMessage(e));
     },
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: approvalsKey });
-    },
   });
 
   const cancel = useMutation({
@@ -101,9 +98,6 @@ export function OpenApprovalsSheet({
       }
       if (handleOwnerAuthFailure(phygitalTokenPda, e)) return;
       toast.error(toUserErrorMessage(e));
-    },
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: approvalsKey });
     },
   });
 

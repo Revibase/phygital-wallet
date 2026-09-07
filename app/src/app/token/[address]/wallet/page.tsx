@@ -1,7 +1,10 @@
 "use client";
 
 import { WalletHomePanel } from "@/components/wallet/wallet-home-panel";
-import { useWalletRoute } from "@/components/wallet/wallet-route-shell";
+import {
+  useWalletNav,
+  useWalletSession,
+} from "@/components/wallet/wallet-route-shell";
 import { useWalletPortfolio } from "@/hooks/wallet/use-wallet-portfolio";
 import { useFeeBalance } from "@/hooks/wallet/use-fee-balance";
 import { useRpcPreference } from "@/hooks/wallet/use-rpc-preference";
@@ -24,14 +27,10 @@ export default function WalletHomePage() {
     linkedElsewhere,
     unclaimed,
     claimedQuiet,
-    go,
-    goSettings,
-    goSend,
-    refresh,
-    requestClaim,
-  } = useWalletRoute();
+  } = useWalletSession();
+  const { go, goSettings, goSend, refresh, requestClaim } = useWalletNav();
   const portfolio = useWalletPortfolio(walletAddress);
-  const feeBalance = useFeeBalance(tokenAddress);
+  const feeBalance = useFeeBalance(isOwner ? tokenAddress : null);
   const rpc = useRpcPreference();
 
   const resolvedLabel =
@@ -93,7 +92,7 @@ export default function WalletHomePage() {
         status={
           portfolio.isError
             ? "error"
-            : portfolio.isFetching
+            : portfolio.isLoading
             ? "refreshing"
             : "live"
         }

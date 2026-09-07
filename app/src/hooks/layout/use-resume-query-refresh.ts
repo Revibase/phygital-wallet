@@ -19,17 +19,22 @@ export function useResumeQueryRefresh() {
   useEffect(() => {
     function onPageShow(event: PageTransitionEvent) {
       if (!event.persisted) return;
+      // Active observers only — avoid refetching every cached portfolio/token.
       void queryClient.invalidateQueries({
         queryKey: queryKeys.phygitalToken.all(),
+        refetchType: "active",
       });
       void queryClient.invalidateQueries({
         queryKey: queryKeys.walletPortfolio.all(),
+        refetchType: "active",
       });
       void queryClient.invalidateQueries({
         queryKey: queryKeys.feeBalance.all(),
+        refetchType: "active",
       });
       void queryClient.invalidateQueries({
         queryKey: queryKeys.walletPolicy.all(),
+        refetchType: "active",
       });
     }
 

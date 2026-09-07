@@ -1,9 +1,15 @@
 "use client";
 
 import { ActivityAllSheet } from "@/components/wallet/activity-all-sheet";
-import { useWalletRoute } from "@/components/wallet/wallet-route-shell";
+import {
+  useWalletNav,
+  useWalletSession,
+} from "@/components/wallet/wallet-route-shell";
 
 export default function WalletActivityPage() {
-  const { walletAddress, backHome } = useWalletRoute();
-  return <ActivityAllSheet walletAddress={walletAddress} onBack={backHome} />;
+  const { walletAddress } = useWalletSession();
+  const { backHome } = useWalletNav();
+  return (
+    <ActivityAllSheet walletAddress={walletAddress} onBack={backHome} />
+  );
 }

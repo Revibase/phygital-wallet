@@ -2,10 +2,14 @@
 
 import { OwnerSettingsGate } from "@/components/wallet/owner-settings-gate";
 import { ExtraProgramsSheet } from "@/components/wallet/extra-programs-sheet";
-import { useWalletRoute } from "@/components/wallet/wallet-route-shell";
+import {
+  useWalletNav,
+  useWalletSession,
+} from "@/components/wallet/wallet-route-shell";
 
 export default function ExceptionsPage() {
-  const { tokenAddress, backSettings } = useWalletRoute();
+  const { tokenAddress } = useWalletSession();
+  const { backSettings } = useWalletNav();
   return (
     <OwnerSettingsGate target="extraPrograms">
       <ExtraProgramsSheet

@@ -17,7 +17,9 @@ import {
   linkToken,
   loginDevice,
   registerDevice,
+  type DeviceLink,
   type LinkStatus,
+  type TokenGate,
 } from "@/lib/wallet/device-auth-client";
 import { dismissClaim } from "@/lib/wallet/claim-setup-href";
 
@@ -156,9 +158,36 @@ export function ClaimItemSheet({
         queryKeys.deviceAuth.claimed(phygitalTokenPda),
         true,
       );
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.deviceAuth.all(),
-      });
+      queryClient.setQueryData(
+        queryKeys.deviceAuth.gate(phygitalTokenPda),
+        (prev: TokenGate | undefined) =>
+          prev
+            ? {
+                ...prev,
+                linkStatus: "linked_here",
+                claimed: true,
+              }
+            : prev,
+      );
+      queryClient.setQueryData(
+        queryKeys.deviceAuth.links(),
+        (prev: DeviceLink[] | undefined) => {
+          if (!prev) return prev;
+          if (prev.some((l) => l.phygitalToken === phygitalTokenPda)) {
+            return prev;
+          }
+          return [
+            ...prev,
+            {
+              phygitalToken: phygitalTokenPda,
+              label: null,
+              imageUrl: null,
+              mint: null,
+              linkedAt: Date.now(),
+            },
+          ];
+        },
+      );
       setSuccess(true);
     },
   });

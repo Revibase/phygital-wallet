@@ -16,7 +16,9 @@ import { queryKeys } from "@/lib/queries";
 import { toUserErrorMessage } from "@/lib/user-errors";
 import {
   unlinkToken,
+  type DeviceLink,
   type LinkStatus,
+  type TokenGate,
 } from "@/lib/wallet/device-auth-client";
 import { redirectToClaimSetup, clearClaimDismiss } from "@/lib/wallet/claim-setup-href";
 import { redirectToDeviceSignIn } from "@/lib/wallet/device-sign-in-href";
@@ -83,10 +85,23 @@ export function AccessRecoverySheet({
         queryKeys.deviceAuth.claimed(phygitalTokenPda),
         false,
       );
+      queryClient.setQueryData(
+        queryKeys.deviceAuth.gate(phygitalTokenPda),
+        (prev: TokenGate | undefined) =>
+          prev
+            ? {
+                ...prev,
+                linkStatus: "unlinked",
+                claimed: false,
+              }
+            : prev,
+      );
+      queryClient.setQueryData(
+        queryKeys.deviceAuth.links(),
+        (prev: DeviceLink[] | undefined) =>
+          prev?.filter((l) => l.phygitalToken !== phygitalTokenPda),
+      );
       await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.deviceAuth.all(),
-        }),
         queryClient.invalidateQueries({
           queryKey: queryKeys.walletPolicy.all(),
         }),

@@ -1,11 +1,15 @@
 "use client";
 
 import { ReceiveNearbySheet } from "@/components/wallet/receive-nearby-sheet";
-import { useWalletRoute } from "@/components/wallet/wallet-route-shell";
+import {
+  useWalletNav,
+  useWalletSession,
+} from "@/components/wallet/wallet-route-shell";
 import { walletHref } from "@/lib/wallet/token-routes";
 
 export default function WalletReceiveNearbyPage() {
-  const { walletAddress, tokenAddress, backTo } = useWalletRoute();
+  const { walletAddress, tokenAddress } = useWalletSession();
+  const { backTo } = useWalletNav();
   const receiveHref = walletHref(tokenAddress, "receive");
   return (
     <ReceiveNearbySheet

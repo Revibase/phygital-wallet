@@ -1,19 +1,15 @@
 "use client";
 
 import { AccessRecoverySheet } from "@/components/wallet/access-recovery-sheet";
-import { useWalletRoute } from "@/components/wallet/wallet-route-shell";
+import {
+  useWalletNav,
+  useWalletSession,
+} from "@/components/wallet/wallet-route-shell";
 
 export default function AccessPage() {
-  const {
-    tokenAddress,
-    role,
-    linkStatus,
-    claimed,
-    isOwner,
-    goSettings,
-    backSettings,
-    requestClaim,
-  } = useWalletRoute();
+  const { tokenAddress, role, linkStatus, claimed, isOwner } =
+    useWalletSession();
+  const { goSettings, backSettings, requestClaim } = useWalletNav();
 
   return (
     <AccessRecoverySheet

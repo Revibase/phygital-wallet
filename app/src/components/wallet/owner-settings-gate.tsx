@@ -4,7 +4,10 @@ import { useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 import { LimitsSetupSheet } from "@/components/wallet/limits-setup-sheet";
-import { useWalletRoute } from "@/components/wallet/wallet-route-shell";
+import {
+  useWalletNav,
+  useWalletSession,
+} from "@/components/wallet/wallet-route-shell";
 import {
   isOwnerOnlySettings,
   isPolicySetupScreen,
@@ -24,14 +27,8 @@ export function OwnerSettingsGate({
   target: SettingsTarget;
   children: ReactNode;
 }) {
-  const {
-    isOwner,
-    linkStatus,
-    claimed,
-    backSettings,
-    tokenAddress,
-    requestClaim,
-  } = useWalletRoute();
+  const { isOwner, linkStatus, claimed, tokenAddress } = useWalletSession();
+  const { backSettings, requestClaim } = useWalletNav();
   const router = useRouter();
   const visitorBlocked = !isOwner && isOwnerOnlySettings(target);
   const showLimitsSetup = visitorBlocked && isPolicySetupScreen(target);

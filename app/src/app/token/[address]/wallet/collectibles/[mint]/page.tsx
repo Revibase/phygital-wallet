@@ -3,7 +3,10 @@
 import { useParams } from "next/navigation";
 
 import { CollectibleDetailSheet } from "@/components/wallet/collectible-detail-sheet";
-import { useWalletRoute } from "@/components/wallet/wallet-route-shell";
+import {
+  useWalletNav,
+  useWalletSession,
+} from "@/components/wallet/wallet-route-shell";
 import { useWalletPortfolio } from "@/hooks/wallet/use-wallet-portfolio";
 import { copy } from "@/lib/copy/phygital";
 import { collectibleToSendAsset } from "@/lib/wallet/send-asset-ref";
@@ -19,7 +22,8 @@ export default function WalletCollectibleDetailPage() {
         ? params.mint[0]
         : "";
   const mintAddr = tryParseAddress(mintRaw);
-  const { walletAddress, tokenAddress, backTo, goSend } = useWalletRoute();
+  const { walletAddress, tokenAddress } = useWalletSession();
+  const { backTo, goSend } = useWalletNav();
   const portfolio = useWalletPortfolio(walletAddress);
 
   const detail = portfolio.data?.collectibles.find(
