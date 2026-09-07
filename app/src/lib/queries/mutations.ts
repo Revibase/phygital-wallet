@@ -5,18 +5,35 @@
  * webhook; portfolio shapes are hard to patch safely). Prefer setQueryData
  * only when the client already knows the exact next value (policy PUT).
  *
- * For sends/receives: applyOptimisticPortfolioDelta as soon as the RPC accepts
- * the tx; restorePortfolioSnapshot if confirmation fails; invalidate on land.
+ * For sends/receives: applyOptimisticPortfolioDelta + applyOptimisticWalletActivity
+ * as soon as the RPC accepts the tx; restore snapshots if confirmation fails;
+ * invalidate on land.
  */
 
-import type { QueryClient } from "@tanstack/react-query";
+import type { QueryClient, QueryKey } from "@tanstack/react-query";
 
 import { formatTokenAmount, uiAmountToRaw } from "@/lib/tokens/amount";
 import type { PaymentTokenHolding } from "@/lib/tokens/payment-token";
-import type { WalletPortfolio } from "@/lib/wallet/portfolio-types";
+import type {
+  WalletActivityItem,
+  WalletPortfolio,
+} from "@/lib/wallet/portfolio-types";
 import type { EffectivePolicy } from "@/lib/wallet/policies-client";
 
 import { queryKeys } from "./keys";
+
+/** First-page sizes used by `useWalletActivity` (default) and ActivityAllSheet. */
+const ACTIVITY_FIRST_PAGE_LIMITS = [20, 40] as const;
+
+type WalletActivityPage = {
+  items: WalletActivityItem[];
+  nextCursor: string | null;
+};
+
+export type WalletActivitySnapshot = Array<{
+  queryKey: QueryKey;
+  previous: WalletActivityPage | undefined;
+}>;
 
 function uniq(values: Array<string | null | undefined>): string[] {
   return [...new Set(values.filter((v): v is string => Boolean(v)))];
@@ -107,6 +124,106 @@ export function restorePortfolioSnapshot(
     return;
   }
   queryClient.setQueryData(key, previous);
+}
+
+function isOwnerActivityFirstPage(
+  queryKey: readonly unknown[],
+  owner: string,
+): boolean {
+  return (
+    queryKey[0] === "walletActivity" &&
+    queryKey[1] === owner &&
+    queryKey[3] == null
+  );
+}
+
+function prependActivityItem(
+  page: WalletActivityPage | undefined,
+  item: WalletActivityItem,
+): WalletActivityPage {
+  return {
+    items: [item, ...(page?.items ?? []).filter((row) => row.id !== item.id)],
+    nextCursor: page?.nextCursor ?? null,
+  };
+}
+
+/**
+ * Insert a pending activity row into first-page caches (same lifecycle as
+ * applyOptimisticPortfolioDelta). Returns snapshots for restore on failure.
+ */
+export function applyOptimisticWalletActivity(
+  queryClient: QueryClient,
+  item: WalletActivityItem,
+): WalletActivitySnapshot {
+  const keys = new Map<string, QueryKey>();
+  const addKey = (queryKey: QueryKey) => {
+    keys.set(JSON.stringify(queryKey), queryKey);
+  };
+
+  for (const query of queryClient.getQueryCache().findAll({
+    queryKey: queryKeys.walletActivity.all(),
+  })) {
+    if (isOwnerActivityFirstPage(query.queryKey, item.walletAddress)) {
+      addKey(query.queryKey);
+    }
+  }
+  for (const limit of ACTIVITY_FIRST_PAGE_LIMITS) {
+    addKey(queryKeys.walletActivity.byOwner(item.walletAddress, limit, null));
+  }
+
+  const snapshot: WalletActivitySnapshot = [];
+  for (const queryKey of keys.values()) {
+    snapshot.push({
+      queryKey,
+      previous: queryClient.getQueryData<WalletActivityPage>(queryKey),
+    });
+    queryClient.setQueryData<WalletActivityPage>(queryKey, (prev) =>
+      prependActivityItem(prev, item),
+    );
+  }
+  return snapshot;
+}
+
+/** Mark an optimistic activity row confirmed (or failed) without a refetch. */
+export function patchOptimisticWalletActivity(
+  queryClient: QueryClient,
+  args: {
+    owner: string;
+    id: string;
+    patch: Partial<WalletActivityItem>;
+  },
+): void {
+  queryClient.setQueriesData<WalletActivityPage>(
+    {
+      queryKey: queryKeys.walletActivity.all(),
+      predicate: (query) =>
+        isOwnerActivityFirstPage(query.queryKey, args.owner),
+    },
+    (prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        items: prev.items.map((item) =>
+          item.id === args.id ? { ...item, ...args.patch } : item,
+        ),
+      };
+    },
+  );
+}
+
+/** Undo applyOptimisticWalletActivity after a failed confirmation. */
+export function restoreWalletActivitySnapshot(
+  queryClient: QueryClient,
+  snapshot: WalletActivitySnapshot | undefined,
+): void {
+  if (!snapshot) return;
+  for (const { queryKey, previous } of snapshot) {
+    if (previous === undefined) {
+      queryClient.removeQueries({ queryKey });
+      continue;
+    }
+    queryClient.setQueryData(queryKey, previous);
+  }
 }
 
 /** Portfolio + fee balance after a send, receive, or fee top-up. */

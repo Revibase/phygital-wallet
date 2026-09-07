@@ -17,14 +17,17 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { copy } from "@/lib/copy/phygital";
 import {
   applyOptimisticPortfolioDelta,
+  applyOptimisticWalletActivity,
   invalidateWalletBalances,
+  patchOptimisticWalletActivity,
   restorePortfolioSnapshot,
+  restoreWalletActivitySnapshot,
+  type WalletActivitySnapshot,
 } from "@/lib/queries";
 import { tryParseAddress } from "@/lib/solana/address";
 import { cn, shortAddress } from "@/lib/utils";
 import { toUserErrorMessage } from "@/lib/user-errors";
 import { useFeeBalance } from "@/hooks/wallet/use-fee-balance";
-import { pushLocalWalletActivity, patchLocalWalletActivity } from "@/lib/wallet/activity-local";
 import { identifyAccessory } from "@/lib/wallet/identify-accessory";
 import { createOneTimeGrant } from "@/lib/wallet/policies-client";
 import { handleOwnerAuthFailure } from "@/lib/wallet/device-sign-in-href";
@@ -224,6 +227,7 @@ export function SendDialog({
     const amountUi = nft ? "1" : amount;
     let submittedSignature: string | null = null;
     let portfolioBefore: WalletPortfolio | undefined;
+    let activityBefore: WalletActivitySnapshot | undefined;
 
     const showHolding = () => {
       setPhase("holding");
@@ -254,7 +258,7 @@ export function SendDialog({
 
       submittedSignature = signature;
       showHolding();
-      pushLocalWalletActivity({
+      activityBefore = applyOptimisticWalletActivity(queryClient, {
         id: signature,
         walletAddress,
         kind: "sent",
@@ -285,7 +289,11 @@ export function SendDialog({
 
       await confirmed;
 
-      patchLocalWalletActivity(signature, { pending: false });
+      patchOptimisticWalletActivity(queryClient, {
+        owner: walletAddress,
+        id: signature,
+        patch: { pending: false },
+      });
       onSignPhaseChange?.(null);
       onHoldPhaseChange("success", recapForSend(signature));
       invalidateWalletBalances(queryClient, {
@@ -297,12 +305,7 @@ export function SendDialog({
     } catch (e) {
       if (submittedSignature) {
         restorePortfolioSnapshot(queryClient, walletAddress, portfolioBefore);
-        patchLocalWalletActivity(submittedSignature, {
-          pending: false,
-          kind: "failed",
-          title: copy.wallet.activityFailed,
-          statusLabel: copy.wallet.activityFailed,
-        });
+        restoreWalletActivitySnapshot(queryClient, activityBefore);
       }
       onSignPhaseChange?.(null);
       onHoldPhaseChange(null);
@@ -340,7 +343,7 @@ export function SendDialog({
     try {
       await createOneTimeGrant(phygitalTokenPda, softDeny.intentHash);
       if (parsedRecipient) {
-        pushLocalWalletActivity({
+        applyOptimisticWalletActivity(queryClient, {
           id: `approved:${String(parsedRecipient)}:${asset?.mint ?? "unknown"}:${Date.now()}`,
           walletAddress,
           kind: "approved",

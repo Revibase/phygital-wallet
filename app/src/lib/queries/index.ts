@@ -9,11 +9,15 @@ export { shouldRetryQuery } from "./http";
 export { queryKeys } from "./keys";
 export {
   applyOptimisticPortfolioDelta,
+  applyOptimisticWalletActivity,
   applyWalletPolicy,
   invalidatePhygitalToken,
   invalidateRpcDependentQueries,
   invalidateWalletBalances,
+  patchOptimisticWalletActivity,
   restorePortfolioSnapshot,
+  restoreWalletActivitySnapshot,
+  type WalletActivitySnapshot,
 } from "./mutations";
 
 const SECOND = 1000;

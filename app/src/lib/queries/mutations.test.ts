@@ -5,11 +5,17 @@ import type { PolicyDocument } from "phygital-verifier-sdk";
 import { queryKeys } from "./index";
 import {
   applyOptimisticPortfolioDelta,
+  applyOptimisticWalletActivity,
   applyWalletPolicy,
   invalidatePhygitalToken,
+  patchOptimisticWalletActivity,
   restorePortfolioSnapshot,
+  restoreWalletActivitySnapshot,
 } from "./mutations";
-import type { WalletPortfolio } from "@/lib/wallet/portfolio-types";
+import type {
+  WalletActivityItem,
+  WalletPortfolio,
+} from "@/lib/wallet/portfolio-types";
 
 const base: PolicyDocument = {
   version: "2.0",
@@ -128,5 +134,67 @@ describe("applyOptimisticPortfolioDelta / restorePortfolioSnapshot", () => {
     expect(qc.getQueryData<WalletPortfolio>(key)?.collectibles).toHaveLength(0);
     restorePortfolioSnapshot(qc, "wallet", previous);
     expect(qc.getQueryData<WalletPortfolio>(key)?.collectibles).toHaveLength(1);
+  });
+});
+
+const pendingSend: WalletActivityItem = {
+  id: "sig-1",
+  walletAddress: "wallet",
+  kind: "sent",
+  title: "Sent",
+  subtitle: "Recipient",
+  amountLabel: "-1 USDC",
+  statusLabel: null,
+  timestamp: 1_700_000_000,
+  signature: "sig-1",
+  mint: "UsdcMint",
+  pending: true,
+  source: "local",
+};
+
+describe("applyOptimisticWalletActivity / restoreWalletActivitySnapshot", () => {
+  it("prepends a pending row and restores the prior first page", () => {
+    const qc = new QueryClient();
+    const key = queryKeys.walletActivity.byOwner("wallet", 40, null);
+    const existing: WalletActivityItem = {
+      ...pendingSend,
+      id: "sig-0",
+      signature: "sig-0",
+      pending: false,
+      source: "helius",
+    };
+    qc.setQueryData(key, { items: [existing], nextCursor: "cursor" });
+
+    const snapshot = applyOptimisticWalletActivity(qc, pendingSend);
+    const page = qc.getQueryData<{ items: WalletActivityItem[] }>(key);
+    expect(page?.items[0]?.id).toBe("sig-1");
+    expect(page?.items[1]?.id).toBe("sig-0");
+
+    patchOptimisticWalletActivity(qc, {
+      owner: "wallet",
+      id: "sig-1",
+      patch: { pending: false },
+    });
+    expect(
+      qc.getQueryData<{ items: WalletActivityItem[] }>(key)?.items[0]?.pending,
+    ).toBe(false);
+
+    restoreWalletActivitySnapshot(qc, snapshot);
+    expect(qc.getQueryData(key)).toEqual({
+      items: [existing],
+      nextCursor: "cursor",
+    });
+  });
+
+  it("removes a seeded first page when there was no prior cache", () => {
+    const qc = new QueryClient();
+    const key = queryKeys.walletActivity.byOwner("wallet", 40, null);
+    const snapshot = applyOptimisticWalletActivity(qc, pendingSend);
+    expect(
+      qc.getQueryData<{ items: WalletActivityItem[] }>(key)?.items,
+    ).toHaveLength(1);
+
+    restoreWalletActivitySnapshot(qc, snapshot);
+    expect(qc.getQueryData(key)).toBeUndefined();
   });
 });

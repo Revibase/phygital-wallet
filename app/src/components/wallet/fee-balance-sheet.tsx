@@ -14,12 +14,16 @@ import { Spinner } from "@/components/ui/spinner";
 import { useFeeBalance } from "@/hooks/wallet/use-fee-balance";
 import { useWalletPda } from "@/hooks/wallet/use-wallet-pda";
 import { copy } from "@/lib/copy/phygital";
-import { invalidateWalletBalances, applyOptimisticPortfolioDelta, restorePortfolioSnapshot } from "@/lib/queries";
-import { toUserErrorMessage } from "@/lib/user-errors";
 import {
-  patchLocalWalletActivity,
-  pushLocalWalletActivity,
-} from "@/lib/wallet/activity-local";
+  applyOptimisticPortfolioDelta,
+  applyOptimisticWalletActivity,
+  invalidateWalletBalances,
+  patchOptimisticWalletActivity,
+  restorePortfolioSnapshot,
+  restoreWalletActivitySnapshot,
+  type WalletActivitySnapshot,
+} from "@/lib/queries";
+import { toUserErrorMessage } from "@/lib/user-errors";
 import { topUpFeeBalance } from "@/lib/wallet/top-up-fee-balance";
 import { NATIVE_SOL_MINT } from "@/lib/tokens/payment-token";
 import type { WalletPortfolio } from "@/lib/wallet/portfolio-types";
@@ -59,6 +63,7 @@ export function FeeBalanceSheet({
     setSignPhase(null);
     let submittedSignature: string | null = null;
     let portfolioBefore: WalletPortfolio | undefined;
+    let activityBefore: WalletActivitySnapshot | undefined;
     try {
       const { signature, confirmed } = await topUpFeeBalance({
         phygitalTokenPda,
@@ -74,7 +79,7 @@ export function FeeBalanceSheet({
       submittedSignature = signature;
       setPhase("holding");
       if (walletAddress) {
-        pushLocalWalletActivity({
+        activityBefore = applyOptimisticWalletActivity(queryClient, {
           id: signature,
           walletAddress,
           kind: "topUp",
@@ -106,8 +111,12 @@ export function FeeBalanceSheet({
 
       await confirmed;
 
-      if (submittedSignature) {
-        patchLocalWalletActivity(submittedSignature, { pending: false });
+      if (submittedSignature && walletAddress) {
+        patchOptimisticWalletActivity(queryClient, {
+          owner: walletAddress,
+          id: submittedSignature,
+          patch: { pending: false },
+        });
       }
       setSignPhase(null);
       setPhase("success");
@@ -120,12 +129,7 @@ export function FeeBalanceSheet({
       setSignPhase(null);
       if (submittedSignature && walletAddress) {
         restorePortfolioSnapshot(queryClient, walletAddress, portfolioBefore);
-        patchLocalWalletActivity(submittedSignature, {
-          pending: false,
-          kind: "failed",
-          title: copy.wallet.activityFailed,
-          statusLabel: copy.wallet.activityFailed,
-        });
+        restoreWalletActivitySnapshot(queryClient, activityBefore);
       }
       setPhase("form");
       if (e instanceof PolicyDeniedError) {

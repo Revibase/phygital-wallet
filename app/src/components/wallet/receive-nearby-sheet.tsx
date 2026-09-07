@@ -24,15 +24,15 @@ import { useWalletPortfolio } from "@/hooks/wallet/use-wallet-portfolio";
 import { brand, copy } from "@/lib/copy/phygital";
 import {
   applyOptimisticPortfolioDelta,
+  applyOptimisticWalletActivity,
   invalidateWalletBalances,
+  patchOptimisticWalletActivity,
   restorePortfolioSnapshot,
+  restoreWalletActivitySnapshot,
+  type WalletActivitySnapshot,
 } from "@/lib/queries";
 import { shortAddress } from "@/lib/utils";
 import { toUserErrorMessage } from "@/lib/user-errors";
-import {
-  patchLocalWalletActivity,
-  pushLocalWalletActivity,
-} from "@/lib/wallet/activity-local";
 import { identifyAccessory } from "@/lib/wallet/identify-accessory";
 import { policySoftDenyBody } from "@/lib/wallet/policy-deny-copy";
 import { ALL_LIST_SEARCH_THRESHOLD } from "@/lib/wallet/portfolio-preview";
@@ -177,6 +177,7 @@ export function ReceiveNearbySheet({
     let submittedSignature: string | null = null;
     let recipientBefore: WalletPortfolio | undefined;
     let payerBefore: WalletPortfolio | undefined;
+    let activityBefore: WalletActivitySnapshot | undefined;
     try {
       const { signature, confirmed } = await receiveAssetFromNearbyPayer({
         payerPhygitalTokenPda: from.tokenPda,
@@ -199,7 +200,7 @@ export function ReceiveNearbySheet({
       });
       submittedSignature = signature;
       setPhase("holding");
-      pushLocalWalletActivity({
+      activityBefore = applyOptimisticWalletActivity(queryClient, {
         id: signature,
         walletAddress: recipientWallet,
         kind: "received",
@@ -235,7 +236,11 @@ export function ReceiveNearbySheet({
 
       await confirmed;
 
-      patchLocalWalletActivity(signature, { pending: false });
+      patchOptimisticWalletActivity(queryClient, {
+        owner: recipientWallet,
+        id: signature,
+        patch: { pending: false },
+      });
       setSignPhase(null);
       setPhase("success");
       toast.success(copy.wallet.received);
@@ -251,12 +256,7 @@ export function ReceiveNearbySheet({
         if (from) {
           restorePortfolioSnapshot(queryClient, from.walletPda, payerBefore);
         }
-        patchLocalWalletActivity(submittedSignature, {
-          pending: false,
-          kind: "failed",
-          title: copy.wallet.activityFailed,
-          statusLabel: copy.wallet.activityFailed,
-        });
+        restoreWalletActivitySnapshot(queryClient, activityBefore);
       }
       if (e instanceof PolicyDeniedError) {
         setPhase("handoff");
