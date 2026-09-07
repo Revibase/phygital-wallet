@@ -244,10 +244,6 @@ export function ReceiveNearbySheet({
       setSignPhase(null);
       setPhase("success");
       toast.success(copy.wallet.received);
-      invalidateWalletBalances(queryClient, {
-        wallets: [recipientWallet, from.walletPda],
-        tokens: [from.tokenPda],
-      });
       onReceived();
     } catch (e) {
       setSignPhase(null);

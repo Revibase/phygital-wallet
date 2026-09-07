@@ -242,7 +242,6 @@ export const copy = {
     deviceLinkBody:
       "Claim this accessory so only this phone can change limits, recovery, and approval.",
     deviceLinkCta: "Hold to claim",
-    deviceVisitorNotice: "Linked to another phone",
     deviceVisitorUnlinkedNotice: "Make this yours",
     deviceVisitorLinkAction: "Claim",
     deviceVisitorSoftDeny:

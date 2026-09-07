@@ -63,13 +63,11 @@ export default function WalletHomePage() {
           !isClaimDismissed(tokenAddress)
         }
         visitorNotice={
-          isOwner
+          isOwner || linkedElsewhere
             ? null
-            : linkedElsewhere
-              ? copy.wallet.deviceVisitorNotice
-              : unclaimed || claimed === undefined
-                ? copy.wallet.claimBannerTitle
-                : null
+            : unclaimed || claimed === undefined
+            ? copy.wallet.claimBannerTitle
+            : null
         }
         visitorNoticeAction={
           !isOwner &&
@@ -96,8 +94,8 @@ export default function WalletHomePage() {
           portfolio.isError
             ? "error"
             : portfolio.isFetching
-              ? "refreshing"
-              : "live"
+            ? "refreshing"
+            : "live"
         }
         lastUpdatedLabel={
           portfolio.dataUpdatedAt

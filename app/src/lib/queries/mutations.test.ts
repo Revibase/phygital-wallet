@@ -6,12 +6,16 @@ import { queryKeys } from "./index";
 import {
   applyOptimisticFeeBalance,
   applyOptimisticPortfolioDelta,
+  applyOptimisticRecoveryWallet,
+  applyOptimisticTokenVerifier,
   applyOptimisticWalletActivity,
   applyWalletPolicy,
   invalidatePhygitalToken,
   patchOptimisticWalletActivity,
   restoreFeeBalanceSnapshot,
   restorePortfolioSnapshot,
+  restoreRecoveryWalletSnapshot,
+  restoreTokenVerifierSnapshot,
   restoreWalletActivitySnapshot,
 } from "./mutations";
 import type { FeeBalance } from "@/lib/wallet/fee-balance-client";
@@ -225,6 +229,58 @@ describe("applyOptimisticFeeBalance / restoreFeeBalanceSnapshot", () => {
     expect(next?.low).toBe(false);
 
     restoreFeeBalanceSnapshot(qc, "token", snapshot);
+    expect(qc.getQueryData(key)).toEqual(previous);
+  });
+});
+
+describe("applyOptimisticRecoveryWallet / restoreRecoveryWalletSnapshot", () => {
+  it("patches and restores recovery wallet cache", () => {
+    const qc = new QueryClient();
+    const key = queryKeys.recoveryWallet.byToken("token");
+    const previous = {
+      configured: false,
+      recoveryWallet: null,
+      payer: null,
+    };
+    qc.setQueryData(key, previous);
+
+    const next = {
+      configured: true,
+      recoveryWallet: "Recovery111111111111111111111111111111111",
+      payer: null,
+    };
+    const snapshot = applyOptimisticRecoveryWallet(qc, "token", next);
+    expect(snapshot).toEqual(previous);
+    expect(qc.getQueryData(key)).toEqual(next);
+
+    restoreRecoveryWalletSnapshot(qc, "token", snapshot);
+    expect(qc.getQueryData(key)).toEqual(previous);
+  });
+});
+
+describe("applyOptimisticTokenVerifier / restoreTokenVerifierSnapshot", () => {
+  it("patches and restores token verifier cache", () => {
+    const qc = new QueryClient();
+    const key = queryKeys.tokenVerifier.byToken("token");
+    const previous = {
+      custom: false,
+      verifier: null,
+      endpoint: null,
+      payer: null,
+    };
+    qc.setQueryData(key, previous);
+
+    const next = {
+      custom: true,
+      verifier: "Verifier11111111111111111111111111111111",
+      endpoint: "https://example.com",
+      payer: null,
+    };
+    const snapshot = applyOptimisticTokenVerifier(qc, "token", next);
+    expect(snapshot).toEqual(previous);
+    expect(qc.getQueryData(key)).toEqual(next);
+
+    restoreTokenVerifierSnapshot(qc, "token", snapshot);
     expect(qc.getQueryData(key)).toEqual(previous);
   });
 });

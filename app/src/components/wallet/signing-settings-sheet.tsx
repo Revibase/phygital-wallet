@@ -23,9 +23,9 @@ import { Button } from "@/components/ui/button";
 import { FieldLabel, Input } from "@/components/ui/input";
 import { copy } from "@/lib/copy/phygital";
 import {
-  invalidatePhygitalToken,
-  invalidateWalletBalances,
-  queryKeys,
+  applyOptimisticTokenVerifier,
+  restoreTokenVerifierSnapshot,
+  type TokenVerifierCache,
 } from "@/lib/queries";
 import { useTokenVerifier } from "@/hooks/wallet/use-token-verifier";
 import { getSolanaRpc } from "@/lib/solana/rpc";
@@ -47,6 +47,7 @@ type View = "menu" | "warn" | "custom" | "ceremony";
 type PendingConfigTx = {
   signer: AppVerifierSigner;
   instructions: Instruction[];
+  nextStatus: TokenVerifierCache;
   onSuccess: () => void;
   errorView: View;
 };
@@ -73,24 +74,27 @@ export function SigningSettingsSheet({
   const verifierStatus = useTokenVerifier(phygitalTokenPda);
   const isCustom = verifierStatus.data?.custom === true;
 
-  function afterSigningTxConfirmed() {
-    invalidatePhygitalToken(queryClient, phygitalTokenPda);
-    invalidateWalletBalances(queryClient, { tokens: [phygitalTokenPda] });
-    void queryClient.invalidateQueries({
-      queryKey: queryKeys.tokenVerifier.byToken(phygitalTokenPda),
-    });
-  }
-
   async function finishConfigTx(pending: PendingConfigTx) {
     const { confirmed } = await sendConfigTransaction({
       instructions: pending.instructions,
       signer: pending.signer,
     });
-    await confirmed;
+    const before = applyOptimisticTokenVerifier(
+      queryClient,
+      phygitalTokenPda,
+      pending.nextStatus,
+    );
     pending.onSuccess();
     pendingRef.current = null;
     setConfirmPending(false);
     setCeremonyPhase("success");
+    try {
+      await confirmed;
+    } catch (e) {
+      restoreTokenVerifierSnapshot(queryClient, phygitalTokenPda, before);
+      setView(pending.errorView);
+      toast.error(toUserErrorMessage(e));
+    }
   }
 
   async function runAfterNfc(pending: PendingConfigTx) {
@@ -161,8 +165,13 @@ export function SigningSettingsSheet({
         signer,
         instructions,
         errorView: "custom",
+        nextStatus: {
+          custom: true,
+          verifier: String(verifierAddr),
+          endpoint: endpoint.trim(),
+          payer: verifierStatus.data?.payer ?? null,
+        },
         onSuccess: () => {
-          afterSigningTxConfirmed();
           toast.success(copy.wallet.signingCustomSaved);
         },
       });
@@ -208,8 +217,13 @@ export function SigningSettingsSheet({
         signer,
         instructions,
         errorView: "menu",
+        nextStatus: {
+          custom: false,
+          verifier: null,
+          endpoint: null,
+          payer: null,
+        },
         onSuccess: () => {
-          afterSigningTxConfirmed();
           toast.success(copy.wallet.signingRestored);
         },
       });

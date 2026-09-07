@@ -11,7 +11,7 @@ import { queryKeys } from "@/lib/queries";
  * so persisted token ownership can stay frozen until site data is cleared.
  *
  * Intentionally skips `walletActivity` — Helius Wallet History is expensive
- * (100 credits/req); optimistic React Query rows + post-send invalidation cover UX.
+ * (100 credits/req); optimistic React Query rows cover post-send UX.
  */
 export function useResumeQueryRefresh() {
   const queryClient = useQueryClient();

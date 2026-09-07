@@ -24,7 +24,11 @@ import { FieldLabel, Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { useRecoveryWallet } from "@/hooks/wallet/use-recovery-wallet";
 import { copy } from "@/lib/copy/phygital";
-import { queryKeys } from "@/lib/queries";
+import {
+  applyOptimisticRecoveryWallet,
+  restoreRecoveryWalletSnapshot,
+  type RecoveryWalletCache,
+} from "@/lib/queries";
 import { tryParseAddress } from "@/lib/solana/address";
 import { getSolanaRpc } from "@/lib/solana/rpc";
 import { toUserErrorMessage } from "@/lib/user-errors";
@@ -44,6 +48,7 @@ type View = "form" | "confirmClear" | "ceremony";
 type PendingConfigTx = {
   signer: AppVerifierSigner;
   instructions: Instruction[];
+  nextStatus: RecoveryWalletCache;
   onSuccess: () => void;
 };
 
@@ -81,22 +86,27 @@ export function RecoveryWalletSheet({
     inputValid && current != null && String(parsedInput) === current;
   const canSave = inputValid && !isSameAsCurrent && acked;
 
-  function invalidate() {
-    void queryClient.invalidateQueries({
-      queryKey: queryKeys.recoveryWallet.byToken(phygitalTokenPda),
-    });
-  }
-
   async function finishConfigTx(pending: PendingConfigTx) {
     const { confirmed } = await sendConfigTransaction({
       instructions: pending.instructions,
       signer: pending.signer,
     });
-    await confirmed;
+    const before = applyOptimisticRecoveryWallet(
+      queryClient,
+      phygitalTokenPda,
+      pending.nextStatus,
+    );
     pending.onSuccess();
     pendingRef.current = null;
     setConfirmPending(false);
     setCeremonyPhase("success");
+    try {
+      await confirmed;
+    } catch (e) {
+      restoreRecoveryWalletSnapshot(queryClient, phygitalTokenPda, before);
+      setView("form");
+      toast.error(toUserErrorMessage(e));
+    }
   }
 
   async function runAfterNfc(pending: PendingConfigTx) {
@@ -163,8 +173,12 @@ export function RecoveryWalletSheet({
       await runAfterNfc({
         signer,
         instructions,
+        nextStatus: {
+          configured: true,
+          recoveryWallet: String(recoveryAddr),
+          payer: status.data?.payer ?? null,
+        },
         onSuccess: () => {
-          invalidate();
           setPubkeyInput("");
           toast.success(copy.wallet.recoveryWalletSaved);
         },
@@ -210,8 +224,12 @@ export function RecoveryWalletSheet({
       await runAfterNfc({
         signer,
         instructions,
+        nextStatus: {
+          configured: false,
+          recoveryWallet: null,
+          payer: null,
+        },
         onSuccess: () => {
-          invalidate();
           setPubkeyInput("");
           toast.success(copy.wallet.recoveryWalletCleared);
         },

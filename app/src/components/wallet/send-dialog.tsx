@@ -321,10 +321,6 @@ export function SendDialog({
       });
       onSignPhaseChange?.(null);
       onHoldPhaseChange("success", recapForSend(signature));
-      invalidateWalletBalances(queryClient, {
-        wallets: [walletAddress],
-        tokens: [phygitalTokenPda],
-      });
       toast.success(copy.wallet.sent);
       onSent();
     } catch (e) {

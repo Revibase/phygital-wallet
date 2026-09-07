@@ -18,7 +18,6 @@ import {
   applyOptimisticFeeBalance,
   applyOptimisticPortfolioDelta,
   applyOptimisticWalletActivity,
-  invalidateWalletBalances,
   patchOptimisticWalletActivity,
   restoreFeeBalanceSnapshot,
   restorePortfolioSnapshot,
@@ -129,10 +128,6 @@ export function FeeBalanceSheet({
       setSignPhase(null);
       setPhase("success");
       toast.success(copy.wallet.topUpSuccess);
-      invalidateWalletBalances(queryClient, {
-        wallets: [walletAddress],
-        tokens: [phygitalTokenPda],
-      });
     } catch (e) {
       setSignPhase(null);
       if (submittedSignature) {

@@ -2,9 +2,10 @@
  * Post-mutation cache updates for React Query.
  *
  * Prefer setQueryData when the client already knows the next value (policy
- * PUT, optimistic portfolio/activity/fee patches). Prefer invalidate for
- * shapes that are hard to patch safely. For sends/receives/fee top-ups:
- * patch on submit, restore on failed confirm, invalidate after land.
+ * PUT, optimistic portfolio/activity/fee/settings patches). Prefer invalidate
+ * for shapes that are hard to patch safely, or when refreshing after an error
+ * gate (e.g. insufficient fee balance). For sends/receives/fee top-ups/config:
+ * patch on RPC accept, restore on failed confirm — do not invalidate on land.
  */
 
 import type { QueryClient, QueryKey } from "@tanstack/react-query";
@@ -23,6 +24,21 @@ import {
 } from "@/lib/wallet/network-fee";
 
 import { queryKeys } from "./keys";
+
+/** Mirrors `useRecoveryWallet` query data. */
+export type RecoveryWalletCache = {
+  configured: boolean;
+  recoveryWallet: string | null;
+  payer: string | null;
+};
+
+/** Mirrors `useTokenVerifier` query data. */
+export type TokenVerifierCache = {
+  custom: boolean;
+  verifier: string | null;
+  endpoint: string | null;
+  payer: string | null;
+};
 
 /** First-page sizes used by `useWalletActivity` (default) and ActivityAllSheet. */
 const ACTIVITY_FIRST_PAGE_LIMITS = [20, 40] as const;
@@ -336,6 +352,60 @@ export function applyWalletPolicy(
     queryKeys.walletPolicy.byToken(phygitalToken),
     effective,
   );
+}
+
+/**
+ * Patch recovery-wallet settings on RPC accept. Returns previous for restore.
+ */
+export function applyOptimisticRecoveryWallet(
+  queryClient: QueryClient,
+  token: string,
+  next: RecoveryWalletCache,
+): RecoveryWalletCache | undefined {
+  const key = queryKeys.recoveryWallet.byToken(token);
+  const previous = queryClient.getQueryData<RecoveryWalletCache>(key);
+  queryClient.setQueryData(key, next);
+  return previous;
+}
+
+export function restoreRecoveryWalletSnapshot(
+  queryClient: QueryClient,
+  token: string,
+  previous: RecoveryWalletCache | undefined,
+): void {
+  const key = queryKeys.recoveryWallet.byToken(token);
+  if (previous === undefined) {
+    queryClient.removeQueries({ queryKey: key });
+    return;
+  }
+  queryClient.setQueryData(key, previous);
+}
+
+/**
+ * Patch token-verifier override on RPC accept. Returns previous for restore.
+ */
+export function applyOptimisticTokenVerifier(
+  queryClient: QueryClient,
+  token: string,
+  next: TokenVerifierCache,
+): TokenVerifierCache | undefined {
+  const key = queryKeys.tokenVerifier.byToken(token);
+  const previous = queryClient.getQueryData<TokenVerifierCache>(key);
+  queryClient.setQueryData(key, next);
+  return previous;
+}
+
+export function restoreTokenVerifierSnapshot(
+  queryClient: QueryClient,
+  token: string,
+  previous: TokenVerifierCache | undefined,
+): void {
+  const key = queryKeys.tokenVerifier.byToken(token);
+  if (previous === undefined) {
+    queryClient.removeQueries({ queryKey: key });
+    return;
+  }
+  queryClient.setQueryData(key, previous);
 }
 
 /** Invalidate DAS / portfolio caches when the active RPC preference changes. */

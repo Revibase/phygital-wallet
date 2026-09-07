@@ -10,6 +10,8 @@ export { queryKeys } from "./keys";
 export {
   applyOptimisticFeeBalance,
   applyOptimisticPortfolioDelta,
+  applyOptimisticRecoveryWallet,
+  applyOptimisticTokenVerifier,
   applyOptimisticWalletActivity,
   applyWalletPolicy,
   invalidatePhygitalToken,
@@ -18,7 +20,11 @@ export {
   patchOptimisticWalletActivity,
   restoreFeeBalanceSnapshot,
   restorePortfolioSnapshot,
+  restoreRecoveryWalletSnapshot,
+  restoreTokenVerifierSnapshot,
   restoreWalletActivitySnapshot,
+  type RecoveryWalletCache,
+  type TokenVerifierCache,
   type WalletActivitySnapshot,
 } from "./mutations";
 
