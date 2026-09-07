@@ -20,7 +20,6 @@ import { ClaimItemSheet } from "@/components/wallet/claim-item-sheet";
 import { OpenApprovalsSheet } from "@/components/wallet/open-approvals-sheet";
 import type { SettingsTarget } from "@/components/wallet/settings-hub";
 import { useTokenSession } from "@/components/token/token-session";
-import { useTokenWalletChip } from "@/hooks/wallet/use-token-wallet-chip";
 import { useWalletPda } from "@/hooks/wallet/use-wallet-pda";
 import { useOpenApprovals } from "@/hooks/wallet/use-open-approvals";
 import { useResolvedDasCollectible } from "@/hooks/token/use-das-collectible";
@@ -218,12 +217,6 @@ export function WalletRouteShell({ children }: { children: ReactNode }) {
       tokens: [tokenAddress],
     });
   }, [queryClient, walletAddress, tokenAddress]);
-
-  useTokenWalletChip({
-    onToggle: goCard,
-    viewingWallet: true,
-    enabled: Boolean(mint),
-  });
 
   const sessionValue = useMemo((): WalletSessionValue | null => {
     if (!walletAddress) return null;

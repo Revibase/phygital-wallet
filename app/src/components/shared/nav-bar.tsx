@@ -68,8 +68,8 @@ function NavBarFrame({
 }
 
 /**
- * Page nav. Inside {@link AppShell}, portals into the shell header and hides
- * the brand row — one chrome line. Outside the shell, renders inline.
+ * Page nav. Inside {@link AppShell}, portals into the shell header — one chrome
+ * line. Outside the shell, renders inline.
  */
 export function NavBar({
   leading,

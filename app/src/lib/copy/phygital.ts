@@ -41,7 +41,6 @@ export const copy = {
     close: "Close",
     wallet: "Wallet",
     remove: "Remove",
-    devnet: "Devnet",
   },
   wallet: {
     addressCopyFailed: "Couldn’t copy",
@@ -52,6 +51,8 @@ export const copy = {
     balancesUpdating: "Updating…",
     balancesUpdateFailed: "Couldn’t update",
     manageDevice: "Settings",
+    moreAria: "Wallet options",
+    copyAddress: "Copy address",
     send: "Send",
     receive: "Receive",
     activity: "Activity",

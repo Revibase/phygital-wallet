@@ -3,22 +3,18 @@
 import {
   createContext,
   useContext,
-  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
 
 import { LuminousAura } from "@/components/shared/luminous-aura";
-import { Badge } from "@/components/ui/badge";
-import { copy } from "@/lib/copy/phygital";
 import {
   shellLayoutClass,
   shellPaddingClass,
   type ShellLayout,
 } from "@/lib/layout";
 import { galleryAnimate } from "@/lib/motion";
-import { isMainnet } from "@/lib/solana/cluster";
 import { cn } from "@/lib/utils";
 
 const ShellStageSlotContext = createContext<{
@@ -26,28 +22,21 @@ const ShellStageSlotContext = createContext<{
   setActive: (active: boolean) => void;
 } | null>(null);
 
-/** Host page nav in the AppShell row (replaces brand chrome). */
+/** Host page nav in the AppShell row. */
 export function useShellStageSlot() {
   return useContext(ShellStageSlotContext);
 }
 
-/** Chrome for every route: stage nav on pushed screens; no company wordmark. */
+/** Chrome for every route: stage nav when a NavBar registers; no idle brand row. */
 export function AppShell({
   children,
   layout = "compact",
-  headerExtra,
 }: {
   children: ReactNode;
   layout?: ShellLayout;
-  headerExtra?: ReactNode;
 }) {
-  const [showDevnet, setShowDevnet] = useState(false);
   const [stageMount, setStageMount] = useState<HTMLElement | null>(null);
   const [stageActive, setStageActive] = useState(false);
-
-  useEffect(() => {
-    setShowDevnet(!isMainnet());
-  }, []);
 
   const stageApi = useMemo(
     () => ({ mount: stageMount, setActive: setStageActive }),
@@ -67,36 +56,17 @@ export function AppShell({
               "md:my-4 md:min-h-[min(100dvh-2rem,52rem)] md:overflow-hidden md:rounded-[2rem] md:border md:border-border/40 md:bg-background/80 md:shadow-[0_24px_80px_-32px_var(--card-shadow)] md:backdrop-blur-xl",
           )}
         >
-          <div className={cn("mb-4 md:mb-5", galleryAnimate.rise)}>
+          <div
+            className={cn(
+              stageActive && "mb-4 md:mb-5",
+              stageActive && galleryAnimate.rise,
+            )}
+          >
             <div
               ref={setStageMount}
               className={cn(!stageActive && "hidden")}
               aria-hidden={!stageActive}
             />
-            {!stageActive ? (
-              <div className="relative flex min-h-11 items-center">
-                <div className="flex min-w-0 flex-1 items-center justify-start gap-2">
-                  {showDevnet ? (
-                    <Badge
-                      variant="outline"
-                      className="gap-1.5 border-border/50 px-2 py-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground sm:px-2.5"
-                    >
-                      <span
-                        className="size-1 rounded-full bg-muted-foreground/70"
-                        aria-hidden
-                      />
-                      {copy.common.devnet}
-                    </Badge>
-                  ) : (
-                    <span className="w-4" aria-hidden />
-                  )}
-                </div>
-
-                <div className="flex min-w-0 flex-1 items-center justify-end gap-1">
-                  {headerExtra}
-                </div>
-              </div>
-            ) : null}
           </div>
           <div className="flex min-h-0 flex-1 flex-col">{children}</div>
         </main>

@@ -3,8 +3,9 @@
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 
+import { IdentityChip } from "@/components/shared/identity-chip";
+import { NavBar } from "@/components/shared/nav-bar";
 import { TokenMintedPanel } from "@/components/token/token-minted-panel";
-import { useTokenWalletChip } from "@/hooks/wallet/use-token-wallet-chip";
 import {
   TokenVerifySessionGate,
   useTokenVerifySession,
@@ -23,17 +24,15 @@ export function TokenMintedHome({ token: tokenProp }: { token: PhygitalToken }) 
     router.push(walletHref(tokenAddress));
   }, [router, tokenAddress]);
 
-  useTokenWalletChip({
-    onToggle: goWallet,
-    viewingWallet: false,
-  });
-
   return (
     <TokenVerifySessionGate
       session={session}
       inAppBody={copy.gate.openInBrowserBody}
     >
       <div className="flex flex-1 flex-col">
+        <NavBar
+          trailing={<IdentityChip viewingWallet={false} onToggle={goWallet} />}
+        />
         <TokenMintedPanel
           token={session.token}
           liveConfirmed={session.liveConfirmed}

@@ -2,9 +2,8 @@
 
 import { useMemo } from "react";
 import { LazyMotion, domAnimation, m, useReducedMotion } from "framer-motion";
-import { ArrowDown, ArrowUp, Clock3, RefreshCcw, Settings } from "lucide-react";
+import { ArrowDown, ArrowUp, Clock3, RefreshCcw } from "lucide-react";
 
-import { CopyableAddress } from "@/components/shared/copyable-address";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -45,10 +44,7 @@ const sectionTransition = {
 export function WalletHomePanel({
   portfolio,
   loading,
-  walletAddress,
-  walletTitle,
   linkedMint,
-  onManageDevice,
   onSend,
   onSendAsset,
   onReceive,
@@ -72,9 +68,6 @@ export function WalletHomePanel({
 }: {
   portfolio: WalletPortfolio | undefined;
   loading?: boolean;
-  walletAddress: string;
-  /** Accessory / card name — primary identity above the address. */
-  walletTitle?: string | null;
   linkedMint?: string | null;
   onSend: () => void;
   onSendAsset: (asset: SendAssetRef) => void;
@@ -91,7 +84,6 @@ export function WalletHomePanel({
   onChangeRpc?: () => void;
   onRefresh?: () => void;
   lastUpdatedLabel?: string | null;
-  onManageDevice: () => void;
   /** Owner: open recovery set/clear from the first-funds ack. */
   onAddRecovery?: () => void;
   /** Quiet visitor role notice (not linked as owner on this phone). */
@@ -157,24 +149,11 @@ export function WalletHomePanel({
     : primaryCryptoLine
       ? primaryCryptoLine
       : formatUsd(0);
-  const showStatus = status === "error" || status === "refreshing";
-  const statusLabel =
-    status === "error"
-      ? copy.wallet.balancesUpdateFailed
-      : copy.wallet.balancesUpdating;
   const refreshing = status === "refreshing";
 
   if (loading && !portfolio) {
     return (
       <div className={cn("flex flex-1 flex-col gap-6", className)}>
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Skeleton className="size-4 rounded-full" />
-            <Skeleton className="h-4 w-28" />
-          </div>
-          <Skeleton className="h-4 w-20" />
-        </div>
-
         <div className="flex flex-col items-center gap-2 py-1 text-center">
           <Skeleton className="h-10 w-44 rounded-2xl" />
           <Skeleton className="h-4 w-32" />
@@ -222,63 +201,6 @@ export function WalletHomePanel({
           },
         }}
       >
-      <m.div
-        className="flex items-start justify-between gap-3"
-        variants={sectionVariants}
-        transition={sectionTransition}
-      >
-        <div className="flex min-w-0 flex-col gap-0 leading-tight">
-          {walletTitle ? (
-            <p className="truncate text-sm font-medium tracking-tight">
-              {walletTitle}
-            </p>
-          ) : null}
-          <CopyableAddress
-            address={walletAddress}
-            length={4}
-            label={copy.address.wallet}
-            className={cn(
-              "min-h-0 py-0.5 text-muted-foreground",
-              walletTitle ? "text-[11px]" : "min-h-11 text-xs",
-            )}
-          />
-        </div>
-        <div className="flex shrink-0 items-center gap-2 pt-0.5">
-          {showStatus ? (
-            <Button
-              type="button"
-              variant="ghost"
-              className="h-auto min-h-0 gap-1.5 px-2 py-1"
-              onClick={status === "error" ? onRefresh : undefined}
-              disabled={status !== "error" || !onRefresh}
-            >
-              <span
-                className={cn(
-                  "size-1.5 rounded-full",
-                  status === "error"
-                    ? "bg-muted-foreground"
-                    : "bg-muted-foreground/70",
-                )}
-                aria-hidden
-              />
-              <span className="text-xs font-medium text-muted-foreground">
-                {statusLabel}
-              </span>
-            </Button>
-          ) : null}
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label={copy.wallet.manageDevice}
-            onClick={onManageDevice}
-            className="rounded-full text-muted-foreground hover:text-foreground"
-          >
-            <Settings className="size-4" aria-hidden />
-          </Button>
-        </div>
-      </m.div>
-
       {!showFirstRun ? (
       <m.div
         className="flex flex-col items-center gap-1.5 py-1 text-center"

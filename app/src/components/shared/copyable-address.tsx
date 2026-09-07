@@ -70,7 +70,7 @@ export function CopyableAddress({
         copied ? copy.address.copiedAria(label) : copy.address.copyAria(label, address)
       }
       className={cn(
-        "group/copy h-auto min-h-0 gap-1.5 rounded-md px-1.5 py-0.5 font-mono text-foreground hover:bg-transparent hover:text-foreground",
+        "group/copy h-auto min-h-0 gap-1.5 rounded-md py-0.5 font-mono text-foreground hover:bg-transparent hover:text-foreground",
         className,
       )}
     >
