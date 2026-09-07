@@ -5,12 +5,12 @@ import { SendProtectionsSheet } from "@/components/wallet/send-protections-sheet
 import { useWalletRoute } from "@/components/wallet/wallet-route-shell";
 
 export default function SendProtectionsPage() {
-  const { tokenAddress, goSettings } = useWalletRoute();
+  const { tokenAddress, backSettings } = useWalletRoute();
   return (
     <OwnerSettingsGate target="sendProtections">
       <SendProtectionsSheet
         phygitalTokenPda={tokenAddress}
-        onBack={() => goSettings()}
+        onBack={backSettings}
       />
     </OwnerSettingsGate>
   );

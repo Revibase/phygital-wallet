@@ -19,8 +19,9 @@ import {
   type LinkStatus,
 } from "@/lib/wallet/device-auth-client";
 import { redirectToClaimSetup, clearClaimDismiss } from "@/lib/wallet/claim-setup-href";
-import { redirectToLimitsSetup } from "@/lib/wallet/limits-setup-href";
+import { redirectToDeviceSignIn } from "@/lib/wallet/device-sign-in-href";
 import { cn } from "@/lib/utils";
+import { walletSettingsHref } from "@/lib/wallet/token-routes";
 
 /** Access: link / unlink this phone (owners); claim path (visitors). */
 export function AccessRecoverySheet({
@@ -66,6 +67,7 @@ export function AccessRecoverySheet({
     !teardownLoading &&
     !needsRecoveryClear &&
     !needsSigningRestore;
+  const accessReturnTo = walletSettingsHref(phygitalTokenPda, "access");
 
   async function unlink() {
     if (!canUnlink) return;
@@ -232,7 +234,7 @@ export function AccessRecoverySheet({
             size="lg"
             className="w-full"
             onClick={() =>
-              redirectToLimitsSetup(phygitalTokenPda, "spendingLimits")
+              redirectToDeviceSignIn(phygitalTokenPda, accessReturnTo)
             }
           >
             {copy.wallet.claimCta}
@@ -244,7 +246,7 @@ export function AccessRecoverySheet({
             className="w-full"
             onClick={() => {
               if (onClaim) onClaim();
-              else redirectToClaimSetup(phygitalTokenPda);
+              else redirectToClaimSetup(phygitalTokenPda, accessReturnTo);
             }}
           >
             {copy.wallet.claimBannerAction}

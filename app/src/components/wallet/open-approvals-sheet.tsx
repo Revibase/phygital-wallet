@@ -11,9 +11,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { copy } from "@/lib/copy/phygital";
 import { queryKeys } from "@/lib/queries";
 import { toUserErrorMessage } from "@/lib/user-errors";
-import {
-  handleOwnerAuthFailure,
-} from "@/lib/wallet/limits-setup-href";
+import { handleOwnerAuthFailure } from "@/lib/wallet/device-sign-in-href";
 import {
   cancelOpenApproval,
   createOneTimeGrant,

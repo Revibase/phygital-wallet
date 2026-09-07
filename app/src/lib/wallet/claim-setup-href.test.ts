@@ -5,22 +5,31 @@ import {
   parseClaimReturnPath,
   parseClaimSetupIntent,
 } from "./claim-setup-href";
-import { tokenHref, walletHref } from "./token-routes";
+import { tokenHref, walletHref, walletSettingsHref } from "./token-routes";
 
 const TOKEN = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 
 describe("parseClaimReturnPath", () => {
-  it("accepts /token/{address} and normalizes to wallet home", () => {
+  it("accepts card and wallet roots", () => {
     expect(parseClaimReturnPath(tokenHref(TOKEN))).toEqual({
+      token: TOKEN,
+      path: tokenHref(TOKEN),
+    });
+    expect(parseClaimReturnPath(walletHref(TOKEN))).toEqual({
       token: TOKEN,
       path: walletHref(TOKEN),
     });
   });
 
-  it("accepts wallet root as claim return", () => {
-    expect(parseClaimReturnPath(walletHref(TOKEN))).toEqual({
+  it("accepts deep wallet paths where claim was started", () => {
+    const access = walletSettingsHref(TOKEN, "access");
+    expect(parseClaimReturnPath(access)).toEqual({
       token: TOKEN,
-      path: walletHref(TOKEN),
+      path: access,
+    });
+    expect(parseClaimReturnPath(walletHref(TOKEN, "activity"))).toEqual({
+      token: TOKEN,
+      path: walletHref(TOKEN, "activity"),
     });
   });
 
@@ -29,20 +38,26 @@ describe("parseClaimReturnPath", () => {
     expect(parseClaimReturnPath("//evil.example/phish")).toBeNull();
   });
 
-  it("rejects other routes and deep wallet paths", () => {
+  it("rejects other routes", () => {
     expect(parseClaimReturnPath("/")).toBeNull();
     expect(parseClaimReturnPath("/token")).toBeNull();
-    expect(parseClaimReturnPath(walletHref(TOKEN, "activity"))).toBeNull();
   });
 });
 
 describe("claim setup intent", () => {
-  it("home href carries setup=claim and return only", () => {
+  it("home href defaults return to wallet home", () => {
     const href = claimSetupHomeHref(TOKEN);
     const u = new URL(href, "https://revibase.invalid");
     expect(u.searchParams.get("setup")).toBe("claim");
     expect(u.searchParams.get("return")).toBe(walletHref(TOKEN));
     expect(u.searchParams.get("token")).toBeNull();
+  });
+
+  it("home href preserves the caller return path", () => {
+    const returnTo = walletSettingsHref(TOKEN, "access");
+    const href = claimSetupHomeHref(TOKEN, returnTo);
+    const u = new URL(href, "https://revibase.invalid");
+    expect(u.searchParams.get("return")).toBe(returnTo);
   });
 
   it("parseClaimSetupIntent requires setup=claim and a valid return", () => {

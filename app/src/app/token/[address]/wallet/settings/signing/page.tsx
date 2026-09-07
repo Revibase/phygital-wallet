@@ -5,12 +5,12 @@ import { SigningSettingsSheet } from "@/components/wallet/signing-settings-sheet
 import { useWalletRoute } from "@/components/wallet/wallet-route-shell";
 
 export default function SigningPage() {
-  const { tokenAddress, goSettings } = useWalletRoute();
+  const { tokenAddress, backSettings } = useWalletRoute();
   return (
     <OwnerSettingsGate target="signing">
       <SigningSettingsSheet
         phygitalTokenPda={tokenAddress}
-        onClose={() => goSettings()}
+        onClose={backSettings}
       />
     </OwnerSettingsGate>
   );

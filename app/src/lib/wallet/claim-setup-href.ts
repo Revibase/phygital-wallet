@@ -1,21 +1,15 @@
-/** Deep links for Home claim ceremony → return to token wallet. */
+/** Deep links for Home claim ceremony → return to where claim was started. */
 
-import { parseTokenWalletPath, walletHref } from "@/lib/wallet/token-routes";
+import { parseSafeTokenReturnPath } from "@/lib/wallet/device-sign-in-href";
+import { walletHref } from "@/lib/wallet/token-routes";
 
-/**
- * Parse a same-origin `/token/{address}` (or wallet home) return path for claim.
- * Always normalizes to wallet home — claim overlay lives under wallet layout.
- */
+/** Allowlisted `/token/…` return path after claim. */
 export function parseClaimReturnPath(
   raw: string | null | undefined,
 ): { token: string; path: string } | null {
-  const parsed = parseTokenWalletPath(raw);
+  const parsed = parseSafeTokenReturnPath(raw);
   if (!parsed) return null;
-  // Card or wallet root only — not a deep settings path.
-  if (parsed.kind === "wallet" && parsed.segments.length > 0) {
-    return null;
-  }
-  return { token: parsed.token, path: walletHref(parsed.token) };
+  return { token: parsed.token, path: parsed.returnTo };
 }
 
 /** Home setup intent from `/?setup=claim&return=…`. */
@@ -29,16 +23,23 @@ export function parseClaimSetupIntent(args: {
   return { token: parsed.token, returnTo: parsed.path };
 }
 
-export function claimSetupHomeHref(token: string): string {
+function resolveClaimReturn(token: string, returnTo?: string): string {
+  const desired = returnTo ?? walletHref(token);
+  const safe = parseClaimReturnPath(desired);
+  if (safe && safe.token === token) return safe.path;
+  return walletHref(token);
+}
+
+export function claimSetupHomeHref(token: string, returnTo?: string): string {
   const params = new URLSearchParams({
     setup: "claim",
-    return: walletHref(token),
+    return: resolveClaimReturn(token, returnTo),
   });
   return `/?${params.toString()}`;
 }
 
-export function redirectToClaimSetup(token: string): void {
-  window.location.assign(claimSetupHomeHref(token));
+export function redirectToClaimSetup(token: string, returnTo?: string): void {
+  window.location.replace(claimSetupHomeHref(token, returnTo));
 }
 
 const CLAIM_DISMISS_PREFIX = "revibase.claimDismissed.";

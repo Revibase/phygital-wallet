@@ -25,7 +25,7 @@ import {
   hasSpendCaps,
   type PolicySettings,
 } from "@/lib/wallet/policy-settings";
-import { handleOwnerAuthFailure } from "@/lib/wallet/limits-setup-href";
+import { handleOwnerAuthFailure } from "@/lib/wallet/device-sign-in-href";
 
 export function useWalletPolicy(phygitalToken: string | null) {
   return useQuery<EffectivePolicy, Error>({

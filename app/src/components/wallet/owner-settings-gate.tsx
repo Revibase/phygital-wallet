@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 
 import { LimitsSetupSheet } from "@/components/wallet/limits-setup-sheet";
 import { useWalletRoute } from "@/components/wallet/wallet-route-shell";
 import {
   isOwnerOnlySettings,
   isPolicySetupScreen,
+  walletSettingsHref,
 } from "@/lib/wallet/token-routes";
 import type { SettingsTarget } from "@/components/wallet/settings-hub";
 import { RouteBoot } from "@/components/layout/route-boot";
@@ -22,16 +24,23 @@ export function OwnerSettingsGate({
   target: SettingsTarget;
   children: ReactNode;
 }) {
-  const { isOwner, linkStatus, claimed, goSettings, tokenAddress, requestClaim } =
-    useWalletRoute();
+  const {
+    isOwner,
+    linkStatus,
+    claimed,
+    backSettings,
+    tokenAddress,
+    requestClaim,
+  } = useWalletRoute();
+  const router = useRouter();
   const visitorBlocked = !isOwner && isOwnerOnlySettings(target);
   const showLimitsSetup = visitorBlocked && isPolicySetupScreen(target);
 
   useEffect(() => {
     if (visitorBlocked && !showLimitsSetup) {
-      goSettings();
+      router.replace(walletSettingsHref(tokenAddress));
     }
-  }, [visitorBlocked, showLimitsSetup, goSettings]);
+  }, [visitorBlocked, showLimitsSetup, router, tokenAddress]);
 
   if (isOwner || !isOwnerOnlySettings(target)) {
     return children;
@@ -44,7 +53,7 @@ export function OwnerSettingsGate({
         linkStatus={linkStatus}
         claimed={claimed}
         screen={target}
-        onBack={() => goSettings()}
+        onBack={backSettings}
         onClaim={requestClaim}
       />
     );

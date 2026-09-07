@@ -381,43 +381,44 @@ export class TokenSigner extends DurableObject<Env> {
         challengeId: input.challengeId,
         origin: input.origin,
       },
-      async () => {
-        // Fail before consuming the WebAuthn challenge when teardown is incomplete.
-        const pre = await assertOnChainUnlinkTeardown(this.#getToken());
-        if (!pre.ok) {
-          return {
-            ok: false,
-            code: pre.code,
-            error: pre.error,
-            details: pre.details,
-          };
-        }
+      () =>
+        this.#withEnv(async () => {
+          // Fail before consuming the WebAuthn challenge when teardown is incomplete.
+          const pre = await assertOnChainUnlinkTeardown(this.#getToken());
+          if (!pre.ok) {
+            return {
+              ok: false,
+              code: pre.code,
+              error: pre.error,
+              details: pre.details,
+            };
+          }
 
-        const auth = await verifyMutationAssertion({
-          store: this.#getStore(),
-          challengeId: input.challengeId,
-          binding: { kind: "removeOwner" },
-          assertion: input.assertion,
-          origin: input.origin,
-        });
-        if (!auth.ok) {
-          return { ok: false, code: auth.code, error: auth.error };
-        }
+          const auth = await verifyMutationAssertion({
+            store: this.#getStore(),
+            challengeId: input.challengeId,
+            binding: { kind: "removeOwner" },
+            assertion: input.assertion,
+            origin: input.origin,
+          });
+          if (!auth.ok) {
+            return { ok: false, code: auth.code, error: auth.error };
+          }
 
-        // Re-check after auth in case accounts were re-created during the prompt.
-        const post = await assertOnChainUnlinkTeardown(this.#getToken());
-        if (!post.ok) {
-          return {
-            ok: false,
-            code: post.code,
-            error: post.error,
-            details: post.details,
-          };
-        }
+          // Re-check after auth in case accounts were re-created during the prompt.
+          const post = await assertOnChainUnlinkTeardown(this.#getToken());
+          if (!post.ok) {
+            return {
+              ok: false,
+              code: post.code,
+              error: post.error,
+              details: post.details,
+            };
+          }
 
-        this.#getStore().clearOwnerAndPolicies();
-        return { ok: true, credentialId: auth.credentialId };
-      },
+          this.#getStore().clearOwnerAndPolicies();
+          return { ok: true, credentialId: auth.credentialId };
+        }),
     );
   }
 

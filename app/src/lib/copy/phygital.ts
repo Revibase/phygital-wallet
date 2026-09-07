@@ -62,7 +62,7 @@ export const copy = {
     noActivity: "No activity yet",
     settings: "Settings",
     settingsAccess: "Access",
-    settingsMoney: "Money",
+    settingsFees: "Fees",
     settingsSafety: "Safety",
     settingsSendProtections: "Send protections",
     /** Who verifies / co-signs transactions (not authenticity verify). Replaces Revibase when custom. */
@@ -249,11 +249,8 @@ export const copy = {
     claimBody:
       "Link this accessory to this phone. Takes about 10 seconds. Only this phone can then change limits, recovery, and approval.",
     claimCta: "Continue with Passkey",
-    claimContinue: "Claim",
     claimNotNow: "Not now",
     claimHoldToContinue: "Hold to continue",
-    claimHoldBody:
-      "Hold your accessory to the top of your phone to finish claiming.",
     claimDesktopHint:
       "Open this on your phone to claim with Face ID, fingerprint, or screen lock.",
     claimTryAgain: "Try again",
@@ -266,10 +263,6 @@ export const copy = {
     claimSignInTitle: "Sign in",
     claimSignInBody:
       "Continue to manage limits, recovery, and approval on this phone.",
-    limitsSetupTitle: "Set up spending limits",
-    limitsSetupBody:
-      "Claim this accessory, then choose your caps. Limits apply with Revibase approval.",
-    limitsSetupCta: "Continue",
     limitsLinkedElsewhereTitle: "Linked to another phone",
     limitsLinkedElsewhereBody:
       "Unlink on that phone first, then come back here to claim.",

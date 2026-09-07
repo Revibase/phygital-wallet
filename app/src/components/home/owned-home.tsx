@@ -31,7 +31,7 @@ import {
 } from "@/lib/wallet/device-auth-client";
 import { authenticateToken } from "@/lib/token/authenticate";
 import { parseClaimSetupIntent } from "@/lib/wallet/claim-setup-href";
-import { parseLimitsSetupIntent } from "@/lib/wallet/limits-setup-href";
+import { parseDeviceSignInIntent } from "@/lib/wallet/device-sign-in-href";
 import { tokenHref, walletHref } from "@/lib/wallet/token-routes";
 
 /** Home: signed-out passkey door, or signed-in linked items (+ setup intent). */
@@ -45,7 +45,7 @@ export function OwnedHome() {
 
 function OwnedHomeRoot() {
   const searchParams = useSearchParams();
-  const limitsIntent = parseLimitsSetupIntent({
+  const limitsIntent = parseDeviceSignInIntent({
     setup: searchParams.get("setup"),
     returnPath: searchParams.get("return"),
   });
@@ -131,14 +131,16 @@ function HomePasskeyScreen({
             {setupMode
               ? claimMode
                 ? copy.wallet.homeSetupPasskeyClaimTitle
-                : copy.wallet.limitsSetupTitle
+                : copy.wallet.claimSignInTitle
               : copy.wallet.deviceLoginTitle}
           </h1>
           <p className="mx-auto max-w-sm text-sm leading-relaxed text-muted-foreground">
             {authError
               ? toUserErrorMessage(authError)
               : setupMode
-                ? copy.wallet.homeSetupPasskeyBody
+                ? claimMode
+                  ? copy.wallet.homeSetupPasskeyBody
+                  : copy.wallet.claimSignInBody
                 : copy.wallet.deviceLoginBody}
           </p>
         </div>

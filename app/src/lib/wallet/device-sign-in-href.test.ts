@@ -1,12 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  deviceSignInHomeHref,
   isPolicySetupScreen,
-  limitsSetupHomeHref,
-  parseLimitsSetupIntent,
-  parseSetupReturnPath,
-  tokenLimitsReturnPath,
-} from "./limits-setup-href";
+  parseDeviceSignInIntent,
+  parseSafeTokenReturnPath,
+} from "./device-sign-in-href";
 import { parseTokenWalletPath, walletHref, walletSettingsHref } from "./token-routes";
 
 /** Valid base58 pubkey for parser tests. */
@@ -56,25 +55,34 @@ describe("parseTokenWalletPath", () => {
   });
 });
 
-describe("parseSetupReturnPath", () => {
-  it("accepts a matching settings return path", () => {
-    const raw = tokenLimitsReturnPath(TOKEN, "spendingLimits");
-    expect(parseSetupReturnPath(raw)).toEqual({
+describe("parseSafeTokenReturnPath", () => {
+  it("accepts any allowlisted wallet return path", () => {
+    const spending = walletSettingsHref(TOKEN, "spendingLimits");
+    expect(parseSafeTokenReturnPath(spending)).toEqual({
       token: TOKEN,
-      screen: "spendingLimits",
-      path: raw,
+      returnTo: spending,
+    });
+
+    const access = walletSettingsHref(TOKEN, "access");
+    expect(parseSafeTokenReturnPath(access)).toEqual({
+      token: TOKEN,
+      returnTo: access,
+    });
+
+    const activity = walletHref(TOKEN, "activity");
+    expect(parseSafeTokenReturnPath(activity)).toEqual({
+      token: TOKEN,
+      returnTo: activity,
     });
   });
 
   it("rejects absolute and protocol-relative URLs", () => {
-    expect(parseSetupReturnPath("https://evil.example/phish")).toBeNull();
-    expect(parseSetupReturnPath("//evil.example/phish")).toBeNull();
+    expect(parseSafeTokenReturnPath("https://evil.example/phish")).toBeNull();
+    expect(parseSafeTokenReturnPath("//evil.example/phish")).toBeNull();
   });
 
-  it("rejects other app routes and missing screen", () => {
-    expect(parseSetupReturnPath("/home")).toBeNull();
-    expect(parseSetupReturnPath(`/token/${TOKEN}`)).toBeNull();
-    expect(parseSetupReturnPath(`/token/${TOKEN}/wallet`)).toBeNull();
+  it("rejects other app routes", () => {
+    expect(parseSafeTokenReturnPath("/home")).toBeNull();
   });
 
   it("isPolicySetupScreen only allows known sheets", () => {
@@ -83,32 +91,39 @@ describe("parseSetupReturnPath", () => {
   });
 });
 
-describe("limits setup intent", () => {
+describe("device sign-in intent", () => {
   it("home href only carries setup + return", () => {
-    const href = limitsSetupHomeHref({ token: TOKEN, screen: "recipients" });
+    const returnTo = walletSettingsHref(TOKEN, "recipients");
+    const href = deviceSignInHomeHref({ token: TOKEN, returnTo });
     const u = new URL(href, "https://revibase.invalid");
     expect(u.searchParams.get("setup")).toBe("limits");
-    expect(u.searchParams.get("return")).toBe(
-      tokenLimitsReturnPath(TOKEN, "recipients"),
-    );
+    expect(u.searchParams.get("return")).toBe(returnTo);
     expect(u.searchParams.get("token")).toBeNull();
     expect(u.searchParams.get("screen")).toBeNull();
   });
 
-  it("parseLimitsSetupIntent requires setup=limits and a valid return", () => {
-    const returnPath = tokenLimitsReturnPath(TOKEN, "spendingLimits");
+  it("parseDeviceSignInIntent requires setup=limits and a valid return", () => {
+    const returnPath = walletSettingsHref(TOKEN, "spendingLimits");
     expect(
-      parseLimitsSetupIntent({ setup: "limits", returnPath }),
+      parseDeviceSignInIntent({ setup: "limits", returnPath }),
     ).toEqual({
       token: TOKEN,
-      screen: "spendingLimits",
       returnTo: returnPath,
     });
     expect(
-      parseLimitsSetupIntent({ setup: "limits", returnPath: null }),
+      parseDeviceSignInIntent({ setup: "limits", returnPath: null }),
     ).toBeNull();
     expect(
-      parseLimitsSetupIntent({ setup: null, returnPath }),
+      parseDeviceSignInIntent({ setup: null, returnPath }),
     ).toBeNull();
+  });
+
+  it("falls back to wallet home when returnTo is unsafe", () => {
+    const href = deviceSignInHomeHref({
+      token: TOKEN,
+      returnTo: "https://evil.example",
+    });
+    const u = new URL(href, "https://revibase.invalid");
+    expect(u.searchParams.get("return")).toBe(walletHref(TOKEN));
   });
 });

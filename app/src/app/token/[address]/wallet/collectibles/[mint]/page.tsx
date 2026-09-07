@@ -8,6 +8,7 @@ import { useWalletPortfolio } from "@/hooks/wallet/use-wallet-portfolio";
 import { copy } from "@/lib/copy/phygital";
 import { collectibleToSendAsset } from "@/lib/wallet/send-asset-ref";
 import { tryParseAddress } from "@/lib/solana/address";
+import { walletHref } from "@/lib/wallet/token-routes";
 
 export default function WalletCollectibleDetailPage() {
   const params = useParams();
@@ -18,7 +19,7 @@ export default function WalletCollectibleDetailPage() {
         ? params.mint[0]
         : "";
   const mintAddr = tryParseAddress(mintRaw);
-  const { walletAddress, go, goSend } = useWalletRoute();
+  const { walletAddress, tokenAddress, backTo, goSend } = useWalletRoute();
   const portfolio = useWalletPortfolio(walletAddress);
 
   const detail = portfolio.data?.collectibles.find(
@@ -36,7 +37,7 @@ export default function WalletCollectibleDetailPage() {
   return (
     <CollectibleDetailSheet
       collectible={detail}
-      onBack={() => go("collectibles")}
+      onBack={() => backTo(walletHref(tokenAddress, "collectibles"))}
       onSend={(c) => goSend(collectibleToSendAsset(c))}
     />
   );

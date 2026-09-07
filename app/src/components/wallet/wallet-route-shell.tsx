@@ -36,6 +36,7 @@ import {
   walletSendHref,
   walletSettingsHref,
 } from "@/lib/wallet/token-routes";
+import { navigateBack } from "@/lib/wallet/navigate-back";
 import {
   isCollectibleSendKind,
   type SendAssetRef,
@@ -70,6 +71,12 @@ type WalletRouteValue = {
   goSend: (asset?: SendAssetRef | null) => void;
   goHome: () => void;
   goCard: () => void;
+  /** Pop history toward wallet home (matches swipe-back). */
+  backHome: () => void;
+  /** Pop history toward settings hub (matches swipe-back). */
+  backSettings: () => void;
+  /** Pop history toward an arbitrary allowlisted href. */
+  backTo: (fallbackHref: string) => void;
   refresh: () => void;
 };
 
@@ -191,6 +198,21 @@ export function WalletRouteShell({ children }: { children: ReactNode }) {
     router.push(walletHref(tokenAddress));
   }, [router, tokenAddress]);
 
+  const backTo = useCallback(
+    (fallbackHref: string) => {
+      navigateBack(router, fallbackHref);
+    },
+    [router],
+  );
+
+  const backHome = useCallback(() => {
+    navigateBack(router, walletHref(tokenAddress));
+  }, [router, tokenAddress]);
+
+  const backSettings = useCallback(() => {
+    navigateBack(router, walletSettingsHref(tokenAddress));
+  }, [router, tokenAddress]);
+
   const refresh = useCallback(() => {
     if (!walletAddress) return;
     invalidateWalletBalances(queryClient, {
@@ -226,6 +248,9 @@ export function WalletRouteShell({ children }: { children: ReactNode }) {
       goSend,
       goHome,
       goCard,
+      backHome,
+      backSettings,
+      backTo,
       refresh,
     };
   }, [
@@ -247,6 +272,9 @@ export function WalletRouteShell({ children }: { children: ReactNode }) {
     goSend,
     goHome,
     goCard,
+    backHome,
+    backSettings,
+    backTo,
     refresh,
   ]);
 

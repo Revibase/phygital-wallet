@@ -2,7 +2,7 @@
  * Unlink may only clear DO ownership after on-chain teardown:
  * token verifier override PDA and recovery wallet PDA must both be closed.
  */
-import { address, createSolanaRpc, fetchEncodedAccounts } from "@solana/kit";
+import { address, fetchEncodedAccounts } from "@solana/kit";
 import {
   findRecoveryWalletAccountPda,
   findTokenVerifierPda,

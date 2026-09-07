@@ -584,40 +584,50 @@ deviceAuthRoutes.delete("/auth/device/links/:phygitalToken", async (c) => {
     );
   }
 
-  const stub = tokenSigner(c.env, phygitalToken);
-  if (!(await stub.isOwner(session.credentialId))) {
-    return json(
-      { error: "Not linked on this phone", code: "not_owner" },
-      { status: 403 },
-    );
-  }
+  try {
+    const stub = tokenSigner(c.env, phygitalToken);
+    if (!(await stub.isOwner(session.credentialId))) {
+      return json(
+        { error: "Not linked on this phone", code: "not_owner" },
+        { status: 403 },
+      );
+    }
 
-  const cleared = await stub.removeOwnerAndClear({
-    challengeId: body.challengeId,
-    assertion: body.assertion,
-    origin,
-  });
-  if (!cleared.ok) {
-    const status =
-      cleared.code === "teardown_required"
-        ? 409
-        : cleared.code === "challenge_invalid"
-          ? 400
-          : 403;
+    const cleared = await stub.removeOwnerAndClear({
+      challengeId: body.challengeId,
+      assertion: body.assertion,
+      origin,
+    });
+    if (!cleared.ok) {
+      const status =
+        cleared.code === "teardown_required"
+          ? 409
+          : cleared.code === "challenge_invalid"
+            ? 400
+            : 403;
+      return json(
+        {
+          error: cleared.error,
+          code: cleared.code,
+          details: "details" in cleared ? cleared.details : undefined,
+        },
+        { status },
+      );
+    }
+
+    await deleteLink(session.credentialId, phygitalToken);
+    await clearPendingApprovalsForToken(phygitalToken);
+    clearBrowseUnlockCookie(c);
+    return json({ ok: true });
+  } catch (err) {
     return json(
       {
-        error: cleared.error,
-        code: cleared.code,
-        details: "details" in cleared ? cleared.details : undefined,
+        error: err instanceof Error ? err.message : "Couldn’t unlink",
+        code: "unlink_failed",
       },
-      { status },
+      { status: 500 },
     );
   }
-
-  await deleteLink(session.credentialId, phygitalToken);
-  await clearPendingApprovalsForToken(phygitalToken);
-  clearBrowseUnlockCookie(c);
-  return json({ ok: true });
 });
 
 /** Check httpOnly browse-unlock cookie for a token. */

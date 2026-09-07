@@ -4,7 +4,7 @@ import { SettingsHub } from "@/components/wallet/settings-hub";
 import { useWalletRoute } from "@/components/wallet/wallet-route-shell";
 
 export default function WalletSettingsPage() {
-  const { tokenAddress, role, linkStatus, claimed, goHome, goSettings } =
+  const { tokenAddress, role, linkStatus, claimed, backHome, goSettings } =
     useWalletRoute();
 
   return (
@@ -13,7 +13,7 @@ export default function WalletSettingsPage() {
       role={role}
       linkStatus={linkStatus}
       claimed={claimed}
-      onBack={goHome}
+      onBack={backHome}
       onOpen={(target) => goSettings(target)}
     />
   );

@@ -161,7 +161,7 @@ export function SettingsHub({
         </GroupedRow>
       </GroupedList>
 
-      <GroupedList label={copy.wallet.settingsMoney}>
+      <GroupedList label={copy.wallet.settingsFees}>
         <GroupedRow
           onClick={() => onOpen("feeBalance")}
           subtitle={
@@ -172,14 +172,6 @@ export function SettingsHub({
         >
           {copy.wallet.feeBalance}
         </GroupedRow>
-        {!isOwner && claimed === true ? (
-          <GroupedRow
-            onClick={() => onOpen("spendingLimits")}
-            subtitle={spendSubtitle}
-          >
-            {copy.wallet.spendingLimits}
-          </GroupedRow>
-        ) : null}
       </GroupedList>
 
       {isOwner ? (

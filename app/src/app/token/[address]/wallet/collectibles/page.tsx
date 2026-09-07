@@ -5,14 +5,14 @@ import { useWalletRoute } from "@/components/wallet/wallet-route-shell";
 import { useWalletPortfolio } from "@/hooks/wallet/use-wallet-portfolio";
 
 export default function WalletCollectiblesPage() {
-  const { walletAddress, mint, goHome, go } = useWalletRoute();
+  const { walletAddress, mint, backHome, go } = useWalletRoute();
   const portfolio = useWalletPortfolio(walletAddress);
 
   return (
     <CollectiblesAllSheet
       collectibles={portfolio.data?.collectibles ?? []}
       linkedMint={mint}
-      onBack={goHome}
+      onBack={backHome}
       onSelect={(c) => go("collectibles", c.mint)}
     />
   );

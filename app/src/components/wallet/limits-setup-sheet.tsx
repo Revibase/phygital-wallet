@@ -3,14 +3,13 @@
 import { NavBar, NavBarBack } from "@/components/shared/nav-bar";
 import { Button } from "@/components/ui/button";
 import { copy } from "@/lib/copy/phygital";
+import { redirectToClaimSetup } from "@/lib/wallet/claim-setup-href";
 import {
-  redirectToClaimSetup,
-} from "@/lib/wallet/claim-setup-href";
-import {
-  redirectToLimitsSetup,
+  redirectToDeviceSignIn,
   type PolicySetupScreen,
-} from "@/lib/wallet/limits-setup-href";
+} from "@/lib/wallet/device-sign-in-href";
 import type { LinkStatus } from "@/lib/wallet/device-auth-client";
+import { walletSettingsHref } from "@/lib/wallet/token-routes";
 
 /** Calm sheet when Limits need claim, sign-in, or are linked elsewhere. */
 export function LimitsSetupSheet({
@@ -33,6 +32,7 @@ export function LimitsSetupSheet({
   /** Claimed but this phone isn’t owner — returning owner / quiet path. */
   const needsSignIn = claimed === true && !linkedElsewhere;
   const showClaim = !linkedElsewhere && !needsSignIn;
+  const returnTo = walletSettingsHref(phygitalTokenPda, screen);
 
   return (
     <div className="flex flex-1 flex-col gap-4">
@@ -66,7 +66,7 @@ export function LimitsSetupSheet({
         <Button
           type="button"
           size="lg"
-          onClick={() => redirectToLimitsSetup(phygitalTokenPda, screen)}
+          onClick={() => redirectToDeviceSignIn(phygitalTokenPda, returnTo)}
         >
           {copy.wallet.claimCta}
         </Button>
@@ -76,7 +76,7 @@ export function LimitsSetupSheet({
           size="lg"
           onClick={() => {
             if (onClaim) onClaim();
-            else redirectToClaimSetup(phygitalTokenPda);
+            else redirectToClaimSetup(phygitalTokenPda, returnTo);
           }}
         >
           {copy.wallet.claimBannerAction}

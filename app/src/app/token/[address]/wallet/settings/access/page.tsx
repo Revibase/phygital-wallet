@@ -11,6 +11,7 @@ export default function AccessPage() {
     claimed,
     isOwner,
     goSettings,
+    backSettings,
     requestClaim,
   } = useWalletRoute();
 
@@ -20,7 +21,7 @@ export default function AccessPage() {
       role={role}
       linkStatus={linkStatus}
       claimed={claimed}
-      onBack={() => goSettings()}
+      onBack={backSettings}
       onOpenRecovery={
         isOwner ? () => goSettings("recoveryWallet") : undefined
       }

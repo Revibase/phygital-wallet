@@ -25,7 +25,7 @@ export default function WalletSendPage() {
     walletAddress,
     role,
     collectible,
-    goHome,
+    backHome,
     goSettings,
   } = useWalletRoute();
   const portfolio = useWalletPortfolio(walletAddress);
@@ -61,7 +61,7 @@ export default function WalletSendPage() {
           phase={holdPhase}
           imageSrc={initialAsset?.icon ?? collectible?.image}
           recap={recap}
-          onClose={goHome}
+          onClose={backHome}
         />
       ) : (
         <SendDialog
@@ -71,7 +71,7 @@ export default function WalletSendPage() {
           initialAsset={initialAsset}
           tokensOnly={!searchParams.get("collectible")}
           role={role}
-          onClose={goHome}
+          onClose={backHome}
           onHoldPhaseChange={(phase, nextRecap) => {
             setHoldPhase(phase);
             if (nextRecap) setRecap(nextRecap);

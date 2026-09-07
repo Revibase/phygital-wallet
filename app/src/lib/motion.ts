@@ -11,9 +11,6 @@ export const snapEnterTransition = {
   ease: easeOut,
 };
 
-/** @deprecated Prefer snapEnterTransition — kept for call-site compatibility. */
-export const blurEnterTransition = snapEnterTransition;
-
 export function snapEnter(reduced: boolean | null) {
   if (reduced) {
     return {
@@ -25,11 +22,6 @@ export function snapEnter(reduced: boolean | null) {
     initial: { opacity: 0, y: 6 },
     animate: { opacity: 1, y: 0 },
   };
-}
-
-/** @deprecated Prefer snapEnter — no blur. */
-export function blurEnter(reduced: boolean | null) {
-  return snapEnter(reduced);
 }
 
 export const STAGGER_STEP_MS = 24;
