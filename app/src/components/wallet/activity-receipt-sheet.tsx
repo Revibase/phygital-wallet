@@ -32,14 +32,21 @@ function iconForKind(kind: WalletActivityItem["kind"]) {
   }
 }
 
+function isNativeSolMint(mint: string): boolean {
+  return (
+    mint === NATIVE_SOL_MINT ||
+    mint === "SOL" ||
+    mint.startsWith("So1111111111111111111111111111111111111111")
+  );
+}
+
 function symbolForMint(
   mint: string,
   assetMetaByMint?: Record<string, { symbol: string; name: string }>,
 ) {
-  return (
-    assetMetaByMint?.[mint]?.symbol ??
-    (mint === NATIVE_SOL_MINT ? "SOL" : shortAddress(mint, 4))
-  );
+  if (assetMetaByMint?.[mint]?.symbol) return assetMetaByMint[mint]!.symbol;
+  if (isNativeSolMint(mint)) return "SOL";
+  return shortAddress(mint, 4);
 }
 
 function formatReceiptTime(timestamp: number | null): string {

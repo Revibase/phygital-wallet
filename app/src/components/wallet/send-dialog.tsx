@@ -30,6 +30,7 @@ import { tryParseAddress } from "@/lib/solana/address";
 import { cn, shortAddress } from "@/lib/utils";
 import { toUserErrorMessage } from "@/lib/user-errors";
 import { useFeeBalance } from "@/hooks/wallet/use-fee-balance";
+import { useTokenVerifier } from "@/hooks/wallet/use-token-verifier";
 import { identifyAccessory } from "@/lib/wallet/identify-accessory";
 import { createOneTimeGrant } from "@/lib/wallet/policies-client";
 import { handleOwnerAuthFailure } from "@/lib/wallet/device-sign-in-href";
@@ -45,9 +46,9 @@ import {
   type SendAssetRef,
 } from "@/lib/wallet/send-asset-ref";
 import {
-  estimateNetworkFeeLamports,
-  formatNetworkFeeUi,
+  FEE_BALANCE_LOW_LAMPORTS,
   lamportsToSolUi,
+  MIN_ATTEMPT_FEE_LAMPORTS,
 } from "@/lib/wallet/network-fee";
 import { sanitizeDecimalInput } from "@/lib/tokens/amount";
 import { snapEnter, snapEnterTransition, easeOut } from "@/lib/motion";
@@ -117,6 +118,9 @@ export function SendDialog({
   const [hardError, setHardError] = useState<SendHardError | null>(null);
   const [softDeny, setSoftDeny] = useState<PolicyDeniedError | null>(null);
   const feeBalance = useFeeBalance(phygitalTokenPda);
+  const tokenVerifier = useTokenVerifier(phygitalTokenPda);
+  /** Custom override pays its own fees — no prepaid fee-balance gate. */
+  const usesFeeBalance = tokenVerifier.data?.custom !== true;
   const prefersReducedMotion = useReducedMotion();
   const enter = snapEnter(prefersReducedMotion);
   const amountInputRef = useRef<HTMLInputElement>(null);
@@ -170,25 +174,28 @@ export function SendDialog({
   const overBalance = !nft && amount.length > 0 && amountNum > balanceNum + 1e-9;
   const amountOk =
     nft || (amountNum > 0 && Number.isFinite(amountNum) && !overBalance);
-  const canSend = Boolean(
-    asset && parsedRecipient && amountOk && !selfSend && !busy,
-  );
-
-  const feeEstimateLamports = asset
-    ? estimateNetworkFeeLamports(asset.kind)
-    : 0;
-  const feeEstimateUi = formatNetworkFeeUi(feeEstimateLamports);
-  const feeLabel = asset
-    ? copy.wallet.networkFee(feeEstimateUi)
-    : null;
-  const feeShortLabel = asset
-    ? copy.wallet.networkFeeShort(feeEstimateUi)
-    : null;
   const feeBalanceLamports = feeBalance.data?.balanceLamports;
+  const feeBalanceKnown = typeof feeBalanceLamports === "number";
   const feeInsufficient =
+    usesFeeBalance &&
     asset != null &&
-    typeof feeBalanceLamports === "number" &&
-    feeBalanceLamports < feeEstimateLamports;
+    feeBalanceKnown &&
+    feeBalanceLamports < MIN_ATTEMPT_FEE_LAMPORTS;
+  const feeLow =
+    usesFeeBalance &&
+    asset != null &&
+    feeBalanceKnown &&
+    !feeInsufficient &&
+    feeBalanceLamports < FEE_BALANCE_LOW_LAMPORTS;
+
+  const canSend = Boolean(
+    asset &&
+      parsedRecipient &&
+      amountOk &&
+      !selfSend &&
+      !busy &&
+      !feeInsufficient,
+  );
 
   function recapForSend(signature?: string | null): SendHoldRecap {
     const recipientLabel = parsedRecipient
@@ -199,7 +206,13 @@ export function SendDialog({
         ? (asset?.name ?? copy.wallet.sendCollectible)
         : `${amount} ${asset?.symbol ?? ""}`.trim(),
       recipientLabel,
-      feeLabel: feeShortLabel,
+      feeLabel: !usesFeeBalance
+        ? null
+        : feeInsufficient
+          ? copy.wallet.feeBalanceInsufficient
+          : feeLow
+            ? copy.wallet.feeBalanceLow
+            : copy.wallet.networkFeeFromBalanceShort,
       signature: signature ?? null,
       recipientAddress: parsedRecipient ? String(parsedRecipient) : null,
       mint: asset?.mint ?? null,
@@ -263,10 +276,10 @@ export function SendDialog({
 
       submittedSignature = signature;
       showHolding();
-      if (feeEstimateLamports > 0) {
+      if (usesFeeBalance) {
         feeBefore = applyOptimisticFeeBalance(queryClient, {
           token: phygitalTokenPda,
-          amountUi: lamportsToSolUi(feeEstimateLamports),
+          amountUi: lamportsToSolUi(MIN_ATTEMPT_FEE_LAMPORTS),
           direction: "out",
         });
       }
@@ -274,9 +287,9 @@ export function SendDialog({
         id: signature,
         walletAddress,
         kind: "sent",
-        title: copy.wallet.sent,
+        title: nft ? copy.wallet.sent : `Sent ${asset.symbol}`,
         subtitle: String(parsedRecipient),
-        amountLabel: nft ? asset.name : `-${amount} ${asset.symbol}`,
+        amountLabel: nft ? asset.name : `-${amount}`,
         statusLabel: null,
         timestamp: Math.floor(Date.now() / 1000),
         signature,
@@ -564,7 +577,7 @@ export function SendDialog({
         ) : null}
       </m.div>
 
-      {feeLabel ? (
+      {asset && usesFeeBalance ? (
         feeInsufficient ? (
           <div className="rounded-2xl bg-muted/20 px-4 py-3">
             <p className="text-sm text-destructive">
@@ -581,9 +594,25 @@ export function SendDialog({
               </Button>
             ) : null}
           </div>
+        ) : feeLow ? (
+          <div className="rounded-2xl bg-muted/20 px-4 py-3">
+            <p className="text-sm text-muted-foreground">
+              {copy.wallet.feeBalanceLow}
+            </p>
+            {onChangeLimits ? (
+              <Button
+                type="button"
+                variant="link"
+                className="mt-2 h-auto min-h-0 px-0 text-xs font-medium"
+                onClick={() => onChangeLimits("insufficient_fee_balance")}
+              >
+                {copy.wallet.topUpFees}
+              </Button>
+            ) : null}
+          </div>
         ) : (
           <p className="px-1 text-center text-xs text-muted-foreground">
-            {feeLabel}
+            {copy.wallet.networkFeeFromBalance}
           </p>
         )
       ) : null}

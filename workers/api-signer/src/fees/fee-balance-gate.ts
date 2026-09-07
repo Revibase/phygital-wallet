@@ -1,7 +1,7 @@
 import { getEnv, getTokenStore } from "@/shared/request-context";
 import {
   MEMO_PROGRAM_ADDRESS,
-  requiredFeeLamports,
+  MIN_ATTEMPT_FEE_LAMPORTS,
 } from "@/fees/constants";
 import { usesDefaultVerifierPaymaster } from "@/fees/default-verifier";
 import { SYSTEM_PROGRAM } from "@/verifier/constants";
@@ -34,10 +34,8 @@ function isFeeBalanceTopUpIntent(
 /**
  * Fee gate for the default-verifier fee balance.
  * Evaluated inside the private signer Worker on both `/preview` and `/sign`.
- * On `/sign` config: runs before owner WebAuthn so a fee deny cannot consume
- * the challenge. On `/sign` execute: before authorize. On `/preview`: after
- * authorize succeeds (skip fee RPC on deny). Does not debit — webhook debits
- * after confirmed success.
+ * Prepaid minimum-to-attempt (not a quote of post-wrap spend). Does not debit —
+ * webhook debits actual SOL spend after confirmed success.
  */
 export async function assertFeeBalance(args: {
   phygitalToken: string;
@@ -57,7 +55,7 @@ export async function assertFeeBalance(args: {
     return { ok: true as const };
   }
 
-  const requiredLamports = requiredFeeLamports(args.instructions.length);
+  const requiredLamports = MIN_ATTEMPT_FEE_LAMPORTS;
   const balanceLamports = getTokenStore().getFeeBalanceLamports();
 
   if (balanceLamports < requiredLamports) {

@@ -23,23 +23,35 @@ function iconForKind(kind: WalletActivityItem["kind"]) {
   }
 }
 
+function isNativeSolMint(mint: string): boolean {
+  return (
+    mint === NATIVE_SOL_MINT ||
+    mint === "SOL" ||
+    mint.startsWith("So1111111111111111111111111111111111111111")
+  );
+}
+
 function symbolForMint(
   mint: string,
   assetMetaByMint?: Record<string, { symbol: string; name: string }>,
 ) {
-  return (
-    assetMetaByMint?.[mint]?.symbol ??
-    (mint === NATIVE_SOL_MINT ? "SOL" : shortAddress(mint, 4))
-  );
+  if (assetMetaByMint?.[mint]?.symbol) return assetMetaByMint[mint]!.symbol;
+  if (isNativeSolMint(mint)) return "SOL";
+  return shortAddress(mint, 4);
 }
 
+/** Compact relative time — Phantom/Backpack-style trailing label. */
 function formatActivityTime(timestamp: number | null): string {
-  if (!timestamp) return "Recent";
+  if (!timestamp) return "";
   const diffMs = Date.now() - timestamp * 1000;
-  if (diffMs < 60_000) return "Now";
+  if (diffMs < 60_000) return "Just now";
   if (diffMs < 3_600_000) return `${Math.floor(diffMs / 60_000)}m`;
   if (diffMs < 86_400_000) return `${Math.floor(diffMs / 3_600_000)}h`;
-  return `${Math.floor(diffMs / 86_400_000)}d`;
+  if (diffMs < 86_400_000 * 7) return `${Math.floor(diffMs / 86_400_000)}d`;
+  return new Date(timestamp * 1000).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
 }
 
 export function ActivityList({
@@ -74,9 +86,10 @@ export function ActivityList({
       <GroupedList>
         {items.map((item) => {
           const Icon = iconForKind(item.kind);
+          // Phantom: subtitle = counterparty when known; else omit (Failed via statusLabel).
           const subtitle = item.subtitle
-            ? shortAddress(item.subtitle, 6)
-            : item.statusLabel ?? "Just now";
+            ? shortAddress(item.subtitle, 4)
+            : item.statusLabel;
 
           const deltas = item.balanceDeltas ?? [];
           const deltaRows =
@@ -102,8 +115,26 @@ export function ActivityList({
                 ) : null}
               </div>
             ) : item.amountLabel ? (
-              <p className="text-sm tabular-nums">{item.amountLabel}</p>
+              <p
+                className={cn(
+                  "text-sm tabular-nums",
+                  item.kind === "received"
+                    ? "text-success"
+                    : item.kind === "sent"
+                      ? "text-destructive"
+                      : undefined,
+                )}
+              >
+                {item.amountLabel}
+                {item.mint
+                  ? ` ${symbolForMint(item.mint, assetMetaByMint)}`
+                  : ""}
+              </p>
             ) : null;
+
+          const timeLabel = item.pending
+            ? "Pending"
+            : formatActivityTime(item.timestamp);
 
           return (
             <GroupedRow
@@ -118,9 +149,9 @@ export function ActivityList({
               trailing={
                 <div className="shrink-0 text-right">
                   {deltaRows}
-                  <p className="text-xs text-muted-foreground">
-                    {item.pending ? "Pending" : formatActivityTime(item.timestamp)}
-                  </p>
+                  {timeLabel ? (
+                    <p className="text-xs text-muted-foreground">{timeLabel}</p>
+                  ) : null}
                 </div>
               }
             >

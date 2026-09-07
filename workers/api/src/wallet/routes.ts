@@ -7,6 +7,8 @@ import { getErrorMessage } from "@/shared/utils";
 
 /**
  * Helius Wallet API — GET /v1/wallet/{address}/history
+ * Full activity (transfers, swaps, NFT, failed, …) with per-tx balance changes.
+ * Counterparty is not in this payload; optimistic local rows set subtitle.
  * @see https://www.helius.dev/docs/wallet-api/history
  */
 type WalletHistoryBalanceChange = {
@@ -40,7 +42,14 @@ const NATIVE_SOL_MINT =
 function normalizeMint(mint: string | undefined): string | null {
   const raw = mint?.trim();
   if (!raw) return null;
-  if (raw === "SOL" || raw === NATIVE_SOL_MINT) return NATIVE_SOL_MINT;
+  // Native SOL is `"SOL"` or the wrapped-SOL mint (…11112); some payloads use …11111.
+  if (
+    raw === "SOL" ||
+    raw === NATIVE_SOL_MINT ||
+    raw.startsWith("So1111111111111111111111111111111111111111")
+  ) {
+    return NATIVE_SOL_MINT;
+  }
   return raw;
 }
 
@@ -48,6 +57,12 @@ function formatUiAmount(amount: number): string {
   if (!Number.isFinite(amount)) return "0";
   const abs = Math.abs(amount);
   return abs.toFixed(6).replace(/\.?0+$/, "") || "0";
+}
+
+function symbolForMint(mint: string): string {
+  if (mint === NATIVE_SOL_MINT) return "SOL";
+  if (mint.length <= 8) return mint;
+  return `${mint.slice(0, 4)}…${mint.slice(-4)}`;
 }
 
 function mapHistoryTx(walletAddress: string, tx: WalletHistoryTx) {
@@ -91,12 +106,18 @@ function mapHistoryTx(walletAddress: string, tx: WalletHistoryTx) {
     ? `${primary.direction === "in" ? "+" : "-"}${primary.amountUi}`
     : null;
 
+  // Phantom-style titles when direction is unambiguous; swaps/mixed → Transaction.
+  const asset = primary ? symbolForMint(primary.mint) : null;
   const title = failed
     ? "Failed"
     : kind === "sent"
-      ? "Sent"
+      ? asset
+        ? `Sent ${asset}`
+        : "Sent"
       : kind === "received"
-        ? "Received"
+        ? asset
+          ? `Received ${asset}`
+          : "Received"
         : "Transaction";
 
   return {
@@ -139,7 +160,7 @@ async function fetchWalletHistory(args: {
 export const walletRoutes = new Hono();
 
 /**
- * GET /wallet/activity — proxies Helius Wallet API history (100 credits/req).
+ * GET /wallet/activity — proxies Helius Wallet History (full tx feed).
  * Query: wallet (required), limit (1–50), before (signature cursor).
  */
 walletRoutes.get("/wallet/activity", async (c) => {
