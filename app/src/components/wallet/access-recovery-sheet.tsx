@@ -177,7 +177,7 @@ export function AccessRecoverySheet({
   return (
     <div className="flex flex-1 flex-col gap-6">
       <NavBar
-        leading={<NavBarBack onClick={onBack} />}
+        leading={<NavBarBack onClick={onBack} desktopHidden />}
         title={isOwner ? copy.wallet.accessAndRecovery : visitorTitle}
       />
       <div className="space-y-2 px-1">

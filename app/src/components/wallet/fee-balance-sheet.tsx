@@ -219,7 +219,7 @@ export function FeeBalanceSheet({
   return (
     <div className="flex flex-1 flex-col gap-6">
       <NavBar
-        leading={<NavBarBack onClick={onBack} />}
+        leading={<NavBarBack onClick={onBack} desktopHidden />}
         title={copy.wallet.feeBalance}
       />
 

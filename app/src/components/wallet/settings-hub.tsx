@@ -9,6 +9,7 @@ import { useRpcPreference } from "@/hooks/wallet/use-rpc-preference";
 import { useWalletPolicy } from "@/hooks/wallet/use-wallet-policy";
 import { copy } from "@/lib/copy/phygital";
 import { settingsHubClass } from "@/lib/layout";
+import { cn } from "@/lib/utils";
 import type { LinkStatus } from "@/lib/wallet/device-auth-client";
 import type { WalletRole } from "@/components/token/token-address-route";
 import { summarizePolicyDocument } from "@/lib/wallet/policy-settings";
@@ -32,6 +33,8 @@ export function SettingsHub({
   role = "visitor",
   linkStatus,
   claimed,
+  variant = "page",
+  activeTarget = null,
 }: {
   onBack: () => void;
   onOpen: (target: SettingsTarget) => void;
@@ -39,6 +42,9 @@ export function SettingsHub({
   role?: WalletRole;
   linkStatus?: LinkStatus;
   claimed?: boolean;
+  /** `panel` = desktop master list (no top back bar). */
+  variant?: "page" | "panel";
+  activeTarget?: SettingsTarget | null;
 }) {
   const fee = useFeeBalance(phygitalTokenPda ?? null);
   const rpc = useRpcPreference();
@@ -141,103 +147,133 @@ export function SettingsHub({
               )
             : copy.wallet.extraProgramsBuiltIn;
 
+  function rowClass(target: SettingsTarget) {
+    return cn(
+      activeTarget === target &&
+        "bg-muted/60 font-medium text-foreground hover:bg-muted/70",
+    );
+  }
+
+  const lists = (
+    <div className={settingsHubClass}>
+      <GroupedList label={copy.wallet.settingsAccess}>
+        <GroupedRow
+          onClick={() => onOpen("access")}
+          subtitle={accessSubtitle}
+          className={rowClass("access")}
+        >
+          {copy.wallet.accessAndRecovery}
+        </GroupedRow>
+      </GroupedList>
+
+      <GroupedList label={copy.wallet.settingsFees}>
+        <GroupedRow
+          onClick={() => onOpen("feeBalance")}
+          subtitle={
+            fee.data?.low
+              ? `${feeSubtitle} · ${copy.wallet.topUpFees}`
+              : feeSubtitle
+          }
+          className={rowClass("feeBalance")}
+        >
+          {copy.wallet.feeBalance}
+        </GroupedRow>
+      </GroupedList>
+
+      {isOwner ? (
+        <GroupedList
+          label={copy.wallet.settingsSendProtections}
+          footer={copy.wallet.policyDefaultSigningOnly}
+        >
+          <GroupedRow
+            onClick={() => onOpen("sendProtections")}
+            subtitle={masterSubtitle}
+            className={rowClass("sendProtections")}
+          >
+            {copy.wallet.sendProtections}
+          </GroupedRow>
+          {protectionsOn ? (
+            <>
+              <GroupedRow
+                onClick={() => onOpen("spendingLimits")}
+                subtitle={spendSubtitle}
+                className={rowClass("spendingLimits")}
+              >
+                {copy.wallet.spendingLimits}
+              </GroupedRow>
+              <GroupedRow
+                onClick={() => onOpen("recipients")}
+                subtitle={recipientsSubtitle}
+                className={rowClass("recipients")}
+              >
+                {copy.wallet.recipients}
+              </GroupedRow>
+              <GroupedRow
+                onClick={() => onOpen("extraPrograms")}
+                subtitle={exceptionsSubtitle}
+                className={rowClass("extraPrograms")}
+              >
+                {copy.wallet.extraPrograms}
+              </GroupedRow>
+            </>
+          ) : null}
+        </GroupedList>
+      ) : null}
+
+      {isOwner ? (
+        <GroupedList label={copy.wallet.settingsSafety}>
+          <GroupedRow
+            onClick={() => onOpen("signing")}
+            subtitle={copy.wallet.signingDefault}
+            className={rowClass("signing")}
+          >
+            {copy.wallet.signing}
+          </GroupedRow>
+          <GroupedRow
+            onClick={() => onOpen("recoveryWallet")}
+            subtitle={copy.wallet.recoveryWalletNotConfigured}
+            className={rowClass("recoveryWallet")}
+          >
+            {copy.wallet.recoveryWallet}
+          </GroupedRow>
+        </GroupedList>
+      ) : null}
+
+      <GroupedList label={copy.wallet.advanced}>
+        <GroupedRow
+          onClick={() => onOpen("rpcConnection")}
+          subtitle={
+            rpc.isCustom && rpc.displayEndpoint
+              ? rpc.displayEndpoint
+              : rpcSubtitle
+          }
+          className={rowClass("rpcConnection")}
+        >
+          {copy.wallet.rpcConnection}
+        </GroupedRow>
+      </GroupedList>
+    </div>
+  );
+
+  if (variant === "panel") {
+    return (
+      <div className="flex flex-col gap-4">
+        <h1 className="px-1 text-display-md tracking-tight">
+          {copy.wallet.settings}
+        </h1>
+        {lists}
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-1 flex-col gap-6">
       <NavBar
-        leading={<NavBarBack onClick={onBack} />}
+        align="start"
+        leading={<NavBarBack onClick={onBack} desktopHidden />}
         title={copy.wallet.settings}
       />
-
-      <div className={settingsHubClass}>
-        <GroupedList label={copy.wallet.settingsAccess}>
-          <GroupedRow
-            onClick={() => onOpen("access")}
-            subtitle={accessSubtitle}
-          >
-            {copy.wallet.accessAndRecovery}
-          </GroupedRow>
-        </GroupedList>
-
-        <GroupedList label={copy.wallet.settingsFees}>
-          <GroupedRow
-            onClick={() => onOpen("feeBalance")}
-            subtitle={
-              fee.data?.low
-                ? `${feeSubtitle} · ${copy.wallet.topUpFees}`
-                : feeSubtitle
-            }
-          >
-            {copy.wallet.feeBalance}
-          </GroupedRow>
-        </GroupedList>
-
-        {isOwner ? (
-          <GroupedList
-            label={copy.wallet.settingsSendProtections}
-            footer={copy.wallet.policyDefaultSigningOnly}
-            className="lg:col-span-2"
-          >
-            <GroupedRow
-              onClick={() => onOpen("sendProtections")}
-              subtitle={masterSubtitle}
-            >
-              {copy.wallet.sendProtections}
-            </GroupedRow>
-            {protectionsOn ? (
-              <>
-                <GroupedRow
-                  onClick={() => onOpen("spendingLimits")}
-                  subtitle={spendSubtitle}
-                >
-                  {copy.wallet.spendingLimits}
-                </GroupedRow>
-                <GroupedRow
-                  onClick={() => onOpen("recipients")}
-                  subtitle={recipientsSubtitle}
-                >
-                  {copy.wallet.recipients}
-                </GroupedRow>
-                <GroupedRow
-                  onClick={() => onOpen("extraPrograms")}
-                  subtitle={exceptionsSubtitle}
-                >
-                  {copy.wallet.extraPrograms}
-                </GroupedRow>
-              </>
-            ) : null}
-          </GroupedList>
-        ) : null}
-
-        {isOwner ? (
-          <GroupedList label={copy.wallet.settingsSafety}>
-            <GroupedRow
-              onClick={() => onOpen("signing")}
-              subtitle={copy.wallet.signingDefault}
-            >
-              {copy.wallet.signing}
-            </GroupedRow>
-            <GroupedRow
-              onClick={() => onOpen("recoveryWallet")}
-              subtitle={copy.wallet.recoveryWalletNotConfigured}
-            >
-              {copy.wallet.recoveryWallet}
-            </GroupedRow>
-          </GroupedList>
-        ) : null}
-
-        <GroupedList label={copy.wallet.advanced}>
-          <GroupedRow
-            onClick={() => onOpen("rpcConnection")}
-            subtitle={
-              rpc.isCustom && rpc.displayEndpoint
-                ? rpc.displayEndpoint
-                : rpcSubtitle
-            }
-          >
-            {copy.wallet.rpcConnection}
-          </GroupedRow>
-        </GroupedList>
-      </div>
+      {lists}
     </div>
   );
 }

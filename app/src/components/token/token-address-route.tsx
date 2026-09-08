@@ -17,6 +17,7 @@ import { useResolvedDasCollectible } from "@/hooks/token/use-das-collectible";
 import { usePhygitalTokenByAddress } from "@/hooks/token/use-phygital-token";
 import { tokenHasLinkedMint, type PhygitalToken } from "@/lib/phygital/token";
 import type { ShellLayout } from "@/lib/layout";
+import { isWalletCeremonyPath } from "@/lib/layout";
 import { copy } from "@/lib/copy/phygital";
 import { queryKeys, queryOptions } from "@/lib/queries";
 import { toUserErrorMessage } from "@/lib/user-errors";
@@ -41,8 +42,9 @@ export type TokenHomeRenderArgs = {
   claimed?: boolean;
 };
 
-/** Wallet browsing uses a wider column; minted card page uses gallery; hold stays compact. */
+/** Wallet browsing uses desktop chrome; ceremonies stay phone-framed; minted card uses gallery. */
 function layoutForRoute(token: PhygitalToken, pathname: string): ShellLayout {
+  if (isWalletCeremonyPath(pathname)) return "compact";
   if (/\/wallet(?:\/|$)/.test(pathname)) return "wallet";
   return tokenHasLinkedMint(token) ? "gallery" : "compact";
 }

@@ -4,6 +4,7 @@ import { useLayoutEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 import { useShellStageSlot } from "@/components/layout/app-shell";
+import { useWalletChrome } from "@/components/wallet/wallet-desktop-chrome";
 import { Button } from "@/components/ui/button";
 import { copy } from "@/lib/copy/phygital";
 import { cn } from "@/lib/utils";
@@ -14,15 +15,17 @@ export type NavBarSlots = {
   trailing?: ReactNode;
 };
 
-/** Ghost Back control for sheet / stage NavBars. */
+/** Ghost Back control for sheet / stage NavBars. Hidden on desktop when rail is enough. */
 export function NavBarBack({
   onClick,
   disabled,
   className,
+  desktopHidden = false,
 }: {
   onClick: () => void;
   disabled?: boolean;
   className?: string;
+  desktopHidden?: boolean;
 }) {
   return (
     <Button
@@ -31,20 +34,22 @@ export function NavBarBack({
       size="sm"
       disabled={disabled}
       onClick={onClick}
-      className={className}
+      className={cn(desktopHidden && "lg:hidden", className)}
     >
       {copy.common.back}
     </Button>
   );
 }
 
-/** Single chrome row — leading · centered title · trailing. */
+/** Single chrome row — leading · title · trailing. */
 function NavBarFrame({
   leading,
   title,
   trailing,
   className,
-}: NavBarSlots & { className?: string }) {
+  align = "center",
+}: NavBarSlots & { className?: string; align?: "center" | "start" }) {
+  const startAligned = align === "start";
   return (
     <div
       className={cn(
@@ -52,16 +57,28 @@ function NavBarFrame({
         className,
       )}
     >
-      <div className="flex min-w-0 flex-1 items-center justify-start">
-        {leading ?? <span className="w-11" aria-hidden />}
+      <div
+        className={cn(
+          "flex min-w-0 items-center justify-start gap-2",
+          startAligned ? "shrink-0" : "flex-1",
+        )}
+      >
+        {leading ?? (startAligned ? null : <span className="w-11" aria-hidden />)}
       </div>
       {title != null ? (
-        <div className="pointer-events-none absolute left-1/2 max-w-[50%] -translate-x-1/2 truncate text-center text-sm font-semibold tracking-tight">
+        <div
+          className={cn(
+            "truncate text-sm font-semibold tracking-tight",
+            startAligned
+              ? "min-w-0 flex-1 text-left"
+              : "pointer-events-none absolute left-1/2 max-w-[50%] -translate-x-1/2 text-center",
+          )}
+        >
           {title}
         </div>
       ) : null}
       <div className="flex min-w-0 flex-1 items-center justify-end gap-1">
-        {trailing ?? <span className="w-11" aria-hidden />}
+        {trailing ?? (startAligned ? null : <span className="w-11" aria-hidden />)}
       </div>
     </div>
   );
@@ -70,17 +87,28 @@ function NavBarFrame({
 /**
  * Page nav. Inside {@link AppShell}, portals into the shell header — one chrome
  * line. Outside the shell, renders inline.
+ * Prefer `align="start"` inside desktop wallet main panes.
  */
 export function NavBar({
   leading,
   title,
   trailing,
   className,
-}: NavBarSlots & { className?: string }) {
+  align = "center",
+  /** Hide entirely from `lg` up (rail replaces this chrome). */
+  desktopHidden = false,
+}: NavBarSlots & {
+  className?: string;
+  align?: "center" | "start";
+  desktopHidden?: boolean;
+}) {
   const stage = useShellStageSlot();
+  const chrome = useWalletChrome();
   const mount = stage?.mount ?? null;
   const setActive = stage?.setActive;
-  const inShell = Boolean(stage);
+  // Inside wallet desktop chrome, keep nav in the main pane (not above the rail).
+  const preferInline = Boolean(chrome?.hasRail);
+  const inShell = Boolean(stage) && !preferInline;
   // Portal target is client-only; keep SSR + first paint null so they match.
   const [canPortal, setCanPortal] = useState(false);
 
@@ -89,17 +117,32 @@ export function NavBar({
   }, []);
 
   useLayoutEffect(() => {
-    if (!setActive) return;
-    setActive(true);
-    return () => setActive(false);
-  }, [setActive]);
+    if (!setActive || preferInline) return;
+    if (!desktopHidden) {
+      setActive(true);
+      return () => setActive(false);
+    }
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const sync = () => setActive(!mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => {
+      mq.removeEventListener("change", sync);
+      setActive(false);
+    };
+  }, [setActive, desktopHidden, preferInline]);
 
   const frame = (
     <NavBarFrame
       leading={leading}
       title={title}
       trailing={trailing}
-      className={cn(!inShell && "mb-3", className)}
+      align={preferInline ? "start" : align}
+      className={cn(
+        (!inShell || preferInline) && "mb-3",
+        desktopHidden && "lg:hidden",
+        className,
+      )}
     />
   );
 

@@ -75,7 +75,7 @@ export function RpcConnectionSheet({ onBack }: { onBack: () => void }) {
   return (
     <div className="flex flex-1 flex-col gap-4">
       <NavBar
-        leading={<NavBarBack onClick={onBack} />}
+        leading={<NavBarBack onClick={onBack} desktopHidden />}
         title={copy.wallet.rpcConnection}
       />
       <p className="text-sm text-muted-foreground">{copy.wallet.rpcBody}</p>

@@ -18,6 +18,7 @@ import { InAppBrowserGate } from "@/components/shared/in-app-browser-gate";
 import { StageTransition } from "@/components/shared/stage-transition";
 import { ClaimItemSheet } from "@/components/wallet/claim-item-sheet";
 import { OpenApprovalsSheet } from "@/components/wallet/open-approvals-sheet";
+import { WalletDesktopChrome } from "@/components/wallet/wallet-desktop-chrome";
 import type { SettingsTarget } from "@/components/wallet/settings-hub";
 import { useTokenSession } from "@/components/token/token-session";
 import { useWalletPda } from "@/hooks/wallet/use-wallet-pda";
@@ -28,6 +29,7 @@ import { tokenHasLinkedMint } from "@/lib/phygital/token";
 import type { Collectible } from "@/lib/tokens/collectible";
 import { copy } from "@/lib/copy/phygital";
 import { isClaimDismissed } from "@/lib/wallet/claim-setup-href";
+import { isWalletCeremonyPath } from "@/lib/layout";
 import {
   tokenHref,
   walletHref,
@@ -288,21 +290,49 @@ export function WalletRouteShell({ children }: { children: ReactNode }) {
   return (
     <WalletSessionContext.Provider value={sessionValue}>
       <WalletNavContext.Provider value={navValue}>
-        <div className="mx-auto flex w-full min-w-0 flex-1 flex-col">
-          <WalletRouteOverlays
+        {isWalletCeremonyPath(pathname) ? (
+          <div className="mx-auto flex w-full min-w-0 flex-1 flex-col">
+            <WalletRouteOverlays
+              tokenAddress={tokenAddress}
+              isOwner={isOwner}
+              isWalletHome={isWalletHome}
+              linkedElsewhere={linkedElsewhere}
+              unclaimed={unclaimed}
+              claimedQuiet={claimedQuiet}
+              registerRequestClaim={(fn) => {
+                claimRequestRef.current = fn;
+              }}
+            >
+              {children}
+            </WalletRouteOverlays>
+          </div>
+        ) : (
+          <WalletDesktopChrome
+            pathname={pathname}
             tokenAddress={tokenAddress}
-            isOwner={isOwner}
-            isWalletHome={isWalletHome}
-            linkedElsewhere={linkedElsewhere}
-            unclaimed={unclaimed}
-            claimedQuiet={claimedQuiet}
-            registerRequestClaim={(fn) => {
-              claimRequestRef.current = fn;
-            }}
+            walletAddress={sessionValue.walletAddress}
+            mint={mint}
+            collectible={collectible}
+            go={go}
+            goCard={goCard}
+            goSend={() => goSend()}
+            goHome={goHome}
           >
-            {children}
-          </WalletRouteOverlays>
-        </div>
+            <WalletRouteOverlays
+              tokenAddress={tokenAddress}
+              isOwner={isOwner}
+              isWalletHome={isWalletHome}
+              linkedElsewhere={linkedElsewhere}
+              unclaimed={unclaimed}
+              claimedQuiet={claimedQuiet}
+              registerRequestClaim={(fn) => {
+                claimRequestRef.current = fn;
+              }}
+            >
+              {children}
+            </WalletRouteOverlays>
+          </WalletDesktopChrome>
+        )}
       </WalletNavContext.Provider>
     </WalletSessionContext.Provider>
   );

@@ -458,7 +458,7 @@ export function SendDialog({
   const form = (
     <LazyMotion features={domAnimation}>
       <m.div
-        className="flex flex-1 flex-col gap-5 md:mx-auto md:w-full md:max-w-xl"
+        className="flex flex-1 flex-col gap-5 md:mx-auto md:w-full md:max-w-xl lg:max-w-lg"
         initial={enter.initial}
         animate={enter.animate}
         transition={snapEnterTransition}

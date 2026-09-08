@@ -303,7 +303,7 @@ export function RecoveryWalletSheet({
   return (
     <div className="flex flex-1 flex-col gap-4">
       <NavBar
-        leading={<NavBarBack onClick={onClose} />}
+        leading={<NavBarBack onClick={onClose} desktopHidden />}
         title={copy.wallet.recoveryWallet}
       />
       <p className="text-sm text-muted-foreground">

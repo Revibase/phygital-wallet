@@ -204,7 +204,7 @@ export function WalletHomePanel({
       >
       {!showFirstRun ? (
       <m.div
-        className="flex flex-col items-center gap-1.5 py-1 text-center"
+        className="flex flex-col items-center gap-1.5 py-1 text-center lg:items-start lg:text-left"
         variants={sectionVariants}
         transition={sectionTransition}
       >
@@ -238,7 +238,7 @@ export function WalletHomePanel({
           </>
         )}
         {lastUpdatedLabel || onRefresh ? (
-          <div className="flex items-center justify-center gap-1">
+          <div className="flex items-center justify-center gap-1 lg:justify-start">
             {lastUpdatedLabel ? (
               <p className="text-xs text-muted-foreground">{lastUpdatedLabel}</p>
             ) : null}
@@ -293,7 +293,7 @@ export function WalletHomePanel({
 
       {!showFirstRun ? (
       <m.div
-        className="mx-auto flex w-full max-w-xl items-center justify-center gap-3 px-2"
+        className="mx-auto flex w-full max-w-xl items-center justify-center gap-3 px-2 lg:hidden"
         variants={sectionVariants}
         transition={sectionTransition}
       >

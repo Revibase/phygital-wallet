@@ -97,7 +97,7 @@ export function RecipientsSheet({
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       <NavBar
-        leading={<NavBarBack onClick={onBack} />}
+        leading={<NavBarBack onClick={onBack} desktopHidden />}
         title={copy.wallet.recipients}
       />
       {editor.loading ? (

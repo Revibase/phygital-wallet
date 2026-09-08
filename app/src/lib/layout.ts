@@ -4,13 +4,14 @@
  * Column widths:
  * - gallery: minted card detail (room for art + dossier)
  * - home: owned cards/accessories list — phone column → wider desktop
- * - wallet: portfolio / settings browsing — phone → tablet/desktop column
+ * - wallet: portfolio chrome — phone stack → desktop rail + main
  * - compact: NFC ceremony / hold / claim — phone-width on all breakpoints
  */
 export const shellLayoutClass = {
   gallery: "max-w-lg md:max-w-3xl lg:max-w-5xl xl:max-w-6xl",
   home: "max-w-md md:max-w-2xl lg:max-w-3xl w-full",
-  wallet: "max-w-md md:max-w-2xl lg:max-w-3xl xl:max-w-4xl w-full",
+  /** Phone column until lg, then room for rail + main (+ optional inspector). */
+  wallet: "max-w-md md:max-w-2xl lg:max-w-6xl xl:max-w-7xl w-full",
   /** Focused device column — never stretches on desktop. */
   compact: "max-w-md w-full",
 } as const;
@@ -33,11 +34,28 @@ export const homeSectionsClass =
 
 /** Wallet home tokens + collectibles: stack on phone, split on tablet+. */
 export const walletPortfolioSplitClass =
-  "flex flex-col gap-6 md:grid md:grid-cols-2 md:items-start md:gap-6";
+  "flex flex-col gap-6 md:grid md:grid-cols-2 md:items-start md:gap-6 lg:gap-8";
 
-/** Settings hub groups: one column on phone, two on large desktop. */
+/**
+ * Desktop wallet chrome: sticky rail + flexible main.
+ * Rail is `hidden` below `lg` — mobile keeps the full-page stack.
+ */
+export const walletDesktopChromeClass =
+  "flex flex-1 flex-col gap-0 lg:grid lg:grid-cols-[15.5rem_minmax(0,1fr)] lg:items-start lg:gap-8 xl:grid-cols-[16.5rem_minmax(0,1fr)]";
+
+export const walletDesktopRailClass =
+  "hidden lg:sticky lg:top-4 lg:flex lg:max-h-[calc(100dvh-3rem)] lg:flex-col lg:gap-6 lg:overflow-y-auto lg:pr-1";
+
+export const walletDesktopMainClass =
+  "flex min-h-0 min-w-0 flex-1 flex-col";
+
+/** Settings master-detail at lg+. */
+export const settingsDesktopClass =
+  "flex flex-1 flex-col gap-6 lg:grid lg:grid-cols-[minmax(15rem,17.5rem)_minmax(0,1fr)] lg:items-start lg:gap-8";
+
+/** Settings hub groups: one column on phone; unused on desktop rail (hub is the rail). */
 export const settingsHubClass =
-  "flex flex-1 flex-col gap-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-8 lg:gap-y-6";
+  "flex flex-1 flex-col gap-6";
 
 export type ShellLayout = keyof typeof shellLayoutClass;
 
@@ -78,5 +96,14 @@ export const centeredBlockClass =
 export const detailSplitClass =
   "flex flex-1 flex-col gap-6 lg:grid lg:grid-cols-[minmax(16rem,22rem)_minmax(0,1fr)] lg:items-start lg:gap-10 xl:grid-cols-[minmax(18rem,26rem)_minmax(0,1fr)]";
 
+/** Receive hub: stacked on phone, QR | nearby on desktop. */
+export const receiveSplitClass =
+  "flex flex-1 flex-col gap-6 lg:grid lg:grid-cols-[minmax(16rem,20rem)_minmax(0,1fr)] lg:items-start lg:gap-10";
+
 /** Minimum touch / click target (Apple HIG 44pt). */
 export const touchTargetClass = "min-h-11 min-w-11";
+
+/** Wallet routes that should stay in the phone ceremony frame. */
+export function isWalletCeremonyPath(pathname: string): boolean {
+  return /\/wallet\/receive\/nearby(?:\/|$)/.test(pathname);
+}

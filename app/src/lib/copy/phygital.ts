@@ -82,6 +82,7 @@ export const copy = {
     noMatchingCollectibles: "No matches",
     noActivity: "No activity yet",
     settings: "Settings",
+    settingsDesktopHint: "Choose a setting from the list.",
     settingsAccess: "Access",
     settingsFees: "Fees",
     settingsSafety: "Safety",

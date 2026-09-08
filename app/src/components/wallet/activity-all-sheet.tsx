@@ -46,7 +46,8 @@ export function ActivityAllSheet({
   return (
     <div className="flex flex-1 flex-col gap-4">
       <NavBar
-        leading={<NavBarBack onClick={onBack} />}
+        align="start"
+        leading={<NavBarBack onClick={onBack} desktopHidden />}
         title={copy.wallet.activity}
       />
 

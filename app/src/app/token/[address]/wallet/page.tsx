@@ -50,6 +50,7 @@ export default function WalletHomePage() {
   return (
     <div className="flex flex-1 flex-col">
       <NavBar
+        desktopHidden
         leading={
           <div className="flex min-w-0 items-center gap-0.5">
             {mint ? (

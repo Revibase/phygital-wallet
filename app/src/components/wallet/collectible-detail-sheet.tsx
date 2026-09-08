@@ -5,10 +5,11 @@ import { Badge } from "@/components/ui/badge";
 import { NavBar, NavBarBack } from "@/components/shared/nav-bar";
 import { Separator } from "@/components/ui/separator";
 import { copy } from "@/lib/copy/phygital";
+import { detailSplitClass } from "@/lib/layout";
 import type { WalletCollectible } from "@/lib/wallet/portfolio-types";
 import { collectibleInterfaceLabel } from "@/lib/wallet/send-asset-ref";
 
-/** Full-screen collectible detail — art, collection, Send (workspace stage). */
+/** Collectible detail — stacked on phone, art | dossier on desktop. */
 export function CollectibleDetailSheet({
   collectible,
   onBack,
@@ -25,13 +26,19 @@ export function CollectibleDetailSheet({
   return (
     <div className="flex flex-1 flex-col gap-5">
       <NavBar
+        align="start"
         className="mb-0"
-        leading={<NavBarBack onClick={onBack} className="-ml-2 text-muted-foreground hover:text-foreground" />}
+        leading={
+          <NavBarBack
+            onClick={onBack}
+            className="-ml-2 text-muted-foreground hover:text-foreground"
+          />
+        }
         title={collectible.name}
       />
 
-      <div className="flex flex-1 flex-col gap-4">
-        <div className="overflow-hidden rounded-3xl bg-muted">
+      <div className={detailSplitClass}>
+        <div className="mx-auto w-full max-w-sm overflow-hidden rounded-3xl bg-muted lg:mx-0 lg:max-w-none lg:sticky lg:top-4">
           {collectible.image ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -48,36 +55,41 @@ export function CollectibleDetailSheet({
           )}
         </div>
 
-        <div className="space-y-2 px-0.5">
-          {collectible.collectionName ? (
-            <p className="text-sm text-muted-foreground">
-              {collectible.collectionName}
-            </p>
-          ) : null}
-          <Badge variant="secondary">{badge}</Badge>
-        </div>
+        <div className="flex min-w-0 flex-col gap-4">
+          <div className="space-y-2 px-0.5">
+            <h2 className="hidden text-display-md tracking-tight lg:block">
+              {collectible.name}
+            </h2>
+            {collectible.collectionName ? (
+              <p className="text-sm text-muted-foreground">
+                {collectible.collectionName}
+              </p>
+            ) : null}
+            <Badge variant="secondary">{badge}</Badge>
+          </div>
 
-        <Separator />
+          <Separator />
 
-        <div className="flex flex-col gap-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-          <Button
-            type="button"
-            size="lg"
-            className="w-full"
-            onClick={() => onSend(collectible)}
-          >
-            {copy.wallet.send}
-          </Button>
-          {onOpenCard ? (
+          <div className="flex max-w-sm flex-col gap-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
             <Button
               type="button"
-              variant="ghost"
+              size="lg"
               className="w-full"
-              onClick={onOpenCard}
+              onClick={() => onSend(collectible)}
             >
-              {copy.wallet.openCard}
+              {copy.wallet.send}
             </Button>
-          ) : null}
+            {onOpenCard ? (
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full"
+                onClick={onOpenCard}
+              >
+                {copy.wallet.openCard}
+              </Button>
+            ) : null}
+          </div>
         </div>
       </div>
     </div>
