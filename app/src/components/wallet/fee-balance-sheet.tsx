@@ -80,7 +80,6 @@ export function FeeBalanceSheet({
             setSignPhase(phase);
             if (isWalletSignCeremonyPhase(phase)) setPhase("holding");
           },
-          onError: () => setSignPhase(null),
         },
       });
       submittedSignature = signature;

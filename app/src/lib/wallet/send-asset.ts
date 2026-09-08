@@ -14,6 +14,7 @@ import { getTransferCheckedInstruction as getTransferChecked2022 } from "@solana
 import {
   getPhygitalWalletSigner,
   type PhygitalWalletSignerCallbacks,
+  type VerifierAccountSnapshot,
 } from "phygital-wallet-sdk";
 
 import { getSolanaRpc } from "@/lib/solana/rpc";
@@ -42,6 +43,7 @@ export async function sendAssetFromWallet(args: {
   asset: SendAssetFields;
   /** Ceremony UI hooks from `getPhygitalWalletSigner`. */
   signer?: PhygitalWalletSignerCallbacks;
+  resolvedVerifier?: VerifierAccountSnapshot;
 }): Promise<{ signature: string; confirmed: Promise<void> }> {
   const rpc = getSolanaRpc();
   const tokenPda = address(String(args.phygitalTokenPda));
@@ -50,6 +52,7 @@ export async function sendAssetFromWallet(args: {
   const walletSigner = await getPhygitalWalletSigner(rpc, tokenPda, {
     ...args.signer,
     fetch: appVerifierFetch,
+    snapshot: args.resolvedVerifier,
   });
   const walletPda = walletSigner.address;
 
@@ -67,6 +70,7 @@ export async function sendAssetFromWallet(args: {
   return sendTransaction({
     instructions,
     feePayer: walletSigner,
+    fetchBlockhash: false,
   });
 }
 

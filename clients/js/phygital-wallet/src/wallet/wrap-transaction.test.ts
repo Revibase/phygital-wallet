@@ -42,7 +42,7 @@ import {
 import { findConfigPda } from "../generated/pdas/config.js";
 import { findTokenVerifierPda } from "../generated/pdas/tokenVerifier.js";
 import { findWalletPda } from "../generated/pdas/wallet.js";
-import { createVerifierEndpointSigner, resolveVerifier } from "./resolve-verifier.js";
+import { createVerifierEndpointSigner, fetchVerifierAccountSnapshot, resolveVerifier } from "./resolve-verifier.js";
 import { getPhygitalWalletSigner } from "./signer.js";
 
 type MockRpc = Rpc<GetAccountInfoApi & GetMultipleAccountsApi>;
@@ -290,6 +290,8 @@ describe("resolveVerifier", () => {
 
     const verifier = await resolveVerifier(rpc, PHYGITAL_TOKEN);
     expect(verifier.verifier.address).toBe(OVERRIDE_VERIFIER);
+    expect(verifier.usesDefaultPaymaster).toBe(false);
+    expect(verifier.requiresOwnerCosignAssertion).toBe(false);
   });
 
   it("falls back to config verifiers when no token override exists", async () => {
@@ -299,6 +301,27 @@ describe("resolveVerifier", () => {
 
     const verifier = await resolveVerifier(rpc, PHYGITAL_TOKEN);
     expect(verifier.verifier.address).toBe(CONFIG_VERIFIER);
+    expect(verifier.usesDefaultPaymaster).toBe(true);
+  });
+
+  it("reuses a snapshot without calling getMultipleAccounts", async () => {
+    const rpc = await createMockRpc({
+      config: defaultConfigArgs(CONFIG_VERIFIER),
+    });
+    const snapshot = await fetchVerifierAccountSnapshot(rpc, PHYGITAL_TOKEN);
+    const getMultipleAccounts = vi.fn(() => {
+      throw new Error("should not fetch");
+    });
+    const coldRpc = {
+      getMultipleAccounts,
+      getAccountInfo: rpc.getAccountInfo,
+    } as unknown as MockRpc;
+
+    const resolved = await resolveVerifier(coldRpc, PHYGITAL_TOKEN, {
+      snapshot,
+    });
+    expect(resolved.verifier.address).toBe(snapshot.verifierAddress);
+    expect(getMultipleAccounts).not.toHaveBeenCalled();
   });
 });
 
@@ -385,8 +408,12 @@ describe("createVerifierEndpointSigner", () => {
     await verifier.signTransactions([compileTransaction(unsigned)]);
     expect(mockFetch).toHaveBeenCalledWith(
       `${DEFAULT_VERIFIER_API_BASE}/sign`,
-      expect.any(Object),
+      expect.objectContaining({
+        method: "POST",
+      }),
     );
+    const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(String(init.body)).not.toContain("usesDefaultPaymaster");
   });
 });
 
@@ -607,19 +634,14 @@ describe("getPhygitalWalletSigner modifyAndSignTransactions", () => {
     });
   });
 
-  it("invokes optional UI callbacks in phase order", async () => {
+  it("invokes onPhaseChange in order", async () => {
     const rpc = await createMockRpc({
       config: defaultConfigArgs(CONFIG_VERIFIER),
     });
     const [walletPda] = await findWalletPda({ phygitalToken: PHYGITAL_TOKEN });
     const phases: string[] = [];
-    const events: string[] = [];
     const signer = await getPhygitalWalletSigner(rpc as never, PHYGITAL_TOKEN, {
       onPhaseChange: (phase) => phases.push(phase),
-      onPreviewed: () => events.push("previewed"),
-      onPasskeyPrompt: () => events.push("passkeyPrompt"),
-      onPasskeyAuthenticated: () => events.push("passkeyAuthenticated"),
-      onSigned: () => events.push("signed"),
     });
 
     const transfer = mockInstruction(SYSTEM_PROGRAM, [
@@ -637,26 +659,50 @@ describe("getPhygitalWalletSigner modifyAndSignTransactions", () => {
       "coSigning",
       "complete",
     ]);
-    expect(events).toEqual([
-      "previewed",
-      "passkeyPrompt",
-      "passkeyAuthenticated",
-      "signed",
-    ]);
   });
 
-  it("calls onError when signing fails", async () => {
+  it("throws PolicyDeniedError on soft policy deny", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/preview")) {
+          return {
+            ok: true,
+            json: async () => ({
+              ok: false,
+              code: "approval_required",
+              error: "Needs approval",
+              soft: true,
+              intentHash: "intent-1",
+            }),
+          };
+        }
+        return {
+          ok: true,
+          json: async () => ({ signatures: [] }),
+        };
+      }),
+    );
+
     const rpc = await createMockRpc({
       config: defaultConfigArgs(CONFIG_VERIFIER),
     });
-    const errors: unknown[] = [];
-    const signer = await getPhygitalWalletSigner(rpc as never, PHYGITAL_TOKEN, {
-      onError: (error) => errors.push(error),
-    });
+    const [walletPda] = await findWalletPda({ phygitalToken: PHYGITAL_TOKEN });
+    const signer = await getPhygitalWalletSigner(rpc as never, PHYGITAL_TOKEN);
+
+    const transfer = mockInstruction(SYSTEM_PROGRAM, [
+      { address: walletPda, role: AccountRole.WRITABLE_SIGNER },
+      { address: RECIPIENT, role: AccountRole.WRITABLE },
+    ]);
 
     await expect(
-      signer.modifyAndSignTransactions([compileUnsigned([])]),
-    ).rejects.toThrow(/no instructions to wrap/i);
-    expect(errors).toHaveLength(1);
+      signer.modifyAndSignTransactions([compileUnsigned([transfer])]),
+    ).rejects.toMatchObject({
+      name: "PolicyDeniedError",
+      soft: true,
+      code: "approval_required",
+      intentHash: "intent-1",
+    });
   });
 });

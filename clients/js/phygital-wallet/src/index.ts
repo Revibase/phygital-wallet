@@ -8,7 +8,10 @@ export { PolicyDeniedError } from "./wallet/preview.js";
 export {
   assertHttpsEndpoint,
   createVerifierEndpointSigner,
+  fetchVerifierAccountSnapshot,
   resolveVerifier,
+  type ResolvedVerifier,
+  type VerifierAccountSnapshot,
 } from "./wallet/resolve-verifier.js";
 export {
   normalizeVerifierApiBase,

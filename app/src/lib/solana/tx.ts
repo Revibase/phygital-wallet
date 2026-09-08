@@ -8,6 +8,7 @@ import {
   setTransactionMessageFeePayerSigner,
   setTransactionMessageLifetimeUsingBlockhash,
   signTransactionMessageWithSigners,
+  type Blockhash,
   type Instruction,
   type TransactionSigner,
 } from "@solana/kit";
@@ -20,6 +21,12 @@ import {
 import { getSolanaRpc, getSolanaRpcSubscriptions } from "./rpc";
 
 const CONFIRM_TIMEOUT_MS = 60_000;
+
+/** Placeholder lifetime; wallet modify path refreshes blockhash after NFC. */
+const PROVISIONAL_BLOCKHASH = {
+  blockhash: "11111111111111111111111111111111" as Blockhash,
+  lastValidBlockHeight: 0n,
+};
 
 let _sendWithoutConfirming:
   | ReturnType<typeof sendTransactionWithoutConfirmingFactory>
@@ -79,10 +86,16 @@ export type UnsignedTransactionMessage = Parameters<
 export async function buildUnsignedTransaction(params: {
   instructions: Instruction[];
   feePayer: TransactionSigner;
+  /**
+   * When false, use a provisional lifetime (wallet modify path refreshes after NFC).
+   * @default true
+   */
+  fetchBlockhash?: boolean;
 }): Promise<UnsignedTransactionMessage> {
-  const { value: latestBlockhash } = await getSolanaRpc()
-    .getLatestBlockhash()
-    .send();
+  const latestBlockhash =
+    params.fetchBlockhash === false
+      ? PROVISIONAL_BLOCKHASH
+      : (await getSolanaRpc().getLatestBlockhash().send()).value;
 
   return pipe(
     createTransactionMessage({ version: 0 }),
@@ -115,6 +128,7 @@ export async function signAndSendTransaction(
 export async function sendTransaction(params: {
   instructions: Instruction[];
   feePayer: TransactionSigner;
+  fetchBlockhash?: boolean;
 }): Promise<SentTransaction> {
   const unsigned = await buildUnsignedTransaction(params);
   return signAndSendTransaction(unsigned);

@@ -1,12 +1,14 @@
 /**
  * POST /preview — preflight before NFC / passkey (no co-sign).
  *
- * Soft deny may upsert `pending_approvals` when an owner exists on the DO and
- * this browser is not the owner. Never upsert when unlinked.
+ * Soft deny may upsert `pending_approvals` when the token is claimed (D1 link
+ * index) and this browser is not the linked owner phone. Never upsert when
+ * unlinked. Uses D1 for claim/owner checks so soft-deny is one DO round-trip.
  */
 import { Hono } from "hono";
 
 import { readDeviceSession } from "@/auth/device-session";
+import { listLinksForToken } from "@/auth/device-db";
 import { upsertPendingApproval } from "@/auth/pending-approvals-db";
 import { json } from "@/shared/http";
 import type { Instruction } from "phygital-verifier-sdk";
@@ -54,18 +56,20 @@ previewRoutes.post("/preview", async (c) => {
     }
 
     if (result.soft && result.intentHash) {
-      const ownerId = await stub.getOwnerCredentialId();
-      if (ownerId) {
-        const session = await readDeviceSession(c);
-        if (!session || session.credentialId !== ownerId) {
-          await upsertPendingApproval({
-            phygitalToken,
-            intentHash: result.intentHash,
-            code: result.code,
-            error: result.error,
-            details: result.details,
-          });
-        }
+      const session = await readDeviceSession(c);
+      const links = await listLinksForToken(phygitalToken);
+      const linkedHere = Boolean(
+        session &&
+          links.some((link) => link.credentialId === session.credentialId),
+      );
+      if (!linkedHere && links.length > 0) {
+        await upsertPendingApproval({
+          phygitalToken,
+          intentHash: result.intentHash,
+          code: result.code,
+          error: result.error,
+          details: result.details,
+        });
       }
     }
 

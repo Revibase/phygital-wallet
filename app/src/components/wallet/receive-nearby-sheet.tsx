@@ -197,7 +197,6 @@ export function ReceiveNearbySheet({
             setSignPhase(phase);
             if (isWalletSignCeremonyPhase(phase)) setPhase("holding");
           },
-          onError: () => setSignPhase(null),
         },
       });
       submittedSignature = signature;

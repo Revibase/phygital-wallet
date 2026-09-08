@@ -10,10 +10,11 @@ import { PolicyDeniedError } from "phygital-wallet-sdk";
 import { NavBar } from "@/components/shared/nav-bar";
 import { TokenIcon } from "@/components/shared/token-chip";
 import type { WalletRole } from "@/components/token/token-address-route";
+import { ApprovalSheetBody } from "@/components/wallet/approval-sheet-body";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { FieldLabel, Input } from "@/components/ui/input";
-import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { copy } from "@/lib/copy/phygital";
 import {
   applyOptimisticFeeBalance,
@@ -30,11 +31,15 @@ import { tryParseAddress } from "@/lib/solana/address";
 import { cn, shortAddress } from "@/lib/utils";
 import { toUserErrorMessage } from "@/lib/user-errors";
 import { useFeeBalance } from "@/hooks/wallet/use-fee-balance";
-import { useTokenVerifier } from "@/hooks/wallet/use-token-verifier";
+import { useResolvedVerifier } from "@/hooks/wallet/use-resolved-verifier";
 import { identifyAccessory } from "@/lib/wallet/identify-accessory";
 import { createOneTimeGrant } from "@/lib/wallet/policies-client";
 import { handleOwnerAuthFailure } from "@/lib/wallet/device-sign-in-href";
-import { policyApprovalDetailRows, policySoftDenyBody } from "@/lib/wallet/policy-deny-copy";
+import {
+  policyAmountLabel,
+  policyApprovalDetailRows,
+  policySoftDenyBody,
+} from "@/lib/wallet/policy-deny-copy";
 import type { FeeBalance } from "@/lib/wallet/fee-balance-client";
 import type { WalletPortfolio } from "@/lib/wallet/portfolio-types";
 import { sendAssetFromWallet } from "@/lib/wallet/send-asset";
@@ -122,9 +127,8 @@ export function SendDialog({
   const [hardError, setHardError] = useState<SendHardError | null>(null);
   const [softDeny, setSoftDeny] = useState<PolicyDeniedError | null>(null);
   const feeBalance = useFeeBalance(phygitalTokenPda);
-  const tokenVerifier = useTokenVerifier(phygitalTokenPda);
-  /** Custom override pays its own fees — no prepaid fee-balance gate. */
-  const usesFeeBalance = tokenVerifier.data?.custom !== true;
+  const resolvedVerifier = useResolvedVerifier(phygitalTokenPda);
+  const usesFeeBalance = resolvedVerifier.data?.usesDefaultPaymaster === true;
   const prefersReducedMotion = useReducedMotion();
   const enter = snapEnter(prefersReducedMotion);
   const amountInputRef = useRef<HTMLInputElement>(null);
@@ -270,13 +274,11 @@ export function SendDialog({
           decimals: asset.decimals,
           tokenProgram: asset.tokenProgram,
         },
+        resolvedVerifier: resolvedVerifier.data,
         signer: {
           onPhaseChange: (phase) => {
             onSignPhaseChange?.(phase);
             if (isWalletSignCeremonyPhase(phase)) showHolding();
-          },
-          onError: () => {
-            onSignPhaseChange?.(null);
           },
         },
       });
@@ -786,24 +788,30 @@ export function SendDialog({
               body={
                 role === "owner"
                   ? policySoftDenyBody(softDeny)
-                  : copy.wallet.deviceVisitorSoftDeny
+                  : copy.wallet.visitorNeedsApprovalBody
+              }
+              hint={
+                role === "owner"
+                  ? undefined
+                  : copy.wallet.visitorNeedsApprovalHint
               }
               amountLabel={
                 nft
                   ? (asset?.name ?? "1")
-                  : typeof softDeny.details?.amountUi === "string"
-                    ? `${softDeny.details.amountUi}${asset?.symbol ? ` ${asset.symbol}` : ""}`
-                    : `${amount} ${asset?.symbol ?? ""}`
+                  : (policyAmountLabel(softDeny.details, asset?.symbol) ??
+                    `${amount} ${asset?.symbol ?? ""}`.trim())
               }
               recipientLabel={shortAddress(
                 String(parsedRecipient ?? recipient),
                 6,
               )}
-              detailRows={policyApprovalDetailRows(softDeny.details)}
+              detailRows={policyApprovalDetailRows(softDeny.details, {
+                omitAmount: true,
+              })}
               busy={busy}
-              canApprove={role === "owner"}
+              mode={role === "owner" ? "owner" : "visitor"}
               onApprove={() => void approveOnce()}
-              onDeny={() => setSoftDeny(null)}
+              onClose={() => setSoftDeny(null)}
             />
           ) : null}
         </SheetContent>
@@ -813,93 +821,5 @@ export function SendDialog({
   );
 
   return form;
-}
-
-function ApprovalSheetBody({
-  title,
-  body,
-  amountLabel,
-  recipientLabel,
-  detailRows,
-  busy,
-  canApprove,
-  onApprove,
-  onDeny,
-}: {
-  title: string;
-  body: string;
-  amountLabel: string;
-  recipientLabel: string;
-  detailRows: { label: string; value: string }[];
-  busy: boolean;
-  canApprove: boolean;
-  onApprove: () => void;
-  onDeny: () => void;
-}) {
-  return (
-    <div className="flex flex-col gap-5 px-4 pb-8 pt-2">
-      <SheetHeader className="px-0 text-center sm:text-center">
-        <SheetTitle className="font-(family-name:--font-display) text-2xl font-medium">
-          {title}
-        </SheetTitle>
-        <SheetDescription className="text-sm text-muted-foreground">
-          {body}
-        </SheetDescription>
-      </SheetHeader>
-      <div className="overflow-hidden rounded-2xl bg-muted/25 text-left">
-        <div className="border-b border-border/40 px-4 py-3">
-          <p className="font-(family-name:--font-display) text-lg">
-            {amountLabel}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {copy.wallet.to} {recipientLabel}
-          </p>
-        </div>
-        {detailRows.map((row) => (
-          <div
-            key={row.label}
-            className="flex items-center justify-between gap-3 border-b border-border/40 px-4 py-3 text-sm last:border-b-0"
-          >
-            <span className="text-muted-foreground">{row.label}</span>
-            <span className="font-medium tabular-nums">{row.value}</span>
-          </div>
-        ))}
-      </div>
-      <SheetFooter className="gap-2 p-0 sm:flex-col">
-        {canApprove ? (
-          <>
-            <Button
-              type="button"
-              size="lg"
-              className="w-full"
-              disabled={busy}
-              onClick={onApprove}
-            >
-              {busy ? <Spinner className="size-4" /> : copy.wallet.approveOnce}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="lg"
-              className="w-full"
-              disabled={busy}
-              onClick={onDeny}
-            >
-              {copy.wallet.denyOnce}
-            </Button>
-          </>
-        ) : (
-          <Button
-            type="button"
-            size="lg"
-            className="w-full"
-            onClick={onDeny}
-          >
-            {copy.common.done}
-          </Button>
-        )}
-      </SheetFooter>
-    </div>
-  );
 }
 

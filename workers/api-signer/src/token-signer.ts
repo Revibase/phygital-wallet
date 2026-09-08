@@ -10,7 +10,7 @@ import type { PolicyDocument } from "phygital-verifier-sdk";
 import { createVerifierSignerBackend } from "@/backend/create";
 import type { VerifierSignerBackend } from "@/backend/types";
 import {
-  resolveVerifierFeeContext,
+  isDefaultConfigVerifier,
 } from "@/fees/default-verifier";
 import { assertFeeBalance } from "@/fees/fee-balance-gate";
 import { bytesToBase64Url } from "@/shared/crypto/base64";
@@ -496,7 +496,6 @@ export class TokenSigner extends DurableObject<Env> {
             }
 
             const fee = await assertFeeBalance({
-              phygitalToken,
               instructions: input.instructions,
             });
             if (!fee.ok) {
@@ -610,15 +609,8 @@ export class TokenSigner extends DurableObject<Env> {
                   };
                 }
 
-                const feeCtx = await resolveVerifierFeeContext({
-                  phygitalToken: decoded.phygitalToken,
-                  verifier: decoded.verifier,
-                });
-
                 const fee = await assertFeeBalance({
-                  phygitalToken: decoded.phygitalToken,
                   instructions: decoded.instructions,
-                  usesDefaultPaymaster: feeCtx.usesDefaultPaymaster,
                 });
                 if (!fee.ok) {
                   return {
@@ -636,7 +628,7 @@ export class TokenSigner extends DurableObject<Env> {
                   };
                 }
 
-                if (feeCtx.isConfigDefault) {
+                if (await isDefaultConfigVerifier(decoded.verifier)) {
                   const challengeId = auth.challengeId?.trim() ?? "";
                   const origin = auth.origin?.trim() ?? "";
                   if (!challengeId || !auth.assertion || !origin) {
@@ -678,7 +670,6 @@ export class TokenSigner extends DurableObject<Env> {
                 }
               } else {
                 const fee = await assertFeeBalance({
-                  phygitalToken: decoded.phygitalToken,
                   instructions: decoded.instructions,
                 });
                 if (!fee.ok) {

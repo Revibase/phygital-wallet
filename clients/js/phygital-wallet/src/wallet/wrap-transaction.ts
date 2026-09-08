@@ -221,9 +221,8 @@ function withVerifierFeePayerIfWallet<T extends DecompiledMessage>(
 }
 
 /**
- * Post fee-payer-swap wrap message used for CU / fee account selection.
- * Omit `secp256r1VerifyInstruction` to prefetch fees before the passkey tap
- * (execute + remaining accounts only; secp accounts are not fee-relevant).
+ * Post fee-payer-swap wrap message for CU / fee account selection.
+ * Omit secp to price fees before the passkey tap.
  */
 function buildWrappedBaseMessage(input: {
   pending: PendingWalletWrap;
@@ -269,21 +268,59 @@ function buildWrappedBaseMessage(input: {
   );
 }
 
-/** Start priority-fee RPC using the same writable set finalize would price. */
+/** Priority-fee RPC for the same writable set finalize would price. */
 function fetchPriorityFeeMicroLamports(
   rpc: Rpc<SolanaRpcApi>,
   input: {
-    pending: PendingWalletWrap;
+    prepared: PreparedWalletWrap;
+    compactInstructions: CompactInstructionArgs[];
+    remainingAccounts: AccountMeta[];
     verifier: TransactionSigner;
     executeAccounts: WalletExecuteAccounts;
   },
 ): Promise<bigint> {
+  // Slot / messageHash unused for writable-account selection.
+  const pending: PendingWalletWrap = {
+    prepared: input.prepared,
+    compactInstructions: input.compactInstructions,
+    remainingAccounts: input.remainingAccounts,
+    slotNumber: 0n,
+    messageHash: new Uint8Array(32),
+  };
   return rpc
     .getRecentPrioritizationFees(
-      collectWritableAddresses(buildWrappedBaseMessage(input)),
+      collectWritableAddresses(
+        buildWrappedBaseMessage({
+          pending,
+          verifier: input.verifier,
+          executeAccounts: input.executeAccounts,
+        }),
+      ),
     )
     .send()
     .then(pickPriorityFeeMicroLamports);
+}
+
+/**
+ * Simulate body ixs before NFC (verifier fee payer, sigVerify skipped).
+ */
+async function assertBodyInstructionsExecutable(input: {
+  rpc: Rpc<SolanaRpcApi>;
+  verifier: TransactionSigner;
+  prepared: PreparedWalletWrap;
+  abortSignal?: AbortSignal;
+}): Promise<void> {
+  const withVerifierFeePayer = setTransactionMessageFeePayerSigner(
+    input.verifier,
+    {
+      ...input.prepared.decompiled,
+      instructions: [...input.prepared.bodyInstructions],
+    } as typeof input.prepared.decompiled,
+  );
+
+  await estimateResourceLimitsFactory({ rpc: input.rpc })(withVerifierFeePayer, {
+    abortSignal: input.abortSignal,
+  });
 }
 
 function applyVerifierCoSignature(
@@ -355,11 +392,11 @@ function buildPendingWalletWrap(
   prepared: PreparedWalletWrap,
   walletPda: Address,
   slot: SlotEntry,
-): PendingWalletWrap {
-  const compiled = compileWalletInstructions(
+  compiled = compileWalletInstructions(
     prepared.bodyInstructions,
     walletPda,
-  );
+  ),
+): PendingWalletWrap {
   const { slotNumber, messageHash } = buildExecuteChallengeFromSlot(
     slot,
     compiled.compactInstructions,
@@ -376,8 +413,7 @@ function buildPendingWalletWrap(
 }
 
 /**
- * After passkey: build execute ix, estimate CU + fees, refresh blockhash, compile.
- * Block context is fetched here (after tap) so lifetime stays fresh for send.
+ * After passkey: execute ix, CU + fees, fresh blockhash, compile.
  */
 async function finalizeWrappedWalletTransaction(input: {
   rpc: Rpc<SolanaRpcApi>;
@@ -385,6 +421,8 @@ async function finalizeWrappedWalletTransaction(input: {
   verifier: TransactionSigner;
   executeAccounts: WalletExecuteAccounts;
   passkeyTap: Awaited<ReturnType<typeof authenticatePasskeyForSecp256r1Verify>>;
+  /** Prefetched priority fee; otherwise fetched in finalize. */
+  unitPricePromise?: Promise<bigint>;
 }): Promise<SignedTransaction> {
   const { pending, rpc, verifier, executeAccounts, passkeyTap } = input;
 
@@ -401,11 +439,14 @@ async function finalizeWrappedWalletTransaction(input: {
 
   const [limits, unitPrice, block] = await Promise.all([
     estimateResourceLimitsFactory({ rpc })(baseMessage),
-    fetchPriorityFeeMicroLamports(rpc, {
-      pending,
-      verifier,
-      executeAccounts,
-    }),
+    input.unitPricePromise ??
+      fetchPriorityFeeMicroLamports(rpc, {
+        prepared: pending.prepared,
+        compactInstructions: pending.compactInstructions,
+        remainingAccounts: pending.remainingAccounts,
+        verifier,
+        executeAccounts,
+      }),
     rpc
       .getLatestBlockhash({ commitment: "confirmed" })
       .send()
@@ -426,8 +467,7 @@ async function finalizeWrappedWalletTransaction(input: {
 }
 
 /**
- * Full wrap pipeline with hooks for policy preview, passkey, and verifier co-sign.
- * Stages stay file-private; only this entry is imported by `signer.ts`.
+ * Wrap pipeline: preview + body sim → SlotHashes → passkey → finalize → co-sign.
  */
 export async function modifyAndWrapWalletTransaction(input: {
   rpc: Rpc<SolanaRpcApi>;
@@ -452,10 +492,37 @@ export async function modifyAndWrapWalletTransaction(input: {
     transaction: input.transaction,
   });
 
-  await input.preview(prepared.bodyInstructions);
+  const earlyCompiled = compileWalletInstructions(
+    prepared.bodyInstructions,
+    input.walletPda,
+  );
+  const unitPricePromise = fetchPriorityFeeMicroLamports(input.rpc, {
+    prepared,
+    compactInstructions: earlyCompiled.compactInstructions,
+    remainingAccounts: earlyCompiled.remainingAccounts,
+    verifier: input.verifier,
+    executeAccounts: input.executeAccounts,
+  });
+
+  const [previewResult, bodySimResult] = await Promise.allSettled([
+    input.preview(prepared.bodyInstructions),
+    assertBodyInstructionsExecutable({
+      rpc: input.rpc,
+      verifier: input.verifier,
+      prepared,
+      abortSignal: input.abortSignal,
+    }),
+  ]);
+  if (previewResult.status === "rejected") throw previewResult.reason;
+  if (bodySimResult.status === "rejected") throw bodySimResult.reason;
 
   const slot = await fetchLatestSlothHash(input.rpc);
-  const pending = buildPendingWalletWrap(prepared, input.walletPda, slot);
+  const pending = buildPendingWalletWrap(
+    prepared,
+    input.walletPda,
+    slot,
+    earlyCompiled,
+  );
 
   input.abortSignal?.throwIfAborted();
   const passkeyTap = await input.authenticate(pending.messageHash);
@@ -466,6 +533,7 @@ export async function modifyAndWrapWalletTransaction(input: {
     verifier: input.verifier,
     executeAccounts: input.executeAccounts,
     passkeyTap,
+    unitPricePromise,
   });
 
   input.abortSignal?.throwIfAborted();

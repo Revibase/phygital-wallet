@@ -344,7 +344,9 @@ function WalletRouteOverlays({
   const openApprovals = useOpenApprovals(
     isOwner && isWalletHome && deferSecondary ? tokenAddress : null,
   );
-  const [dismissApprovals, setDismissApprovals] = useState(false);
+  const [dismissedApprovalHashes, setDismissedApprovalHashes] = useState(
+    () => new Set<string>(),
+  );
   const [claimSessionDismissed, setClaimSessionDismissed] = useState(() =>
     isClaimDismissed(tokenAddress),
   );
@@ -354,13 +356,25 @@ function WalletRouteOverlays({
     registerRequestClaim(() => setForceClaim(true));
   }, [registerRequestClaim]);
 
+  // Drop dismiss markers once the server list no longer includes them (TTL / grant).
   useEffect(() => {
-    if (openApprovals.approvals.length > 0) setDismissApprovals(false);
-  }, [openApprovals.approvals.length]);
+    setDismissedApprovalHashes((prev) => {
+      if (prev.size === 0) return prev;
+      const live = new Set(openApprovals.approvals.map((a) => a.intentHash));
+      let changed = false;
+      const next = new Set<string>();
+      for (const hash of prev) {
+        if (live.has(hash)) next.add(hash);
+        else changed = true;
+      }
+      return changed ? next : prev;
+    });
+  }, [openApprovals.approvals]);
 
   useEffect(() => {
     setClaimSessionDismissed(isClaimDismissed(tokenAddress));
     setForceClaim(false);
+    setDismissedApprovalHashes(new Set());
   }, [tokenAddress]);
 
   const needsClaim =
@@ -368,10 +382,13 @@ function WalletRouteOverlays({
   const showClaimSheet =
     needsClaim || (forceClaim && !isOwner && !linkedElsewhere && !claimedQuiet);
 
+  const visibleApprovals = openApprovals.approvals.filter(
+    (a) => !dismissedApprovalHashes.has(a.intentHash),
+  );
+
   const showOpenApprovals =
     isOwner &&
-    !dismissApprovals &&
-    openApprovals.approvals.length > 0 &&
+    visibleApprovals.length > 0 &&
     isWalletHome &&
     !showClaimSheet;
 
@@ -402,13 +419,10 @@ function WalletRouteOverlays({
       </StageTransition>
       <OpenApprovalsSheet
         phygitalTokenPda={tokenAddress}
-        approvals={openApprovals.approvals}
+        approvals={visibleApprovals}
         open={showOpenApprovals}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDismissApprovals(true);
-            void openApprovals.refetch();
-          }
+        onDismiss={(intentHash) => {
+          setDismissedApprovalHashes((prev) => new Set(prev).add(intentHash));
         }}
       />
     </>

@@ -7,11 +7,7 @@ import {
   type TransactionPartialSigner,
 } from "@solana/kit";
 import type { AuthenticationResponseJSON } from "@simplewebauthn/browser";
-import {
-  createVerifierEndpointSigner,
-  resolveVerifier,
-  verifierSignUrl,
-} from "phygital-wallet-sdk";
+import { resolveVerifier } from "phygital-wallet-sdk";
 
 import { getApiBaseUrl } from "@/lib/api-base";
 import { bytesToBase64Url } from "@/lib/crypto/base64";
@@ -72,15 +68,10 @@ export async function createAppVerifierSigner(
   rpc: Rpc<SolanaRpcApi>,
   phygitalToken: Address,
 ): Promise<AppVerifierSigner> {
-  const { endpoint, requiresOwnerCosignAssertion, verifier } =
-    await resolveVerifier(rpc, phygitalToken, {
-      fetch: appVerifierFetch,
-    });
-
   let ownerAuth: OwnerCosignAuth | null = null;
+  let requiresOwnerCosignAssertion = false;
 
-  const endpointSigner = createVerifierEndpointSigner(verifier.address, {
-    endpoint: verifierSignUrl(endpoint),
+  const resolved = await resolveVerifier(rpc, phygitalToken, {
     fetch: appVerifierFetch,
     enrichSignBody: async () => {
       if (!requiresOwnerCosignAssertion) return undefined;
@@ -95,16 +86,17 @@ export async function createAppVerifierSigner(
       };
     },
   });
+  requiresOwnerCosignAssertion = resolved.requiresOwnerCosignAssertion;
 
   const signer: AppVerifierSignerInternal = {
-    address: endpointSigner.address,
+    address: resolved.verifier.address,
     requiresOwnerCosignAssertion,
     phygitalToken: String(phygitalToken),
     setOwnerCosignAuth: (auth) => {
       ownerAuth = auth;
     },
     signTransactions: (transactions, options) =>
-      endpointSigner.signTransactions(transactions, options),
+      resolved.verifier.signTransactions(transactions, options),
   };
 
   return signer;

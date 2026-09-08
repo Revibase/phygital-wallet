@@ -34,9 +34,26 @@ export function policySoftDenyBody(deny: PolicyDeniedError): string {
   return deny.message;
 }
 
+/** Hero amount line for soft-deny / open-approval sheets. */
+export function policyAmountLabel(
+  details: Record<string, unknown> | null | undefined,
+  fallbackSymbol?: string | null,
+): string | undefined {
+  if (!details) return undefined;
+  const amountUi =
+    typeof details.amountUi === "string" ? details.amountUi : null;
+  if (!amountUi) return undefined;
+  const symbol =
+    typeof details.symbol === "string"
+      ? details.symbol
+      : fallbackSymbol?.trim() || null;
+  return symbol ? `${amountUi} ${symbol}` : amountUi;
+}
+
 /** Structured rows for Approve-once (destination / amount / mint / program). */
 export function policyApprovalDetailRows(
   details: Record<string, unknown> | null | undefined,
+  options?: { omitAmount?: boolean },
 ): { label: string; value: string }[] {
   if (!details) return [];
   const rows: { label: string; value: string }[] = [];
@@ -50,31 +67,33 @@ export function policyApprovalDetailRows(
     });
   }
 
-  const amountUi =
-    typeof details.amountUi === "string" ? details.amountUi : null;
-  const requestedUi =
-    typeof details.requestedUi === "string" ? details.requestedUi : null;
-  const amount = typeof details.amount === "string" ? details.amount : null;
-  const decimals =
-    typeof details.decimals === "number" ? details.decimals : null;
+  if (!options?.omitAmount) {
+    const amountUi =
+      typeof details.amountUi === "string" ? details.amountUi : null;
+    const requestedUi =
+      typeof details.requestedUi === "string" ? details.requestedUi : null;
+    const amount = typeof details.amount === "string" ? details.amount : null;
+    const decimals =
+      typeof details.decimals === "number" ? details.decimals : null;
 
-  let displayAmount: string | null = amountUi;
-  if (!displayAmount && requestedUi) {
-    // USDC spend-limit enrichment is dollar-denominated.
-    displayAmount = `$${requestedUi}`;
-  }
-  if (!displayAmount && amount != null && decimals != null && decimals >= 0) {
-    try {
-      displayAmount = formatTokenAmount(BigInt(amount), decimals);
-    } catch {
-      /* ignore malformed raw amount */
+    let displayAmount: string | null = amountUi;
+    if (!displayAmount && requestedUi) {
+      // USDC spend-limit enrichment is dollar-denominated.
+      displayAmount = `$${requestedUi}`;
     }
-  }
-  if (displayAmount) {
-    rows.push({
-      label: copy.wallet.approveSendAmount,
-      value: displayAmount,
-    });
+    if (!displayAmount && amount != null && decimals != null && decimals >= 0) {
+      try {
+        displayAmount = formatTokenAmount(BigInt(amount), decimals);
+      } catch {
+        /* ignore malformed raw amount */
+      }
+    }
+    if (displayAmount) {
+      rows.push({
+        label: copy.wallet.approveSendAmount,
+        value: displayAmount,
+      });
+    }
   }
 
   const mint = typeof details.mint === "string" ? details.mint : null;

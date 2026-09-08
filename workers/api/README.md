@@ -51,7 +51,7 @@ pnpm --filter api dev
 | POST | `/policies/:token/mutation-options` | owner WebAuthn challenge bound to write intent |
 | PUT/DELETE | `/policies/:token` | assertion required |
 | POST | `/policies/:token/grants` | assertion required |
-| GET/DELETE | `/policies/:token/approvals…` | inbox on API D1 |
+| GET | `/policies/:token/approvals` | inbox on API D1 |
 | GET | `/tokens/fee-balance` | DO ledger |
 | POST | `/webhooks/helius` | → DO `applyFeeEvents` |
 

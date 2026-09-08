@@ -4,7 +4,7 @@ import { verifierPreviewUrl } from "./verifier-endpoint.js";
 
 const base64Decoder = getBase64Decoder();
 
-/** Soft or hard policy denial from `/preview` or `/sign`. */
+/** Policy denial from `/preview` or `/sign`. */
 export class PolicyDeniedError extends Error {
   readonly code: string;
   readonly soft: boolean;

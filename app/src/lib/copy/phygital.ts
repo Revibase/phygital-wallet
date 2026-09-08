@@ -244,8 +244,6 @@ export const copy = {
     deviceLinkCta: "Hold to claim",
     deviceVisitorUnlinkedNotice: "Make this yours",
     deviceVisitorLinkAction: "Claim",
-    deviceVisitorSoftDeny:
-      "Over the owner’s limits. Ask them to approve once on their linked phone.",
     deviceAuthReady: "Signed in on this phone",
     deviceUnlink: "Unlink this phone",
     deviceUnlinkConfirmTitle: "Unlink this phone?",
@@ -297,15 +295,17 @@ export const copy = {
     limitsTurnOff: "Turn off spend caps",
     limitsTurnedOff: "Spend caps off",
     policyRemoved: "Send protections off",
-    openApprovalContinue: "They can continue in their app",
-    openApprovalsTitle: "Approve a pending send",
-    openApprovalsLater: "Later",
+    openApprovalContinue: "They can try the send again",
     nearbyPolicyTitle: "Needs approval",
     nearbyPolicyBody:
       "Over their limits. Ask them to approve once on their linked phone, then try again.",
     nearbyPolicyFeeBody:
       "They need more network fees. Ask them to top up, then try again.",
     nearbyPolicyGotIt: "Got it",
+    visitorNeedsApprovalBody:
+      "Ask the owner to approve this send on their linked phone, then Hold again here to finish.",
+    visitorNeedsApprovalHint:
+      "Your amount and recipient stay filled in. Requests expire in about 5 minutes.",
     signingBody:
       "Every transaction needs your accessory and a verifier that co-signs. Revibase is the default — it checks your limits before it signs.",
     signingCustomPolicyWarn:

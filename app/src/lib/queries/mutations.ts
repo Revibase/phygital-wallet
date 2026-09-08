@@ -391,6 +391,9 @@ export function applyOptimisticTokenVerifier(
   const key = queryKeys.tokenVerifier.byToken(token);
   const previous = queryClient.getQueryData<TokenVerifierCache>(key);
   queryClient.setQueryData(key, next);
+  void queryClient.invalidateQueries({
+    queryKey: queryKeys.resolvedVerifier.byToken(token),
+  });
   return previous;
 }
 
@@ -402,9 +405,12 @@ export function restoreTokenVerifierSnapshot(
   const key = queryKeys.tokenVerifier.byToken(token);
   if (previous === undefined) {
     queryClient.removeQueries({ queryKey: key });
-    return;
+  } else {
+    queryClient.setQueryData(key, previous);
   }
-  queryClient.setQueryData(key, previous);
+  void queryClient.invalidateQueries({
+    queryKey: queryKeys.resolvedVerifier.byToken(token),
+  });
 }
 
 /** Invalidate DAS / portfolio caches when the active RPC preference changes. */

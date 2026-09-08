@@ -33,7 +33,6 @@ export async function upsertPendingApproval(args: {
   const detailsJson =
     args.details != null ? JSON.stringify(args.details) : null;
 
-  // Refresh TTL / copy when the same open intent already exists.
   const refreshed = await db()
     .prepare(
       `UPDATE pending_approvals
@@ -55,7 +54,6 @@ export async function upsertPendingApproval(args: {
   if ((refreshed.meta.changes ?? 0) > 0) return;
 
   const id = crypto.randomUUID();
-  // Cap open rows to newest MAX-1, then insert (one batch).
   await db().batch([
     db()
       .prepare(

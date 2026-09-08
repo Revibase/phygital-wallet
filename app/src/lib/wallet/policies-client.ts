@@ -145,14 +145,3 @@ export async function fetchOpenApprovals(
   );
   return body.approvals;
 }
-
-export async function cancelOpenApproval(
-  phygitalToken: string,
-  intentHash: string,
-): Promise<void> {
-  const res = await queryFetch(
-    `/policies/${encodeURIComponent(phygitalToken)}/approvals/${encodeURIComponent(intentHash)}`,
-    { method: "DELETE" },
-  );
-  await readJson(res, "Couldn’t dismiss approval");
-}

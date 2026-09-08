@@ -14,7 +14,7 @@ export function useOpenApprovals(phygitalToken: string | null) {
     queryKey: queryKeys.walletApprovals.byToken(phygitalToken),
     queryFn: (): Promise<OpenApproval[]> => fetchOpenApprovals(phygitalToken!),
     enabled: Boolean(phygitalToken),
-    ...queryOptions.default,
+    ...queryOptions.volatile,
   });
 
   return {

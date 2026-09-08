@@ -3,7 +3,6 @@ import {
   MEMO_PROGRAM_ADDRESS,
   MIN_ATTEMPT_FEE_LAMPORTS,
 } from "@/fees/constants";
-import { usesDefaultVerifierPaymaster } from "@/fees/default-verifier";
 import { SYSTEM_PROGRAM } from "@/verifier/constants";
 import type { Instruction } from "phygital-verifier-sdk";
 
@@ -32,26 +31,20 @@ function isFeeBalanceTopUpIntent(
 }
 
 /**
- * Fee gate for the default-verifier fee balance.
- * Evaluated inside the private signer Worker on both `/preview` and `/sign`.
- * Prepaid minimum-to-attempt (not a quote of post-wrap spend). Does not debit —
- * webhook debits actual SOL spend after confirmed success.
+ * Fee gate for prepaid fee balance on this signing service.
+ * Evaluated on both `/preview` and `/sign`. Prepaid minimum-to-attempt (not a
+ * quote of post-wrap spend). Does not debit — webhook debits after confirmed
+ * success.
+ *
+ * Always enforced here: this Worker only co-signs with default verifier keys,
+ * so a successful `/sign` sponsors fees. Custom TokenVerifier overrides use a
+ * different endpoint; a POST here cannot land on-chain for them.
  */
 export async function assertFeeBalance(args: {
-  phygitalToken: string;
   instructions: readonly Instruction[];
-  /** Skip Solana lookup when already resolved for this request. */
-  usesDefaultPaymaster?: boolean;
 }) {
   const accumulator = getEnv().TOP_UP_ACCUMULATOR?.trim() ?? "";
   if (isFeeBalanceTopUpIntent(args.instructions, accumulator)) {
-    return { ok: true as const };
-  }
-
-  const usesDefault =
-    args.usesDefaultPaymaster ??
-    (await usesDefaultVerifierPaymaster(args.phygitalToken));
-  if (!usesDefault) {
     return { ok: true as const };
   }
 

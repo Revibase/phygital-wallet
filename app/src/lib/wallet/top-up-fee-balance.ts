@@ -55,5 +55,6 @@ export async function topUpFeeBalance(args: {
       getMemoInstruction(String(tokenPda)),
     ],
     feePayer: walletSigner,
+    fetchBlockhash: false,
   });
 }

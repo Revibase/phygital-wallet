@@ -155,3 +155,37 @@ export async function deleteLink(
     .run();
   return (result.meta.changes ?? 0) > 0;
 }
+
+/** Links for a token (owner inbox / soft-deny claim checks). */
+export async function listLinksForToken(
+  phygitalToken: string,
+): Promise<Pick<DeviceTokenLink, "credentialId" | "phygitalToken">[]> {
+  const { results } = await db()
+    .prepare(
+      `SELECT credential_id, phygital_token
+       FROM device_token_links
+       WHERE phygital_token = ?`,
+    )
+    .bind(phygitalToken)
+    .all<{ credential_id: string; phygital_token: string }>();
+  return (results ?? []).map((row) => ({
+    credentialId: row.credential_id,
+    phygitalToken: row.phygital_token,
+  }));
+}
+
+/** True when this credential's device link index lists the token. */
+export async function hasDeviceLink(
+  credentialId: string,
+  phygitalToken: string,
+): Promise<boolean> {
+  const row = await db()
+    .prepare(
+      `SELECT 1 AS ok FROM device_token_links
+       WHERE credential_id = ? AND phygital_token = ?
+       LIMIT 1`,
+    )
+    .bind(credentialId, phygitalToken)
+    .first<{ ok: number }>();
+  return row != null;
+}
