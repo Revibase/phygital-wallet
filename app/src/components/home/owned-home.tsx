@@ -99,12 +99,17 @@ function HomePasskeyScreen({
   const queryClient = useQueryClient();
 
   function onAuthSuccess(next: Awaited<ReturnType<typeof loginDevice>>) {
-    queryClient.setQueryData(queryKeys.deviceAuth.session(), next);
-    void queryClient.prefetchQuery({
-      queryKey: queryKeys.deviceAuth.links(),
-      queryFn: fetchDeviceLinks,
-      ...queryOptions.deviceLinks,
+    queryClient.setQueryData(queryKeys.deviceAuth.session(), {
+      credentialId: next.credentialId,
+      expiresAt: next.expiresAt,
     });
+    if (next.links) {
+      queryClient.setQueryData(queryKeys.deviceAuth.links(), next.links);
+    } else {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.deviceAuth.links(),
+      });
+    }
   }
 
   const loginMutation = useMutation({
@@ -283,10 +288,10 @@ function HomeLinkSetup({
       queryClient.setQueryData(
         queryKeys.deviceAuth.links(),
         (prev: DeviceLink[] | undefined) => {
-          if (!prev) return prev;
-          if (prev.some((l) => l.phygitalToken === tokenAddress)) return prev;
+          const list = prev ?? [];
+          if (list.some((l) => l.phygitalToken === tokenAddress)) return list;
           return [
-            ...prev,
+            ...list,
             {
               phygitalToken: tokenAddress,
               label: null,
@@ -467,10 +472,10 @@ function HomeLinksScreen() {
       queryClient.setQueryData(
         queryKeys.deviceAuth.links(),
         (prev: DeviceLink[] | undefined) => {
-          if (!prev) return prev;
-          if (prev.some((l) => l.phygitalToken === pda)) return prev;
+          const list = prev ?? [];
+          if (list.some((l) => l.phygitalToken === pda)) return list;
           return [
-            ...prev,
+            ...list,
             {
               phygitalToken: pda,
               label: null,
@@ -562,6 +567,31 @@ function HomeLinksScreen() {
 
   if (links.isLoading) {
     return <LoadingStatus />;
+  }
+
+  if (links.isError) {
+    return (
+      <CeremonyShell>
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 px-4 py-16 text-center">
+          <div className="space-y-2">
+            <h1 className="text-large-title tracking-tight">
+              {copy.home.keysTitle}
+            </h1>
+            <p className="mx-auto max-w-sm text-sm leading-relaxed text-muted-foreground">
+              {toUserErrorMessage(links.error)}
+            </p>
+          </div>
+          <Button
+            type="button"
+            size="lg"
+            className="w-full max-w-sm rounded-full"
+            onClick={() => void links.refetch()}
+          >
+            {copy.common.tryAgain}
+          </Button>
+        </div>
+      </CeremonyShell>
+    );
   }
 
   const items = links.data ?? [];

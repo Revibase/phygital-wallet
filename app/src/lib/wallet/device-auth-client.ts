@@ -20,11 +20,6 @@ import { authenticateToken } from "@/lib/token/authenticate";
 import { clearClaimDismiss } from "@/lib/wallet/claim-setup-href";
 import { assertPolicyMutation } from "@/lib/wallet/policies-client";
 
-export type DeviceSessionInfo = {
-  credentialId: string;
-  expiresAt: number;
-};
-
 export type LinkStatus = "unlinked" | "linked_here" | "linked_elsewhere";
 
 export type DeviceLink = {
@@ -33,6 +28,12 @@ export type DeviceLink = {
   imageUrl: string | null;
   mint: string | null;
   linkedAt: number;
+};
+
+export type DeviceSessionInfo = {
+  credentialId: string;
+  expiresAt: number;
+  links?: DeviceLink[];
 };
 
 export type TokenGate = {
@@ -124,11 +125,15 @@ export async function registerDevice(): Promise<DeviceSessionInfo> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ userHandle, credential }),
   });
-  const body = await readJson<{ expiresAt: number; credentialId: string }>(
+  const body = await readJson<{ expiresAt: number; credentialId: string; links?: DeviceLink[] }>(
     res,
     "Couldn’t register this phone",
   );
-  return { credentialId: body.credentialId, expiresAt: body.expiresAt };
+  return {
+    credentialId: body.credentialId,
+    expiresAt: body.expiresAt,
+    links: body.links,
+  };
 }
 
 async function assertPlatformPasskey(cancelMessage: string): Promise<{
@@ -161,11 +166,15 @@ export async function loginDevice(): Promise<DeviceSessionInfo> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ challengeId, credential }),
   });
-  const body = await readJson<{ expiresAt: number; credentialId: string }>(
+  const body = await readJson<{ expiresAt: number; credentialId: string; links?: DeviceLink[] }>(
     res,
     "Couldn’t sign in",
   );
-  return { credentialId: body.credentialId, expiresAt: body.expiresAt };
+  return {
+    credentialId: body.credentialId,
+    expiresAt: body.expiresAt,
+    links: body.links,
+  };
 }
 
 export async function fetchDeviceLinks(): Promise<DeviceLink[]> {

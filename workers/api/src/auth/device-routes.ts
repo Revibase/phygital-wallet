@@ -16,12 +16,12 @@ import { isoBase64URL } from "@simplewebauthn/server/helpers";
 const textEncoder = new TextEncoder();
 
 import {
-  deleteLink,
+  deleteLinkForToken,
   getCredentialById,
   insertCredential,
-  insertLink,
   listLinksForCredential,
   updateCredentialCounter,
+  upsertLink,
 } from "@/auth/device-db";
 import {
   ensureDeviceAccessSession,
@@ -194,10 +194,18 @@ deviceAuthRoutes.post("/auth/device", async (c) => {
     await insertCredential({ credentialId, publicKey, userHandle });
 
     const issued = await issueDeviceSessionCookies(c, credentialId);
+    const links = await listLinksForCredential(credentialId);
     return json({
       enrolled: true,
       expiresAt: issued.expiresAt,
       credentialId: issued.credentialId,
+      links: links.map((l) => ({
+        phygitalToken: l.phygitalToken,
+        label: l.label,
+        imageUrl: l.imageUrl,
+        mint: l.mint,
+        linkedAt: l.linkedAt,
+      })),
     });
   } catch (err) {
     return json(
@@ -314,9 +322,17 @@ deviceAuthRoutes.post("/auth/device-session", async (c) => {
     );
 
     const issued = await issueDeviceSessionCookies(c, device.credentialId);
+    const links = await listLinksForCredential(device.credentialId);
     return json({
       expiresAt: issued.expiresAt,
       credentialId: issued.credentialId,
+      links: links.map((l) => ({
+        phygitalToken: l.phygitalToken,
+        label: l.label,
+        imageUrl: l.imageUrl,
+        mint: l.mint,
+        linkedAt: l.linkedAt,
+      })),
     });
   } catch (err) {
     return json(
@@ -512,17 +528,13 @@ deviceAuthRoutes.post("/auth/device/links", async (c) => {
     return json({ error: added.error, code: added.code }, { status: statusCode });
   }
 
-  try {
-    await insertLink({
-      credentialId: session.credentialId,
-      phygitalToken,
-      label: body.label ?? null,
-      imageUrl: body.imageUrl ?? null,
-      mint: body.mint ?? null,
-    });
-  } catch {
-    /* listing index may already exist; DO is source of truth */
-  }
+  await upsertLink({
+    credentialId: session.credentialId,
+    phygitalToken,
+    label: body.label ?? null,
+    imageUrl: body.imageUrl ?? null,
+    mint: body.mint ?? null,
+  });
 
   return json({ status: "linked_here", phygitalToken });
 });
@@ -592,7 +604,7 @@ deviceAuthRoutes.delete("/auth/device/links/:phygitalToken", async (c) => {
       );
     }
 
-    await deleteLink(session.credentialId, phygitalToken);
+    await deleteLinkForToken(phygitalToken);
     // Inbox cleared inside DO removeOwnerAndClear / clearOwnerAndPolicies.
     return json({ ok: true });
   } catch (err) {

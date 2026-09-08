@@ -109,7 +109,8 @@ export async function listLinksForCredential(
   }));
 }
 
-export async function insertLink(args: {
+/** Write / replace the Home listing row for this token (one owner per token). */
+export async function upsertLink(args: {
   credentialId: string;
   phygitalToken: string;
   label?: string | null;
@@ -121,7 +122,13 @@ export async function insertLink(args: {
     .prepare(
       `INSERT INTO device_token_links
          (credential_id, phygital_token, label, image_url, mint, linked_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(phygital_token) DO UPDATE SET
+         credential_id = excluded.credential_id,
+         label = COALESCE(excluded.label, device_token_links.label),
+         image_url = COALESCE(excluded.image_url, device_token_links.image_url),
+         mint = COALESCE(excluded.mint, device_token_links.mint),
+         linked_at = excluded.linked_at`,
     )
     .bind(
       args.credentialId,
@@ -142,16 +149,10 @@ export async function insertLink(args: {
   };
 }
 
-export async function deleteLink(
-  credentialId: string,
-  phygitalToken: string,
-): Promise<boolean> {
+export async function deleteLinkForToken(phygitalToken: string): Promise<boolean> {
   const result = await db()
-    .prepare(
-      `DELETE FROM device_token_links
-       WHERE credential_id = ? AND phygital_token = ?`,
-    )
-    .bind(credentialId, phygitalToken)
+    .prepare(`DELETE FROM device_token_links WHERE phygital_token = ?`)
+    .bind(phygitalToken)
     .run();
   return (result.meta.changes ?? 0) > 0;
 }
