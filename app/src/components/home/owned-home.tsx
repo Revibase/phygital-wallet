@@ -31,9 +31,10 @@ import {
   type TokenGate,
 } from "@/lib/wallet/device-auth-client";
 import { authenticateToken } from "@/lib/token/authenticate";
-import { parseClaimSetupIntent } from "@/lib/wallet/claim-setup-href";
+import { useWalletPda } from "@/hooks/wallet/use-wallet-pda";
 import { parseDeviceSignInIntent } from "@/lib/wallet/device-sign-in-href";
 import { tokenHref, walletHref } from "@/lib/wallet/token-routes";
+import { parseClaimSetupIntent } from "@/lib/wallet/claim-setup-href";
 
 /** Home: signed-out passkey door, or signed-in linked items (+ setup intent). */
 export function OwnedHome() {
@@ -685,36 +686,53 @@ function FormFactorSection({
 }) {
   return (
     <GroupedList label={label}>
-      {items.map((item) => {
-        const kind = item.mint ? copy.home.card : copy.home.accessory;
-        const name = item.label?.trim() || kind;
-        return (
-          <GroupedRow
-            key={item.phygitalToken}
-            onClick={() => onOpen(item.phygitalToken)}
-            leading={
-              item.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={item.imageUrl}
-                  alt=""
-                  className="size-11 shrink-0 rounded-xl object-cover"
-                />
-              ) : (
-                <span
-                  className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-muted/40 text-xs font-medium text-muted-foreground"
-                  aria-hidden
-                >
-                  {(name.trim().charAt(0) || "?").toUpperCase()}
-                </span>
-              )
-            }
-            subtitle={shortAddress(item.phygitalToken, 4)}
-          >
-            {name}
-          </GroupedRow>
-        );
-      })}
+      {items.map((item) => (
+        <HomeLinkRow
+          key={item.phygitalToken}
+          item={item}
+          onOpen={onOpen}
+        />
+      ))}
     </GroupedList>
+  );
+}
+
+function HomeLinkRow({
+  item,
+  onOpen,
+}: {
+  item: DeviceLink;
+  onOpen: (phygitalToken: string) => void;
+}) {
+  const kind = item.mint ? copy.home.card : copy.home.accessory;
+  const name = item.label?.trim() || kind;
+  const { walletAddress } = useWalletPda(item.phygitalToken);
+
+  return (
+    <GroupedRow
+      onClick={() => onOpen(item.phygitalToken)}
+      leading={
+        item.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={item.imageUrl}
+            alt=""
+            className="size-11 shrink-0 rounded-xl object-cover"
+          />
+        ) : (
+          <span
+            className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-muted/40 text-xs font-medium text-muted-foreground"
+            aria-hidden
+          >
+            {(name.trim().charAt(0) || "?").toUpperCase()}
+          </span>
+        )
+      }
+      subtitle={
+        walletAddress ? shortAddress(walletAddress, 4) : undefined
+      }
+    >
+      {name}
+    </GroupedRow>
   );
 }
