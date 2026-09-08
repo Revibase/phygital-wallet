@@ -2,10 +2,9 @@
  * Shared types for policies, parsers, and verify results.
  * Start here when learning the data model.
  *
- * Instruction input is the Kit type from `@solana/instructions` so txs from
- * `@solana/kit` / Codama clients pass through without reshaping.
+ * Instruction input uses Kit’s `Instruction` from `@solana/instructions`
+ * (import it from there or `@solana/kit` — this package does not re-export it).
  */
-export type { Instruction } from "@solana/instructions";
 import type { Instruction } from "@solana/instructions";
 
 /**

@@ -1,8 +1,8 @@
+import type { Instruction } from "@solana/kit";
 import {
   RECIPIENT_ACCOUNT_FIELDS,
   STANDARD_PARSERS,
   createVerifier,
-  type Instruction,
   type PolicyDocument,
   type VerifyFail,
   type VerifyFailDetails,

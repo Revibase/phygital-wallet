@@ -24,10 +24,11 @@ Generated custom parsers import `phygital-verifier-sdk/codec-readers` (`@solana/
 
 ## Instruction input
 
-Uses Kit’s `Instruction` from `@solana/instructions` (`programAddress: Address`, optional `accounts` with `role`, optional `data`).
+Import Kit’s `Instruction` from `@solana/instructions` or `@solana/kit` (this SDK does not re-export it). Shape: `programAddress: Address`, optional `accounts` with `role`, optional `data`.
 
 ```ts
-{ programAddress: Address; accounts?: (AccountMeta | AccountLookupMeta)[]; data?: ReadonlyUint8Array }
+import type { Instruction } from "@solana/kit";
+// { programAddress: Address; accounts?: (AccountMeta | AccountLookupMeta)[]; data?: ReadonlyUint8Array }
 ```
 
 Strip Compute Budget before verify.

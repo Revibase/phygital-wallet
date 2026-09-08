@@ -1,5 +1,4 @@
-import { address, isSignerRole } from "@solana/kit";
-import type { Instruction } from "phygital-verifier-sdk";
+import { address, isSignerRole, type Instruction } from "@solana/kit";
 import { findWalletPda } from "phygital-wallet-sdk";
 
 /**

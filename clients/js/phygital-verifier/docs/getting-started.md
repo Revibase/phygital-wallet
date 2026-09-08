@@ -35,7 +35,7 @@ const result = verify(policy, [
 ]);
 ```
 
-Instruction input is Kit’s `Instruction` from `@solana/instructions` (also re-exported by this SDK).
+Instruction input is Kit’s `Instruction` from `@solana/instructions` / `@solana/kit` (not re-exported by this SDK).
 
 ## Where things live in source
 

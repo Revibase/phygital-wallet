@@ -2,7 +2,7 @@
  * Resolve the per-token TokenSigner Durable Object stub.
  * Class is hosted on revibase-verifier-signer; api binds via script_name.
  */
-import type { Instruction } from "phygital-verifier-sdk";
+import type { Instruction } from "@solana/kit";
 import type { PolicyDocument } from "phygital-verifier-sdk";
 
 import type { MutationBinding } from "@/auth/mutation-binding";

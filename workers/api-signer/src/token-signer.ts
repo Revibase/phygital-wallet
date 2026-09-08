@@ -3,7 +3,7 @@
  * grants, fees, and owner membership. Hosted on revibase-verifier-signer.
  */
 import { DurableObject } from "cloudflare:workers";
-import type { Instruction } from "phygital-verifier-sdk";
+import type { Instruction } from "@solana/kit";
 import type { AuthenticationResponseJSON } from "@simplewebauthn/server";
 import type { PolicyDocument } from "phygital-verifier-sdk";
 

@@ -5,12 +5,12 @@
  * When layouts are present, builds a first-byte disc index for O(bucket)
  * identity before full tryDecode.
  */
+import type { Instruction } from "@solana/instructions";
 import type {
   FieldSchemaEntry,
   FieldValue,
   ParsedIx,
   ProgramParser,
-  Instruction,
 } from "../core/types.js";
 import type { InstructionLayout } from "../core/layout.js";
 import { discEq } from "./codec-readers.js";

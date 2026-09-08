@@ -6,7 +6,7 @@ import { readDeviceSession } from "@/auth/device-session";
 import { mintSignedSessionToken } from "@/auth/session-hmac";
 import { json } from "@/shared/http";
 import { createLogger } from "@/shared/log";
-import type { Instruction } from "phygital-verifier-sdk";
+import type { Instruction } from "@solana/kit";
 import { instructionFromJson } from "@/verifier/decode-tx";
 import { verifierJsonError } from "@/verifier/errors";
 import { tokenSigner } from "@/verifier/token-signer";

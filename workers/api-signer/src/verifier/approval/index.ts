@@ -1,7 +1,7 @@
 /**
  * Standing policies + one-time grants for TokenSigner DO SQLite.
  */
-import type { Instruction } from "phygital-verifier-sdk";
+import type { Instruction } from "@solana/kit";
 import { hashIntent } from "@/verifier/intent-hash";
 import { evaluatePolicy } from "@/verifier/approval/policy-engine";
 import { getTokenStore } from "@/shared/request-context";

@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { Address } from "@solana/kit";
-import {
-  defineStandardPolicy,
-  type Instruction,
-} from "phygital-verifier-sdk";
+import type { Address, Instruction } from "@solana/kit";
+import { defineStandardPolicy } from "phygital-verifier-sdk";
 import {
   PHYGITAL_WALLET_PROGRAM_ADDRESS,
 } from "phygital-wallet-sdk";

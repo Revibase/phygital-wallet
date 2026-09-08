@@ -4,10 +4,10 @@
  * `createVerifier({ parsers })` → `(policy, instructions) => VerifyResult`
  * Compiles each PolicyDocument internally (cached by object identity / JSON).
  */
+import type { Instruction } from "@solana/instructions";
 import type {
   PolicyDocument,
   ProgramParser,
-  Instruction,
   VerifyFail,
   VerifyFailDetails,
   VerifyResult,

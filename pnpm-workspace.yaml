@@ -2,3 +2,4 @@ packages:
   - "workers/*"
   - "app"
   - "clients/js/*"
+  - "examples/*"

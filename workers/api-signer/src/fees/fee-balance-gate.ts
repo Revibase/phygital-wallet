@@ -4,7 +4,7 @@ import {
   MIN_ATTEMPT_FEE_LAMPORTS,
 } from "@/fees/constants";
 import { SYSTEM_PROGRAM } from "@/verifier/constants";
-import type { Instruction } from "phygital-verifier-sdk";
+import type { Instruction } from "@solana/kit";
 
 /**
  * Top-up intents (SOL → accumulator + optional memo) must not require fee

@@ -3,11 +3,11 @@
  * Uncompilable `when` → invalid_policy (no legacy expr fallback).
  */
 import { address, getAddressEncoder, type Address } from "@solana/addresses";
+import type { Instruction } from "@solana/instructions";
 import type { InstructionLayout } from "./layout.js";
 import type {
   AggregateOp,
   ConditionOp,
-  Instruction,
   ParsedIx,
   PolicyCondition,
   PolicyDocument,

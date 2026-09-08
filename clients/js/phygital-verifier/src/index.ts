@@ -22,7 +22,6 @@ export type {
   FieldSchemaEntry,
   FieldType,
   FieldValue,
-  Instruction,
   InstructionAllow,
   InstructionDeny,
   ParsedIx,
