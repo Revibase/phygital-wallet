@@ -48,24 +48,24 @@ function pendingSql() {
       return { toArray: () => [] };
     }
 
-    if (q.startsWith("DELETE FROM pending_approvals")) {
+    if (
+      q.includes("UPDATE pending_approvals") &&
+      q.includes("SET resolved_at = ?") &&
+      q.includes("resolution = 'expired'")
+    ) {
+      const now = params[0] as number;
       const rows = tables.get("pending_approvals") ?? [];
-      if (q.includes("resolved_at IS NOT NULL AND resolved_at < ?")) {
-        const resolvedBefore = params[0] as number;
-        const now = params[1] as number;
-        tables.set(
-          "pending_approvals",
-          rows.filter((r) => {
-            if (r.resolved_at != null) {
-              return (r.resolved_at as number) >= resolvedBefore;
-            }
-            return (r.expires_at as number) >= now;
-          }),
-        );
-        return { toArray: () => [] };
+      for (const r of rows) {
+        if (r.resolved_at == null && (r.expires_at as number) < now) {
+          r.resolved_at = now;
+          r.resolution = "expired";
+        }
       }
-      tables.set("pending_approvals", []);
       return { toArray: () => [] };
+    }
+
+    if (q.startsWith("DELETE FROM pending_approvals")) {
+      throw new Error("pending approvals must not be deleted");
     }
 
     if (
@@ -127,9 +127,6 @@ function pendingSql() {
       if (row) {
         row.resolved_at = params[0];
         row.resolution = params[1];
-        row.code = "";
-        row.error = "";
-        row.details_json = null;
       }
       return { toArray: () => [] };
     }
@@ -287,5 +284,30 @@ describe("TokenStore pending approvals", () => {
       symbol: "USDC",
       destination: "Dest111",
     });
+  });
+
+  it("keeps resolved rows and details for audit", () => {
+    const sql = pendingSql();
+    initTokenSchema(sql);
+    const store = new TokenStore(sql, "Tok");
+    store.ensureToken("Tok");
+
+    store.upsertPendingApproval({
+      intentHash: "h1",
+      code: "over_limit",
+      error: "x",
+      details: { amountUi: "2", symbol: "SOL", destination: "Recv" },
+    });
+    expect(store.resolvePendingApproval("h1", "granted")).toBe(true);
+    expect(store.listOpenApprovals()).toHaveLength(0);
+    expect(store.getApprovalWatchStatus("h1")).toEqual({ status: "granted" });
+
+    // Upsert/GC must not delete the resolved audit row.
+    store.upsertPendingApproval({
+      intentHash: "h2",
+      code: "over_limit",
+      error: "y",
+    });
+    expect(store.getApprovalWatchStatus("h1")).toEqual({ status: "granted" });
   });
 });

@@ -38,10 +38,13 @@ const CHALLENGE_TTL_MS = 60_000; // short-lived mutation challenge
 /** Soft-deny inbox TTL (owner response window; before SlotHashes / NFC). */
 export const PENDING_APPROVAL_TTL_MS = 5 * 60 * 1000;
 const MAX_OPEN_PENDING = 5;
-/** Keep resolved rows only as long as a watch ticket can still exist. */
-const RETAIN_RESOLVED_MS = PENDING_APPROVAL_TTL_MS;
 
-export type ApprovalResolutionStatus = "granted" | "denied" | "cancelled";
+/** Terminal inbox states — rows are never deleted (audit trail). */
+export type ApprovalResolutionStatus =
+  | "granted"
+  | "denied"
+  | "cancelled"
+  | "expired";
 
 /** Open inbox row — only what the owner sheet needs. */
 export type PendingApproval = {
@@ -506,13 +509,13 @@ export class TokenStore {
 
   // --- soft-deny inbox (UX only; never authorizes spend) ---
 
-  /** Drop expired open rows + resolved rows past retain window. */
+  /** Close expired open rows in place — never DELETE (audit trail). */
   gcPendingApprovals(now = Date.now()): void {
     this.sql.exec(
-      `DELETE FROM pending_approvals
-       WHERE (resolved_at IS NOT NULL AND resolved_at < ?)
-          OR (resolved_at IS NULL AND expires_at < ?)`,
-      now - RETAIN_RESOLVED_MS,
+      `UPDATE pending_approvals
+       SET resolved_at = ?, resolution = 'expired'
+       WHERE resolved_at IS NULL AND expires_at < ?`,
+      now,
       now,
     );
   }
@@ -654,18 +657,23 @@ export class TokenStore {
       if (
         row.resolution === "granted" ||
         row.resolution === "denied" ||
-        row.resolution === "cancelled"
+        row.resolution === "cancelled" ||
+        row.resolution === "expired"
       ) {
         return { status: row.resolution };
       }
       return { status: "cancelled" };
     }
 
-    if (row.expires_at <= now) return { status: "expired" };
+    if (row.expires_at <= now) {
+      // Persist expiry for audit; open list already filters expires_at.
+      this.gcPendingApprovals(now);
+      return { status: "expired" };
+    }
     return { status: "pending", expiresAt: row.expires_at };
   }
 
-  /** Resolve and drop UX payload — watch catch-up only needs resolution. */
+  /** Resolve in place — keep code/error/details for audit. */
   #markResolved(
     id: string,
     resolution: ApprovalResolutionStatus,
@@ -673,8 +681,7 @@ export class TokenStore {
   ): void {
     this.sql.exec(
       `UPDATE pending_approvals
-       SET resolved_at = ?, resolution = ?,
-           code = '', error = '', details_json = NULL
+       SET resolved_at = ?, resolution = ?
        WHERE id = ? AND resolved_at IS NULL`,
       now,
       resolution,

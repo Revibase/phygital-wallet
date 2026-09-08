@@ -862,6 +862,9 @@ export function SendDialog({
               )}
               detailRows={policyApprovalDetailRows(softDeny.details, {
                 omitAmount: true,
+                omitDestination: true,
+                omitMint: Boolean(asset?.symbol || softDeny.details?.symbol),
+                omitTechnical: true,
               })}
               busy={busy}
               mode={role === "owner" ? "owner" : "visitor"}

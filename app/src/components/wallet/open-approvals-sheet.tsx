@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PolicyDeniedError } from "phygital-wallet-sdk";
@@ -9,8 +10,11 @@ import {
   Sheet,
   SheetContent,
 } from "@/components/ui/sheet";
+import { useMintMeta } from "@/hooks/wallet/use-activity-mint-meta";
 import { copy } from "@/lib/copy/phygital";
 import { queryKeys } from "@/lib/queries";
+import { getUsdcMint } from "@/lib/tokens/usdc-mint";
+import { NATIVE_SOL_MINT } from "@/lib/tokens/payment-token";
 import { toUserErrorMessage } from "@/lib/user-errors";
 import { handleOwnerAuthFailure } from "@/lib/wallet/device-sign-in-href";
 import {
@@ -21,6 +25,7 @@ import {
 import {
   policyAmountLabel,
   policyApprovalDetailRows,
+  policyRecipientLabel,
   policySoftDenyBody,
 } from "@/lib/wallet/policy-deny-copy";
 
@@ -42,6 +47,25 @@ function removeApproval(
   return (prev ?? []).filter((a) => a.intentHash !== intentHash);
 }
 
+function knownSymbolForMint(mint: string | null): string | null {
+  if (!mint) return null;
+  if (mint === NATIVE_SOL_MINT) return "SOL";
+  if (mint === String(getUsdcMint())) return "USDC";
+  return null;
+}
+
+function approvalSymbol(
+  details: Record<string, unknown> | null | undefined,
+  mintMeta: Record<string, { symbol: string }>,
+): string | null {
+  if (typeof details?.symbol === "string" && details.symbol.trim()) {
+    return details.symbol.trim();
+  }
+  const mint = typeof details?.mint === "string" ? details.mint : null;
+  if (!mint) return null;
+  return mintMeta[mint]?.symbol?.trim() || knownSymbolForMint(mint);
+}
+
 export function OpenApprovalsSheet({
   phygitalTokenPda,
   approvals,
@@ -56,6 +80,15 @@ export function OpenApprovalsSheet({
   const queryClient = useQueryClient();
   const approval = approvals[0] ?? null;
   const approvalsKey = queryKeys.walletApprovals.byToken(phygitalTokenPda);
+
+  const mint = useMemo(() => {
+    const raw = approval?.details?.mint;
+    return typeof raw === "string" ? raw : null;
+  }, [approval?.details?.mint]);
+
+  const mintMeta = useMintMeta(mint ? [mint] : []);
+  const symbol = approvalSymbol(approval?.details, mintMeta);
+  const recipientLabel = policyRecipientLabel(approval?.details);
 
   function dropFromCache(intentHash: string) {
     queryClient.setQueryData(approvalsKey, (prev: OpenApproval[] | undefined) =>
@@ -125,9 +158,15 @@ export function OpenApprovalsSheet({
           <ApprovalSheetBody
             title={copy.wallet.approveSendTitle}
             body={approvalBody(approval)}
-            amountLabel={policyAmountLabel(approval.details)}
+            amountLabel={policyAmountLabel(approval.details, symbol)}
+            recipientLabel={recipientLabel}
             detailRows={policyApprovalDetailRows(approval.details, {
               omitAmount: true,
+              omitDestination: Boolean(recipientLabel),
+              omitMint: Boolean(symbol),
+              omitTechnical: Boolean(
+                policyAmountLabel(approval.details, symbol) && recipientLabel,
+              ),
             })}
             busy={busy}
             mode="owner"

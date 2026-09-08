@@ -45,15 +45,16 @@ function metaFromPortfolio(
 }
 
 /**
- * Resolve activity mint symbol/name. SOL is local; portfolio cache seeds known
- * holdings; only uncached mints hit DAS (batched), written through to per-mint
- * keys so later pages don't re-fetch the whole set.
+ * Resolve mint symbol/name. SOL is local; portfolio cache seeds known holdings;
+ * only uncached mints hit DAS (batched), written through to per-mint keys.
  */
-export function useActivityMintMeta(
-  items: WalletActivityItem[],
-): Record<string, MintMeta> {
+export function useMintMeta(mints: string[]): Record<string, MintMeta> {
   const queryClient = useQueryClient();
-  const allMints = useMemo(() => collectActivityMints(items), [items]);
+  const allMints = useMemo(
+    () =>
+      [...new Set(mints.filter((m) => m && m !== NATIVE_SOL_MINT))].sort(),
+    [mints],
+  );
 
   const seeded = useMemo(() => {
     const map: Record<string, MintMeta> = {
@@ -107,4 +108,14 @@ export function useActivityMintMeta(
     }),
     [seeded, batch.data],
   );
+}
+
+/**
+ * Resolve activity mint symbol/name via {@link useMintMeta}.
+ */
+export function useActivityMintMeta(
+  items: WalletActivityItem[],
+): Record<string, MintMeta> {
+  const mints = useMemo(() => collectActivityMints(items), [items]);
+  return useMintMeta(mints);
 }

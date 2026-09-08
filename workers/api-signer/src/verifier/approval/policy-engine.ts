@@ -10,7 +10,7 @@ import {
 import {
   PHYGITAL_WALLET_PROGRAM_ADDRESS,
 } from "phygital-wallet-sdk";
-import { COMPUTE_BUDGET_PROGRAM } from "@/verifier/constants";
+import { COMPUTE_BUDGET_PROGRAM, SYSTEM_PROGRAM } from "@/verifier/constants";
 import { getUsdcMint } from "@/tokens/usdc-mint";
 import { PHYGITAL_TOKEN_PROGRAM_ADDRESS } from "phygital-token-sdk";
 
@@ -23,9 +23,29 @@ const HARD_DENIED_PROGRAMS = new Set<string>([
 
 const RECIPIENT_FIELDS = new Set<string>(RECIPIENT_ACCOUNT_FIELDS);
 
+/** Associated Token Account program — create / createIdempotent carry wallet owner. */
+const ATA_PROGRAM = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
+
+/** Known USDC mints (mainnet + common devnet) — avoid ALS for UX enrichment. */
+const USDC_MINTS = new Set([
+  "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+  "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDnm3",
+]);
+
+function isUsdcMint(mint: string | null | undefined): boolean {
+  if (!mint) return false;
+  if (USDC_MINTS.has(mint)) return true;
+  try {
+    return mint === String(getUsdcMint());
+  } catch {
+    return false;
+  }
+}
+
 type SoftDetails = VerifyFailDetails & {
   limitUi?: string;
   requestedUi?: string;
+  symbol?: string;
 };
 
 type PolicyVerdict =
@@ -46,12 +66,75 @@ function softDeny(
   return { ok: false, code, soft: true, error, details };
 }
 
+/**
+ * SPL transfer destination is often an ATA. Prefer the wallet owner from a
+ * sibling ATA create/createIdempotent that targets the same token account.
+ */
+function walletOwnerForAta(
+  instructions: readonly Instruction[],
+  ata: string,
+  mint?: string | null,
+): string | null {
+  for (const ix of instructions) {
+    if (String(ix.programAddress) !== ATA_PROGRAM) continue;
+    const accounts = ix.accounts ?? [];
+    const ataAccount = accounts[1]?.address;
+    const wallet = accounts[2]?.address;
+    const ixMint = accounts[3]?.address;
+    if (!ataAccount || !wallet) continue;
+    if (String(ataAccount) !== ata) continue;
+    if (mint && ixMint && String(ixMint) !== mint) continue;
+    return String(wallet);
+  }
+  return null;
+}
+
+/** Fill owner-facing destination + known symbols from the full instruction set. */
+export function enrichSoftDenyDetails(
+  details: SoftDetails,
+  instructions: readonly Instruction[],
+): SoftDetails {
+  const mint = typeof details.mint === "string" ? details.mint : null;
+  const instructionName =
+    typeof details.instructionName === "string"
+      ? details.instructionName
+      : null;
+  const programId =
+    typeof details.programId === "string" ? details.programId : null;
+
+  let destination =
+    typeof details.destination === "string" ? details.destination : undefined;
+  if (destination) {
+    const owner = walletOwnerForAta(instructions, destination, mint);
+    if (owner) destination = owner;
+  }
+
+  let symbol =
+    typeof details.symbol === "string" ? details.symbol : undefined;
+  if (!symbol) {
+    if (isUsdcMint(mint)) {
+      symbol = "USDC";
+    } else if (
+      instructionName === "transferSol" ||
+      (programId === String(SYSTEM_PROGRAM) && !mint)
+    ) {
+      symbol = "SOL";
+    }
+  }
+
+  return {
+    ...details,
+    ...(destination != null ? { destination } : {}),
+    ...(symbol != null ? { symbol } : {}),
+  };
+}
+
 function enrichSpendDetails(fail: VerifyFail): SoftDetails {
   const details = fail.details ?? {};
   const mint = typeof details.mint === "string" ? details.mint : null;
   const amount = typeof details.amount === "string" ? details.amount : null;
   const limitRaw = details.limit != null ? String(details.limit) : null;
-  const isUsdc = mint === String(getUsdcMint());
+  const isUsdc = isUsdcMint(mint);
   const decimals =
     typeof details.decimals === "number" ? details.decimals : undefined;
   const amountUi =
@@ -118,8 +201,7 @@ function mapVerifyFail(fail: VerifyFail): PolicyVerdict {
 
   if (
     instructionName === "transferChecked" &&
-    mint != null &&
-    mint !== String(getUsdcMint())
+    mint != null && !isUsdcMint(mint)
   ) {
     return softDeny(
       "approval_required",
@@ -209,6 +291,14 @@ export function evaluatePolicy(
   if (policy == null) return { ok: true };
 
   const result = verify(policy, body);
-  if (!result.ok) return mapVerifyFail(result);
-  return { ok: true };
+  if (result.ok) return { ok: true };
+
+  const verdict = mapVerifyFail(result);
+  if (!verdict.ok && verdict.soft) {
+    return {
+      ...verdict,
+      details: enrichSoftDenyDetails(verdict.details ?? {}, body),
+    };
+  }
+  return verdict;
 }

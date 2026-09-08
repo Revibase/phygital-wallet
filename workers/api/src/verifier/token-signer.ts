@@ -134,7 +134,7 @@ export type TokenSignerRpc = {
     intentHash: string;
   }): Promise<
     | { status: "pending"; expiresAt: number }
-    | { status: "granted" | "denied" | "cancelled" }
+    | { status: "granted" | "denied" | "cancelled" | "expired" }
     | { status: "expired" }
   >;
 };
