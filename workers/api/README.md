@@ -40,23 +40,42 @@ pnpm --filter api dev
 
 ## Routes
 
-| Method | Path | Notes |
-|--------|------|--------|
-| GET/POST | `/auth/device-session` | platform passkey login |
-| GET/POST | `/auth/device/links` | listing index; POST link → WebAuthn → DO `addOwner` |
-| GET/POST/DELETE | `/auth/browse-unlock` | httpOnly browse cookie (tap also sets via `/verify-tap`) |
-| POST | `/auth/device/links/:token/mutation-options` | claim WebAuthn challenge (`addOwner` binding) |
-| DELETE | `/auth/device/links/:token` | WebAuthn assertion → DO `removeOwnerAndClear` |
-| POST | `/preview` / `/sign` | TokenSigner DO |
-| POST | `/policies/:token/mutation-options` | owner WebAuthn challenge bound to write intent |
-| PUT/DELETE | `/policies/:token` | assertion required |
-| POST | `/policies/:token/grants` | assertion required |
-| GET | `/policies/:token/approvals` | inbox on TokenSigner DO |
-| POST | `/policies/:token/approvals/live-ticket` | owner short-lived WS ticket |
-| GET | `/approvals/live` | hibernatable owner/visitor WS |
-| GET | `/approvals/watch` | visitor one-shot status catch-up (DO) |
-| GET | `/tokens/fee-balance` | DO ledger |
-| POST | `/webhooks/helius` | → DO `applyFeeEvents` |
+Protected by default: valid `revibase_device_session` **or** `revibase_browse_unlock`
+cookie (browse-unlock must match the request token when one is present).
+
+| Method | Path | Access | Notes |
+|--------|------|--------|--------|
+| GET | `/health` | Public | Liveness |
+| POST | `/preview` / `/sign` | Public | Verifier (open CORS for 3p; app origins stay credentialed) |
+| GET | `/approvals/live` | Public† | Hibernatable WS — **ticket** required |
+| GET | `/approvals/watch` | Public† | Visitor catch-up — **watch ticket** required |
+| POST | `/policies/:token/approvals/cancel` | Public† | Visitor cancel — **watch ticket** + rate limit |
+| GET | `/auth/device/gate` | Public | Token landing (works with zero cookies) |
+| GET | `/auth/device/register-options` | Public | Start passkey registration |
+| POST | `/auth/device` | Public | Finish registration → device session |
+| GET | `/auth/device-session/options` | Public | Start passkey sign-in |
+| POST | `/auth/device-session` | Public | Finish sign-in → device session |
+| GET | `/verify-tap` | Public | NFC → may set browse-unlock |
+| POST | `/auth/browse-unlock` | Public | Accessory Hold → browse-unlock |
+| POST | `/webhooks/helius` | Public\* | Shared secret (`HELIUS_WEBHOOK_AUTH`) |
+| GET | `/auth/device-session` | Protected | Current device session |
+| GET | `/auth/device/links` | Protected | Listing index |
+| POST | `/auth/device/links` | Protected | Link → WebAuthn → DO `addOwner` |
+| POST | `/auth/device/links/:token/mutation-options` | Protected | Claim WebAuthn challenge |
+| DELETE | `/auth/device/links/:token` | Protected | WebAuthn → DO `removeOwnerAndClear` |
+| GET/PUT/DELETE | `/policies/:token` | Protected | Owner session (+ WebAuthn on writes) |
+| POST | `/policies/:token/mutation-options` | Protected | Owner WebAuthn challenge |
+| POST | `/policies/:token/grants` | Protected | Owner WebAuthn |
+| GET | `/policies/:token/approvals` | Protected | Soft-deny inbox |
+| POST | `/policies/:token/approvals/deny` | Protected | Owner deny |
+| POST | `/policies/:token/approvals/live-ticket` | Protected | Owner live WS ticket |
+| GET | `/tokens/fee-balance` | Protected‡ | Matching browse-unlock **or** owner device session |
+| GET | `/tokens/verified` | Protected | Verified catalog |
+| POST | `/tokens/rarity` | Protected | Rarity index |
+
+\*Webhook is on the cookie allowlist but still requires `HELIUS_WEBHOOK_AUTH`.  
+†Ticket-authenticated (no device/browse cookie). Third-party origins get open CORS; Revibase app origins stay credentialed so `/preview` can see the device cookie.  
+‡Not readable cross-token with a random device session — must own the token or hold browse-unlock for it.
 
 ## Fee balance
 

@@ -41,20 +41,6 @@ export type TokenGate = {
   claimed: boolean;
 };
 
-/** Whether the httpOnly browse-unlock cookie covers this token. */
-export async function fetchBrowseUnlock(
-  phygitalToken: string,
-): Promise<boolean> {
-  const res = await queryFetch(
-    `/auth/browse-unlock?phygitalToken=${encodeURIComponent(phygitalToken)}`,
-  );
-  const body = await readJson<{ unlocked: boolean }>(
-    res,
-    "Couldn’t check browse unlock",
-  );
-  return Boolean(body.unlocked);
-}
-
 /**
  * Session + browse unlock + link status + claimed in one request.
  * Prefer this on the token address gate over parallel auth GETs.
@@ -179,33 +165,6 @@ export async function fetchDeviceLinks(): Promise<DeviceLink[]> {
     "Couldn’t load linked accessories",
   );
   return body.links;
-}
-
-export async function fetchLinkStatus(
-  phygitalToken: string,
-): Promise<LinkStatus> {
-  const res = await queryFetch(
-    `/auth/device/links/status?phygitalToken=${encodeURIComponent(phygitalToken)}`,
-  );
-  const body = await readJson<{ status: LinkStatus }>(
-    res,
-    "Couldn’t check link status",
-  );
-  return body.status;
-}
-
-/** Public: whether any phone has claimed this token (no session). */
-export async function fetchTokenClaimed(
-  phygitalToken: string,
-): Promise<boolean> {
-  const res = await queryFetch(
-    `/auth/device/links/claimed?phygitalToken=${encodeURIComponent(phygitalToken)}`,
-  );
-  const body = await readJson<{ claimed: boolean }>(
-    res,
-    "Couldn’t check claim status",
-  );
-  return Boolean(body.claimed);
 }
 
 export async function linkToken(args: {

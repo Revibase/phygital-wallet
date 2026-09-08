@@ -30,7 +30,6 @@ import {
   setDeviceSessionCookie,
 } from "@/auth/device-session";
 import {
-  clearBrowseUnlockCookie,
   issueBrowseUnlockCookie,
   readBrowseUnlock,
 } from "@/auth/browse-unlock-session";
@@ -45,16 +44,6 @@ import { json } from "@/shared/http";
 import { tokenSigner } from "@/verifier/token-signer";
 
 export const deviceAuthRoutes = new Hono<{ Bindings: Env }>();
-
-async function doLinkStatus(
-  env: Env,
-  credentialId: string,
-  phygitalToken: string,
-): Promise<"unlinked" | "linked_here" | "linked_elsewhere"> {
-  const ownerId = await tokenSigner(env, phygitalToken).getOwnerCredentialId();
-  if (!ownerId) return "unlinked";
-  return ownerId === credentialId ? "linked_here" : "linked_elsewhere";
-}
 
 deviceAuthRoutes.get("/auth/device-session", async (c) => {
   const session = await readDeviceSession(c);
@@ -332,42 +321,6 @@ deviceAuthRoutes.get("/auth/device/links", async (c) => {
   });
 });
 
-deviceAuthRoutes.get("/auth/device/links/claimed", async (c) => {
-  const limited = await denyIfAuthRateLimited(c, "claimed");
-  if (limited) return limited;
-
-  const phygitalToken = c.req.query("phygitalToken")?.trim();
-  if (!phygitalToken) {
-    return json(
-      { error: "phygitalToken required", code: "invalid_transaction" },
-      { status: 400 },
-    );
-  }
-
-  const claimed = await tokenSigner(c.env, phygitalToken).hasOwner();
-  return json({ claimed, phygitalToken });
-});
-
-deviceAuthRoutes.get("/auth/device/links/status", async (c) => {
-  const session = await requireDeviceSession(c);
-  if (session instanceof Response) return session;
-
-  const phygitalToken = c.req.query("phygitalToken")?.trim();
-  if (!phygitalToken) {
-    return json(
-      { error: "phygitalToken required", code: "invalid_transaction" },
-      { status: 400 },
-    );
-  }
-
-  const status = await doLinkStatus(
-    c.env,
-    session.credentialId,
-    phygitalToken,
-  );
-  return json({ status, phygitalToken });
-});
-
 /**
  * Token home gate: session + browse unlock + link status + claimed
  * in one round-trip (one DO owner read).
@@ -628,22 +581,6 @@ deviceAuthRoutes.delete("/auth/device/links/:phygitalToken", async (c) => {
   }
 });
 
-/** Check httpOnly browse-unlock cookie for a token. */
-deviceAuthRoutes.get("/auth/browse-unlock", async (c) => {
-  const phygitalToken = c.req.query("phygitalToken")?.trim();
-  if (!phygitalToken) {
-    return json(
-      { error: "phygitalToken required", code: "invalid_transaction" },
-      { status: 400 },
-    );
-  }
-  const unlock = await readBrowseUnlock(c);
-  if (!unlock || unlock.phygitalToken !== phygitalToken) {
-    return json({ unlocked: false });
-  }
-  return json({ unlocked: true, expiresAt: unlock.exp });
-});
-
 /** Accessory Hold → mint browse-unlock cookie. */
 deviceAuthRoutes.post("/auth/browse-unlock", async (c) => {
   let body: {
@@ -699,9 +636,4 @@ deviceAuthRoutes.post("/auth/browse-unlock", async (c) => {
     phygitalToken: verified.phygitalToken,
     expiresAt,
   });
-});
-
-deviceAuthRoutes.delete("/auth/browse-unlock", async (c) => {
-  clearBrowseUnlockCookie(c);
-  return json({ ok: true });
 });

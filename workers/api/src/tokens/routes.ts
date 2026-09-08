@@ -1,5 +1,7 @@
 import { Hono } from "hono";
 
+import { readBrowseUnlock } from "@/auth/browse-unlock-session";
+import { readDeviceSession } from "@/auth/device-session";
 import { json } from "@/shared/http";
 import { tryParseAddress } from "@/shared/solana/address";
 import { getErrorMessage } from "@/shared/utils";
@@ -28,11 +30,27 @@ tokenRoutes.get("/tokens/fee-balance", async (c) => {
     );
   }
 
+  const token = String(phygitalToken);
+  const browse = await readBrowseUnlock(c);
+  const browseOk = browse?.phygitalToken === token;
+  if (!browseOk) {
+    const session = await readDeviceSession(c);
+    if (
+      !session ||
+      !(await tokenSigner(c.env, token).isOwner(session.credentialId))
+    ) {
+      return json(
+        {
+          error: "Sign in or unlock this item to continue.",
+          code: "session_required",
+        },
+        { status: 401 },
+      );
+    }
+  }
+
   try {
-    const { balanceLamports } = await tokenSigner(
-      c.env,
-      String(phygitalToken),
-    ).getFeeBalance();
+    const { balanceLamports } = await tokenSigner(c.env, token).getFeeBalance();
     return json({
       balanceLamports: String(balanceLamports),
       balanceUi: lamportsToSolUi(balanceLamports),

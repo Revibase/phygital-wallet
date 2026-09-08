@@ -13,7 +13,7 @@ import { QueryHttpError } from "@/lib/queries/http";
 import { toUserErrorMessage } from "@/lib/user-errors";
 import {
   fetchDeviceSession,
-  fetchLinkStatus,
+  fetchTokenGate,
   linkToken,
   loginDevice,
   registerDevice,
@@ -125,12 +125,24 @@ export function ClaimItemSheet({
       return sessionInfo;
     },
     onSuccess: async () => {
-      const status = await fetchLinkStatus(phygitalTokenPda);
+      const data = await fetchTokenGate(phygitalTokenPda);
+      queryClient.setQueryData(queryKeys.deviceAuth.session(), data.session);
       queryClient.setQueryData(
-        queryKeys.deviceAuth.linkStatus(phygitalTokenPda),
-        status,
+        queryKeys.deviceAuth.browseUnlock(phygitalTokenPda),
+        data.browseUnlocked,
       );
-      if (status === "linked_elsewhere") {
+      queryClient.setQueryData(queryKeys.deviceAuth.gate(phygitalTokenPda), data);
+      if (data.linkStatus) {
+        queryClient.setQueryData(
+          queryKeys.deviceAuth.linkStatus(phygitalTokenPda),
+          data.linkStatus,
+        );
+      }
+      queryClient.setQueryData(
+        queryKeys.deviceAuth.claimed(phygitalTokenPda),
+        data.claimed,
+      );
+      if (data.linkStatus === "linked_elsewhere") {
         exitLinkedElsewhere();
       }
     },

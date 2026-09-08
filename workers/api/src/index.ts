@@ -8,6 +8,7 @@ import { Hono } from "hono";
 
 import { deviceAuthRoutes } from "@/auth/device-routes";
 import { policyRoutes } from "@/auth/policies-routes";
+import { requireAppAccess } from "@/auth/require-app-access";
 import { appCors } from "@/shared/cors";
 import { createLogger } from "@/shared/log";
 import { runWithRequestStore } from "@/shared/request-context";
@@ -28,6 +29,13 @@ app.use("*", async (c, next) => {
     },
     () => next(),
   );
+});
+
+app.use("*", async (c, next) => {
+  if (c.req.method === "OPTIONS") return next();
+  const denied = await requireAppAccess(c);
+  if (denied) return denied;
+  return next();
 });
 
 app.use("*", async (c, next) => {

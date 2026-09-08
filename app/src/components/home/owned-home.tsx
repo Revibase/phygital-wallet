@@ -21,7 +21,7 @@ import { toUserErrorMessage } from "@/lib/user-errors";
 import {
   fetchDeviceLinks,
   fetchDeviceSession,
-  fetchLinkStatus,
+  fetchTokenGate,
   linkToken,
   loginDevice,
   registerDevice,
@@ -203,20 +203,36 @@ function HomeLinkSetup({
   const queryClient = useQueryClient();
   const [phase, setPhase] = useState<"hold" | "confirm">("hold");
 
-  const status = useQuery({
-    queryKey: queryKeys.deviceAuth.linkStatus(tokenAddress),
-    queryFn: () => fetchLinkStatus(tokenAddress),
+  const gate = useQuery({
+    queryKey: queryKeys.deviceAuth.gate(tokenAddress),
+    queryFn: async () => {
+      const data = await fetchTokenGate(tokenAddress);
+      queryClient.setQueryData(queryKeys.deviceAuth.session(), data.session);
+      queryClient.setQueryData(
+        queryKeys.deviceAuth.browseUnlock(tokenAddress),
+        data.browseUnlocked,
+      );
+      if (data.linkStatus) {
+        queryClient.setQueryData(
+          queryKeys.deviceAuth.linkStatus(tokenAddress),
+          data.linkStatus,
+        );
+      }
+      queryClient.setQueryData(
+        queryKeys.deviceAuth.claimed(tokenAddress),
+        data.claimed,
+      );
+      return data;
+    },
     ...queryOptions.deviceLinks,
   });
 
   useEffect(() => {
-    if (
-      status.data === "linked_here" ||
-      status.data === "linked_elsewhere"
-    ) {
+    const status = gate.data?.linkStatus;
+    if (status === "linked_here" || status === "linked_elsewhere") {
       router.replace(returnTo);
     }
-  }, [status.data, router, returnTo]);
+  }, [gate.data?.linkStatus, router, returnTo]);
 
   const hold = useMutation({
     mutationFn: async () => {
@@ -286,9 +302,9 @@ function HomeLinkSetup({
   });
 
   if (
-    status.isPending ||
-    status.data === "linked_here" ||
-    status.data === "linked_elsewhere"
+    gate.isPending ||
+    gate.data?.linkStatus === "linked_here" ||
+    gate.data?.linkStatus === "linked_elsewhere"
   ) {
     return <LoadingStatus />;
   }

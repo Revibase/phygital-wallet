@@ -270,6 +270,12 @@ policyRoutes.post("/policies/:phygitalToken/approvals/deny", async (c) => {
 
 /** Visitor withdraws a soft-deny (watch ticket must match intent). */
 policyRoutes.post("/policies/:phygitalToken/approvals/cancel", async (c) => {
+  const limited = await denyIfRateLimited(c, "approvals-cancel", {
+    maxHits: 60,
+    windowSeconds: 60,
+  });
+  if (limited) return limited;
+
   const phygitalToken = c.req.param("phygitalToken")?.trim();
   if (!phygitalToken) {
     return json(
