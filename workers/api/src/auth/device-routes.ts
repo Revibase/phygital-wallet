@@ -1,6 +1,6 @@
 /**
  * Device identity — platform passkey register / login + token links.
- * App session cookie is credential-scoped (not per-token).
+ * Access cookie is credential-scoped; refresh cookie reissues access.
  */
 import { Hono } from "hono";
 import {
@@ -24,10 +24,10 @@ import {
   updateCredentialCounter,
 } from "@/auth/device-db";
 import {
-  mintDeviceSessionToken,
-  readDeviceSession,
+  ensureDeviceAccessSession,
+  issueDeviceSessionCookies,
+  readDeviceRefresh,
   requireDeviceSession,
-  setDeviceSessionCookie,
 } from "@/auth/device-session";
 import {
   issueBrowseUnlockCookie,
@@ -46,7 +46,7 @@ import { tokenSigner } from "@/verifier/token-signer";
 export const deviceAuthRoutes = new Hono<{ Bindings: Env }>();
 
 deviceAuthRoutes.get("/auth/device-session", async (c) => {
-  const session = await readDeviceSession(c);
+  const session = await ensureDeviceAccessSession(c);
   if (!session) {
     return json(
       {
@@ -59,6 +59,29 @@ deviceAuthRoutes.get("/auth/device-session", async (c) => {
   return json({
     credentialId: session.credentialId,
     expiresAt: session.exp,
+  });
+});
+
+/** Reissue access (+ rotate refresh) from the refresh cookie. */
+deviceAuthRoutes.post("/auth/device-session/refresh", async (c) => {
+  const limited = await denyIfAuthRateLimited(c, "login");
+  if (limited) return limited;
+
+  const refresh = await readDeviceRefresh(c);
+  if (!refresh) {
+    return json(
+      {
+        error: "Sign in with this phone to continue.",
+        code: "device_session_required",
+      },
+      { status: 401 },
+    );
+  }
+
+  const issued = await issueDeviceSessionCookies(c, refresh.credentialId);
+  return json({
+    credentialId: issued.credentialId,
+    expiresAt: issued.expiresAt,
   });
 });
 
@@ -170,10 +193,12 @@ deviceAuthRoutes.post("/auth/device", async (c) => {
 
     await insertCredential({ credentialId, publicKey, userHandle });
 
-    const { token, expiresAt } = await mintDeviceSessionToken({ credentialId });
-    setDeviceSessionCookie(c, token, expiresAt);
-
-    return json({ enrolled: true, expiresAt, credentialId });
+    const issued = await issueDeviceSessionCookies(c, credentialId);
+    return json({
+      enrolled: true,
+      expiresAt: issued.expiresAt,
+      credentialId: issued.credentialId,
+    });
   } catch (err) {
     return json(
       {
@@ -288,12 +313,11 @@ deviceAuthRoutes.post("/auth/device-session", async (c) => {
       verification.authenticationInfo.newCounter,
     );
 
-    const { token, expiresAt } = await mintDeviceSessionToken({
-      credentialId: device.credentialId,
+    const issued = await issueDeviceSessionCookies(c, device.credentialId);
+    return json({
+      expiresAt: issued.expiresAt,
+      credentialId: issued.credentialId,
     });
-    setDeviceSessionCookie(c, token, expiresAt);
-
-    return json({ expiresAt, credentialId: device.credentialId });
   } catch (err) {
     return json(
       {
@@ -334,7 +358,8 @@ deviceAuthRoutes.get("/auth/device/gate", async (c) => {
     );
   }
 
-  const session = await readDeviceSession(c);
+  // Refresh access from the refresh cookie when the short-lived access expired.
+  const session = await ensureDeviceAccessSession(c);
   const browse = await readBrowseUnlock(c);
   const browseUnlocked = Boolean(
     browse && browse.phygitalToken === phygitalToken,

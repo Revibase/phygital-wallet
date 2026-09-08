@@ -40,8 +40,10 @@ pnpm --filter api dev
 
 ## Routes
 
-Protected by default: valid `revibase_device_session` **or** `revibase_browse_unlock`
-cookie (browse-unlock must match the request token when one is present).
+Protected by default: valid `revibase_device_session` **access** cookie **or**
+`revibase_browse_unlock` cookie (browse-unlock must match the request token when
+one is present). Login also sets `revibase_device_refresh` (~30d); use
+`POST /auth/device-session/refresh` to mint a new access cookie without WebAuthn.
 
 | Method | Path | Access | Notes |
 |--------|------|--------|--------|
@@ -50,15 +52,16 @@ cookie (browse-unlock must match the request token when one is present).
 | GET | `/approvals/live` | Public† | Hibernatable WS — **ticket** required |
 | GET | `/approvals/watch` | Public† | Visitor catch-up — **watch ticket** required |
 | POST | `/policies/:token/approvals/cancel` | Public† | Visitor cancel — **watch ticket** + rate limit |
-| GET | `/auth/device/gate` | Public | Token landing (works with zero cookies) |
+| GET | `/auth/device/gate` | Public | Token landing (works with zero cookies; may refresh access) |
 | GET | `/auth/device/register-options` | Public | Start passkey registration |
-| POST | `/auth/device` | Public | Finish registration → device session |
+| POST | `/auth/device` | Public | Finish registration → access + refresh cookies |
 | GET | `/auth/device-session/options` | Public | Start passkey sign-in |
-| POST | `/auth/device-session` | Public | Finish sign-in → device session |
+| POST | `/auth/device-session` | Public | Finish sign-in → access + refresh cookies |
+| POST | `/auth/device-session/refresh` | Public | Refresh cookie → new access (+ rotate refresh) |
+| GET | `/auth/device-session` | Public | Current access session (silent refresh if needed) |
 | GET | `/verify-tap` | Public | NFC → may set browse-unlock |
 | POST | `/auth/browse-unlock` | Public | Accessory Hold → browse-unlock |
 | POST | `/webhooks/helius` | Public\* | Shared secret (`HELIUS_WEBHOOK_AUTH`) |
-| GET | `/auth/device-session` | Protected | Current device session |
 | GET | `/auth/device/links` | Protected | Listing index |
 | POST | `/auth/device/links` | Protected | Link → WebAuthn → DO `addOwner` |
 | POST | `/auth/device/links/:token/mutation-options` | Protected | Claim WebAuthn challenge |

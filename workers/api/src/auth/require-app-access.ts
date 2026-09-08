@@ -17,6 +17,8 @@ const PUBLIC_ROUTES: ReadonlyArray<{ method: string; path: string }> = [
   { method: "POST", path: "/auth/device" },
   { method: "GET", path: "/auth/device-session/options" },
   { method: "POST", path: "/auth/device-session" },
+  { method: "POST", path: "/auth/device-session/refresh" },
+  { method: "GET", path: "/auth/device-session" },
   { method: "GET", path: "/verify-tap" },
   { method: "POST", path: "/auth/browse-unlock" },
   { method: "POST", path: "/webhooks/helius" },

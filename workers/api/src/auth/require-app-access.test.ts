@@ -27,6 +27,8 @@ describe("isPublicApiPath", () => {
     expect(isPublicApiPath("POST", "/auth/device")).toBe(true);
     expect(isPublicApiPath("GET", "/auth/device-session/options")).toBe(true);
     expect(isPublicApiPath("POST", "/auth/device-session")).toBe(true);
+    expect(isPublicApiPath("POST", "/auth/device-session/refresh")).toBe(true);
+    expect(isPublicApiPath("GET", "/auth/device-session")).toBe(true);
     expect(isPublicApiPath("POST", "/webhooks/helius")).toBe(true);
     expect(isPublicApiPath("GET", "/approvals/live")).toBe(true);
     expect(isPublicApiPath("GET", "/approvals/watch")).toBe(true);

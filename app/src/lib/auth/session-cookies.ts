@@ -6,7 +6,10 @@
 import { base64UrlToBytes } from "@/lib/crypto/base64";
 
 export const DEVICE_SESSION_COOKIE = "revibase_device_session";
+export const DEVICE_REFRESH_COOKIE = "revibase_device_refresh";
 export const BROWSE_UNLOCK_COOKIE = "revibase_browse_unlock";
+
+const REFRESH_HEAD_PREFIX = "dref|";
 
 export type DeviceSession = {
   credentialId: string;
@@ -55,11 +58,12 @@ function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
   return diff === 0;
 }
 
+/** Parse `head|…|exp|jti` (head may contain `|`). */
 async function parseSignedPayload(
   token: string | undefined,
   secret: string,
   now: number,
-): Promise<{ parts: string[]; exp: number } | null> {
+): Promise<{ head: string; exp: number; jti: string } | null> {
   if (!token || !secret) return null;
   const [payloadB64, macB64] = token.split(".");
   if (!payloadB64 || !macB64) return null;
@@ -69,9 +73,12 @@ async function parseSignedPayload(
     const actualMac = base64UrlToBytes(macB64);
     if (!timingSafeEqual(expectedMac, actualMac)) return null;
     const parts = payload.split("|");
-    const exp = Number(parts[1]);
-    if (!Number.isFinite(exp) || exp <= now) return null;
-    return { parts, exp };
+    if (parts.length < 3) return null;
+    const jti = parts[parts.length - 1]!;
+    const exp = Number(parts[parts.length - 2]);
+    const head = parts.slice(0, -2).join("|");
+    if (!head || !jti || !Number.isFinite(exp) || exp <= now) return null;
+    return { head, exp, jti };
   } catch {
     return null;
   }
@@ -83,10 +90,28 @@ export async function verifyDeviceSessionCookie(
   now = Date.now(),
 ): Promise<DeviceSession | null> {
   const parsed = await parseSignedPayload(token, secret, now);
-  if (!parsed) return null;
-  const [credentialId, , jti] = parsed.parts;
-  if (!credentialId || !jti) return null;
-  return { credentialId, exp: parsed.exp, jti };
+  if (!parsed || parsed.head.startsWith(REFRESH_HEAD_PREFIX)) return null;
+  return {
+    credentialId: parsed.head,
+    exp: parsed.exp,
+    jti: parsed.jti,
+  };
+}
+
+export async function verifyDeviceRefreshCookie(
+  token: string | undefined,
+  secret: string,
+  now = Date.now(),
+): Promise<DeviceSession | null> {
+  const parsed = await parseSignedPayload(token, secret, now);
+  if (!parsed?.head.startsWith(REFRESH_HEAD_PREFIX)) return null;
+  const credentialId = parsed.head.slice(REFRESH_HEAD_PREFIX.length);
+  if (!credentialId) return null;
+  return {
+    credentialId,
+    exp: parsed.exp,
+    jti: parsed.jti,
+  };
 }
 
 export async function verifyBrowseUnlockCookie(
@@ -96,23 +121,35 @@ export async function verifyBrowseUnlockCookie(
 ): Promise<BrowseUnlock | null> {
   const parsed = await parseSignedPayload(token, secret, now);
   if (!parsed) return null;
-  const [phygitalToken, , jti] = parsed.parts;
-  if (!phygitalToken || !jti) return null;
-  return { phygitalToken, exp: parsed.exp, jti };
+  return {
+    phygitalToken: parsed.head,
+    exp: parsed.exp,
+    jti: parsed.jti,
+  };
 }
 
-/** True when a device session is present, or browse unlock matches this token. */
+/**
+ * True when a device access or refresh session is present, or browse unlock
+ * matches this token. Refresh alone is enough for Next page gating; API calls
+ * still need access (client refreshes first).
+ */
 export async function canAccessTokenWallet(args: {
   phygitalToken: string;
   deviceSessionCookie?: string;
+  deviceRefreshCookie?: string;
   browseUnlockCookie?: string;
   secret: string;
   now?: number;
 }): Promise<boolean> {
   const now = args.now ?? Date.now();
-  // Prefer device session — owners usually have it; avoids a second HMAC.
+  // Prefer device access — owners usually have it; avoids a second HMAC.
   if (
     await verifyDeviceSessionCookie(args.deviceSessionCookie, args.secret, now)
+  ) {
+    return true;
+  }
+  if (
+    await verifyDeviceRefreshCookie(args.deviceRefreshCookie, args.secret, now)
   ) {
     return true;
   }

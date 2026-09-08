@@ -1,5 +1,5 @@
 /**
- * Shared Set-Cookie attributes for device session + browse unlock.
+ * Shared Set-Cookie attributes for device access/refresh + browse unlock.
  * Production uses Domain=.revibase.com so the Next.js app middleware can
  * read the same httpOnly cookies the API sets.
  */

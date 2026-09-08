@@ -1,7 +1,8 @@
 /**
  * Platform-passkey device identity — register / login / links.
- * App session is credential-scoped. Browse unlock is an httpOnly cookie
- * from NFC tap / accessory Hold; claim/link uses platform WebAuthn only.
+ * App login uses an httpOnly access cookie (~15m) plus refresh (~30d).
+ * Browse unlock is a separate httpOnly cookie from NFC tap / accessory Hold;
+ * claim/link uses platform WebAuthn only.
  */
 import {
   startAuthentication as startPlatformAuthentication,
@@ -90,6 +91,15 @@ export async function fetchDeviceSession(): Promise<DeviceSessionInfo | null> {
   const res = await queryFetch("/auth/device-session");
   if (res.status === 401) return null;
   return readJson<DeviceSessionInfo>(res, "Couldn’t check sign-in");
+}
+
+/** Mint a new access cookie from the httpOnly refresh cookie. */
+export async function refreshDeviceSession(): Promise<DeviceSessionInfo | null> {
+  const res = await queryFetch("/auth/device-session/refresh", {
+    method: "POST",
+  });
+  if (res.status === 401) return null;
+  return readJson<DeviceSessionInfo>(res, "Couldn’t renew sign-in");
 }
 
 export async function registerDevice(): Promise<DeviceSessionInfo> {

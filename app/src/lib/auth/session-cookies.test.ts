@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   canAccessTokenWallet,
   verifyBrowseUnlockCookie,
+  verifyDeviceRefreshCookie,
   verifyDeviceSessionCookie,
 } from "./session-cookies";
 
@@ -44,6 +45,18 @@ describe("session-cookies", () => {
     });
   });
 
+  it("verifies device refresh", async () => {
+    const exp = Date.now() + 60_000;
+    const token = await sign(`dref|cred1|${exp}|jti-r`);
+    const session = await verifyDeviceRefreshCookie(token, SECRET);
+    expect(session).toEqual({
+      credentialId: "cred1",
+      exp,
+      jti: "jti-r",
+    });
+    expect(await verifyDeviceSessionCookie(token, SECRET)).toBeNull();
+  });
+
   it("rejects expired browse unlock", async () => {
     const exp = Date.now() - 1_000;
     const token = await sign(`TokenPda111|${exp}|jti-2`);
@@ -69,6 +82,18 @@ describe("session-cookies", () => {
       canAccessTokenWallet({
         phygitalToken: "TokenPda111",
         deviceSessionCookie: token,
+        secret: SECRET,
+      }),
+    ).resolves.toBe(true);
+  });
+
+  it("allows wallet when only refresh is valid", async () => {
+    const exp = Date.now() + 60_000;
+    const token = await sign(`dref|cred1|${exp}|jti-6`);
+    await expect(
+      canAccessTokenWallet({
+        phygitalToken: "TokenPda111",
+        deviceRefreshCookie: token,
         secret: SECRET,
       }),
     ).resolves.toBe(true);

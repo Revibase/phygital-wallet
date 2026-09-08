@@ -43,8 +43,8 @@ export const queryOptions = {
     refetchOnReconnect: true,
   },
   /**
-   * Device session cookie (~30m). Short stale window avoids remount churn
-   * while still refreshing on focus after expiry nearby.
+   * Device access cookie (~15m; refresh renews silently). Short stale window
+   * avoids remount churn while still refreshing on focus near expiry.
    */
   deviceSession: {
     staleTime: 60 * SECOND,
