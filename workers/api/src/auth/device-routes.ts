@@ -42,7 +42,6 @@ import {
   storeWebAuthnChallenge,
 } from "@/auth/webauthn-challenge";
 import { json } from "@/shared/http";
-import { clearPendingApprovalsForToken } from "@/auth/pending-approvals-db";
 import { tokenSigner } from "@/verifier/token-signer";
 
 export const deviceAuthRoutes = new Hono<{ Bindings: Env }>();
@@ -616,7 +615,7 @@ deviceAuthRoutes.delete("/auth/device/links/:phygitalToken", async (c) => {
     }
 
     await deleteLink(session.credentialId, phygitalToken);
-    await clearPendingApprovalsForToken(phygitalToken);
+    // Inbox cleared inside DO removeOwnerAndClear / clearOwnerAndPolicies.
     return json({ ok: true });
   } catch (err) {
     return json(

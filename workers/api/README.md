@@ -24,9 +24,9 @@ api-signer/         Private Worker: TokenSigner Durable Object (per token)
 | Fee balance / top-up / webhook | this README § Fee balance |
 | Session + Settings policies | [`src/auth/README.md`](./src/auth/README.md) |
 
-**Auditor tip:** Fee / policy evaluate / co-sign / owner membership live in the
-`TokenSigner` DO on `api-signer/`. This Worker is an untrusted edge: session UX,
-pending-approvals inbox, and WebAuthn before `addOwner`.
+**Auditor tip:** Fee / policy evaluate / co-sign / owner membership / soft-deny
+inbox live in the `TokenSigner` DO on `api-signer/`. This Worker is an untrusted
+edge: session UX, watch-ticket mint, and WebAuthn before `addOwner`.
 
 ## Setup
 
@@ -51,7 +51,10 @@ pnpm --filter api dev
 | POST | `/policies/:token/mutation-options` | owner WebAuthn challenge bound to write intent |
 | PUT/DELETE | `/policies/:token` | assertion required |
 | POST | `/policies/:token/grants` | assertion required |
-| GET | `/policies/:token/approvals` | inbox on API D1 |
+| GET | `/policies/:token/approvals` | inbox on TokenSigner DO |
+| POST | `/policies/:token/approvals/live-ticket` | owner short-lived WS ticket |
+| GET | `/approvals/live` | hibernatable owner/visitor WS |
+| GET | `/approvals/watch` | visitor one-shot status catch-up (DO) |
 | GET | `/tokens/fee-balance` | DO ledger |
 | POST | `/webhooks/helius` | → DO `applyFeeEvents` |
 
@@ -71,7 +74,7 @@ Per-token prepaid balance lives in the **TokenSigner DO** (not D1):
 | `TOKEN_SIGNER` | DO binding | `TokenSigner` on `revibase-verifier-signer` |
 | `VERIFIER_SECRET_KEYS` | **api-signer** | verifier seeds |
 | `POLICY_SESSION_SECRET` | api **and app** | device session + browse-unlock HMAC (app middleware verifies cookies) |
-| `phygital_token` | D1 | credentials, link index, pending approvals, rarity |
+| `phygital_token` | D1 | credentials, link index, rarity |
 
 ## Deploy
 

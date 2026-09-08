@@ -310,7 +310,7 @@ export const copy = {
     limitsTurnOff: "Turn off spend caps",
     limitsTurnedOff: "Spend caps off",
     policyRemoved: "Send protections off",
-    openApprovalContinue: "They can try the send again",
+    openApprovalContinue: "Approved — they can hold to finish",
     nearbyPolicyTitle: "Needs approval",
     nearbyPolicyBody:
       "Over their limits. Ask them to approve once on their linked phone, then try again.",
@@ -318,9 +318,14 @@ export const copy = {
       "They need more network fees. Ask them to top up, then try again.",
     nearbyPolicyGotIt: "Got it",
     visitorNeedsApprovalBody:
-      "Ask the owner to approve this send on their linked phone, then Hold again here to finish.",
+      "Ask the owner to approve this send on their linked phone. When they approve, you’ll hold your accessory to finish.",
     visitorNeedsApprovalHint:
       "Your amount and recipient stay filled in. Requests expire in about 5 minutes.",
+    visitorWaitingTitle: "Waiting for approval",
+    visitorWaitingStatus: "Waiting for the owner…",
+    visitorDeniedTitle: "Send not approved",
+    visitorDeniedBody: "The owner declined this send.",
+    openApprovalDenied: "Declined",
     signingBody:
       "Every transaction needs your accessory and a verifier that co-signs. Revibase is the default — it checks your limits before it signs.",
     signingCustomPolicyWarn:

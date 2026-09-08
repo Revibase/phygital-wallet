@@ -13,6 +13,6 @@
     },
     "baseUrl": "."
   },
-  "include": ["src/**/*.ts", "worker-env.d.ts"],
+  "include": ["src/**/*.ts", "worker-env.d.ts", "../shared/**/*.ts"],
   "exclude": ["node_modules"]
 }

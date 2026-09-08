@@ -13,7 +13,7 @@ import {
 import { getTransferCheckedInstruction as getTransferChecked2022 } from "@solana-program/token-2022";
 import {
   getPhygitalWalletSigner,
-  type PhygitalWalletSignerCallbacks,
+  type PhygitalWalletSignerConfig,
   type VerifierAccountSnapshot,
 } from "phygital-wallet-sdk";
 
@@ -42,8 +42,9 @@ export async function sendAssetFromWallet(args: {
   amountUi: string;
   asset: SendAssetFields;
   /** Ceremony UI hooks from `getPhygitalWalletSigner`. */
-  signer?: PhygitalWalletSignerCallbacks;
+  signer?: PhygitalWalletSignerConfig;
   resolvedVerifier?: VerifierAccountSnapshot;
+  abortSignal?: AbortSignal;
 }): Promise<{ signature: string; confirmed: Promise<void> }> {
   const rpc = getSolanaRpc();
   const tokenPda = address(String(args.phygitalTokenPda));
@@ -71,6 +72,7 @@ export async function sendAssetFromWallet(args: {
     instructions,
     feePayer: walletSigner,
     fetchBlockhash: false,
+    abortSignal: args.abortSignal,
   });
 }
 
@@ -81,7 +83,7 @@ export async function receiveAssetFromNearbyPayer(args: {
   recipientWallet: Address | string;
   amountUi: string;
   asset: SendAssetFields;
-  signer?: PhygitalWalletSignerCallbacks;
+  signer?: PhygitalWalletSignerConfig;
 }): Promise<{ signature: string; confirmed: Promise<void> }> {
   const payerToken = address(String(args.payerPhygitalTokenPda));
   const walletPda = await walletPdaForToken(payerToken);

@@ -5,9 +5,8 @@ import { copy } from "@/lib/copy/phygital";
 export type { PhygitalWalletSignPhase };
 
 /**
- * Phases after policy preview succeeds — safe to swap to the NFC ceremony UI.
- * `preparing` / `previewing` must keep the form mounted so soft denials can
- * render Approve-once without losing state on remount.
+ * Keep the form mounted through preview / remote-approval wait; ceremony
+ * phases may swap to the NFC hold UI.
  */
 export function isWalletSignCeremonyPhase(
   phase: PhygitalWalletSignPhase,
@@ -38,6 +37,12 @@ export function walletSignPhaseCopy(phase: PhygitalWalletSignPhase): {
       return {
         title: copy.wallet.signPreviewingTitle,
         body: copy.wallet.signPreviewingBody,
+        pulse: false,
+      };
+    case "awaitingRemoteApproval":
+      return {
+        title: copy.wallet.visitorWaitingTitle,
+        body: copy.wallet.visitorNeedsApprovalBody,
         pulse: false,
       };
     case "awaitingPasskey":

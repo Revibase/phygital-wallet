@@ -35,6 +35,51 @@ export type EffectivePolicy = {
 
 const CHALLENGE_TTL_MS = 60_000; // short-lived mutation challenge
 
+/** Soft-deny inbox TTL (owner response window; before SlotHashes / NFC). */
+export const PENDING_APPROVAL_TTL_MS = 5 * 60 * 1000;
+const MAX_OPEN_PENDING = 5;
+/** Keep resolved rows only as long as a watch ticket can still exist. */
+const RETAIN_RESOLVED_MS = PENDING_APPROVAL_TTL_MS;
+
+export type ApprovalResolutionStatus = "granted" | "denied" | "cancelled";
+
+/** Open inbox row — only what the owner sheet needs. */
+export type PendingApproval = {
+  intentHash: string;
+  code: string;
+  error: string;
+  details: Record<string, unknown> | null;
+};
+
+export type ApprovalWatchStatus =
+  | { status: "pending"; expiresAt: number }
+  | { status: ApprovalResolutionStatus }
+  | { status: "expired" };
+
+/** Fields the owner approval sheet reads — drop the rest before SQLite write. */
+const INBOX_DETAIL_KEYS = [
+  "amountUi",
+  "symbol",
+  "destination",
+  "requestedUi",
+  "amount",
+  "decimals",
+  "mint",
+  "instructionName",
+  "programId",
+  "limitUi",
+] as const;
+
+export function slimInboxDetails(
+  details?: Record<string, unknown>,
+): Record<string, unknown> | undefined {
+  if (!details) return undefined;
+  const out: Record<string, unknown> = {};
+  for (const key of INBOX_DETAIL_KEYS) {
+    if (details[key] !== undefined) out[key] = details[key];
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
 
 function stripToPolicyDocument(raw: unknown): PolicyDocument | null {
   if (!raw || typeof raw !== "object") return null;
@@ -112,6 +157,21 @@ export function initTokenSchema(sql: Sql): void {
       origin TEXT NOT NULL,
       expires_at INTEGER NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS pending_approvals (
+      id TEXT PRIMARY KEY NOT NULL,
+      intent_hash TEXT NOT NULL,
+      code TEXT NOT NULL,
+      error TEXT NOT NULL,
+      details_json TEXT,
+      expires_at INTEGER NOT NULL,
+      resolved_at INTEGER,
+      resolution TEXT,
+      created_at INTEGER NOT NULL
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS pending_approvals_intent_open
+      ON pending_approvals (intent_hash) WHERE resolved_at IS NULL;
+    CREATE INDEX IF NOT EXISTS pending_approvals_open_expires
+      ON pending_approvals (expires_at) WHERE resolved_at IS NULL;
   `);
 }
 
@@ -243,6 +303,7 @@ export class TokenStore {
     this.sql.exec(`DELETE FROM grants`);
     this.sql.exec(`DELETE FROM policy`);
     this.sql.exec(`DELETE FROM challenges`);
+    this.sql.exec(`DELETE FROM pending_approvals`);
     this.#policyCache = null;
   }
 
@@ -250,6 +311,7 @@ export class TokenStore {
   clearPolicyAndGrants(): void {
     this.sql.exec(`DELETE FROM grants`);
     this.sql.exec(`DELETE FROM policy`);
+    this.sql.exec(`DELETE FROM pending_approvals`);
     this.#policyCache = null;
   }
 
@@ -440,6 +502,184 @@ export class TokenStore {
       open.id,
     );
     return true;
+  }
+
+  // --- soft-deny inbox (UX only; never authorizes spend) ---
+
+  /** Drop expired open rows + resolved rows past retain window. */
+  gcPendingApprovals(now = Date.now()): void {
+    this.sql.exec(
+      `DELETE FROM pending_approvals
+       WHERE (resolved_at IS NOT NULL AND resolved_at < ?)
+          OR (resolved_at IS NULL AND expires_at < ?)`,
+      now - RETAIN_RESOLVED_MS,
+      now,
+    );
+  }
+
+  upsertPendingApproval(args: {
+    intentHash: string;
+    code: string;
+    error: string;
+    details?: Record<string, unknown>;
+  }): void {
+    const now = Date.now();
+    this.gcPendingApprovals(now);
+    const expiresAt = now + PENDING_APPROVAL_TTL_MS;
+    const slim = slimInboxDetails(args.details);
+    const detailsJson = slim != null ? JSON.stringify(slim) : null;
+    const intentHash = args.intentHash.trim();
+
+    const openRow = this.sql
+      .exec<{ id: string }>(
+        `SELECT id FROM pending_approvals
+         WHERE intent_hash = ? AND resolved_at IS NULL AND expires_at > ?
+         LIMIT 1`,
+        intentHash,
+        now,
+      )
+      .toArray()[0];
+    if (openRow) {
+      this.sql.exec(
+        `UPDATE pending_approvals
+         SET code = ?, error = ?, details_json = ?, expires_at = ?
+         WHERE id = ?`,
+        args.code,
+        args.error,
+        detailsJson,
+        expiresAt,
+        openRow.id,
+      );
+      return;
+    }
+
+    const open = this.sql
+      .exec<{ id: string }>(
+        `SELECT id FROM pending_approvals
+         WHERE resolved_at IS NULL AND expires_at > ?
+         ORDER BY created_at ASC`,
+        now,
+      )
+      .toArray();
+    const overflow = open.length - (MAX_OPEN_PENDING - 1);
+    if (overflow > 0) {
+      for (const row of open.slice(0, overflow)) {
+        this.#markResolved(row.id, "cancelled", now);
+      }
+    }
+
+    this.sql.exec(
+      `INSERT INTO pending_approvals
+         (id, intent_hash, code, error, details_json,
+          expires_at, resolved_at, resolution, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, ?)`,
+      crypto.randomUUID(),
+      intentHash,
+      args.code,
+      args.error,
+      detailsJson,
+      expiresAt,
+      now,
+    );
+  }
+
+  listOpenApprovals(now = Date.now()): PendingApproval[] {
+    const rows = this.sql
+      .exec<{
+        intent_hash: string;
+        code: string;
+        error: string;
+        details_json: string | null;
+      }>(
+        `SELECT intent_hash, code, error, details_json
+         FROM pending_approvals
+         WHERE resolved_at IS NULL AND expires_at > ?
+         ORDER BY created_at DESC
+         LIMIT ?`,
+        now,
+        MAX_OPEN_PENDING,
+      )
+      .toArray();
+
+    return rows.map((row) => ({
+      intentHash: row.intent_hash,
+      code: row.code,
+      error: row.error,
+      details: row.details_json
+        ? (JSON.parse(row.details_json) as Record<string, unknown>)
+        : null,
+    }));
+  }
+
+  resolvePendingApproval(
+    intentHash: string,
+    resolution: ApprovalResolutionStatus,
+    now = Date.now(),
+  ): boolean {
+    const open = this.sql
+      .exec<{ id: string }>(
+        `SELECT id FROM pending_approvals
+         WHERE intent_hash = ? AND resolved_at IS NULL
+         LIMIT 1`,
+        intentHash.trim(),
+      )
+      .toArray()[0];
+    if (!open) return false;
+    this.#markResolved(open.id, resolution, now);
+    return true;
+  }
+
+  getApprovalWatchStatus(
+    intentHash: string,
+    now = Date.now(),
+  ): ApprovalWatchStatus {
+    const row = this.sql
+      .exec<{
+        expires_at: number;
+        resolved_at: number | null;
+        resolution: string | null;
+      }>(
+        `SELECT expires_at, resolved_at, resolution
+         FROM pending_approvals
+         WHERE intent_hash = ?
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        intentHash.trim(),
+      )
+      .toArray()[0];
+
+    if (!row) return { status: "expired" };
+
+    if (row.resolved_at != null) {
+      if (
+        row.resolution === "granted" ||
+        row.resolution === "denied" ||
+        row.resolution === "cancelled"
+      ) {
+        return { status: row.resolution };
+      }
+      return { status: "cancelled" };
+    }
+
+    if (row.expires_at <= now) return { status: "expired" };
+    return { status: "pending", expiresAt: row.expires_at };
+  }
+
+  /** Resolve and drop UX payload — watch catch-up only needs resolution. */
+  #markResolved(
+    id: string,
+    resolution: ApprovalResolutionStatus,
+    now: number,
+  ): void {
+    this.sql.exec(
+      `UPDATE pending_approvals
+       SET resolved_at = ?, resolution = ?,
+           code = '', error = '', details_json = NULL
+       WHERE id = ? AND resolved_at IS NULL`,
+      now,
+      resolution,
+      id,
+    );
   }
 
   // --- fees ---

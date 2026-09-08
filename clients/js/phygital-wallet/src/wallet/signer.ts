@@ -9,7 +9,11 @@ import type {
 import { authenticatePasskeyForSecp256r1Verify } from "phygital-token-sdk";
 
 import { findWalletPda } from "../generated/pdas/wallet.js";
-import { previewWalletIntent } from "./preview.js";
+import {
+  isAwaitingRemoteApproval,
+  watchApprovalResolution,
+} from "./approval-watch.js";
+import { PolicyDeniedError, previewWalletIntent } from "./preview.js";
 import {
   resolveVerifier,
   type VerifierAccountSnapshot,
@@ -17,34 +21,54 @@ import {
 import { modifyAndWrapWalletTransaction } from "./wrap-transaction.js";
 
 /**
- * Stages of `modifyAndSignTransactions` — optional hold / progress UI via
+ * Stages of `modifyAndSignTransactions` for hold / progress UI via
  * {@link PhygitalWalletSignerCallbacks.onPhaseChange}.
  */
 export type PhygitalWalletSignPhase =
   | "preparing"
   | "previewing"
+  | "awaitingRemoteApproval"
   | "awaitingPasskey"
   | "building"
   | "coSigning"
   | "complete";
 
+export type PhygitalWalletSignPhaseContext = {
+  remoteApproval?: {
+    intentHash: string;
+    watchTicket: string;
+    code: string;
+    error: string;
+    details?: Record<string, unknown>;
+  };
+};
+
 export type PhygitalWalletSignerCallbacks = {
-  /** Optional ceremony / progress UI. */
-  onPhaseChange?: (phase: PhygitalWalletSignPhase) => void;
+  onPhaseChange?: (
+    phase: PhygitalWalletSignPhase,
+    context?: PhygitalWalletSignPhaseContext,
+  ) => void;
 };
 
 export type PhygitalWalletSignerConfig = PhygitalWalletSignerCallbacks & {
   fetch?: typeof fetch;
   /** Host-resolved verifier+config; skips getMultipleAccounts. */
   snapshot?: VerifierAccountSnapshot;
+  /**
+   * When soft deny includes a `watchTicket`, wait for owner grant/deny inside
+   * this `sign` (before SlotHashes / NFC). Default `false`: throw the soft
+   * {@link PolicyDeniedError} so the caller can retry the same instructions
+   * after the owner approves on their device. Set `true` only if you show
+   * waiting UI for `awaitingRemoteApproval`.
+   */
+  waitForRemoteApproval?: boolean;
 };
 
 /**
- * Kit modifying signer for a phygital wallet.
- *
- * Pass the token PDA (`verifyResponse().phygitalTokenPda` / NFC auth).
- * Use like any other Kit signer: build a message, then
- * `signTransactionMessageWithSigners`. Handle failures in `catch`.
+ * Kit modifying signer for a phygital wallet PDA.
+ * Soft deny with a `watchTicket` throws by default; set
+ * `waitForRemoteApproval: true` to park until the owner acts (and handle
+ * `awaitingRemoteApproval` in `onPhaseChange`).
  */
 export async function getPhygitalWalletSigner(
   rpc: Rpc<SolanaRpcApi>,
@@ -57,6 +81,7 @@ export async function getPhygitalWalletSigner(
   ]);
 
   const { verifier, endpoint, configPda, tokenVerifierPda } = resolved;
+  const waitForRemoteApproval = config?.waitForRemoteApproval === true;
 
   const executeAccounts = {
     config: configPda,
@@ -99,13 +124,51 @@ export async function getPhygitalWalletSigner(
         abortSignal: signConfig?.abortSignal,
         preview: async (bodyInstructions) => {
           config?.onPhaseChange?.("previewing");
-          await previewWalletIntent({
-            phygitalToken: phygitalTokenPda,
-            instructions: bodyInstructions,
-            endpoint,
-            fetch: config?.fetch,
-            abortSignal: signConfig?.abortSignal,
-          });
+          try {
+            await previewWalletIntent({
+              phygitalToken: phygitalTokenPda,
+              instructions: bodyInstructions,
+              endpoint,
+              fetch: config?.fetch,
+              abortSignal: signConfig?.abortSignal,
+            });
+          } catch (error) {
+            if (!waitForRemoteApproval || !isAwaitingRemoteApproval(error)) {
+              throw error;
+            }
+
+            config?.onPhaseChange?.("awaitingRemoteApproval", {
+              remoteApproval: {
+                intentHash: error.intentHash,
+                watchTicket: error.watchTicket,
+                code: error.code,
+                error: error.message,
+                details: error.details,
+              },
+            });
+
+            const resolution = await watchApprovalResolution({
+              phygitalToken: String(phygitalTokenPda),
+              intentHash: error.intentHash,
+              watchTicket: error.watchTicket,
+              endpoint,
+              fetch: config?.fetch,
+              abortSignal: signConfig?.abortSignal,
+            });
+
+            if (resolution.status === "denied") {
+              throw new PolicyDeniedError({
+                code: "approval_denied",
+                error: "The owner declined this send.",
+                soft: false,
+                intentHash: error.intentHash,
+                details: error.details,
+              });
+            }
+            if (resolution.status === "cancelled") {
+              throw new DOMException("Aborted", "AbortError");
+            }
+          }
         },
         authenticate: async (messageHash) => {
           config?.onPhaseChange?.("awaitingPasskey");

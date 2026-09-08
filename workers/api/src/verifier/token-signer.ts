@@ -111,6 +111,32 @@ export type TokenSignerRpc = {
         };
       }
   >;
+  recordSoftDeny(input: {
+    intentHash: string;
+    code: string;
+    error: string;
+    details?: Record<string, unknown>;
+    visitorCredentialId?: string | null;
+  }): Promise<{ recorded: boolean }>;
+  listOpenApprovals(): Promise<{
+    approvals: {
+      intentHash: string;
+      code: string;
+      error: string;
+      details: Record<string, unknown> | null;
+    }[];
+  }>;
+  resolvePendingApproval(input: {
+    intentHash: string;
+    resolution: "granted" | "denied" | "cancelled";
+  }): Promise<{ resolved: boolean }>;
+  getApprovalWatchStatus(input: {
+    intentHash: string;
+  }): Promise<
+    | { status: "pending"; expiresAt: number }
+    | { status: "granted" | "denied" | "cancelled" }
+    | { status: "expired" }
+  >;
 };
 
 export function tokenSigner(env: Env, phygitalToken: string): TokenSignerRpc {

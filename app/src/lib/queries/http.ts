@@ -1,4 +1,5 @@
 import { apiUrl } from "@/lib/api-base";
+import { parseRetryAfterMs } from "phygital-wallet-sdk";
 
 /**
  * Browser fetch for React Query (and other app API calls).
@@ -26,12 +27,20 @@ export function queryFetch(
 export class QueryHttpError extends Error {
   readonly status: number;
   readonly code: string | null;
+  /** Parsed from `Retry-After` (seconds or HTTP-date) when present. */
+  readonly retryAfterMs: number | null;
 
-  constructor(message: string, status: number, code?: string | null) {
+  constructor(
+    message: string,
+    status: number,
+    code?: string | null,
+    retryAfterMs?: number | null,
+  ) {
     super(message);
     this.name = "QueryHttpError";
     this.status = status;
     this.code = code ?? null;
+    this.retryAfterMs = retryAfterMs ?? null;
   }
 }
 
@@ -97,6 +106,7 @@ export async function readJson<T>(
       body.error ?? fallback,
       res.status,
       body.code ?? null,
+      parseRetryAfterMs(res),
     );
   }
   return body;

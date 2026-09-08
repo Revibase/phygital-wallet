@@ -108,8 +108,12 @@ export async function buildUnsignedTransaction(params: {
 /** Sign an unsigned message and broadcast. */
 export async function signAndSendTransaction(
   unsigned: UnsignedTransactionMessage,
+  config?: { abortSignal?: AbortSignal },
 ): Promise<SentTransaction> {
-  const signedTransaction = await signTransactionMessageWithSigners(unsigned);
+  const signedTransaction = await signTransactionMessageWithSigners(
+    unsigned,
+    config,
+  );
   assertIsTransactionWithBlockhashLifetime(signedTransaction);
 
   await sendWithoutConfirming()(signedTransaction, { commitment: "confirmed" });
@@ -129,7 +133,10 @@ export async function sendTransaction(params: {
   instructions: Instruction[];
   feePayer: TransactionSigner;
   fetchBlockhash?: boolean;
+  abortSignal?: AbortSignal;
 }): Promise<SentTransaction> {
   const unsigned = await buildUnsignedTransaction(params);
-  return signAndSendTransaction(unsigned);
+  return signAndSendTransaction(unsigned, {
+    abortSignal: params.abortSignal,
+  });
 }

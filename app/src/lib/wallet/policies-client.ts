@@ -10,14 +10,10 @@ import { queryFetch, readJson } from "@/lib/queries/http";
 import type { PolicyDocument } from "phygital-verifier-sdk";
 
 export type OpenApproval = {
-  id: string;
-  phygitalToken: string;
   intentHash: string;
   code: string;
   error: string;
   details: Record<string, unknown> | null;
-  expiresAt: number;
-  createdAt: number;
 };
 
 export type PolicyStatus = "none" | "ok" | "invalid";
@@ -131,6 +127,32 @@ export async function createOneTimeGrant(
     },
   );
   await readJson(res, "Couldn’t approve this send");
+}
+
+/** Owner declines a pending soft-deny (session + isOwner; no WebAuthn). */
+export async function denyOpenApproval(
+  phygitalToken: string,
+  intentHash: string,
+): Promise<void> {
+  const res = await queryFetch(
+    `/policies/${encodeURIComponent(phygitalToken)}/approvals/deny`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ intentHash }),
+    },
+  );
+  await readJson(res, "Couldn’t deny this send");
+}
+
+export async function fetchApprovalsLiveTicket(
+  phygitalToken: string,
+): Promise<{ ticket: string; expiresAt: number }> {
+  const res = await queryFetch(
+    `/policies/${encodeURIComponent(phygitalToken)}/approvals/live-ticket`,
+    { method: "POST" },
+  );
+  return readJson(res, "Couldn’t open approvals channel");
 }
 
 export async function fetchOpenApprovals(

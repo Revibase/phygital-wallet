@@ -661,7 +661,7 @@ describe("getPhygitalWalletSigner modifyAndSignTransactions", () => {
     ]);
   });
 
-  it("throws PolicyDeniedError on soft policy deny", async () => {
+  it("throws PolicyDeniedError on soft policy deny without watch ticket", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL) => {
@@ -704,5 +704,130 @@ describe("getPhygitalWalletSigner modifyAndSignTransactions", () => {
       code: "approval_required",
       intentHash: "intent-1",
     });
+  });
+
+  it("throws soft deny with watch ticket unless waitForRemoteApproval is set", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/preview")) {
+          return {
+            ok: true,
+            json: async () => ({
+              ok: false,
+              code: "approval_required",
+              error: "Needs approval",
+              soft: true,
+              intentHash: "intent-1",
+              watchTicket: "ticket-1",
+            }),
+          };
+        }
+        return {
+          ok: true,
+          json: async () => ({ signatures: [] }),
+        };
+      }),
+    );
+
+    const rpc = await createMockRpc({
+      config: defaultConfigArgs(CONFIG_VERIFIER),
+    });
+    const [walletPda] = await findWalletPda({ phygitalToken: PHYGITAL_TOKEN });
+    const signer = await getPhygitalWalletSigner(rpc as never, PHYGITAL_TOKEN);
+
+    const transfer = mockInstruction(SYSTEM_PROGRAM, [
+      { address: walletPda, role: AccountRole.WRITABLE_SIGNER },
+      { address: RECIPIENT, role: AccountRole.WRITABLE },
+    ]);
+
+    await expect(
+      signer.modifyAndSignTransactions([compileUnsigned([transfer])]),
+    ).rejects.toMatchObject({
+      name: "PolicyDeniedError",
+      soft: true,
+      watchTicket: "ticket-1",
+    });
+  });
+
+  it("waits for remote approval before NFC then continues the same sign", async () => {
+    const signatureBase64 = Buffer.alloc(64, 9).toString("base64");
+    let previewCalls = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/preview")) {
+          previewCalls += 1;
+          return {
+            ok: true,
+            json: async () => ({
+              ok: false,
+              code: "approval_required",
+              error: "Needs approval",
+              soft: true,
+              intentHash: "intent-1",
+              watchTicket: "ticket-1",
+            }),
+          };
+        }
+        return {
+          ok: true,
+          json: async () => ({ signatures: [signatureBase64] }),
+        };
+      }),
+    );
+
+    class FakeWebSocket {
+      onopen: ((ev: Event) => void) | null = null;
+      onmessage: ((ev: MessageEvent) => void) | null = null;
+      onclose: ((ev: CloseEvent) => void) | null = null;
+      onerror: ((ev: Event) => void) | null = null;
+      constructor(_url: string) {
+        queueMicrotask(() => {
+          this.onopen?.(new Event("open"));
+          this.onmessage?.(
+            new MessageEvent("message", {
+              data: JSON.stringify({
+                type: "approval_resolved",
+                intentHash: "intent-1",
+                status: "granted",
+              }),
+            }),
+          );
+        });
+      }
+      close() {}
+    }
+    vi.stubGlobal("WebSocket", FakeWebSocket);
+
+    const rpc = await createMockRpc({
+      config: defaultConfigArgs(CONFIG_VERIFIER),
+    });
+    const [walletPda] = await findWalletPda({ phygitalToken: PHYGITAL_TOKEN });
+    const phases: string[] = [];
+    const signer = await getPhygitalWalletSigner(rpc as never, PHYGITAL_TOKEN, {
+      waitForRemoteApproval: true,
+      onPhaseChange: (phase) => phases.push(phase),
+    });
+
+    const transfer = mockInstruction(SYSTEM_PROGRAM, [
+      { address: walletPda, role: AccountRole.WRITABLE_SIGNER },
+      { address: RECIPIENT, role: AccountRole.WRITABLE },
+    ]);
+
+    await signer.modifyAndSignTransactions([compileUnsigned([transfer])]);
+
+    expect(previewCalls).toBe(1);
+    expect(phases).toEqual([
+      "preparing",
+      "previewing",
+      "awaitingRemoteApproval",
+      "awaitingPasskey",
+      "building",
+      "coSigning",
+      "complete",
+    ]);
   });
 });

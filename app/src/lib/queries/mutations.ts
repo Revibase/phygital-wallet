@@ -1,11 +1,13 @@
 /**
- * Post-mutation cache updates for React Query.
+ * Post-mutation React Query cache updates.
  *
- * Prefer setQueryData when the client already knows the next value (policy
- * PUT, optimistic portfolio/activity/fee/settings patches). Prefer invalidate
- * for shapes that are hard to patch safely, or when refreshing after an error
- * gate (e.g. insufficient fee balance). For sends/receives/fee top-ups/config:
- * patch on RPC accept, restore on failed confirm — do not invalidate on land.
+ * On-chain sends/receives/fee top-ups/config txs: patch on RPC accept, restore
+ * if confirm fails (do not invalidate on land). Off-chain API mutations should
+ * only `setQueryData` / invalidate after the request succeeds — never invent
+ * pending rows before the server confirms.
+ *
+ * Prefer setQueryData when the client already knows the next value (e.g. policy
+ * PUT response). Prefer invalidate when the shape is hard to patch safely.
  */
 
 import type { QueryClient, QueryKey } from "@tanstack/react-query";

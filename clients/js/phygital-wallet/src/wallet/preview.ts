@@ -10,6 +10,7 @@ export class PolicyDeniedError extends Error {
   readonly soft: boolean;
   readonly intentHash?: string;
   readonly details?: Record<string, unknown>;
+  readonly watchTicket?: string;
 
   constructor(args: {
     code: string;
@@ -17,6 +18,7 @@ export class PolicyDeniedError extends Error {
     soft: boolean;
     intentHash?: string;
     details?: Record<string, unknown>;
+    watchTicket?: string;
   }) {
     super(args.error);
     this.name = "PolicyDeniedError";
@@ -24,6 +26,7 @@ export class PolicyDeniedError extends Error {
     this.soft = args.soft;
     this.intentHash = args.intentHash;
     this.details = args.details;
+    this.watchTicket = args.watchTicket;
   }
 }
 
@@ -63,6 +66,7 @@ export async function previewWalletIntent(args: {
     error?: string;
     soft?: boolean;
     details?: Record<string, unknown>;
+    watchTicket?: string;
   };
 
   if (body.ok === true) return;
@@ -73,5 +77,6 @@ export async function previewWalletIntent(args: {
     soft: Boolean(body.soft),
     intentHash: body.intentHash,
     details: body.details,
+    watchTicket: body.watchTicket,
   });
 }
