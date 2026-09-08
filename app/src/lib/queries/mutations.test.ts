@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { QueryClient } from "@tanstack/react-query";
-import type { PolicyDocument } from "phygital-verifier-sdk";
+import type { PaymentsPolicyConfig } from "phygital-policy";
 
 import { queryKeys } from "./index";
 import {
@@ -24,9 +24,8 @@ import type {
   WalletPortfolio,
 } from "@/lib/wallet/portfolio-types";
 
-const base: PolicyDocument = {
-  version: "2.0",
-  programs: [{ programId: "11111111111111111111111111111111", allowAll: true }],
+const base: PaymentsPolicyConfig = {
+  version: "3",
 };
 
 const portfolio: WalletPortfolio = {
@@ -62,19 +61,18 @@ describe("applyWalletPolicy", () => {
     const qc = new QueryClient();
     const key = queryKeys.walletPolicy.byToken("token");
     qc.setQueryData(key, { policy: base, status: "ok" as const });
-    const nextDoc: PolicyDocument = {
+    const nextDoc: PaymentsPolicyConfig = {
       ...base,
-      programs: [
-        ...base.programs,
-        { programId: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", allowAll: true },
-      ],
+      mintLimits: [{ mint: "UsdcMint", maxRaw: "50000000" }],
     };
     applyWalletPolicy(qc, "token", { policy: nextDoc, status: "ok" });
-    const next = qc.getQueryData<{ policy: PolicyDocument | null; status: string }>(
+    const next = qc.getQueryData<{ policy: PaymentsPolicyConfig | null; status: string }>(
       key,
     );
     expect(next?.status).toBe("ok");
-    expect(next?.policy?.programs).toHaveLength(2);
+    expect(next?.policy?.mintLimits).toEqual([
+      { mint: "UsdcMint", maxRaw: "50000000" },
+    ]);
   });
 
   it("caches none when limits are turned off", () => {

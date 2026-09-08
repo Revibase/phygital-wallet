@@ -3,9 +3,9 @@
  * One DO instance = one phygitalToken; tables omit the token column.
  */
 import {
-  validatePolicy,
-  type PolicyDocument,
-} from "phygital-verifier-sdk";
+  validatePaymentsPolicyConfig,
+  type PaymentsPolicyConfig,
+} from "phygital-policy";
 
 import { STARTER_FEE_BALANCE_LAMPORTS } from "@/fees/constants";
 import { bytesToBase64Url } from "@/shared/crypto/base64";
@@ -29,7 +29,7 @@ export type FeeEvent = {
 
 export type EffectivePolicy = {
   phygitalToken: string;
-  policy: PolicyDocument | null;
+  policy: PaymentsPolicyConfig | null;
   status: "none" | "ok" | "invalid";
 };
 
@@ -79,30 +79,11 @@ export function slimInboxDetails(
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
-function stripToPolicyDocument(raw: unknown): PolicyDocument | null {
-  if (!raw || typeof raw !== "object") return null;
-  const obj = raw as Record<string, unknown>;
-  if (!Array.isArray(obj.programs)) return null;
-
-  const transaction =
-    obj.transaction && typeof obj.transaction === "object"
-      ? (obj.transaction as PolicyDocument["transaction"])
-      : undefined;
-  const version = typeof obj.version === "string" ? obj.version : undefined;
-
-  return {
-    ...(version ? { version } : {}),
-    programs: obj.programs as PolicyDocument["programs"],
-    ...(transaction ? { transaction } : {}),
-  };
-}
-
-function parseStoredPolicy(policyJson: string): PolicyDocument | "invalid" {
+function parseStoredPolicy(policyJson: string): PaymentsPolicyConfig | "invalid" {
   try {
-    const cleaned = stripToPolicyDocument(JSON.parse(policyJson));
-    if (!cleaned) return "invalid";
-    const valid = validatePolicy(cleaned);
-    return valid.ok ? cleaned : "invalid";
+    const parsed = JSON.parse(policyJson) as unknown;
+    const valid = validatePaymentsPolicyConfig(parsed);
+    return valid.ok ? valid.config : "invalid";
   } catch {
     return "invalid";
   }
@@ -174,8 +155,8 @@ export function initTokenSchema(sql: Sql): void {
 }
 
 export class TokenStore {
-  /** undefined = not loaded; null/"invalid"/PolicyDocument = cached parse. */
-  #policyCache: PolicyDocument | null | "invalid" | undefined = undefined;
+  /** undefined = not loaded; null/"invalid"/PaymentsPolicyConfig = cached parse. */
+  #policyCache: PaymentsPolicyConfig | null | "invalid" | undefined = undefined;
 
   constructor(
     private readonly sql: Sql,
@@ -377,7 +358,7 @@ export class TokenStore {
 
   // --- policy ---
 
-  loadPolicyDocument(): PolicyDocument | null | "invalid" {
+  loadPolicyDocument(): PaymentsPolicyConfig | null | "invalid" {
     if (this.#policyCache !== undefined) return this.#policyCache;
     const row = this.sql
       .exec<{ policy_json: string }>(
@@ -426,23 +407,15 @@ export class TokenStore {
         error: string;
         details?: Record<string, unknown>;
       } {
-    const clean = stripToPolicyDocument(policy);
-    if (!clean) {
-      return {
-        ok: false,
-        code: "invalid_policy",
-        error: "policy.programs must be an array",
-      };
-    }
-    const valid = validatePolicy(clean);
+    const valid = validatePaymentsPolicyConfig(policy);
     if (!valid.ok) {
       return {
         ok: false,
         code: valid.code,
         error: valid.message,
-        details: valid.details,
       };
     }
+    const clean = valid.config;
     const now = Date.now();
     const json = JSON.stringify(clean);
     this.sql.exec(

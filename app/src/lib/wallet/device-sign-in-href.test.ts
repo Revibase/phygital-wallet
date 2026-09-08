@@ -94,7 +94,7 @@ describe("parseSafeTokenReturnPath", () => {
 
 describe("device sign-in intent", () => {
   it("home href only carries setup + return", () => {
-    const returnTo = walletSettingsHref(TOKEN, "recipients");
+    const returnTo = walletSettingsHref(TOKEN, "spendingLimits");
     const href = deviceSignInHomeHref({ token: TOKEN, returnTo });
     const u = new URL(href, "https://revibase.invalid");
     expect(u.searchParams.get("setup")).toBe("limits");

@@ -4,11 +4,14 @@
  *
  * `addOwner` is minted only via device claim routes (not `parseMutationBinding`).
  */
-import type { PolicyDocument } from "phygital-verifier-sdk";
+import {
+  validatePaymentsPolicyConfig,
+  type PaymentsPolicyConfig,
+} from "phygital-policy";
 
 export type MutationBinding =
   | { kind: "addOwner"; credentialId: string }
-  | { kind: "setPolicy"; policy: PolicyDocument }
+  | { kind: "setPolicy"; policy: PaymentsPolicyConfig }
   | { kind: "clearPolicy" }
   | { kind: "createGrant"; intentHash: string }
   | { kind: "removeOwner" }
@@ -22,8 +25,9 @@ export function parseMutationBinding(
   const raw = body as Record<string, unknown>;
   const kind = raw.kind;
   if (kind === "setPolicy") {
-    if (!raw.policy || typeof raw.policy !== "object") return null;
-    return { kind: "setPolicy", policy: raw.policy as PolicyDocument };
+    const valid = validatePaymentsPolicyConfig(raw.policy);
+    if (!valid.ok) return null;
+    return { kind: "setPolicy", policy: valid.config };
   }
   if (kind === "clearPolicy") return { kind: "clearPolicy" };
   if (kind === "createGrant") {

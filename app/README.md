@@ -22,5 +22,5 @@ pnpm --filter app dev
 
 Wallet routes under `/token/:address/wallet/**` are gated by `src/middleware.ts`
 (valid browse-unlock for that address, or a valid device-session cookie).
-Owner-only settings leaves (send protections, limits, recipients, exceptions,
+Owner-only settings leaves (send protections, limits, exceptions,
 signing, recovery) require a device-session cookie.

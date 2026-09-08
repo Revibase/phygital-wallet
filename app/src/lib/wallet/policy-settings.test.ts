@@ -1,12 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { address } from "@solana/kit";
-import { findAssociatedTokenPda } from "@solana-program/token";
-import { TOKEN_PROGRAM_ADDRESS } from "@solana-program/token";
+import { TOKEN_PROGRAM_ADDRESS } from "phygital-policy";
 
 import { getUsdcMint } from "@/lib/tokens/usdc-mint";
-import { CLASSIC_TOKEN_PROGRAM } from "@/lib/tokens/payment-token";
 import {
   compilePolicySettings,
+  defaultUsdcMintCap,
   derivePolicySettings,
   EMPTY_POLICY_SETTINGS,
   FIRST_ENABLE_POLICY_SETTINGS,
@@ -14,100 +12,81 @@ import {
   PROTECTIONS_ON_SETTINGS,
 } from "@/lib/wallet/policy-settings";
 
-const OWNER_A = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
-
 describe("policy-settings compile/derive", () => {
   it("FIRST_ENABLE matches SDK default raw caps", () => {
-    expect(FIRST_ENABLE_POLICY_SETTINGS.maxTransferUsdc).toBe("50");
+    expect(FIRST_ENABLE_POLICY_SETTINGS.mintLimits).toEqual([
+      defaultUsdcMintCap(),
+    ]);
     expect(FIRST_ENABLE_POLICY_SETTINGS.maxTransferSol).toBe("0.1");
     expect(hasStandingPolicyContent(EMPTY_POLICY_SETTINGS)).toBe(false);
     expect(hasStandingPolicyContent(PROTECTIONS_ON_SETTINGS)).toBe(true);
     expect(hasStandingPolicyContent(FIRST_ENABLE_POLICY_SETTINGS)).toBe(true);
   });
 
-  it("protections-on keeps built-in programs without inventing caps", async () => {
+  it("protections-on keeps knobs without inventing caps", async () => {
     const next = await compilePolicySettings(PROTECTIONS_ON_SETTINGS);
-    expect(next.transaction?.aggregates).toBeUndefined();
-    expect(
-      next.programs.some((p) => p.programId === String(CLASSIC_TOKEN_PROGRAM)),
-    ).toBe(true);
+    expect(next.version).toBe("3");
+    expect(next.mintLimits).toBeUndefined();
+    expect(next.maxSolLamports).toBeUndefined();
     const settings = await derivePolicySettings(next);
     expect(settings.programAllowlist).toBe(true);
-    expect(settings.includeStandardPrograms).toBe(true);
-    expect(settings.maxTransferUsdc).toBeNull();
+    expect(settings.mintLimits).toEqual([]);
     expect(settings.extraPrograms).toEqual([]);
   });
 
-  it("round-trips caps and keeps default programs", async () => {
+  it("round-trips multiple mint caps and SOL", async () => {
+    const other = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
     const next = await compilePolicySettings({
       ...EMPTY_POLICY_SETTINGS,
-      maxTransferUsdc: "25.00",
+      mintLimits: [
+        { mint: String(getUsdcMint()), maxUi: "25.00", decimals: 6, symbol: "USDC" },
+        { mint: other, maxUi: "10", decimals: 6, symbol: "OTHER" },
+      ],
       maxTransferSol: "0.0500",
       programAllowlist: true,
-      includeStandardPrograms: true,
     });
-    const settings = await derivePolicySettings(next);
-    expect(settings.maxTransferUsdc).toBe("25.00");
-    expect(settings.maxTransferSol).toBe("0.0500");
-    expect(settings.extraPrograms).toEqual([]);
-    expect(settings.includeStandardPrograms).toBe(true);
-  });
-
-  it("derives recipient allowlist (collapses ATAs)", async () => {
-    const next = await compilePolicySettings({
-      ...EMPTY_POLICY_SETTINGS,
-      maxTransferUsdc: "50.00",
-      maxTransferSol: "0.1000",
-      recipientMode: "allowlist",
-      recipientAllowlist: [OWNER_A],
-      programAllowlist: true,
-      includeStandardPrograms: true,
-    });
-    const settings = await derivePolicySettings(next);
-    expect(settings.recipientMode).toBe("allowlist");
-    expect(settings.recipientAllowlist).toEqual([OWNER_A]);
-
-    const [[ata]] = await Promise.all([
-      findAssociatedTokenPda({
-        mint: getUsdcMint(),
-        owner: address(OWNER_A),
-        tokenProgram: TOKEN_PROGRAM_ADDRESS,
-      }),
+    expect(next.mintLimits).toEqual([
+      { mint: String(getUsdcMint()), maxRaw: "25000000" },
+      { mint: other, maxRaw: "10000000" },
     ]);
-    const token = next.programs.find(
-      (p) => p.programId === String(CLASSIC_TOKEN_PROGRAM),
+    const settings = await derivePolicySettings(
+      next,
+      new Map([
+        [String(getUsdcMint()), { decimals: 6, symbol: "USDC" }],
+        [other, { decimals: 6, symbol: "OTHER" }],
+      ]),
     );
-    expect(JSON.stringify(token?.allows)).toContain(String(ata));
+    expect(settings.mintLimits).toEqual([
+      {
+        mint: String(getUsdcMint()),
+        maxUi: "25",
+        decimals: 6,
+        symbol: "USDC",
+      },
+      { mint: other, maxUi: "10", decimals: 6, symbol: "OTHER" },
+    ]);
+    expect(settings.maxTransferSol).toBe("0.05");
   });
 
-  it("compiles exceptions as allowAll without stripping defaults", async () => {
+  it("compiles exceptions without duplicating built-ins", async () => {
     const extra = "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4";
     const next = await compilePolicySettings({
       ...EMPTY_POLICY_SETTINGS,
       programAllowlist: true,
-      includeStandardPrograms: true,
-      extraPrograms: [extra, String(CLASSIC_TOKEN_PROGRAM)],
+      extraPrograms: [extra, String(TOKEN_PROGRAM_ADDRESS)],
     });
-    expect(next.programs.find((p) => p.programId === extra)).toEqual({
-      programId: extra,
-      allowAll: true,
-    });
+    expect(next.extraPrograms).toEqual([extra]);
     const settings = await derivePolicySettings(next);
     expect(settings.extraPrograms).toEqual([extra]);
-    expect(settings.includeStandardPrograms).toBe(true);
   });
 
-  it("recipients-only compile has no spend aggregates", async () => {
+  it("protections-only compile has no spend caps", async () => {
     const next = await compilePolicySettings({
       ...EMPTY_POLICY_SETTINGS,
-      recipientMode: "allowlist",
-      recipientAllowlist: [OWNER_A],
       programAllowlist: true,
-      includeStandardPrograms: true,
     });
-    expect(next.transaction?.aggregates).toBeUndefined();
+    expect(next).toEqual({ version: "3" });
     const settings = await derivePolicySettings(next);
-    expect(settings.maxTransferUsdc).toBeNull();
-    expect(settings.recipientMode).toBe("allowlist");
+    expect(settings.mintLimits).toEqual([]);
   });
 });

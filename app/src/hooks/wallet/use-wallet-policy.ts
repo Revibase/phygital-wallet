@@ -3,16 +3,15 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import type { PolicyDocument } from "phygital-verifier-sdk";
+import type { PaymentsPolicyConfig } from "phygital-policy";
 
 import { copy } from "@/lib/copy/phygital";
 import { applyWalletPolicy, queryKeys, queryOptions } from "@/lib/queries";
 import { toUserErrorMessage } from "@/lib/user-errors";
-import { useWalletPda } from "@/hooks/wallet/use-wallet-pda";
 import {
-  deletePolicyDocument,
+  deletePaymentsPolicyConfig,
   fetchEffectivePolicy,
-  putPolicyDocument,
+  putPaymentsPolicyConfig,
   type EffectivePolicy,
   type PolicyStatus,
 } from "@/lib/wallet/policies-client";
@@ -40,8 +39,8 @@ export function useWalletPolicy(phygitalToken: string | null) {
 export function useSaveWalletPolicy(phygitalToken: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (policy: PolicyDocument) =>
-      putPolicyDocument(phygitalToken, policy),
+    mutationFn: (policy: PaymentsPolicyConfig) =>
+      putPaymentsPolicyConfig(phygitalToken, policy),
     onSuccess: (effective) => {
       applyWalletPolicy(queryClient, phygitalToken, effective);
     },
@@ -51,13 +50,12 @@ export function useSaveWalletPolicy(phygitalToken: string) {
 /** Shared load / derive / save for Settings policy sheets. */
 export function usePolicyEditor(phygitalToken: string) {
   const policy = useWalletPolicy(phygitalToken);
-  const walletPda = useWalletPda(phygitalToken);
   const savePolicy = useSaveWalletPolicy(phygitalToken);
   const queryClient = useQueryClient();
   const [settings, setSettings] = useState<PolicySettings | null>(null);
 
   const turnOffPolicy = useMutation({
-    mutationFn: () => deletePolicyDocument(phygitalToken),
+    mutationFn: () => deletePaymentsPolicyConfig(phygitalToken),
     onSuccess: (effective) => {
       applyWalletPolicy(queryClient, phygitalToken, effective);
       toast.success(copy.wallet.policyRemoved);
@@ -93,35 +91,27 @@ export function usePolicyEditor(phygitalToken: string) {
   async function save(patch: Partial<PolicySettings>, onBack: () => void) {
     if (!settings || busy) return;
     try {
-      const nextCapsUsdc =
-        patch.maxTransferUsdc !== undefined
-          ? patch.maxTransferUsdc
-          : settings.maxTransferUsdc;
+      const nextMintLimits =
+        patch.mintLimits !== undefined ? patch.mintLimits : settings.mintLimits;
       const nextCapsSol =
         patch.maxTransferSol !== undefined
           ? patch.maxTransferSol
           : settings.maxTransferSol;
-      const nextRecipients =
-        patch.recipientMode ?? settings.recipientMode;
       const nextExtras = patch.extraPrograms ?? settings.extraPrograms;
       const merged: PolicySettings = {
         ...settings,
         ...patch,
-        maxTransferUsdc: nextCapsUsdc,
+        mintLimits: nextMintLimits,
         maxTransferSol: nextCapsSol,
-        recipientAllowlist:
-          patch.recipientAllowlist ?? settings.recipientAllowlist,
         extraPrograms: nextExtras,
-        includeStandardPrograms: true,
         programAllowlist:
           patch.programAllowlist === true ||
           settings.programAllowlist ||
           hasSpendCaps({
             ...settings,
-            maxTransferUsdc: nextCapsUsdc,
+            mintLimits: nextMintLimits,
             maxTransferSol: nextCapsSol,
           }) ||
-          nextRecipients === "allowlist" ||
           nextExtras.length > 0,
       };
 
@@ -135,15 +125,10 @@ export function usePolicyEditor(phygitalToken: string) {
         return;
       }
 
-      const opts = {
-        ...(walletPda.walletAddress
-          ? { wallet: walletPda.walletAddress }
-          : {}),
-      };
       const next =
         doc == null || status === "invalid"
-          ? await compilePolicySettings(merged, opts)
-          : await applyPolicySettingsPatch(doc, patch, opts);
+          ? await compilePolicySettings(merged)
+          : await applyPolicySettingsPatch(doc, patch);
       await savePolicy.mutateAsync(next);
       toast.success(copy.wallet.settingsSaved);
       onBack();
@@ -168,25 +153,16 @@ export function usePolicyEditor(phygitalToken: string) {
   /** Turn Send protections on — built-in programs only. */
   async function enableProtections(onBack: () => void) {
     if (busy) return;
-    await save(
-      {
-        programAllowlist: true,
-        includeStandardPrograms: true,
-      },
-      onBack,
-    );
+    await save({ programAllowlist: true }, onBack);
   }
 
   /**
    * Clear spend caps only. Deletes the document when nothing else remains;
-   * otherwise recompiles with null caps so recipients/exceptions stay.
+   * otherwise recompiles with null caps so exceptions stay.
    */
   async function clearSpendCaps(onBack: () => void) {
     if (!settings || busy) return;
-    await save(
-      { maxTransferUsdc: null, maxTransferSol: null },
-      onBack,
-    );
+    await save({ mintLimits: [], maxTransferSol: null }, onBack);
   }
 
   return {

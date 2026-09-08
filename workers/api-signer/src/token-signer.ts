@@ -5,7 +5,10 @@
 import { DurableObject } from "cloudflare:workers";
 import type { Instruction } from "@solana/kit";
 import type { AuthenticationResponseJSON } from "@simplewebauthn/server";
-import type { PolicyDocument } from "phygital-verifier-sdk";
+import {
+  validatePaymentsPolicyConfig,
+  type PaymentsPolicyConfig,
+} from "phygital-policy";
 
 import { createVerifierSignerBackend } from "@/backend/create";
 import type { VerifierSignerBackend } from "@/backend/types";
@@ -258,10 +261,18 @@ export class TokenSigner extends DurableObject<Env> {
         bindingKind: input.binding.kind,
       },
       async () => {
+        let binding = input.binding;
+        if (binding.kind === "setPolicy") {
+          const valid = validatePaymentsPolicyConfig(binding.policy);
+          if (!valid.ok) {
+            return { ok: false, code: valid.code, error: valid.message };
+          }
+          binding = { kind: "setPolicy", policy: valid.config };
+        }
         const built = await buildMutationOptions(
           this.#getStore(),
           input.origin,
-          input.binding,
+          binding,
         );
         if (!built.ok) {
           return { ok: false, code: built.code, error: built.error };
@@ -278,7 +289,7 @@ export class TokenSigner extends DurableObject<Env> {
   // --- policy mutations (WebAuthn) ---
 
   async setPolicy(input: {
-    policy: PolicyDocument;
+    policy: PaymentsPolicyConfig;
     challengeId: string;
     assertion: AuthenticationResponseJSON;
     origin: string;
@@ -291,17 +302,22 @@ export class TokenSigner extends DurableObject<Env> {
         origin: input.origin,
       },
       async () => {
+        const valid = validatePaymentsPolicyConfig(input.policy);
+        if (!valid.ok) {
+          return { ok: false, code: valid.code, error: valid.message };
+        }
+        const policy = valid.config;
         const auth = await verifyMutationAssertion({
           store: this.#getStore(),
           challengeId: input.challengeId,
-          binding: { kind: "setPolicy", policy: input.policy },
+          binding: { kind: "setPolicy", policy },
           assertion: input.assertion,
           origin: input.origin,
         });
         if (!auth.ok) {
           return { ok: false, code: auth.code, error: auth.error };
         }
-        const saved = this.#getStore().upsertPolicy(input.policy);
+        const saved = this.#getStore().upsertPolicy(policy);
         if (!saved.ok) {
           return {
             ok: false,

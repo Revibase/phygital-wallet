@@ -1,70 +1,52 @@
 /**
- * Owner policy settings ↔ SDK `PolicyDocument` (client-side).
- *
- * API stores/returns only `PolicyDocument`. The owner UI derives settings for
- * editing and compiles patches back into a full standing policy before PUT.
+ * Owner policy settings ↔ PaymentsPolicyConfig (client-side).
  */
-import { address } from "@solana/kit";
 import {
-  findAssociatedTokenPda,
-  TOKEN_PROGRAM_ADDRESS,
-} from "@solana-program/token";
-import { TOKEN_2022_PROGRAM_ADDRESS } from "@solana-program/token-2022";
-import {
+  ASSOCIATED_TOKEN_ACCOUNT_PROGRAM_ADDRESS,
+  BUBBLEGUM_PROGRAM_ADDRESS,
   COLLECTIBLE_COMPANION_PROGRAMS,
   DEFAULT_MAX_MINT_RAW,
   DEFAULT_MAX_SOL_LAMPORTS,
-  RECIPIENT_ACCOUNT_FIELDS,
-  ataParser,
-  bubblegumParser,
-  coreParser,
-  defineStandardPolicy,
-  indexProgramLayouts,
-  isPolicyCondition,
-  systemParser,
-  token2022Parser,
-  tokenMetadataParser,
-  tokenParser,
+  MPL_CORE_PROGRAM_PROGRAM_ADDRESS,
+  SYSTEM_PROGRAM_ADDRESS,
+  TOKEN_2022_PROGRAM_ADDRESS,
+  TOKEN_METADATA_PROGRAM_ADDRESS,
+  TOKEN_PROGRAM_ADDRESS,
   uiAmountToRaw,
-  validatePolicy,
-  type PolicyCondition,
-  type PolicyDocument,
-  type PolicyExpr,
-  type ProgramPolicy,
-} from "phygital-verifier-sdk";
-
+  validatePaymentsPolicyConfig,
+  type PaymentsPolicyConfig,
+} from "phygital-policy";
 import { getUsdcMint, USDC_DECIMALS } from "@/lib/tokens/usdc-mint";
-import {
-  CLASSIC_TOKEN_PROGRAM,
-  SYSTEM_PROGRAM,
-  TOKEN_2022_PROGRAM,
-} from "@/lib/tokens/payment-token";
 
-/** Owner-editable knobs on top of the fixed standing base. */
+/** One fungible mint spend cap in UI units. */
+export type MintSpendCapSetting = {
+  mint: string;
+  /** Human amount (not raw). */
+  maxUi: string;
+  decimals: number;
+  /** Display label when known (e.g. USDC). */
+  symbol?: string;
+};
+
+/** Optional decimals/symbol hints when deriving from a stored policy. */
+export type MintCapMeta = {
+  decimals: number;
+  symbol?: string;
+};
+
+/** Owner-editable knobs (maps onto PaymentsPolicyConfig fields). */
 export type PolicySettings = {
-  maxTransferUsdc: string | null;
+  mintLimits: MintSpendCapSetting[];
   maxTransferSol: string | null;
-  recipientMode: "anyone" | "allowlist";
-  recipientAllowlist: string[];
-  /**
-   * Send protections master. When true, standing policy includes STANDARD
-   * built-in programs (even with no caps / recipients / extras).
-   */
+  /** True when send protections should stay on (standing policy present). */
   programAllowlist: boolean;
-  /** Always true for owner-compiled policies. */
-  includeStandardPrograms: boolean;
-  /** Exception programs beyond the standard base — `{ allowAll: true }`. */
   extraPrograms: string[];
 };
 
-/** Empty settings when no standing policy is configured (opt-in). */
 export const EMPTY_POLICY_SETTINGS: PolicySettings = {
-  maxTransferUsdc: null,
+  mintLimits: [],
   maxTransferSol: null,
-  recipientMode: "anyone",
-  recipientAllowlist: [],
   programAllowlist: false,
-  includeStandardPrograms: true,
   extraPrograms: [],
 };
 
@@ -74,26 +56,45 @@ function rawCapToUiAmount(raw: string, decimals: number): string {
   return String(n);
 }
 
-/** Suggested caps when enabling spend limits for the first time. */
+export function defaultUsdcMintCap(): MintSpendCapSetting {
+  return {
+    mint: String(getUsdcMint()),
+    maxUi: rawCapToUiAmount(DEFAULT_MAX_MINT_RAW, USDC_DECIMALS),
+    decimals: USDC_DECIMALS,
+    symbol: "USDC",
+  };
+}
+
 export const FIRST_ENABLE_POLICY_SETTINGS: PolicySettings = {
   ...EMPTY_POLICY_SETTINGS,
-  maxTransferUsdc: rawCapToUiAmount(DEFAULT_MAX_MINT_RAW, USDC_DECIMALS),
+  mintLimits: [defaultUsdcMintCap()],
   maxTransferSol: rawCapToUiAmount(DEFAULT_MAX_SOL_LAMPORTS, 9),
   programAllowlist: true,
-  includeStandardPrograms: true,
 };
 
-/** Turn Send protections on — built-in surface only, no invented caps. */
 export const PROTECTIONS_ON_SETTINGS: PolicySettings = {
   ...EMPTY_POLICY_SETTINGS,
   programAllowlist: true,
-  includeStandardPrograms: true,
 };
+
+export function hasMintSpendCaps(settings: PolicySettings): boolean {
+  return settings.mintLimits.some(
+    (l) => l.maxUi != null && String(l.maxUi).trim() !== "",
+  );
+}
 
 export function hasSpendCaps(settings: PolicySettings): boolean {
   return (
-    (settings.maxTransferUsdc != null && settings.maxTransferUsdc !== "") ||
+    hasMintSpendCaps(settings) ||
     (settings.maxTransferSol != null && settings.maxTransferSol !== "")
+  );
+}
+
+export function shouldPersistPolicy(settings: PolicySettings): boolean {
+  return (
+    settings.programAllowlist ||
+    hasSpendCaps(settings) ||
+    settings.extraPrograms.length > 0
   );
 }
 
@@ -101,77 +102,90 @@ export function hasSpendCaps(settings: PolicySettings): boolean {
 export function hasStandingPolicyContent(settings: PolicySettings): boolean {
   return (
     hasSpendCaps(settings) ||
-    settings.recipientMode === "allowlist" ||
     settings.programAllowlist ||
     settings.extraPrograms.length > 0
   );
 }
 
+function uiCapToRaw(ui: string | null, decimals: number): string | null {
+  if (ui == null || ui === "") return null;
+  const n = Number(ui);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return uiAmountToRaw(n, decimals).toString();
+}
+
+/** Resolve decimals for a mint when rehydrating from policy JSON. */
+export function resolveMintDecimals(
+  mint: string,
+  meta?: ReadonlyMap<string, MintCapMeta>,
+): number {
+  const hint = meta?.get(mint);
+  if (hint && Number.isInteger(hint.decimals) && hint.decimals >= 0) {
+    return hint.decimals;
+  }
+  if (mint === String(getUsdcMint())) return USDC_DECIMALS;
+  return 6;
+}
+
+export function resolveMintSymbol(
+  mint: string,
+  meta?: ReadonlyMap<string, MintCapMeta>,
+): string | undefined {
+  const hint = meta?.get(mint)?.symbol?.trim();
+  if (hint) return hint;
+  if (mint === String(getUsdcMint())) return "USDC";
+  return undefined;
+}
+
 const BASE_PROGRAM_IDS = new Set<string>([
-  ataParser.programId,
-  systemParser.programId,
-  tokenParser.programId,
-  token2022Parser.programId,
-  tokenMetadataParser.programId,
-  bubblegumParser.programId,
-  coreParser.programId,
+  String(SYSTEM_PROGRAM_ADDRESS),
+  String(TOKEN_PROGRAM_ADDRESS),
+  String(TOKEN_2022_PROGRAM_ADDRESS),
+  String(ASSOCIATED_TOKEN_ACCOUNT_PROGRAM_ADDRESS),
+  String(TOKEN_METADATA_PROGRAM_ADDRESS),
+  String(BUBBLEGUM_PROGRAM_ADDRESS),
+  String(MPL_CORE_PROGRAM_PROGRAM_ADDRESS),
   ...COLLECTIBLE_COMPANION_PROGRAMS,
 ]);
 
-/** Sync hub/sheet summary from a stored document (no ATA collapse). */
-export function summarizePolicyDocument(policy: PolicyDocument): {
-  spendCaps: boolean;
-  recipientAllowlist: boolean;
-  unrestrictedApps: number;
-} {
-  return {
-    spendCaps:
-      findUsdcCapRaw(policy) != null || findSolCapLamports(policy) != null,
-    recipientAllowlist: collectRecipientAllowValues(policy).length > 0,
-    unrestrictedApps: policy.programs
-      .map((p) => p.programId)
-      .filter((id) => !BASE_PROGRAM_IDS.has(id)).length,
-  };
-}
-/** Default program allowlist once a standing policy exists (human labels). */
+/** Built-in programs shown in the Exceptions sheet (informational). */
 export const STANDARD_ALLOWED_PROGRAMS: readonly {
   programId: string;
   label: string;
-  /** Short blurb for the Programs detail sheet. */
   blurb: string;
 }[] = [
   {
-    programId: systemParser.programId,
+    programId: String(SYSTEM_PROGRAM_ADDRESS),
     label: "System",
     blurb: "Native SOL transfers and basic account setup.",
   },
   {
-    programId: tokenParser.programId,
+    programId: String(TOKEN_PROGRAM_ADDRESS),
     label: "Token",
-    blurb: "Classic SPL token transfers (including USDC) and account closes.",
+    blurb: "Classic SPL token transfers (including USDC).",
   },
   {
-    programId: token2022Parser.programId,
+    programId: String(TOKEN_2022_PROGRAM_ADDRESS),
     label: "Token-2022",
     blurb: "Token-2022 transfers for assets that use the newer token program.",
   },
   {
-    programId: ataParser.programId,
+    programId: String(ASSOCIATED_TOKEN_ACCOUNT_PROGRAM_ADDRESS),
     label: "Associated Token",
     blurb: "Creates the standard token accounts used when you send tokens.",
   },
   {
-    programId: tokenMetadataParser.programId,
+    programId: String(TOKEN_METADATA_PROGRAM_ADDRESS),
     label: "Token Metadata",
     blurb: "Transfers for Metaplex NFTs and pNFTs.",
   },
   {
-    programId: bubblegumParser.programId,
+    programId: String(BUBBLEGUM_PROGRAM_ADDRESS),
     label: "Bubblegum",
     blurb: "Transfers for compressed NFTs (cNFTs).",
   },
   {
-    programId: coreParser.programId,
+    programId: String(MPL_CORE_PROGRAM_PROGRAM_ADDRESS),
     label: "Core",
     blurb: "Transfers for Metaplex Core digital assets.",
   },
@@ -195,356 +209,97 @@ export const STANDARD_ALLOWED_PROGRAMS: readonly {
 export function isStandardAllowedProgram(programId: string): boolean {
   return BASE_PROGRAM_IDS.has(programId);
 }
-const LAYOUTS_BY_PROGRAM = indexProgramLayouts();
-const RECIPIENT_FIELDS = new Set<string>(RECIPIENT_ACCOUNT_FIELDS);
 
-type RecipientSlot = {
-  programId: string;
-  instruction: string;
-  field: string;
-};
-
-const RECIPIENT_SLOTS: readonly RecipientSlot[] = (() => {
-  const slots: RecipientSlot[] = [];
-  for (const [programId, byIx] of LAYOUTS_BY_PROGRAM) {
-    for (const [instruction, layout] of byIx) {
-      if (instruction === "closeAccount") continue;
-      for (const name of RECIPIENT_ACCOUNT_FIELDS) {
-        if (layout.fields[name]?.kind === "account") {
-          slots.push({ programId, instruction, field: name });
-          break;
-        }
-      }
-    }
-  }
-  return slots;
-})();
-
-function* policyLeaves(
-  expr: PolicyExpr | undefined,
-): Generator<PolicyCondition> {
-  if (!expr) return;
-  if (isPolicyCondition(expr)) {
-    yield expr;
-    return;
-  }
-  if ("and" in expr) {
-    for (const c of expr.and) yield* policyLeaves(c);
-  } else if ("or" in expr) {
-    for (const c of expr.or) yield* policyLeaves(c);
-  } else if ("not" in expr) {
-    yield* policyLeaves(expr.not);
-  }
-}
-
-function andWhen(
-  existing: PolicyExpr | undefined,
-  cond: PolicyCondition,
-): PolicyExpr {
-  if (!existing) return cond;
-  if ("and" in existing && Array.isArray(existing.and)) {
-    return { and: [...existing.and, cond] };
-  }
-  return { and: [existing, cond] };
-}
-
-function uiCapToRaw(
-  ui: string | null | undefined,
-  decimals: number,
-): string | undefined {
-  if (ui == null || ui === "") return undefined;
-  const n = Number(ui);
-  if (!Number.isFinite(n)) return undefined;
-  return uiAmountToRaw(n, decimals).toString();
-}
-
-function findUsdcCapRaw(policy: PolicyDocument): bigint | null {
-  const usdc = String(getUsdcMint());
-  const token = String(CLASSIC_TOKEN_PROGRAM);
-  const token2022 = String(TOKEN_2022_PROGRAM);
-  for (const agg of policy.transaction?.aggregates ?? []) {
-    if (agg.op !== "lte" && agg.op !== "lt") continue;
-    const matchesUsdc = agg.fields.some(
-      (f) =>
-        (f.programId === token || f.programId === token2022) &&
-        f.instruction === "transferChecked" &&
-        [...policyLeaves(f.when)].some(
-          (c) => c.field === "mint" && c.op === "eq" && c.value === usdc,
-        ),
-    );
-    if (matchesUsdc) return BigInt(agg.value);
-  }
-  return null;
-}
-
-function findSolCapLamports(policy: PolicyDocument): bigint | null {
-  const system = String(SYSTEM_PROGRAM);
-  for (const agg of policy.transaction?.aggregates ?? []) {
-    if (agg.op !== "lte" && agg.op !== "lt") continue;
-    const matchesSol = agg.fields.some(
-      (f) => f.programId === system && f.instruction === "transferSol",
-    );
-    if (matchesSol) return BigInt(agg.value);
-  }
-  return null;
-}
-
-function collectRecipientAllowValues(policy: PolicyDocument): string[] {
-  const out = new Set<string>();
-  for (const block of policy.programs) {
-    for (const rule of block.allows ?? []) {
-      for (const c of policyLeaves(rule.when)) {
-        if (!RECIPIENT_FIELDS.has(c.field) || c.op !== "in") continue;
-        const values = Array.isArray(c.value) ? c.value : [c.value];
-        for (const v of values) {
-          if (typeof v === "string" && v) out.add(v);
-        }
-      }
-    }
-  }
-  return [...out];
-}
-
-async function expandRecipientAddresses(
-  wallets: readonly string[],
-): Promise<string[]> {
-  const set = new Set<string>(wallets);
-  const mint = getUsdcMint();
-  await Promise.all(
-    wallets.map(async (ownerStr) => {
-      try {
-        const owner = address(ownerStr);
-        const [[ata], [ata2022]] = await Promise.all([
-          findAssociatedTokenPda({
-            mint,
-            owner,
-            tokenProgram: TOKEN_PROGRAM_ADDRESS,
-          }),
-          findAssociatedTokenPda({
-            mint,
-            owner,
-            tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
-          }),
-        ]);
-        set.add(String(ata));
-        set.add(String(ata2022));
-      } catch {
-        /* skip invalid addresses */
-      }
-    }),
-  );
-  return [...set];
-}
-
-async function collapseExpandedRecipients(
-  expanded: readonly string[],
-): Promise<string[]> {
-  if (expanded.length === 0) return [];
-  const set = new Set(expanded);
-  const derivedAtas = new Set<string>();
-  const mint = getUsdcMint();
-  await Promise.all(
-    expanded.map(async (ownerStr) => {
-      try {
-        const owner = address(ownerStr);
-        const [[ata], [ata2022]] = await Promise.all([
-          findAssociatedTokenPda({
-            mint,
-            owner,
-            tokenProgram: TOKEN_PROGRAM_ADDRESS,
-          }),
-          findAssociatedTokenPda({
-            mint,
-            owner,
-            tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
-          }),
-        ]);
-        if (set.has(String(ata))) derivedAtas.add(String(ata));
-        if (set.has(String(ata2022))) derivedAtas.add(String(ata2022));
-      } catch {
-        /* skip */
-      }
-    }),
-  );
-  return expanded.filter((a) => !derivedAtas.has(a));
-}
-
-function bakeRecipientConstraints(
-  programs: readonly ProgramPolicy[],
-  allowExpanded: readonly string[] | null,
-): ProgramPolicy[] {
-  if (!allowExpanded) {
-    return programs.map((block) => {
-      if (!block.denies?.length) return block;
-      const next: ProgramPolicy = { programId: block.programId };
-      if (block.allowAll) next.allowAll = true;
-      if (block.allows?.length) next.allows = block.allows;
-      return next;
-    });
-  }
-
-  return programs.map((block) => {
-    const slots = RECIPIENT_SLOTS.filter((s) => s.programId === block.programId);
-    if (slots.length === 0) {
-      if (!block.denies?.length) return block;
-      const next: ProgramPolicy = { programId: block.programId };
-      if (block.allowAll) next.allowAll = true;
-      if (block.allows?.length) next.allows = block.allows;
-      return next;
-    }
-
-    const slotByIx = new Map(slots.map((s) => [s.instruction, s.field]));
-    const baseAllows = block.allows ?? [];
-    let allows = baseAllows;
-    let allowAll = block.allowAll === true;
-    const list = [...allowExpanded];
-
-    if (allowAll && baseAllows.length === 0) {
-      allows = slots.map((s) => ({
-        instruction: s.instruction,
-        when: {
-          field: s.field,
-          type: "string" as const,
-          op: "in" as const,
-          value: list,
-        },
-      }));
-      allowAll = false;
-    } else {
-      allows = baseAllows.map((a) => {
-        const field = slotByIx.get(a.instruction);
-        if (!field) return a;
-        const cond: PolicyCondition = {
-          field,
-          type: "string",
-          op: "in",
-          value: list,
-        };
-        return { ...a, when: andWhen(a.when, cond) };
-      });
-    }
-
-    const next: ProgramPolicy = { programId: block.programId };
-    if (allowAll) next.allowAll = true;
-    if (allows.length > 0) next.allows = allows;
-    return next;
-  });
-}
-
-function appendAllowAll(
-  programs: readonly ProgramPolicy[],
-  programIds: readonly string[],
-): ProgramPolicy[] {
-  const have = new Set(programs.map((p) => p.programId));
-  const out = [...programs];
-  for (const programId of programIds) {
-    if (have.has(programId)) continue;
-    out.push({ programId, allowAll: true });
-    have.add(programId);
-  }
-  return out;
-}
-
-/** Read owner settings from a stored standing policy. */
-export async function derivePolicySettings(
-  policy: PolicyDocument,
-): Promise<PolicySettings> {
-  const usdcCap = findUsdcCapRaw(policy);
-  const solCap = findSolCapLamports(policy);
-  const allowExpanded = collectRecipientAllowValues(policy);
-  const recipientAllowlist = await collapseExpandedRecipients(allowExpanded);
-
+export function summarizePolicyDocument(policy: PaymentsPolicyConfig): {
+  spendCaps: boolean;
+  unrestrictedApps: number;
+} {
   return {
-    maxTransferUsdc:
-      usdcCap != null
-        ? (Number(usdcCap) / 10 ** USDC_DECIMALS).toFixed(2)
-        : null,
-    maxTransferSol:
-      solCap != null ? (Number(solCap) / 1e9).toFixed(4) : null,
-    recipientMode: allowExpanded.length > 0 ? "allowlist" : "anyone",
-    recipientAllowlist,
-    programAllowlist: true,
-    includeStandardPrograms: true,
-    extraPrograms: policy.programs
-      .map((p) => p.programId)
-      .filter((id) => !BASE_PROGRAM_IDS.has(id)),
+    spendCaps: Boolean(
+      (policy.mintLimits && policy.mintLimits.length > 0) ||
+        policy.maxSolLamports,
+    ),
+    unrestrictedApps: (policy.extraPrograms ?? []).filter(
+      (id) => !BASE_PROGRAM_IDS.has(id),
+    ).length,
   };
 }
 
-/**
- * Build a standing `PolicyDocument` from owner settings.
- * Always includes the STANDARD built-in program set (+ optional extras).
- */
+export async function derivePolicySettings(
+  policy: PaymentsPolicyConfig | null,
+  mintMeta?: ReadonlyMap<string, MintCapMeta>,
+): Promise<PolicySettings> {
+  if (!policy) return { ...EMPTY_POLICY_SETTINGS };
+  const mintLimits: MintSpendCapSetting[] = (policy.mintLimits ?? []).map(
+    (l) => {
+      const decimals = resolveMintDecimals(l.mint, mintMeta);
+      return {
+        mint: l.mint,
+        maxUi: rawCapToUiAmount(l.maxRaw, decimals),
+        decimals,
+        symbol: resolveMintSymbol(l.mint, mintMeta),
+      };
+    },
+  );
+  return {
+    mintLimits,
+    maxTransferSol: policy.maxSolLamports
+      ? rawCapToUiAmount(policy.maxSolLamports, 9)
+      : null,
+    programAllowlist: true,
+    extraPrograms: (policy.extraPrograms ?? []).filter(
+      (id) => !BASE_PROGRAM_IDS.has(id),
+    ),
+  };
+}
+
 export async function compilePolicySettings(
   settings: PolicySettings,
-  opts: { wallet?: string } = {},
-): Promise<PolicyDocument> {
-  const maxMintRaw = uiCapToRaw(settings.maxTransferUsdc, USDC_DECIMALS);
+): Promise<PaymentsPolicyConfig> {
+  const mintLimits = [];
+  for (const cap of settings.mintLimits) {
+    const mint = cap.mint.trim();
+    if (!mint) continue;
+    const maxRaw = uiCapToRaw(cap.maxUi, cap.decimals);
+    if (!maxRaw) continue;
+    mintLimits.push({ mint, maxRaw });
+  }
   const maxSolLamports = uiCapToRaw(settings.maxTransferSol, 9);
   const extras = settings.extraPrograms.filter(
     (id) => !BASE_PROGRAM_IDS.has(id),
   );
 
-  const template = defineStandardPolicy({
-    mint: String(getUsdcMint()),
-    ...(opts.wallet ? { wallet: opts.wallet } : {}),
-    ...(maxMintRaw ? { maxMintRaw } : {}),
+  const config: PaymentsPolicyConfig = {
+    version: "3",
+    ...(mintLimits.length > 0 ? { mintLimits } : {}),
     ...(maxSolLamports ? { maxSolLamports } : {}),
-  });
-
-  let programs = appendAllowAll(template.programs, extras);
-
-  const allowExpanded =
-    settings.recipientMode === "allowlist"
-      ? await expandRecipientAddresses(settings.recipientAllowlist)
-      : null;
-  programs = bakeRecipientConstraints(programs, allowExpanded);
-
-  const next: PolicyDocument = {
-    version: "2.0",
-    programs,
-    ...(template.transaction ? { transaction: template.transaction } : {}),
+    ...(extras.length > 0 ? { extraPrograms: extras } : {}),
   };
 
-  const valid = validatePolicy(next);
+  const valid = validatePaymentsPolicyConfig(config);
   if (!valid.ok) {
-    throw Object.assign(new Error(valid.message), {
-      code: valid.code,
-      details: valid.details,
-    });
+    throw Object.assign(new Error(valid.message), { code: valid.code });
   }
-  return next;
+  return valid.config;
 }
 
-/** Merge a partial settings patch onto the current document, then compile. */
 export async function applyPolicySettingsPatch(
-  base: PolicyDocument,
+  base: PaymentsPolicyConfig,
   patch: Partial<PolicySettings>,
-  opts: { wallet?: string } = {},
-): Promise<PolicyDocument> {
-  const current = await derivePolicySettings(base);
-  return compilePolicySettings(
-    {
-      maxTransferUsdc:
-        patch.maxTransferUsdc !== undefined
-          ? patch.maxTransferUsdc
-          : current.maxTransferUsdc,
-      maxTransferSol:
-        patch.maxTransferSol !== undefined
-          ? patch.maxTransferSol
-          : current.maxTransferSol,
-      recipientMode: patch.recipientMode ?? current.recipientMode,
-      recipientAllowlist:
-        patch.recipientAllowlist !== undefined
-          ? patch.recipientAllowlist
-          : current.recipientAllowlist,
-      programAllowlist: patch.programAllowlist ?? current.programAllowlist,
-      includeStandardPrograms: true,
-      extraPrograms:
-        patch.extraPrograms !== undefined
-          ? patch.extraPrograms
-          : current.extraPrograms,
-    },
-    opts,
-  );
+  mintMeta?: ReadonlyMap<string, MintCapMeta>,
+): Promise<PaymentsPolicyConfig> {
+  const current = await derivePolicySettings(base, mintMeta);
+  return compilePolicySettings({
+    mintLimits:
+      patch.mintLimits !== undefined ? patch.mintLimits : current.mintLimits,
+    maxTransferSol:
+      patch.maxTransferSol !== undefined
+        ? patch.maxTransferSol
+        : current.maxTransferSol,
+    programAllowlist: patch.programAllowlist ?? current.programAllowlist,
+    extraPrograms:
+      patch.extraPrograms !== undefined
+        ? patch.extraPrograms
+        : current.extraPrograms,
+  });
 }

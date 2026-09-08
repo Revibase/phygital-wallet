@@ -7,7 +7,7 @@ import type {
 } from "@simplewebauthn/browser";
 
 import { queryFetch, readJson } from "@/lib/queries/http";
-import type { PolicyDocument } from "phygital-verifier-sdk";
+import type { PaymentsPolicyConfig } from "phygital-policy";
 
 export type OpenApproval = {
   intentHash: string;
@@ -19,13 +19,13 @@ export type OpenApproval = {
 export type PolicyStatus = "none" | "ok" | "invalid";
 
 export type EffectivePolicy = {
-  policy: PolicyDocument | null;
+  policy: PaymentsPolicyConfig | null;
   status: PolicyStatus;
 };
 
 /** Owner mutation bindings used by the app (addOwner is claim-only). */
 export type MutationBinding =
-  | { kind: "setPolicy"; policy: PolicyDocument }
+  | { kind: "setPolicy"; policy: PaymentsPolicyConfig }
   | { kind: "clearPolicy" }
   | { kind: "createGrant"; intentHash: string }
   | { kind: "removeOwner" }
@@ -68,10 +68,10 @@ export async function fetchEffectivePolicy(
   return readJson<EffectivePolicy>(res, "Couldn’t load settings");
 }
 
-/** PUT compiled PolicyDocument with platform WebAuthn step-up. */
-export async function putPolicyDocument(
+/** PUT compiled PaymentsPolicyConfig with platform WebAuthn step-up. */
+export async function putPaymentsPolicyConfig(
   phygitalToken: string,
-  policy: PolicyDocument,
+  policy: PaymentsPolicyConfig,
 ): Promise<EffectivePolicy> {
   const { challengeId, assertion } = await assertPolicyMutation(
     phygitalToken,
@@ -90,7 +90,7 @@ export async function putPolicyDocument(
 }
 
 /** DELETE standing policy (limits off) with platform WebAuthn step-up. */
-export async function deletePolicyDocument(
+export async function deletePaymentsPolicyConfig(
   phygitalToken: string,
 ): Promise<EffectivePolicy> {
   const { challengeId, assertion } = await assertPolicyMutation(

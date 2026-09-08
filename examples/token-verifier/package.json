@@ -18,7 +18,8 @@
     "hono": "^4.8.3",
     "phygital-token-sdk": "^1.0.3",
     "phygital-verifier-sdk": "workspace:*",
-    "phygital-wallet-sdk": "workspace:*"
+    "phygital-wallet-sdk": "workspace:*",
+    "phygital-policy": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.15.30",

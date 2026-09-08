@@ -1,16 +1,37 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { GroupedList, GroupedRow } from "@/components/shared/grouped-list";
 import { NavBar, NavBarBack } from "@/components/shared/nav-bar";
+import { TokenIcon } from "@/components/shared/token-chip";
 import { Button } from "@/components/ui/button";
 import { FieldLabel, Input } from "@/components/ui/input";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Spinner } from "@/components/ui/spinner";
 import { usePolicyEditor } from "@/hooks/wallet/use-wallet-policy";
+import { useVerifiedTokens } from "@/hooks/wallet/use-verified-tokens";
 import { copy } from "@/lib/copy/phygital";
-import { FIRST_ENABLE_POLICY_SETTINGS } from "@/lib/wallet/policy-settings";
+import { toUserErrorMessage } from "@/lib/user-errors";
+import {
+  NATIVE_SOL_MINT,
+  type PaymentToken,
+} from "@/lib/tokens/payment-token";
+import { getUsdcMint, USDC_DECIMALS } from "@/lib/tokens/usdc-mint";
+import { shortAddress } from "@/lib/utils";
+import { ALL_LIST_SEARCH_THRESHOLD } from "@/lib/wallet/portfolio-preview";
+import {
+  defaultUsdcMintCap,
+  FIRST_ENABLE_POLICY_SETTINGS,
+  type MintSpendCapSetting,
+} from "@/lib/wallet/policy-settings";
 
 function formatCap(value: string | null | undefined): string {
   if (!value) return "—";
@@ -19,7 +40,45 @@ function formatCap(value: string | null | undefined): string {
   return String(n);
 }
 
-/** Max per-send USDC / SOL on the built-in send surface. */
+function mintLabel(cap: MintSpendCapSetting): string {
+  return cap.symbol?.trim() || shortAddress(cap.mint, 4);
+}
+
+function cloneCaps(caps: readonly MintSpendCapSetting[]): MintSpendCapSetting[] {
+  return caps.map((c) => ({ ...c }));
+}
+
+function metaFromCatalog(
+  tokens: readonly PaymentToken[] | undefined,
+): Map<string, { decimals: number; symbol?: string }> {
+  const map = new Map<string, { decimals: number; symbol?: string }>();
+  map.set(String(getUsdcMint()), { decimals: USDC_DECIMALS, symbol: "USDC" });
+  for (const t of tokens ?? []) {
+    if (t.mint === NATIVE_SOL_MINT) continue;
+    map.set(t.mint, {
+      decimals: t.decimals,
+      symbol: t.symbol?.trim() || undefined,
+    });
+  }
+  return map;
+}
+
+function enrichCaps(
+  caps: readonly MintSpendCapSetting[],
+  meta: Map<string, { decimals: number; symbol?: string }>,
+): MintSpendCapSetting[] {
+  return caps.map((c) => {
+    const hint = meta.get(c.mint);
+    if (!hint) return { ...c };
+    return {
+      ...c,
+      decimals: hint.decimals,
+      symbol: hint.symbol ?? c.symbol,
+    };
+  });
+}
+
+/** Max per-send mint / SOL caps on the built-in send surface. */
 export function SpendingLimitsSheet({
   phygitalTokenPda,
   onBack,
@@ -28,25 +87,64 @@ export function SpendingLimitsSheet({
   onBack: () => void;
 }) {
   const editor = usePolicyEditor(phygitalTokenPda);
-  const [maxPerSend, setMaxPerSend] = useState("");
+  const verified = useVerifiedTokens();
+  const catalog = useMemo(
+    () => (verified.data ?? []).filter((t) => t.mint !== NATIVE_SOL_MINT),
+    [verified.data],
+  );
+  const catalogMeta = useMemo(() => metaFromCatalog(catalog), [catalog]);
+
+  const [mintLimits, setMintLimits] = useState<MintSpendCapSetting[]>([]);
   const [maxSol, setMaxSol] = useState("");
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    if (verified.isError) toast.error(toUserErrorMessage(verified.error));
+  }, [verified.isError, verified.error]);
 
   useEffect(() => {
     if (!editor.settings) return;
     if (editor.spendCapsEnabled) {
-      setMaxPerSend(editor.settings.maxTransferUsdc ?? "");
+      setMintLimits(
+        enrichCaps(cloneCaps(editor.settings.mintLimits), catalogMeta),
+      );
       setMaxSol(editor.settings.maxTransferSol ?? "");
     } else {
-      setMaxPerSend(FIRST_ENABLE_POLICY_SETTINGS.maxTransferUsdc ?? "50");
+      setMintLimits(
+        enrichCaps(
+          cloneCaps(FIRST_ENABLE_POLICY_SETTINGS.mintLimits),
+          catalogMeta,
+        ),
+      );
       setMaxSol(FIRST_ENABLE_POLICY_SETTINGS.maxTransferSol ?? "0.1");
     }
-  }, [editor.settings, editor.spendCapsEnabled]);
+  }, [editor.settings, editor.spendCapsEnabled, catalogMeta]);
 
   const protectionsOn = editor.policyEnabled;
   const enabled = editor.spendCapsEnabled;
   const invalid = editor.policyInvalid;
   const extras = editor.settings?.extraPrograms.length ?? 0;
+  const addedMints = useMemo(
+    () => new Set(mintLimits.map((c) => c.mint)),
+    [mintLimits],
+  );
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const available = catalog.filter((t) => !addedMints.has(t.mint));
+    if (!q) return available;
+    return available.filter(
+      (t) =>
+        t.symbol.toLowerCase().includes(q) ||
+        t.name.toLowerCase().includes(q) ||
+        t.mint.toLowerCase().includes(q),
+    );
+  }, [catalog, search, addedMints]);
+
+  const showSearch = catalog.length >= ALL_LIST_SEARCH_THRESHOLD;
+  const catalogLoading = verified.isLoading && !verified.data;
 
   const statusTitle = !protectionsOn
     ? copy.wallet.sendProtectionsOff
@@ -62,15 +160,54 @@ export function SpendingLimitsSheet({
       ? copy.wallet.spendingLimitsInvalidBody
       : enabled
         ? copy.wallet.spendingLimitsOnBody(
-            formatCap(editor.settings?.maxTransferUsdc),
+            (editor.settings?.mintLimits ?? []).map((c) => ({
+              label: mintLabel(c),
+              amount: formatCap(c.maxUi),
+            })),
             formatCap(editor.settings?.maxTransferSol),
           )
         : copy.wallet.spendingLimitsOffBody;
 
+  function addVerifiedToken(token: PaymentToken) {
+    if (token.mint === NATIVE_SOL_MINT) {
+      toast.error(copy.wallet.spendingLimitsUseSolField);
+      return;
+    }
+    if (addedMints.has(token.mint)) {
+      toast.error(copy.wallet.spendingLimitsMintAlreadyAdded);
+      return;
+    }
+    setMintLimits([
+      ...mintLimits,
+      {
+        mint: token.mint,
+        maxUi: token.mint === String(getUsdcMint()) ? "50" : "",
+        decimals: token.decimals,
+        symbol: token.symbol?.trim() || undefined,
+      },
+    ]);
+    setPickerOpen(false);
+    setSearch("");
+  }
+
+  function updateCapAmount(mint: string, maxUi: string) {
+    setMintLimits((prev) =>
+      prev.map((c) =>
+        c.mint === mint ? { ...c, maxUi: maxUi.replace(/[^0-9.]/g, "") } : c,
+      ),
+    );
+  }
+
+  function removeCap(mint: string) {
+    setMintLimits((prev) => prev.filter((c) => c.mint !== mint));
+  }
+
   function saveCaps() {
-    const usdc = maxPerSend.trim() || null;
+    const cleaned = mintLimits
+      .map((c) => ({ ...c, maxUi: c.maxUi.trim() }))
+      .filter((c) => c.maxUi !== "");
     const sol = maxSol.trim() || null;
-    if (!usdc && !sol) {
+    if (cleaned.length === 0 && !sol) {
       if (enabled) {
         void editor.clearSpendCaps(onBack);
         return;
@@ -81,8 +218,7 @@ export function SpendingLimitsSheet({
     void editor.save(
       {
         programAllowlist: true,
-        includeStandardPrograms: true,
-        maxTransferUsdc: usdc,
+        mintLimits: cleaned,
         maxTransferSol: sol,
       },
       onBack,
@@ -155,17 +291,6 @@ export function SpendingLimitsSheet({
                   </p>
 
                   <FieldLabel className="normal-case tracking-normal text-xs">
-                    {copy.wallet.maxPerSend}
-                  </FieldLabel>
-                  <Input
-                    inputMode="decimal"
-                    value={maxPerSend}
-                    onChange={(e) =>
-                      setMaxPerSend(e.target.value.replace(/[^0-9.]/g, ""))
-                    }
-                    placeholder="50"
-                  />
-                  <FieldLabel className="normal-case tracking-normal text-xs">
                     {copy.wallet.maxSolPerSend}
                   </FieldLabel>
                   <Input
@@ -176,6 +301,86 @@ export function SpendingLimitsSheet({
                     }
                     placeholder="0.1"
                   />
+
+                  <FieldLabel className="normal-case tracking-normal text-xs">
+                    {copy.wallet.mintSpendCaps}
+                  </FieldLabel>
+
+                  {mintLimits.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      {copy.wallet.mintSpendCapsEmpty}
+                    </p>
+                  ) : (
+                    <ul className="flex flex-col gap-3">
+                      {mintLimits.map((cap) => (
+                        <li
+                          key={cap.mint}
+                          className="rounded-2xl bg-muted/25 px-3 py-3"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium">
+                                {mintLabel(cap)}
+                              </p>
+                              <p className="truncate font-mono text-xs text-muted-foreground">
+                                {shortAddress(cap.mint, 6)}
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="size-8 shrink-0"
+                              onClick={() => removeCap(cap.mint)}
+                              aria-label={copy.wallet.mintSpendCapsRemove}
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
+                          </div>
+                          <FieldLabel className="mt-2 normal-case tracking-normal text-xs">
+                            {copy.wallet.maxMintPerSend}
+                          </FieldLabel>
+                          <Input
+                            inputMode="decimal"
+                            value={cap.maxUi}
+                            onChange={(e) =>
+                              updateCapAmount(cap.mint, e.target.value)
+                            }
+                            placeholder="50"
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="w-full rounded-full"
+                    disabled={catalogLoading || catalog.length === 0}
+                    onClick={() => setPickerOpen(true)}
+                  >
+                    {catalogLoading ? (
+                      <Spinner className="size-4" />
+                    ) : (
+                      copy.wallet.mintSpendCapsAddCta
+                    )}
+                  </Button>
+
+                  {mintLimits.length === 0 ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full rounded-full"
+                      onClick={() =>
+                        setMintLimits(
+                          enrichCaps([defaultUsdcMintCap()], catalogMeta),
+                        )
+                      }
+                    >
+                      {copy.wallet.mintSpendCapsAddUsdc}
+                    </Button>
+                  ) : null}
 
                   {!enabled && !invalid ? (
                     <p className="text-xs text-muted-foreground">
@@ -220,6 +425,57 @@ export function SpendingLimitsSheet({
           )}
         </>
       )}
+
+      <Sheet
+        open={pickerOpen}
+        onOpenChange={(open) => {
+          setPickerOpen(open);
+          if (!open) setSearch("");
+        }}
+      >
+        <SheetContent
+          side="bottom"
+          className="mx-auto max-h-[80vh] max-w-lg overflow-y-auto rounded-t-3xl md:rounded-3xl"
+        >
+          <SheetHeader className="text-left">
+            <SheetTitle>{copy.wallet.mintSpendCapsPickTitle}</SheetTitle>
+          </SheetHeader>
+          <div className="space-y-3 px-4 pb-6">
+            {showSearch ? (
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={copy.wallet.searchTokens}
+                className="text-sm"
+              />
+            ) : null}
+            {catalogLoading ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                {copy.common.loading}
+              </p>
+            ) : filtered.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                {addedMints.size > 0 && catalog.length > 0
+                  ? copy.wallet.mintSpendCapsNoneLeft
+                  : copy.wallet.noMatchingTokens}
+              </p>
+            ) : (
+              <GroupedList>
+                {filtered.map((t) => (
+                  <GroupedRow
+                    key={t.mint}
+                    leading={<TokenIcon token={t} className="size-8" />}
+                    subtitle={t.name}
+                    onClick={() => addVerifiedToken(t)}
+                  >
+                    {t.symbol}
+                  </GroupedRow>
+                ))}
+              </GroupedList>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

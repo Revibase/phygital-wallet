@@ -70,8 +70,8 @@ Tunnel to HTTPS, then `set_token_verifier(newVerifier, endpoint)`.
 
 ## Customize
 
-Edit [`src/policy.ts`](./src/policy.ts) — swap `defineStandardPolicy` for your
-own `definePolicy` / parsers. Caps: `MAX_SOL_LAMPORTS`, `MAX_USDC_RAW`.
+Edit [`src/policy.ts`](./src/policy.ts) — adjust `buildPaymentsPolicy` knobs /
+`evaluatePolicy`. Caps: `MAX_SOL_LAMPORTS`, `MAX_USDC_RAW`.
 
 ## Layout
 

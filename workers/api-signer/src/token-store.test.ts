@@ -234,11 +234,11 @@ describe("hashMutationBinding", () => {
   it("is stable for the same policy regardless of key order", async () => {
     const a = await hashMutationBinding({
       kind: "setPolicy",
-      policy: { programs: [{ programId: "P", instructions: [] }] } as never,
+      policy: { version: "3", mintLimits: [{ mint: "M", maxRaw: "1" }] } as never,
     });
     const b = await hashMutationBinding({
       kind: "setPolicy",
-      policy: { programs: [{ instructions: [], programId: "P" }] } as never,
+      policy: { mintLimits: [{ maxRaw: "1", mint: "M" }], version: "3" } as never,
     });
     expect(a).toBe(b);
   });
@@ -405,10 +405,11 @@ describe("TokenStore grants and fees", () => {
     expect(store.upsertPolicy({ notPrograms: true })).toEqual({
       ok: false,
       code: "invalid_policy",
-      error: "policy.programs must be an array",
+      error: "Unsupported policy version: undefined",
     });
     const ok = store.upsertPolicy({
-      programs: [{ programId: "11111111111111111111111111111111", instructions: [] }],
+      version: "3",
+      mintLimits: [{ mint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", maxRaw: "50000000" }],
     });
     expect(ok.ok).toBe(true);
     expect(store.loadPolicyDocument()).not.toBeNull();

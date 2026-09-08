@@ -3,14 +3,14 @@
  * Class is hosted on revibase-verifier-signer; api binds via script_name.
  */
 import type { Instruction } from "@solana/kit";
-import type { PolicyDocument } from "phygital-verifier-sdk";
+import type { PaymentsPolicyConfig } from "phygital-policy";
 
 import type { MutationBinding } from "@/auth/mutation-binding";
 import { createLogger } from "@/shared/log";
 
 type EffectivePolicy = {
   phygitalToken: string;
-  policy: PolicyDocument | null;
+  policy: PaymentsPolicyConfig | null;
   status: "none" | "ok" | "invalid";
 };
 
@@ -46,7 +46,7 @@ export type TokenSignerRpc = {
     | { ok: false; code: string; error: string }
   >;
   setPolicy(input: {
-    policy: PolicyDocument;
+    policy: PaymentsPolicyConfig;
     challengeId: string;
     assertion: unknown;
     origin: string;

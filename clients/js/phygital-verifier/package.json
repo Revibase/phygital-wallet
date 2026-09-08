@@ -1,7 +1,7 @@
 {
   "name": "phygital-verifier-sdk",
-  "version": "0.1.0",
-  "description": "Verify Solana instructions against JSON policies with Codama-backed parsers",
+  "version": "0.2.0",
+  "description": "Verify Solana instructions against composable Codama-backed policies",
   "license": "ISC",
   "type": "module",
   "main": "./dist/index.js",
@@ -12,36 +12,24 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
-    },
-    "./codec-readers": {
-      "types": "./dist/parsers/codec-readers.d.ts",
-      "import": "./dist/parsers/codec-readers.js",
-      "default": "./dist/parsers/codec-readers.js"
     }
   },
   "dependencies": {
-    "@solana/addresses": "^8.1.0",
-    "@solana/codecs": "^8.1.0",
     "@solana/instructions": "^8.1.0"
   },
   "files": [
     "dist",
-    "scripts",
     "docs",
     "README.md",
-    "AGENTS.md",
-    ".agent"
+    "AGENTS.md"
   ],
-  "bin": {
-    "phygital-verifier-generate": "./scripts/codama-generate.mjs"
-  },
   "scripts": {
-    "generate:parser": "node scripts/codama-generate.mjs",
     "build": "tsc -p tsconfig.json",
     "test": "vitest run"
   },
   "devDependencies": {
     "typescript": "^5.7.3",
     "vitest": "^3.2.7"
-  }
+  },
+  "sideEffects": false
 }

@@ -5,7 +5,6 @@ import type { SettingsTarget } from "@/components/wallet/settings-hub";
 export const OWNER_ONLY_SETTINGS = new Set<SettingsTarget>([
   "sendProtections",
   "spendingLimits",
-  "recipients",
   "extraPrograms",
   "signing",
   "recoveryWallet",
@@ -14,7 +13,6 @@ export const OWNER_ONLY_SETTINGS = new Set<SettingsTarget>([
 const SETTINGS_TO_SEGMENT: Record<SettingsTarget, string> = {
   sendProtections: "send-protections",
   spendingLimits: "spending-limits",
-  recipients: "recipients",
   extraPrograms: "exceptions",
   signing: "signing",
   recoveryWallet: "recovery",
@@ -32,12 +30,10 @@ const WALLET_LEAF_SEGMENTS = new Set(["send", "tokens", "activity"]);
 
 export type PolicySetupScreen =
   | "spendingLimits"
-  | "recipients"
   | "extraPrograms";
 
 const POLICY_SETUP_SCREENS = new Set<string>([
   "spendingLimits",
-  "recipients",
   "extraPrograms",
 ]);
 
@@ -94,7 +90,6 @@ export function walletSettingsHref(
 export function settingsFromDenyCode(
   code?: string,
 ): SettingsTarget | undefined {
-  if (code === "recipient_not_allowed") return "recipients";
   if (code === "spend_limit") return "spendingLimits";
   if (code === "program_not_allowed" || code === "instruction_not_allowed") {
     return "extraPrograms";

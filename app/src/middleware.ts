@@ -21,7 +21,7 @@ import {
  *
  * - Wallet browse: browse-unlock for this address, or a valid device access/refresh
  * - Owner-only settings leaves: valid device access or refresh required
- *   (send-protections, spending-limits, recipients, exceptions, signing, recovery)
+ *   (send-protections, spending-limits, exceptions, signing, recovery)
  */
 export async function middleware(request: NextRequest) {
   const match = request.nextUrl.pathname.match(

@@ -17,7 +17,6 @@ import { summarizePolicyDocument } from "@/lib/wallet/policy-settings";
 export type SettingsTarget =
   | "sendProtections"
   | "spendingLimits"
-  | "recipients"
   | "extraPrograms"
   | "signing"
   | "recoveryWallet"
@@ -119,20 +118,6 @@ export function SettingsHub({
                 : copy.wallet.limitsStatusOff,
             );
 
-  const recipientsSubtitle = !isOwner
-    ? undefined
-    : policy.isLoading
-      ? copy.common.loading
-      : summary === "invalid"
-        ? copy.wallet.limitsStatusInvalid
-        : !protectionsOn
-          ? copy.wallet.sendProtectionsOff
-          : withExceptionsHint(
-              summary.recipientAllowlist
-                ? copy.wallet.recipientsAllowlist
-                : copy.wallet.recipientsAnyone,
-            );
-
   const exceptionsSubtitle = !isOwner
     ? undefined
     : policy.isLoading
@@ -205,13 +190,6 @@ export function SettingsHub({
                 className={rowClass("spendingLimits")}
               >
                 {copy.wallet.spendingLimits}
-              </GroupedRow>
-              <GroupedRow
-                onClick={() => onOpen("recipients")}
-                subtitle={recipientsSubtitle}
-                className={rowClass("recipients")}
-              >
-                {copy.wallet.recipients}
               </GroupedRow>
               <GroupedRow
                 onClick={() => onOpen("extraPrograms")}

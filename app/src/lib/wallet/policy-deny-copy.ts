@@ -10,12 +10,6 @@ export function policySoftDenyBody(deny: PolicyDeniedError): string {
       typeof deny.details?.limitUi === "string" ? deny.details.limitUi : null;
     return limit ? copy.wallet.approveSendBodyLimit(limit) : deny.message;
   }
-  if (deny.code === "recipient_not_allowed") {
-    return copy.wallet.approveSendBodyRecipient;
-  }
-  if (deny.code === "recipient_denied") {
-    return copy.wallet.approveSendBodyRecipientDenied;
-  }
   if (deny.code === "outside_time_window") {
     return copy.wallet.approveSendBodyTime;
   }
@@ -26,7 +20,7 @@ export function policySoftDenyBody(deny: PolicyDeniedError): string {
     return deny.message || copy.wallet.approveSendBodyInstruction;
   }
   if (deny.code === "program_not_allowed") {
-    return copy.wallet.approveSendBodyProgram;
+    return deny.message || copy.wallet.approveSendBodyProgram;
   }
   if (deny.code === "unexpected_instruction") {
     return copy.wallet.approveSendBodyUnexpected;

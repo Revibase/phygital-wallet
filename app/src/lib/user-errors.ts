@@ -164,9 +164,6 @@ export function toUserErrorMessage(
 ): string {
   if (error instanceof PolicyDeniedError) {
     if (error.code === "spend_limit") return error.message;
-    if (error.code === "recipient_not_allowed") {
-      return copy.wallet.approveSendBodyRecipient;
-    }
     if (error.code === "outside_time_window") {
       return copy.wallet.approveSendBodyTime;
     }

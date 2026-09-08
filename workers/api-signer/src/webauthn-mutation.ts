@@ -12,14 +12,14 @@ import {
   type AuthenticationResponseJSON,
 } from "@simplewebauthn/server";
 import { isoBase64URL } from "@simplewebauthn/server/helpers";
-import type { PolicyDocument } from "phygital-verifier-sdk";
+import type { PaymentsPolicyConfig } from "phygital-policy";
 
 import type { TokenStore } from "@/token-store";
 
 /** Intent bound into the WebAuthn challenge for every gated write. */
 export type MutationBinding =
   | { kind: "addOwner"; credentialId: string }
-  | { kind: "setPolicy"; policy: PolicyDocument }
+  | { kind: "setPolicy"; policy: PaymentsPolicyConfig }
   | { kind: "clearPolicy" }
   | { kind: "createGrant"; intentHash: string }
   | { kind: "removeOwner" }

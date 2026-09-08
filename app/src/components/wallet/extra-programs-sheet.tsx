@@ -56,7 +56,6 @@ export function ExtraProgramsSheet({
             void editor.save(
               {
                 programAllowlist: true,
-                includeStandardPrograms: true,
                 extraPrograms: customPrograms,
               },
               onBack,

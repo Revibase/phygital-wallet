@@ -1,8 +1,6 @@
 # phygital-verifier-sdk
 
-Verify Solana instructions against a **JSON policy**.
-
-**Parsers** decode bytes → fields. **Policies** authorize. **`createVerifier`** checks a transaction. Decoders are never embedded in the policy JSON.
+Verify Solana instructions against **composable TypeScript policies** over **Codama** parses.
 
 ## Install
 
@@ -14,62 +12,67 @@ pnpm add phygital-verifier-sdk
 
 ```ts
 import {
-  STANDARD_PARSERS,
-  createVerifier,
-  defineStandardPolicy,
+  fromCodamaProgram,
+  allow,
+  aggregate,
+  policy,
 } from "phygital-verifier-sdk";
+import {
+  TOKEN_PROGRAM_ADDRESS,
+  TokenInstruction,
+  identifyTokenInstruction,
+  parseTokenInstruction,
+} from "./generated/token"; // your Codama client
 
-const verify = createVerifier({ parsers: [...STANDARD_PARSERS] });
-const policy = defineStandardPolicy({
-  // wallet: userWalletAddress, // enables closeAccount → rent to owner
+const token = fromCodamaProgram({
+  programAddress: TOKEN_PROGRAM_ADDRESS,
+  identify: identifyTokenInstruction,
+  parse: parseTokenInstruction,
 });
 
-const result = verify(policy, instructions);
+const gate = policy([
+  allow(token.instruction(TokenInstruction.TransferChecked), (ix) =>
+    ix.data.amount <= 50_000_000n
+  ),
+  aggregate(
+    [
+      {
+        matcher: token.instruction(TokenInstruction.TransferChecked),
+        amount: (ix) => ix.data.amount,
+      },
+    ],
+    { lte: 50_000_000n },
+  ),
+]);
+
+const result = gate.verify(instructions);
 if (!result.ok) {
   console.error(result.code, result.message);
 }
 ```
 
-Bare `defineStandardPolicy()` is a program allowlist **without** spend caps (collectibles on). Pass `DEFAULT_MAX_MINT_RAW` / `DEFAULT_MAX_SOL_LAMPORTS` (or your own raws) for suggested 50 USDC / 0.1 SOL caps. Details: [Standard policies](./docs/standard-policies.md).
+## API
 
-## How the pieces fit
+| Export | Role |
+|--------|------|
+| `fromCodamaProgram({ programAddress, identify, parse })` | Fail-closed adapter over Codama Kit helpers |
+| `allow(matcher, predicate?)` | Permit a Codama instruction branch |
+| `deny(matcher, predicate?)` | Reject a matching instruction |
+| `allowProgram(address)` | Permit any ix for a program id (no parse) |
+| `aggregate(sources, { lte \| … })` | Sum amounts across the tx |
+| `policy(rules).verify(instructions)` | Fail-closed gate |
 
-```
-instructions ──► parsers (decode) ──► fields
-                      ▲
-policy JSON ──────────┴──► createVerifier ──► ok | { code, message }
-```
+This package ships **no** STANDARD program parsers or payments presets. Generate Codama clients from IDLs (`codama run js`) and compose rules in your app — or use `phygital-policy` for Revibase’s payments preset.
 
-| You want to… | Use |
-|--------------|-----|
-| Ship a payments wallet quickly | `defineStandardPolicy` + `STANDARD_PARSERS` |
-| Allow extra instructions on Token/System/… | `defineProgram(tokenParser, { allows })` + `fieldSchema` |
-| Add Jupiter / another program | [Custom parsers](./docs/custom-parsers.md) (`phygital-verifier-generate`) |
-| Understand deny codes | [Verify results](./docs/verify-and-errors.md) |
+**New program?** Follow [From IDL to policy (Codama)](./docs/custom-programs.md) — install Codama, `codama init` / `codama run js`, then wire `identify*` / `parse*` into `fromCodamaProgram`.
 
-## Documentation
+## Docs
 
-| Guide | Topic |
-|-------|--------|
-| [Getting started](./docs/getting-started.md) | Mental model |
-| [Standard policies](./docs/standard-policies.md) | Preset options & caps |
-| [Writing policies](./docs/writing-policies.md) | `allows` / `when` / aggregates |
-| [Custom parsers](./docs/custom-parsers.md) | Built-in full schemas + IDL generate |
-| [Verify results & errors](./docs/verify-and-errors.md) | Fail codes |
-
-## Source layout
-
-```
-src/
-  index.ts                 Public exports (start here)
-  core/                    Types, verify engine, definePolicy / defineProgram
-  policy/                  STANDARD policy preset
-  parsers/                 STANDARD_PARSERS + generated IDL decoders
-    generated/             Auto-generated — do not edit by hand
-scripts/                   phygital-verifier-generate (custom IDLs)
-docs/                      Guides linked above
-```
+- [Getting started](./docs/getting-started.md)
+- [From IDL to policy (Codama)](./docs/custom-programs.md) — install Codama, generate Kit clients, wire the SDK
+- [Writing policies](./docs/writing-policies.md)
+- [Verify results](./docs/verify-and-errors.md)
 
 ## For AI agents
 
-[`AGENTS.md`](./AGENTS.md) and [`.agent/`](./.agent/README.md).
+[`AGENTS.md`](./AGENTS.md)

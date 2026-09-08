@@ -1,15 +1,14 @@
 import type { Instruction } from "@solana/kit";
 import { PHYGITAL_TOKEN_PROGRAM_ADDRESS } from "phygital-token-sdk";
 import {
-  STANDARD_PARSERS,
-  createVerifier,
-  defineStandardPolicy,
+  buildPaymentsPolicy,
+  DEFAULT_MINT,
   uiAmountToRaw,
-  type PolicyDocument,
-} from "phygital-verifier-sdk";
+  type PaymentsPolicyConfig,
+} from "phygital-policy";
 import { PHYGITAL_WALLET_PROGRAM_ADDRESS } from "phygital-wallet-sdk";
 
-/** Well-known Compute Budget — strip before verify (SDK hard-rejects it). */
+/** Well-known Compute Budget — strip before verify. */
 export const COMPUTE_BUDGET_PROGRAM =
   "ComputeBudget111111111111111111111111111111";
 
@@ -18,16 +17,19 @@ const HARD_DENIED = new Set<string>([
   PHYGITAL_TOKEN_PROGRAM_ADDRESS,
 ]);
 
-const verify = createVerifier({ parsers: [...STANDARD_PARSERS] });
-
-/** Swap this for your own `definePolicy` / parsers. */
-function standingPolicy(): PolicyDocument {
+function standingPolicy(): PaymentsPolicyConfig {
   const maxSol = process.env.MAX_SOL_LAMPORTS?.trim();
   const maxUsdc = process.env.MAX_USDC_RAW?.trim();
-  return defineStandardPolicy({
+  return {
+    version: "3",
     maxSolLamports: maxSol ?? "100000000",
-    maxMintRaw: maxUsdc ?? uiAmountToRaw(50, 6).toString(),
-  });
+    mintLimits: [
+      {
+        mint: DEFAULT_MINT,
+        maxRaw: maxUsdc ?? uiAmountToRaw(50, 6).toString(),
+      },
+    ],
+  };
 }
 
 export type PolicyVerdict =
@@ -40,9 +42,7 @@ export type PolicyVerdict =
     };
 
 /**
- * Fail-closed policy check. Replace `standingPolicy()` with whatever rules
- * your verifier needs — grants / soft denials are optional product UX, not
- * part of the wallet HTTP contract.
+ * Fail-closed policy check built from Codama IDLs via phygital-policy.
  */
 export function evaluatePolicy(
   instructions: readonly Instruction[],
@@ -71,7 +71,7 @@ export function evaluatePolicy(
     }
   }
 
-  const result = verify(standingPolicy(), body);
+  const result = buildPaymentsPolicy(standingPolicy()).verify(body);
   if (result.ok) return { ok: true };
 
   return {

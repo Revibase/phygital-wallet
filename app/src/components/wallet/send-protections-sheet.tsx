@@ -24,8 +24,7 @@ export function SendProtectionsSheet({
   const settings = editor.settings;
   const hasExtras = (settings?.extraPrograms.length ?? 0) > 0;
   const hasCaps = settings != null && hasSpendCaps(settings);
-  const hasRecipients = settings?.recipientMode === "allowlist";
-  const tearDownHeavy = hasCaps || hasRecipients || hasExtras;
+  const tearDownHeavy = hasCaps || hasExtras;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">

@@ -330,7 +330,7 @@ export const copy = {
     signingBody:
       "Every transaction needs your accessory and a verifier that co-signs. Revibase is the default — it checks your limits before it signs.",
     signingCustomPolicyWarn:
-      "This replaces Revibase as your transaction verifier. Revibase will no longer check spending limits, recipients, programs, or one-time approvals. Only use a verifier you trust.",
+      "This replaces Revibase as your transaction verifier. Revibase will no longer check spending limits, programs, or one-time approvals. Only use a verifier you trust.",
     signingCustomAck:
       "I understand I’m replacing the Revibase transaction verifier and its protections on every send.",
     signingCustomContinue: "Continue",
@@ -349,30 +349,28 @@ export const copy = {
     setupDeviceSignIn: "Sign in",
     setupDeviceLinkedHere: "Linked here",
     policyDefaultSigningOnly:
-      "Caps and allow lists apply to built-in wallet sends. Exception programs are unrestricted.",
+      "Caps apply to built-in wallet sends. Exception programs are unrestricted.",
     policySection: "Limits",
     sendProtections: "Send protections",
     sendProtectionsHint:
       "When on, this wallet can only call built-in wallet and collectible programs — unless you add exceptions.",
     sendProtectionsOff: "Off",
     sendProtectionsOffBody:
-      "Any program is allowed. No spend caps or recipient allow list.",
+      "Any program is allowed. No spend caps.",
     sendProtectionsOn: "On",
     sendProtectionsOnBody:
-      "Built-in wallet programs are allowed. Set spend caps, recipients, and exceptions below.",
+      "Built-in wallet programs are allowed. Set spend caps and exceptions below.",
     sendProtectionsTurnOn: "Turn on send protections",
     sendProtectionsTurnOff: "Turn off send protections",
     sendProtectionsTurnOffConfirm:
-      "This removes spend caps, recipient allow list, and exceptions. Any program will be allowed again.",
+      "This removes spend caps and exceptions. Any program will be allowed again.",
     sendProtectionsRequired:
-      "Turn on send protections first to set spend caps, recipients, or exceptions.",
+      "Turn on send protections first to set spend caps or exceptions.",
     unrestrictedAppsWarn:
-      "Exception programs can move funds without your USDC/SOL caps or allow list.",
+      "Exception programs can move funds without your spend caps.",
     unrestrictedAppsHint: "Exceptions",
     approveSendTitle: "Approve this send?",
     approveSendBodyLimit: (limit: string) => `Over your $${limit} limit.`,
-    approveSendBodyRecipient: "Address isn’t on your allowed people list.",
-    approveSendBodyRecipientDenied: "This address is blocked.",
     approveSendBodyTime: "Sending isn’t allowed right now.",
     approveSendBodyApproval: "This send needs your one-time approval.",
     approveSendBodyInstruction:
@@ -393,23 +391,25 @@ export const copy = {
       "This can’t be approved once — it would fail on-chain.",
     spendingLimits: "Spending limits",
     spendingLimitsHint:
-      "Caps cover USDC and SOL on built-in wallet sends. Larger sends need a one-time approval. They do not apply to exceptions.",
+      "Caps cover SOL and verified tokens you add on built-in wallet sends. Larger sends need a one-time approval. They do not apply to exceptions.",
     spendingLimitsOff: "Off",
-    spendingLimitsOffBody: "No USDC or SOL spend caps on built-in sends.",
+    spendingLimitsOffBody: "No mint or SOL spend caps on built-in sends.",
     spendingLimitsOn: "On",
-    spendingLimitsOnBody: (usdc: string, sol: string) => {
-      const hasUsdc = usdc !== "—";
-      const hasSol = sol !== "—";
-      if (hasUsdc && hasSol) {
-        return `Up to ${usdc} USDC and ${sol} SOL per built-in send without a one-time approval.`;
+    spendingLimitsOnBody: (
+      mints: readonly { label: string; amount: string }[],
+      sol: string,
+    ) => {
+      const parts: string[] = [];
+      for (const m of mints) {
+        if (m.amount !== "—") parts.push(`${m.amount} ${m.label}`);
       }
-      if (hasUsdc) {
-        return `Up to ${usdc} USDC per built-in send without a one-time approval. SOL is uncapped.`;
+      if (sol !== "—") parts.push(`${sol} SOL`);
+      if (parts.length === 0) return "Spend caps are on.";
+      if (parts.length === 1) {
+        return `Up to ${parts[0]} per built-in send without a one-time approval.`;
       }
-      if (hasSol) {
-        return `Up to ${sol} SOL per built-in send without a one-time approval. USDC is uncapped.`;
-      }
-      return "Spend caps are on.";
+      const last = parts.pop()!;
+      return `Up to ${parts.join(", ")} and ${last} per built-in send without a one-time approval.`;
     },
     spendingLimitsInvalid: "Needs fix",
     spendingLimitsInvalidBody:
@@ -417,31 +417,21 @@ export const copy = {
     spendingLimitsAdvanced: "Set caps",
     spendingLimitsAdvancedHide: "Hide caps",
     spendingLimitsAdvancedHint:
-      "Suggested starting caps are 50 USDC and 0.1 SOL. Change them, then save.",
+      "Add a SOL cap and mint caps from verified tokens. Suggested start: 50 USDC and 0.1 SOL.",
     spendingLimitsSaveTurnsOn: "Saving turns on these spend caps.",
-    spendingLimitsSaveNeedsCap: "Enter a USDC or SOL cap to turn spend limits on.",
-    maxPerSend: "Max USDC per send",
+    spendingLimitsSaveNeedsCap:
+      "Add a mint cap or SOL cap to turn spend limits on.",
+    spendingLimitsMintAlreadyAdded: "That mint is already in your list.",
+    spendingLimitsUseSolField: "Use the SOL field for native SOL caps.",
+    mintSpendCaps: "Mint caps",
+    mintSpendCapsEmpty: "No mint caps yet.",
+    mintSpendCapsAddCta: "Add mint cap",
+    mintSpendCapsAddUsdc: "Add USDC cap",
+    mintSpendCapsRemove: "Remove mint cap",
+    mintSpendCapsPickTitle: "Choose a token",
+    mintSpendCapsNoneLeft: "Every verified token already has a cap.",
+    maxMintPerSend: "Max per send",
     maxSolPerSend: "Max SOL per send",
-    recipients: "Recipients",
-    recipientsHint:
-      "Allow lists cover who you pay on built-in wallet sends — not exception programs.",
-    recipientsAnyone: "Anyone",
-    recipientsAllowlist: "Allow list",
-    recipientsAllAllowed: "Anyone",
-    recipientsAllAllowedBody:
-      "No recipient restriction. Built-in sends can go to any address.",
-    recipientsAnyoneActive: "Anyone",
-    recipientsAnyoneActiveBody:
-      "Recipient allow list is off. Built-in sends can go to any address.",
-    recipientsRestricted: "Allow list only",
-    recipientsRestrictedBody:
-      "Only these addresses can be paid on built-in sends without a one-time approval.",
-    recipientsAdvanced: "Manage",
-    recipientsAdvancedHide: "Hide",
-    recipientsAdvancedHint:
-      "Use wallet addresses. Matching token accounts are applied automatically.",
-    recipientsEmpty: "No addresses yet",
-    recipientsNeedAddress: "Add at least one address for an allow list.",
     extraPrograms: "Exceptions",
     extraProgramsHint:
       "Send protections allow built-in wallet programs. Add an exception only if you need another program (for example a DEX).",
@@ -450,21 +440,21 @@ export const copy = {
       "Send protections are off — any program is allowed.",
     extraProgramsBuiltIn: "Built-in only",
     extraProgramsBuiltInBody:
-      "Standard wallet and collectible programs. Caps and recipient rules apply here.",
+      "Standard wallet and collectible programs. Spend caps apply here.",
     extraProgramsWithUnrestricted: (count: number) =>
       count === 1
         ? "Built-in + 1 exception"
         : `Built-in + ${count} exceptions`,
     extraProgramsWithUnrestrictedBody:
-      "Exception programs can move funds without your USDC/SOL caps or allow list.",
+      "Exception programs can move funds without your spend caps.",
     extraProgramsProtected: "Built-in",
     extraProgramsProtectedHint: "Included with send protections.",
     extraProgramsUnrestricted: "Exceptions",
     extraProgramsUnrestrictedHint:
-      "Any instruction on these programs is allowed — no spend or recipient checks.",
+      "Any instruction on these programs is allowed — no spend-cap checks.",
     extraProgramsAddCta: "Add exception",
     extraProgramsAddConfirm:
-      "This program can move funds without your USDC/SOL caps or allow list. Continue?",
+      "This program can move funds without your spend caps. Continue?",
     extraProgramsAddConfirmCta: "Add exception",
     extraProgramsEmpty: "None",
     extraProgramsAlreadyBuiltIn: "That program is already in the built-in set.",
