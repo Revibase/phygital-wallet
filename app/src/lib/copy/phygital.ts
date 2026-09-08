@@ -56,6 +56,9 @@ export const copy = {
     close: "Close",
     wallet: "Wallet",
     remove: "Remove",
+    notFoundTitle: "Page not found",
+    notFoundBody: "That link doesn’t go anywhere.",
+    goHome: "Go home",
   },
   wallet: {
     addressCopyFailed: "Couldn’t copy",
