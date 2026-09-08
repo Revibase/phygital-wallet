@@ -126,9 +126,7 @@ export function SendDialog({
   const [busy, setBusy] = useState(false);
   const [hardError, setHardError] = useState<SendHardError | null>(null);
   const [softDeny, setSoftDeny] = useState<PolicyDeniedError | null>(null);
-  const [visitorPhase, setVisitorPhase] = useState<
-    "waiting" | "denied" | "idle"
-  >("idle");
+  const [visitorPhase, setVisitorPhase] = useState<"denied" | "idle">("idle");
   const sendAbortRef = useRef<AbortController | null>(null);
   const feeBalance = useFeeBalance(phygitalTokenPda);
   const resolvedVerifier = useResolvedVerifier(phygitalTokenPda);
@@ -137,8 +135,7 @@ export function SendDialog({
   const enter = snapEnter(prefersReducedMotion);
   const amountInputRef = useRef<HTMLInputElement>(null);
 
-  function dismissVisitorSheet(opts?: { abortWait?: boolean }) {
-    if (opts?.abortWait) sendAbortRef.current?.abort();
+  function dismissVisitorSheet() {
     setSoftDeny(null);
     setVisitorPhase("idle");
   }
@@ -147,7 +144,7 @@ export function SendDialog({
     setPhase("form");
     setBusy(false);
     setHardError(null);
-    dismissVisitorSheet({ abortWait: true });
+    dismissVisitorSheet();
     sendAbortRef.current = null;
     setPickerOpen(false);
     setRecipient("");
@@ -292,25 +289,8 @@ export function SendDialog({
         resolvedVerifier: resolvedVerifier.data,
         abortSignal: abort.signal,
         signer: {
-          waitForRemoteApproval: true,
-          onPhaseChange: (phase, context) => {
+          onPhaseChange: (phase) => {
             onSignPhaseChange?.(phase);
-            if (phase === "awaitingRemoteApproval" && context?.remoteApproval) {
-              const remote = context.remoteApproval;
-              setSoftDeny(
-                new PolicyDeniedError({
-                  code: remote.code,
-                  error: remote.error,
-                  soft: true,
-                  intentHash: remote.intentHash,
-                  watchTicket: remote.watchTicket,
-                  details: remote.details,
-                }),
-              );
-              setVisitorPhase("waiting");
-              setPhase("form");
-              return;
-            }
             if (isWalletSignCeremonyPhase(phase)) {
               setSoftDeny(null);
               setVisitorPhase("idle");
@@ -806,10 +786,6 @@ export function SendDialog({
         open={softDeny != null}
         onOpenChange={(open) => {
           if (open) return;
-          if (visitorPhase === "waiting") {
-            dismissVisitorSheet({ abortWait: true });
-            return;
-          }
           if (!busy) dismissVisitorSheet();
         }}
       >
@@ -818,10 +794,6 @@ export function SendDialog({
           showCloseButton={false}
           onInteractOutside={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => {
-            if (visitorPhase === "waiting") {
-              dismissVisitorSheet({ abortWait: true });
-              return;
-            }
             if (busy) e.preventDefault();
             else dismissVisitorSheet();
           }}
@@ -834,9 +806,7 @@ export function SendDialog({
                   ? copy.wallet.approveSendTitle
                   : visitorPhase === "denied"
                     ? copy.wallet.visitorDeniedTitle
-                    : visitorPhase === "waiting"
-                      ? copy.wallet.visitorWaitingTitle
-                      : copy.wallet.nearbyPolicyTitle
+                    : copy.wallet.nearbyPolicyTitle
               }
               body={
                 role === "owner"
@@ -870,11 +840,7 @@ export function SendDialog({
               mode={role === "owner" ? "owner" : "visitor"}
               visitorPhase={role === "owner" ? "idle" : visitorPhase}
               onApprove={() => void approveOnce()}
-              onClose={() =>
-                dismissVisitorSheet({
-                  abortWait: visitorPhase === "waiting",
-                })
-              }
+              onClose={() => dismissVisitorSheet()}
             />
           ) : null}
         </SheetContent>

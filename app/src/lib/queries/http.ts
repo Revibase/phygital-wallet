@@ -1,5 +1,4 @@
 import { apiUrl } from "@/lib/api-base";
-import { parseRetryAfterMs } from "phygital-wallet-sdk";
 
 /**
  * Browser fetch for React Query (and other app API calls).
@@ -11,6 +10,21 @@ import { parseRetryAfterMs } from "phygital-wallet-sdk";
  */
 
 let refreshInFlight: Promise<boolean> | null = null;
+
+/** Parse `Retry-After` (delta-seconds or HTTP-date) to a capped delay. */
+export function parseRetryAfterMs(res: Response): number | null {
+  const raw = res.headers.get("Retry-After")?.trim();
+  if (!raw) return null;
+  const seconds = Number(raw);
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return Math.min(60_000, Math.floor(seconds * 1000));
+  }
+  const when = Date.parse(raw);
+  if (Number.isFinite(when)) {
+    return Math.min(60_000, Math.max(0, when - Date.now()));
+  }
+  return null;
+}
 
 function isRefreshUrl(url: string): boolean {
   try {

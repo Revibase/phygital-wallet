@@ -80,10 +80,6 @@ export class TokenSigner extends DurableObject<Env> {
     this.ctx.blockConcurrencyWhile(async () => {
       initTokenSchema(this.ctx.storage.sql);
     });
-    // Keep owner inbox sockets cheap while idle.
-    this.ctx.setWebSocketAutoResponse(
-      new WebSocketRequestResponsePair("ping", "pong"),
-    );
   }
 
   #log(): Logger {
@@ -382,13 +378,7 @@ export class TokenSigner extends DurableObject<Env> {
           3600,
         );
         const grant = this.#getStore().createGrant(intentHash, ttlSeconds);
-        if (this.#getStore().resolvePendingApproval(intentHash, "granted")) {
-          this.#broadcastApprovalEvent({
-            type: "approval_resolved",
-            intentHash,
-            status: "granted",
-          });
-        }
+        this.#getStore().resolvePendingApproval(intentHash, "granted");
         return {
           ok: true,
           grantId: grant.grantId,
@@ -746,44 +736,6 @@ export class TokenSigner extends DurableObject<Env> {
     );
   }
 
-  /**
-   * Owner inbox / visitor watch channel — API proxies the upgrade after auth.
-   * Hibernatable so idle phones do not pin the DO in memory.
-   * Optional `X-Revibase-Watch-Intent` tags a visitor socket for that intent.
-   */
-  async fetch(request: Request): Promise<Response> {
-    if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
-      return new Response("Expected WebSocket", { status: 426 });
-    }
-    const watchIntent = request.headers.get("X-Revibase-Watch-Intent")?.trim();
-    // Owners: `approvals`. Visitors: `watch:<intent>` only (no cross-fanout).
-    const tags = watchIntent ? [`watch:${watchIntent}`] : ["approvals"];
-    const pair = new WebSocketPair();
-    this.ctx.acceptWebSocket(pair[1], tags);
-    return new Response(null, { status: 101, webSocket: pair[0] });
-  }
-
-  /**
-   * Push inbox / watch updates.
-   * `approvals_changed` → owner sockets only.
-   * `approval_resolved` → owners + the matching visitor watch tag.
-   */
-  async notifyApprovalEvent(event: {
-    type: "approvals_changed" | "approval_resolved";
-    intentHash?: string;
-    status?: "granted" | "denied" | "cancelled";
-  }): Promise<{ notified: number }> {
-    return this.#rpc(
-      "notifyApprovalEvent",
-      {
-        phygitalToken: this.#getToken(),
-        type: event.type,
-        intentHash: event.intentHash,
-      },
-      async () => this.#broadcastApprovalEvent(event),
-    );
-  }
-
   async recordSoftDeny(input: {
     intentHash: string;
     code: string;
@@ -810,7 +762,6 @@ export class TokenSigner extends DurableObject<Env> {
           error: input.error,
           details: input.details,
         });
-        this.#broadcastApprovalEvent({ type: "approvals_changed" });
         return { recorded: true };
       },
     );
@@ -837,98 +788,12 @@ export class TokenSigner extends DurableObject<Env> {
         intentHash: input.intentHash,
         resolution: input.resolution,
       },
-      async () => {
-        const resolved = this.#getStore().resolvePendingApproval(
+      async () => ({
+        resolved: this.#getStore().resolvePendingApproval(
           input.intentHash,
           input.resolution,
-        );
-        if (resolved) {
-          this.#broadcastApprovalEvent({
-            type: "approval_resolved",
-            intentHash: input.intentHash,
-            status: input.resolution,
-          });
-        }
-        return { resolved };
-      },
+        ),
+      }),
     );
-  }
-
-  async getApprovalWatchStatus(input: {
-    intentHash: string;
-  }): Promise<ReturnType<TokenStore["getApprovalWatchStatus"]>> {
-    return this.#rpc(
-      "getApprovalWatchStatus",
-      {
-        phygitalToken: this.#getToken(),
-        intentHash: input.intentHash,
-      },
-      async () => this.#getStore().getApprovalWatchStatus(input.intentHash),
-    );
-  }
-
-  #broadcastApprovalEvent(event: {
-    type: "approvals_changed" | "approval_resolved";
-    intentHash?: string;
-    status?: "granted" | "denied" | "cancelled";
-  }): { notified: number } {
-    const payload = JSON.stringify(event);
-    const seen = new Set<WebSocket>();
-    const sendTagged = (tag: string) => {
-      for (const ws of this.ctx.getWebSockets(tag)) {
-        if (seen.has(ws)) continue;
-        seen.add(ws);
-        try {
-          ws.send(payload);
-        } catch {
-          /* drop dead sockets */
-        }
-      }
-    };
-
-    if (event.type === "approvals_changed") {
-      sendTagged("approvals");
-    } else if (event.type === "approval_resolved") {
-      sendTagged("approvals");
-      const intent = event.intentHash?.trim();
-      if (intent) sendTagged(`watch:${intent}`);
-    }
-
-    const notified = seen.size;
-    this.#log().debug("approvals.notify", {
-      type: event.type,
-      intentHash: event.intentHash,
-      notified,
-    });
-    return { notified };
-  }
-
-  /** Heartbeats use setWebSocketAutoResponse — do not wake the isolate. */
-  async webSocketMessage(
-    _ws: WebSocket,
-    _message: string | ArrayBuffer,
-  ): Promise<void> {
-    /* no-op */
-  }
-
-  async webSocketClose(
-    ws: WebSocket,
-    code: number,
-    reason: string,
-    _wasClean: boolean,
-  ): Promise<void> {
-    try {
-      ws.close(code, reason);
-    } catch {
-      /* already closed */
-    }
-  }
-
-  async webSocketError(ws: WebSocket, _error: unknown): Promise<void> {
-    try {
-      ws.close(1011, "WebSocket error");
-    } catch {
-      /* ignore */
-    }
   }
 }

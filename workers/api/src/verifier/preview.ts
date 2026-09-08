@@ -1,9 +1,6 @@
 import { Hono } from "hono";
 
-import { PENDING_APPROVAL_TTL_MS } from "@/auth/approval-constants";
-import { approvalsWatchTicketHead } from "@/auth/approvals-tickets";
 import { readDeviceSession } from "@/auth/device-session";
-import { mintSignedSessionToken } from "@/auth/session-hmac";
 import { json } from "@/shared/http";
 import { createLogger } from "@/shared/log";
 import type { Instruction } from "@solana/kit";
@@ -11,7 +8,7 @@ import { instructionFromJson } from "@/verifier/decode-tx";
 import { verifierJsonError } from "@/verifier/errors";
 import { tokenSigner } from "@/verifier/token-signer";
 
-/** Soft deny may record DO inbox + mint a visitor watchTicket. */
+/** Soft deny may record a DO inbox row for the owner phone. */
 export const previewRoutes = new Hono<{ Bindings: Env }>();
 
 previewRoutes.post("/preview", async (c) => {
@@ -51,7 +48,6 @@ previewRoutes.post("/preview", async (c) => {
       return json({ ok: true, intentHash: result.intentHash });
     }
 
-    let watchTicket: string | undefined;
     if (result.soft && result.intentHash) {
       const session = await readDeviceSession(c);
       const { recorded } = await stub.recordSoftDeny({
@@ -62,11 +58,6 @@ previewRoutes.post("/preview", async (c) => {
         visitorCredentialId: session?.credentialId ?? null,
       });
       if (recorded) {
-        const minted = await mintSignedSessionToken(
-          approvalsWatchTicketHead(phygitalToken, result.intentHash),
-          PENDING_APPROVAL_TTL_MS,
-        );
-        watchTicket = minted.token;
         createLogger("api", c.env).debug("approvals.soft_deny", {
           phygitalToken,
           intentHash: result.intentHash,
@@ -82,7 +73,6 @@ previewRoutes.post("/preview", async (c) => {
         soft: result.soft,
         intentHash: result.intentHash,
         details: result.details,
-        ...(watchTicket ? { watchTicket } : {}),
       },
       { status: result.httpStatus ?? 200 },
     );

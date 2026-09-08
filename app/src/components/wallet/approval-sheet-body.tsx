@@ -32,7 +32,7 @@ export function ApprovalSheetBody({
   detailRows: { label: string; value: string }[];
   busy: boolean;
   mode: "owner" | "visitor";
-  visitorPhase?: "waiting" | "denied" | "idle";
+  visitorPhase?: "denied" | "idle";
   onApprove: () => void;
   onClose: () => void;
 }) {
@@ -111,22 +111,6 @@ export function ApprovalSheetBody({
           >
             {copy.common.done}
           </Button>
-        ) : visitorPhase === "waiting" ? (
-          <>
-            <div className="flex items-center justify-center gap-2 py-2 text-sm text-muted-foreground">
-              <Spinner className="size-4" />
-              <span>{copy.wallet.visitorWaitingStatus}</span>
-            </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="lg"
-              className="w-full"
-              onClick={onClose}
-            >
-              {copy.common.cancel}
-            </Button>
-          </>
         ) : (
           <Button
             type="button"

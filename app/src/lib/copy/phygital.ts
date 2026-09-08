@@ -324,8 +324,6 @@ export const copy = {
       "Ask the owner to approve this send on their linked phone. When they approve, you’ll hold your accessory to finish.",
     visitorNeedsApprovalHint:
       "Your amount and recipient stay filled in. Requests expire in about 5 minutes.",
-    visitorWaitingTitle: "Waiting for approval",
-    visitorWaitingStatus: "Waiting for the owner…",
     visitorDeniedTitle: "Send not approved",
     visitorDeniedBody: "The owner declined this send.",
     openApprovalDenied: "Declined",

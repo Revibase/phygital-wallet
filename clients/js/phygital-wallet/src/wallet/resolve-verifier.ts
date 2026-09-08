@@ -54,16 +54,6 @@ export function createVerifierEndpointSigner<TAddress extends Address>(
     /** Full `/sign` URL */
     endpoint: string;
     fetch?: typeof fetch;
-    /**
-     * Optional fields merged into the POST `/sign` JSON body
-     * (e.g. `challengeId` + `assertion` for config cosign).
-     */
-    enrichSignBody?: (
-      transactions: readonly SignableTransaction[],
-    ) =>
-      | Record<string, unknown>
-      | undefined
-      | Promise<Record<string, unknown> | undefined>;
   },
 ): TransactionPartialSigner<TAddress> {
   const httpFetch = config.fetch ?? fetch;
@@ -77,7 +67,6 @@ export function createVerifierEndpointSigner<TAddress extends Address>(
       options?.abortSignal?.throwIfAborted();
 
       const endpoint = assertHttpsEndpoint(config.endpoint);
-      const extra = (await config.enrichSignBody?.(transactions)) ?? {};
 
       const response = await httpFetch(endpoint, {
         method: "POST",
@@ -86,7 +75,6 @@ export function createVerifierEndpointSigner<TAddress extends Address>(
           transactions: transactions.map((transaction) =>
             getBase64EncodedWireTransaction(transaction),
           ),
-          ...extra,
         }),
         signal: options?.abortSignal,
       });
@@ -159,12 +147,6 @@ function signerFromSnapshot(
   snapshot: VerifierAccountSnapshot,
   config: {
     fetch?: typeof fetch;
-    enrichSignBody?: (
-      transactions: readonly SignableTransaction[],
-    ) =>
-      | Record<string, unknown>
-      | undefined
-      | Promise<Record<string, unknown> | undefined>;
   },
 ): ResolvedVerifier {
   return {
@@ -172,7 +154,6 @@ function signerFromSnapshot(
     verifier: createVerifierEndpointSigner(snapshot.verifierAddress, {
       endpoint: verifierSignUrl(snapshot.endpoint),
       fetch: config.fetch,
-      enrichSignBody: config.enrichSignBody,
     }),
   };
 }
@@ -273,12 +254,6 @@ export async function resolveVerifier(
     fetch?: typeof fetch;
     /** Skip getMultipleAccounts when provided. */
     snapshot?: VerifierAccountSnapshot;
-    enrichSignBody?: (
-      transactions: readonly SignableTransaction[],
-    ) =>
-      | Record<string, unknown>
-      | undefined
-      | Promise<Record<string, unknown> | undefined>;
   } = {},
 ): Promise<ResolvedVerifier> {
   if (config.snapshot) {

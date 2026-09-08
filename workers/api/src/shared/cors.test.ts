@@ -16,9 +16,6 @@ describe("corsModeForRequest", () => {
     expect(
       corsModeForRequest("POST", "/preview", "https://p.revibase.com"),
     ).toBe("credentialed");
-    expect(
-      corsModeForRequest("GET", "/approvals/live", "http://localhost:3000"),
-    ).toBe("credentialed");
   });
 
   it("uses open CORS for third-party origins on open paths", () => {
@@ -26,7 +23,7 @@ describe("corsModeForRequest", () => {
       corsModeForRequest("POST", "/preview", "https://dapp.example"),
     ).toBe("open");
     expect(
-      corsModeForRequest("GET", "/approvals/watch", "https://dapp.example"),
+      corsModeForRequest("POST", "/sign", "https://dapp.example"),
     ).toBe("open");
   });
 

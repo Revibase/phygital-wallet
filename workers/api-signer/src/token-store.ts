@@ -54,11 +54,6 @@ export type PendingApproval = {
   details: Record<string, unknown> | null;
 };
 
-export type ApprovalWatchStatus =
-  | { status: "pending"; expiresAt: number }
-  | { status: ApprovalResolutionStatus }
-  | { status: "expired" };
-
 /** Fields the owner approval sheet reads — drop the rest before SQLite write. */
 const INBOX_DETAIL_KEYS = [
   "amountUi",
@@ -630,47 +625,6 @@ export class TokenStore {
     if (!open) return false;
     this.#markResolved(open.id, resolution, now);
     return true;
-  }
-
-  getApprovalWatchStatus(
-    intentHash: string,
-    now = Date.now(),
-  ): ApprovalWatchStatus {
-    const row = this.sql
-      .exec<{
-        expires_at: number;
-        resolved_at: number | null;
-        resolution: string | null;
-      }>(
-        `SELECT expires_at, resolved_at, resolution
-         FROM pending_approvals
-         WHERE intent_hash = ?
-         ORDER BY created_at DESC
-         LIMIT 1`,
-        intentHash.trim(),
-      )
-      .toArray()[0];
-
-    if (!row) return { status: "expired" };
-
-    if (row.resolved_at != null) {
-      if (
-        row.resolution === "granted" ||
-        row.resolution === "denied" ||
-        row.resolution === "cancelled" ||
-        row.resolution === "expired"
-      ) {
-        return { status: row.resolution };
-      }
-      return { status: "cancelled" };
-    }
-
-    if (row.expires_at <= now) {
-      // Persist expiry for audit; open list already filters expires_at.
-      this.gcPendingApprovals(now);
-      return { status: "expired" };
-    }
-    return { status: "pending", expiresAt: row.expires_at };
   }
 
   /** Resolve in place — keep code/error/details for audit. */

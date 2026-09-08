@@ -10,10 +10,8 @@ Owner-app authentication and standing-policy HTTP surface.
 | `session-hmac.ts` | Shared HMAC mint/parse for session cookies |
 | `session-cookie-attrs.ts` | Cookie secure / SameSite / Domain for app middleware visibility |
 | `device-db.ts` | `device_credentials` + listing index `device_token_links` |
-| `policies-routes.ts` | Policy/grant/deny/cancel HTTP; owner approvals inbox + hibernatable live WS. Inbox on TokenSigner DO |
-| `approvals-tickets.ts` | HMAC ticket head mint/parse for live / watch |
-| `approval-constants.ts` | Soft-deny / watch-ticket TTL (matches DO) |
-| `require-app-access.ts` | Global floor: device **access** session **or** browse-unlock; public allowlist for verifier, token landing GETs, session issuers/refresh, and soft-deny ticket routes |
+| `policies-routes.ts` | Policy/grant/deny HTTP; owner approvals inbox. Inbox on TokenSigner DO |
+| `require-app-access.ts` | Global floor: device **access** session **or** browse-unlock; public allowlist for verifier, token landing GETs, session issuers/refresh |
 
 Owner-of-record is the **TokenSigner DO** single-row `owner` (current only;
 no past-owner history). A new phone links only after the current owner unlinks

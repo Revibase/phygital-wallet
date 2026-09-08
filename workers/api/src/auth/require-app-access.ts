@@ -22,9 +22,6 @@ const PUBLIC_ROUTES: ReadonlyArray<{ method: string; path: string }> = [
   { method: "GET", path: "/verify-tap" },
   { method: "POST", path: "/auth/browse-unlock" },
   { method: "POST", path: "/webhooks/helius" },
-  // Soft-deny visitor / third-party: ticket auth on the route itself.
-  { method: "GET", path: "/approvals/live" },
-  { method: "GET", path: "/approvals/watch" },
   // Token landing before tap/Hold — must work with zero cookies.
   { method: "GET", path: "/auth/device/gate" },
 ];
@@ -38,30 +35,19 @@ export function normalizeApiPath(path: string): string {
   return noQuery || "/";
 }
 
-/** Visitor cancel soft-deny: `POST /policies/:token/approvals/cancel` (watch ticket). */
-function isApprovalsCancelPath(method: string, path: string): boolean {
-  return (
-    method.toUpperCase() === "POST" &&
-    /^\/policies\/[^/]+\/approvals\/cancel$/.test(normalizeApiPath(path))
-  );
-}
-
 export function isPublicApiPath(method: string, path: string): boolean {
   const m = method.toUpperCase();
   const p = normalizeApiPath(path);
-  if (PUBLIC_ROUTES.some((r) => r.method === m && r.path === p)) return true;
-  return isApprovalsCancelPath(m, p);
+  return PUBLIC_ROUTES.some((r) => r.method === m && r.path === p);
 }
 
 /**
- * Open CORS (no cookies): public verifier + soft-deny ticket surfaces for
- * third-party integrators. Path-based so OPTIONS preflight matches too.
+ * Open CORS (no cookies): public verifier for third-party integrators.
+ * Path-based so OPTIONS preflight matches too.
  */
 export function isOpenCorsPath(_method: string, path: string): boolean {
   const p = normalizeApiPath(path);
-  if (p === "/preview" || p === "/sign") return true;
-  if (p === "/approvals/live" || p === "/approvals/watch") return true;
-  return /^\/policies\/[^/]+\/approvals\/cancel$/.test(p);
+  return p === "/preview" || p === "/sign";
 }
 
 /** @deprecated Prefer {@link isOpenCorsPath} — kept for call-site clarity on verifier-only checks. */

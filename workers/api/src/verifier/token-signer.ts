@@ -130,13 +130,6 @@ export type TokenSignerRpc = {
     intentHash: string;
     resolution: "granted" | "denied" | "cancelled";
   }): Promise<{ resolved: boolean }>;
-  getApprovalWatchStatus(input: {
-    intentHash: string;
-  }): Promise<
-    | { status: "pending"; expiresAt: number }
-    | { status: "granted" | "denied" | "cancelled" | "expired" }
-    | { status: "expired" }
-  >;
 };
 
 export function tokenSigner(env: Env, phygitalToken: string): TokenSignerRpc {

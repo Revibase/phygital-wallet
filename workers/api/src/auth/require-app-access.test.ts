@@ -30,11 +30,6 @@ describe("isPublicApiPath", () => {
     expect(isPublicApiPath("POST", "/auth/device-session/refresh")).toBe(true);
     expect(isPublicApiPath("GET", "/auth/device-session")).toBe(true);
     expect(isPublicApiPath("POST", "/webhooks/helius")).toBe(true);
-    expect(isPublicApiPath("GET", "/approvals/live")).toBe(true);
-    expect(isPublicApiPath("GET", "/approvals/watch")).toBe(true);
-    expect(isPublicApiPath("POST", "/policies/Tok/approvals/cancel")).toBe(
-      true,
-    );
     expect(isPublicApiPath("GET", "/auth/device/gate")).toBe(true);
   });
 
@@ -49,17 +44,20 @@ describe("isPublicApiPath", () => {
     expect(isPublicApiPath("POST", "/policies/Tok/approvals/deny")).toBe(false);
     expect(isPublicApiPath("GET", "/preview")).toBe(false);
     expect(isPublicApiPath("POST", "/auth/device/links")).toBe(false);
+    expect(isPublicApiPath("GET", "/approvals/live")).toBe(false);
+    expect(isPublicApiPath("POST", "/policies/Tok/approvals/cancel")).toBe(
+      false,
+    );
   });
 });
 
 describe("isOpenCorsPath", () => {
-  it("opens verifier and soft-deny ticket surfaces", () => {
+  it("opens verifier paths only", () => {
     expect(isOpenCorsPath("POST", "/preview")).toBe(true);
     expect(isOpenCorsPath("POST", "/sign")).toBe(true);
-    expect(isOpenCorsPath("GET", "/approvals/live")).toBe(true);
-    expect(isOpenCorsPath("GET", "/approvals/watch")).toBe(true);
+    expect(isOpenCorsPath("GET", "/approvals/live")).toBe(false);
     expect(isOpenCorsPath("POST", "/policies/Tok/approvals/cancel")).toBe(
-      true,
+      false,
     );
     expect(isOpenCorsPath("GET", "/health")).toBe(false);
     expect(isOpenCorsPath("GET", "/tokens/verified")).toBe(false);
@@ -109,22 +107,6 @@ describe("evaluateAppAccess", () => {
       evaluateAppAccess({
         method: "POST",
         path: "/preview",
-        hasDeviceSession: false,
-        browseToken: null,
-      }),
-    ).toBe("allow");
-    expect(
-      evaluateAppAccess({
-        method: "GET",
-        path: "/approvals/live",
-        hasDeviceSession: false,
-        browseToken: null,
-      }),
-    ).toBe("allow");
-    expect(
-      evaluateAppAccess({
-        method: "POST",
-        path: "/policies/Tok/approvals/cancel",
         hasDeviceSession: false,
         browseToken: null,
       }),

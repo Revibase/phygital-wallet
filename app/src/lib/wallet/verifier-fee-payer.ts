@@ -57,6 +57,15 @@ export type AppVerifierSigner = TransactionPartialSigner & {
   requiresOwnerCosignAssertion: boolean;
 };
 
+function isSignRequest(url: string, init?: RequestInit): boolean {
+  if ((init?.method ?? "GET").toUpperCase() !== "POST") return false;
+  try {
+    return new URL(url, "http://local").pathname.endsWith("/sign");
+  } catch {
+    return url.includes("/sign");
+  }
+}
+
 /**
  * Single HTTP verifier signer used as fee payer **and** instruction `payer` /
  * `verifier` for set/clear token verifier and recovery wallet.
@@ -72,18 +81,36 @@ export async function createAppVerifierSigner(
   let requiresOwnerCosignAssertion = false;
 
   const resolved = await resolveVerifier(rpc, phygitalToken, {
-    fetch: appVerifierFetch,
-    enrichSignBody: async () => {
-      if (!requiresOwnerCosignAssertion) return undefined;
-      if (!ownerAuth) {
-        throw new Error("Confirm on this phone to continue");
+    fetch: (input, init) => {
+      const raw =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.toString()
+            : String(input);
+
+      let nextInit = init;
+      if (requiresOwnerCosignAssertion && isSignRequest(raw, init)) {
+        if (!ownerAuth) {
+          throw new Error("Confirm on this phone to continue");
+        }
+        const auth = ownerAuth;
+        ownerAuth = null;
+        const body = JSON.parse(String(init?.body ?? "{}")) as Record<
+          string,
+          unknown
+        >;
+        nextInit = {
+          ...init,
+          body: JSON.stringify({
+            ...body,
+            challengeId: auth.challengeId,
+            assertion: auth.assertion,
+          }),
+        };
       }
-      const auth = ownerAuth;
-      ownerAuth = null;
-      return {
-        challengeId: auth.challengeId,
-        assertion: auth.assertion,
-      };
+
+      return appVerifierFetch(input, nextInit);
     },
   });
   requiresOwnerCosignAssertion = resolved.requiresOwnerCosignAssertion;

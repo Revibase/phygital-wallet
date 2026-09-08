@@ -145,16 +145,6 @@ export async function denyOpenApproval(
   await readJson(res, "Couldn’t deny this send");
 }
 
-export async function fetchApprovalsLiveTicket(
-  phygitalToken: string,
-): Promise<{ ticket: string; expiresAt: number }> {
-  const res = await queryFetch(
-    `/policies/${encodeURIComponent(phygitalToken)}/approvals/live-ticket`,
-    { method: "POST" },
-  );
-  return readJson(res, "Couldn’t open approvals channel");
-}
-
 export async function fetchOpenApprovals(
   phygitalToken: string,
 ): Promise<OpenApproval[]> {

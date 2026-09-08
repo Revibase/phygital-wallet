@@ -1,24 +1,10 @@
 export {
   getPhygitalWalletSigner,
   type PhygitalWalletSignPhase,
-  type PhygitalWalletSignPhaseContext,
   type PhygitalWalletSignerCallbacks,
   type PhygitalWalletSignerConfig,
 } from "./wallet/signer.js";
 export { PolicyDeniedError, previewWalletIntent } from "./wallet/preview.js";
-export {
-  approvalsReconnectDelayMs,
-  attachApprovalsLiveHeartbeat,
-  createApprovalsLiveReconnect,
-  cancelRemoteApproval,
-  fetchApprovalWatchStatus,
-  parseApprovalLiveEvent,
-  parseRetryAfterMs,
-  verifierApprovalsLiveUrl,
-  verifierApprovalsWatchStatusUrl,
-  type ApprovalLiveEvent,
-  type ApprovalWatchStatus,
-} from "./wallet/approval-watch.js";
 export {
   assertHttpsEndpoint,
   createVerifierEndpointSigner,

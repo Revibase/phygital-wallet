@@ -50,27 +50,7 @@ const signed = await signTransactionMessageWithSigners(message);
 
 Signing runs policy checks and a body simulation before the passkey prompt, then wraps (`secp256r1` + `execute`) and co-signs.
 
-By default, soft deny with a `watchTicket` **throws** `PolicyDeniedError` (soft). The pending approval still lands in the owner inbox — after they approve on their phone, retry the **same** instructions (stable intent hash) and sign again.
-
-## Optional: wait for remote owner approval in the same `sign`
-
-Only if you show waiting UI (`showWaitingForOwner`). Set `waitForRemoteApproval: true`:
-
-```typescript
-const source = await getPhygitalWalletSigner(rpc, phygitalTokenPda, {
-  waitForRemoteApproval: true,
-  onPhaseChange: (phase, context) => {
-    if (phase === "awaitingRemoteApproval") {
-      showWaitingForOwner(context?.remoteApproval);
-    }
-    if (phase === "awaitingPasskey") showHoldAccessory();
-  },
-});
-
-await signTransactionMessageWithSigners(message);
-```
-
-Flow when enabled: soft deny → `awaitingRemoteApproval` → grant/deny on WS → Hold / NFC → finalize / co-sign. Denied throws `PolicyDeniedError` (`approval_denied`). Abort (or `cancelRemoteApproval`) withdraws the pending request. Approval TTL ~5 minutes; SlotHashes starts only after grant.
+Soft deny throws `PolicyDeniedError` (soft) with a stable `intentHash`. The pending approval lands in the owner inbox — after they approve on their phone, retry the **same** instructions and sign again.
 
 ## Optional: ceremony progress
 

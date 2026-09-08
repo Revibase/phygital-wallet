@@ -236,11 +236,9 @@ describe("TokenStore pending approvals", () => {
       code: "over_limit",
     });
     expect(open[0]).not.toHaveProperty("phygitalToken");
-    expect(store.getApprovalWatchStatus("h1").status).toBe("pending");
 
     expect(store.resolvePendingApproval("h1", "granted")).toBe(true);
     expect(store.listOpenApprovals()).toHaveLength(0);
-    expect(store.getApprovalWatchStatus("h1")).toEqual({ status: "granted" });
     expect(store.resolvePendingApproval("h1", "denied")).toBe(false);
   });
 
@@ -300,7 +298,6 @@ describe("TokenStore pending approvals", () => {
     });
     expect(store.resolvePendingApproval("h1", "granted")).toBe(true);
     expect(store.listOpenApprovals()).toHaveLength(0);
-    expect(store.getApprovalWatchStatus("h1")).toEqual({ status: "granted" });
 
     // Upsert/GC must not delete the resolved audit row.
     store.upsertPendingApproval({
@@ -308,6 +305,7 @@ describe("TokenStore pending approvals", () => {
       code: "over_limit",
       error: "y",
     });
-    expect(store.getApprovalWatchStatus("h1")).toEqual({ status: "granted" });
+    expect(store.listOpenApprovals()).toHaveLength(1);
+    expect(store.listOpenApprovals()[0]!.intentHash).toBe("h2");
   });
 });

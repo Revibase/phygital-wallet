@@ -5,8 +5,8 @@ import { copy } from "@/lib/copy/phygital";
 export type { PhygitalWalletSignPhase };
 
 /**
- * Keep the form mounted through preview / remote-approval wait; ceremony
- * phases may swap to the NFC hold UI.
+ * Keep the form mounted through preview; ceremony phases may swap to the NFC
+ * hold UI.
  */
 export function isWalletSignCeremonyPhase(
   phase: PhygitalWalletSignPhase,
@@ -37,12 +37,6 @@ export function walletSignPhaseCopy(phase: PhygitalWalletSignPhase): {
       return {
         title: copy.wallet.signPreviewingTitle,
         body: copy.wallet.signPreviewingBody,
-        pulse: false,
-      };
-    case "awaitingRemoteApproval":
-      return {
-        title: copy.wallet.visitorWaitingTitle,
-        body: copy.wallet.visitorNeedsApprovalBody,
         pulse: false,
       };
     case "awaitingPasskey":

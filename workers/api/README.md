@@ -26,7 +26,7 @@ api-signer/         Private Worker: TokenSigner Durable Object (per token)
 
 **Auditor tip:** Fee / policy evaluate / co-sign / owner membership / soft-deny
 inbox live in the `TokenSigner` DO on `api-signer/`. This Worker is an untrusted
-edge: session UX, watch-ticket mint, and WebAuthn before `addOwner`.
+edge: session UX and WebAuthn before `addOwner`.
 
 ## Setup
 
@@ -49,9 +49,6 @@ one is present). Login also sets `revibase_device_refresh` (~30d); use
 |--------|------|--------|--------|
 | GET | `/health` | Public | Liveness |
 | POST | `/preview` / `/sign` | Public | Verifier (open CORS for 3p; app origins stay credentialed) |
-| GET | `/approvals/live` | Public† | Hibernatable WS — **ticket** required |
-| GET | `/approvals/watch` | Public† | Visitor catch-up — **watch ticket** required |
-| POST | `/policies/:token/approvals/cancel` | Public† | Visitor cancel — **watch ticket** + rate limit |
 | GET | `/auth/device/gate` | Public | Token landing (works with zero cookies; may refresh access) |
 | GET | `/auth/device/register-options` | Public | Start passkey registration |
 | POST | `/auth/device` | Public | Finish registration → access + refresh cookies |
@@ -71,13 +68,11 @@ one is present). Login also sets `revibase_device_refresh` (~30d); use
 | POST | `/policies/:token/grants` | Protected | Owner WebAuthn |
 | GET | `/policies/:token/approvals` | Protected | Soft-deny inbox |
 | POST | `/policies/:token/approvals/deny` | Protected | Owner deny |
-| POST | `/policies/:token/approvals/live-ticket` | Protected | Owner live WS ticket |
 | GET | `/tokens/fee-balance` | Protected‡ | Matching browse-unlock **or** owner device session |
 | GET | `/tokens/verified` | Protected | Verified catalog |
 | POST | `/tokens/rarity` | Protected | Rarity index |
 
 \*Webhook is on the cookie allowlist but still requires `HELIUS_WEBHOOK_AUTH`.  
-†Ticket-authenticated (no device/browse cookie). Third-party origins get open CORS; Revibase app origins stay credentialed so `/preview` can see the device cookie.  
 ‡Not readable cross-token with a random device session — must own the token or hold browse-unlock for it.
 
 ## Fee balance
