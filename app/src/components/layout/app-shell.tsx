@@ -10,6 +10,7 @@ import {
 
 import { LuminousAura } from "@/components/shared/luminous-aura";
 import {
+  shellDeviceFrameClass,
   shellLayoutClass,
   shellPaddingClass,
   type ShellLayout,
@@ -52,8 +53,7 @@ export function AppShell({
             "relative z-10 mx-auto flex w-full min-w-0 flex-1 flex-col self-center",
             shellPaddingClass,
             shellLayoutClass[layout],
-            (layout === "compact" || layout === "home") &&
-              "md:my-4 md:min-h-[min(100dvh-2rem,52rem)] md:overflow-hidden md:rounded-[2rem] md:border md:border-border/40 md:bg-background/80 md:shadow-[0_24px_80px_-32px_var(--card-shadow)] md:backdrop-blur-xl",
+            shellDeviceFrameClass[layout],
           )}
         >
           <div

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { useIsRestoring, useQuery, useQueryClient } from "@tanstack/react-query";
 import { findPhygitalTokenPda } from "phygital-token-sdk";
 
@@ -40,7 +41,9 @@ export type TokenHomeRenderArgs = {
   claimed?: boolean;
 };
 
-function layoutForToken(token: PhygitalToken): ShellLayout {
+/** Wallet browsing uses a wider column; minted card page uses gallery; hold stays compact. */
+function layoutForRoute(token: PhygitalToken, pathname: string): ShellLayout {
+  if (/\/wallet(?:\/|$)/.test(pathname)) return "wallet";
   return tokenHasLinkedMint(token) ? "gallery" : "compact";
 }
 
@@ -75,6 +78,7 @@ export function TokenAddressRoute({
   children?: ReactNode | ((args: TokenHomeRenderArgs) => ReactNode);
 }) {
   const isRestoring = useIsRestoring();
+  const pathname = usePathname();
   const queryClient = useQueryClient();
   const tokenQuery = usePhygitalTokenByAddress(tokenAddress);
 
@@ -114,7 +118,7 @@ export function TokenAddressRoute({
   const role: WalletRole = isOwner ? "owner" : "visitor";
 
   const layout: ShellLayout =
-    unlocked && token ? layoutForToken(token) : "compact";
+    unlocked && token ? layoutForRoute(token, pathname) : "compact";
   const waitingToken =
     isRestoring ||
     (!token &&

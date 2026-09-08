@@ -26,6 +26,7 @@ import {
 import { formatUsd, sumUsd } from "@/lib/currency/usd";
 import { formatCompactTokenAmount } from "@/lib/tokens/amount";
 import { isDefaultMint } from "@/lib/tokens/payment-token";
+import { walletPortfolioSplitClass } from "@/lib/layout";
 import { snapEnter, snapEnterTransition, easeOut } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
@@ -292,7 +293,7 @@ export function WalletHomePanel({
 
       {!showFirstRun ? (
       <m.div
-        className="flex w-full items-center justify-center gap-3 px-2"
+        className="mx-auto flex w-full max-w-xl items-center justify-center gap-3 px-2"
         variants={sectionVariants}
         transition={sectionTransition}
       >
@@ -359,58 +360,66 @@ export function WalletHomePanel({
         />
       ) : null}
 
-      {!empty && tokenPreview.length > 0 ? (
-        <m.section
-          className="flex flex-col gap-1.5"
+      {!empty && (tokenPreview.length > 0 || collectiblePreview.length > 0) ? (
+        <m.div
+          className={cn(
+            tokenPreview.length > 0 && collectiblePreview.length > 0
+              ? walletPortfolioSplitClass
+              : "flex flex-col gap-6",
+          )}
           variants={sectionVariants}
           transition={sectionTransition}
         >
-          <div className="flex items-baseline justify-between px-4 pt-1">
-            <h2 className="text-section-label">{copy.wallet.tokens}</h2>
-            {moreTokens ? (
-              <Button
-                type="button"
-                variant="link"
-                onClick={onSeeAllTokens}
-                className="h-auto min-h-0 px-0 text-xs font-medium"
-              >
-                {copy.wallet.seeAll}
-              </Button>
-            ) : null}
-          </div>
-          <GroupedList>
-            {tokenPreview.map((h) => (
-              <TokenHoldingRow key={h.mint} holding={h} onSelect={onSendAsset} />
-            ))}
-          </GroupedList>
-        </m.section>
-      ) : null}
+          {tokenPreview.length > 0 ? (
+            <section className="flex min-w-0 flex-col gap-1.5">
+              <div className="flex items-baseline justify-between px-4 pt-1">
+                <h2 className="text-section-label">{copy.wallet.tokens}</h2>
+                {moreTokens ? (
+                  <Button
+                    type="button"
+                    variant="link"
+                    onClick={onSeeAllTokens}
+                    className="h-auto min-h-0 px-0 text-xs font-medium"
+                  >
+                    {copy.wallet.seeAll}
+                  </Button>
+                ) : null}
+              </div>
+              <GroupedList>
+                {tokenPreview.map((h) => (
+                  <TokenHoldingRow
+                    key={h.mint}
+                    holding={h}
+                    onSelect={onSendAsset}
+                  />
+                ))}
+              </GroupedList>
+            </section>
+          ) : null}
 
-      {!empty && collectiblePreview.length > 0 ? (
-        <m.section
-          className="flex flex-col gap-2.5"
-          variants={sectionVariants}
-          transition={sectionTransition}
-        >
-          <div className="flex items-baseline justify-between px-4">
-            <h2 className="text-section-label">{copy.wallet.collectibles}</h2>
-            {moreCollectibles ? (
-              <Button
-                type="button"
-                variant="link"
-                onClick={onSeeAllCollectibles}
-                className="h-auto min-h-0 px-0 text-xs font-medium"
-              >
-                {copy.wallet.seeAll}
-              </Button>
-            ) : null}
-          </div>
-          <CollectiblesGrid
-            collectibles={collectiblePreview}
-            onSelect={onSelectCollectible}
-            layout="strip"
-          />
-        </m.section>
+          {collectiblePreview.length > 0 ? (
+            <section className="flex min-w-0 flex-col gap-2.5">
+              <div className="flex items-baseline justify-between px-4">
+                <h2 className="text-section-label">{copy.wallet.collectibles}</h2>
+                {moreCollectibles ? (
+                  <Button
+                    type="button"
+                    variant="link"
+                    onClick={onSeeAllCollectibles}
+                    className="h-auto min-h-0 px-0 text-xs font-medium"
+                  >
+                    {copy.wallet.seeAll}
+                  </Button>
+                ) : null}
+              </div>
+              <CollectiblesGrid
+                collectibles={collectiblePreview}
+                onSelect={onSelectCollectible}
+                layout="responsive"
+              />
+            </section>
+          ) : null}
+        </m.div>
       ) : null}
       </m.div>
       <Dialog open={showRecoveryAck} onOpenChange={(open) => {

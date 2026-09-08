@@ -88,7 +88,7 @@ export function ActivityReceiptSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="mx-auto max-h-[85vh] max-w-lg overflow-y-auto rounded-t-3xl p-0"
+        className="mx-auto max-h-[85vh] max-w-lg overflow-y-auto rounded-t-3xl p-0 md:rounded-3xl"
       >
         <div className="flex flex-col gap-5 p-4 pb-8">
           <NavBar

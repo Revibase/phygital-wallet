@@ -62,7 +62,7 @@ function DialogContent({
       <DialogOverlay />
       <DialogPrimitive.Content
         className={cn(
-          // Mobile-first bottom-sheet vibe
+          // Mobile: bottom sheet. Desktop: centered dialog.
           "fixed inset-x-0 bottom-0 z-50",
           "mx-auto w-full max-w-lg rounded-t-3xl",
           "border border-border/50 bg-background/95 shadow-lg",
@@ -70,6 +70,8 @@ function DialogContent({
           "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
           "data-[state=open]:slide-in-from-bottom-10 data-[state=closed]:slide-out-to-bottom-10",
           "p-4 sm:p-6",
+          "md:inset-auto md:top-1/2 md:left-1/2 md:bottom-auto md:max-h-[min(85vh,40rem)] md:w-full md:-translate-x-1/2 md:-translate-y-1/2 md:overflow-y-auto md:rounded-3xl md:shadow-xl",
+          "md:data-[state=open]:slide-in-from-bottom-0 md:data-[state=closed]:slide-out-to-bottom-0 md:data-[state=open]:zoom-in-95 md:data-[state=closed]:zoom-out-95",
           className,
         )}
         onOpenAutoFocus={onOpenAutoFocus}

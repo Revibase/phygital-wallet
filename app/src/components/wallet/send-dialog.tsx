@@ -458,7 +458,7 @@ export function SendDialog({
   const form = (
     <LazyMotion features={domAnimation}>
       <m.div
-        className="flex flex-1 flex-col gap-5"
+        className="flex flex-1 flex-col gap-5 md:mx-auto md:w-full md:max-w-xl"
         initial={enter.initial}
         animate={enter.animate}
         transition={snapEnterTransition}
@@ -723,7 +723,7 @@ export function SendDialog({
       <Sheet open={pickerOpen} onOpenChange={setPickerOpen}>
         <SheetContent
           side="bottom"
-          className="mx-auto max-h-[80vh] max-w-lg overflow-y-auto rounded-t-3xl"
+          className="mx-auto max-h-[80vh] max-w-lg overflow-y-auto rounded-t-3xl md:rounded-3xl"
         >
           <SheetHeader className="text-left">
             <SheetTitle>{copy.wallet.selectAsset}</SheetTitle>
@@ -825,7 +825,7 @@ export function SendDialog({
             if (busy) e.preventDefault();
             else dismissVisitorSheet();
           }}
-          className="mx-auto max-h-[85vh] max-w-lg overflow-y-auto rounded-t-3xl p-0"
+          className="mx-auto max-h-[85vh] max-w-lg overflow-y-auto rounded-t-3xl p-0 md:rounded-3xl"
         >
           {softDeny ? (
             <ApprovalSheetBody

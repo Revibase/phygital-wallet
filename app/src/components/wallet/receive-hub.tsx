@@ -44,22 +44,24 @@ export function ReceiveHub({
         title={copy.wallet.receive}
       />
 
-      <div className="flex flex-col items-center gap-3 px-2 text-center">
-        <div className="rounded-[28px] border border-border/40 bg-card p-5 shadow-[0_16px_48px_-24px_var(--card-shadow)]">
-          <WalletQrCode value={payUrl} size={192} className="size-48" />
+      <div className="mx-auto flex w-full max-w-md flex-col items-center gap-3 px-2 text-center md:max-w-lg">
+        <div className="rounded-[28px] border border-border/40 bg-card p-5 shadow-[0_16px_48px_-24px_var(--card-shadow)] md:p-6">
+          <WalletQrCode value={payUrl} size={224} className="size-48 md:size-56" />
         </div>
         <div className="space-y-1">
           <p className="text-sm font-medium">{copy.wallet.receiveAnything}</p>
         </div>
       </div>
 
-      <WalletAddressRow address={walletAddress} length={6} />
+      <div className="mx-auto w-full max-w-md md:max-w-lg">
+        <WalletAddressRow address={walletAddress} length={6} />
+      </div>
 
       <Button
         type="button"
         variant="ghost"
         onClick={onReceiveNearby}
-        className="h-auto min-h-0 w-full justify-start gap-3 rounded-3xl bg-muted/25 px-4 py-4 text-left font-normal hover:bg-muted/40"
+        className="mx-auto h-auto min-h-0 w-full max-w-md justify-start gap-3 rounded-3xl bg-muted/25 px-4 py-4 text-left font-normal hover:bg-muted/40 md:max-w-lg"
       >
         <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-background text-muted-foreground">
           <QrCode className="size-5" aria-hidden />

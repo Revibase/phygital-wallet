@@ -8,6 +8,7 @@ import { useFeeBalance } from "@/hooks/wallet/use-fee-balance";
 import { useRpcPreference } from "@/hooks/wallet/use-rpc-preference";
 import { useWalletPolicy } from "@/hooks/wallet/use-wallet-policy";
 import { copy } from "@/lib/copy/phygital";
+import { settingsHubClass } from "@/lib/layout";
 import type { LinkStatus } from "@/lib/wallet/device-auth-client";
 import type { WalletRole } from "@/components/token/token-address-route";
 import { summarizePolicyDocument } from "@/lib/wallet/policy-settings";
@@ -147,93 +148,96 @@ export function SettingsHub({
         title={copy.wallet.settings}
       />
 
-      <GroupedList label={copy.wallet.settingsAccess}>
-        <GroupedRow
-          onClick={() => onOpen("access")}
-          subtitle={accessSubtitle}
-        >
-          {copy.wallet.accessAndRecovery}
-        </GroupedRow>
-      </GroupedList>
-
-      <GroupedList label={copy.wallet.settingsFees}>
-        <GroupedRow
-          onClick={() => onOpen("feeBalance")}
-          subtitle={
-            fee.data?.low
-              ? `${feeSubtitle} · ${copy.wallet.topUpFees}`
-              : feeSubtitle
-          }
-        >
-          {copy.wallet.feeBalance}
-        </GroupedRow>
-      </GroupedList>
-
-      {isOwner ? (
-        <GroupedList
-          label={copy.wallet.settingsSendProtections}
-          footer={copy.wallet.policyDefaultSigningOnly}
-        >
+      <div className={settingsHubClass}>
+        <GroupedList label={copy.wallet.settingsAccess}>
           <GroupedRow
-            onClick={() => onOpen("sendProtections")}
-            subtitle={masterSubtitle}
+            onClick={() => onOpen("access")}
+            subtitle={accessSubtitle}
           >
-            {copy.wallet.sendProtections}
-          </GroupedRow>
-          {protectionsOn ? (
-            <>
-              <GroupedRow
-                onClick={() => onOpen("spendingLimits")}
-                subtitle={spendSubtitle}
-              >
-                {copy.wallet.spendingLimits}
-              </GroupedRow>
-              <GroupedRow
-                onClick={() => onOpen("recipients")}
-                subtitle={recipientsSubtitle}
-              >
-                {copy.wallet.recipients}
-              </GroupedRow>
-              <GroupedRow
-                onClick={() => onOpen("extraPrograms")}
-                subtitle={exceptionsSubtitle}
-              >
-                {copy.wallet.extraPrograms}
-              </GroupedRow>
-            </>
-          ) : null}
-        </GroupedList>
-      ) : null}
-
-      {isOwner ? (
-        <GroupedList label={copy.wallet.settingsSafety}>
-          <GroupedRow
-            onClick={() => onOpen("signing")}
-            subtitle={copy.wallet.signingDefault}
-          >
-            {copy.wallet.signing}
-          </GroupedRow>
-          <GroupedRow
-            onClick={() => onOpen("recoveryWallet")}
-            subtitle={copy.wallet.recoveryWalletNotConfigured}
-          >
-            {copy.wallet.recoveryWallet}
+            {copy.wallet.accessAndRecovery}
           </GroupedRow>
         </GroupedList>
-      ) : null}
 
-      <GroupedList label={copy.wallet.advanced}>
-        <GroupedRow
-          onClick={() => onOpen("rpcConnection")}
-          subtitle={
-            rpc.isCustom && rpc.displayEndpoint
-              ? rpc.displayEndpoint
-              : rpcSubtitle
-          }
-        >
-          {copy.wallet.rpcConnection}
-        </GroupedRow>
-      </GroupedList>
+        <GroupedList label={copy.wallet.settingsFees}>
+          <GroupedRow
+            onClick={() => onOpen("feeBalance")}
+            subtitle={
+              fee.data?.low
+                ? `${feeSubtitle} · ${copy.wallet.topUpFees}`
+                : feeSubtitle
+            }
+          >
+            {copy.wallet.feeBalance}
+          </GroupedRow>
+        </GroupedList>
+
+        {isOwner ? (
+          <GroupedList
+            label={copy.wallet.settingsSendProtections}
+            footer={copy.wallet.policyDefaultSigningOnly}
+            className="lg:col-span-2"
+          >
+            <GroupedRow
+              onClick={() => onOpen("sendProtections")}
+              subtitle={masterSubtitle}
+            >
+              {copy.wallet.sendProtections}
+            </GroupedRow>
+            {protectionsOn ? (
+              <>
+                <GroupedRow
+                  onClick={() => onOpen("spendingLimits")}
+                  subtitle={spendSubtitle}
+                >
+                  {copy.wallet.spendingLimits}
+                </GroupedRow>
+                <GroupedRow
+                  onClick={() => onOpen("recipients")}
+                  subtitle={recipientsSubtitle}
+                >
+                  {copy.wallet.recipients}
+                </GroupedRow>
+                <GroupedRow
+                  onClick={() => onOpen("extraPrograms")}
+                  subtitle={exceptionsSubtitle}
+                >
+                  {copy.wallet.extraPrograms}
+                </GroupedRow>
+              </>
+            ) : null}
+          </GroupedList>
+        ) : null}
+
+        {isOwner ? (
+          <GroupedList label={copy.wallet.settingsSafety}>
+            <GroupedRow
+              onClick={() => onOpen("signing")}
+              subtitle={copy.wallet.signingDefault}
+            >
+              {copy.wallet.signing}
+            </GroupedRow>
+            <GroupedRow
+              onClick={() => onOpen("recoveryWallet")}
+              subtitle={copy.wallet.recoveryWalletNotConfigured}
+            >
+              {copy.wallet.recoveryWallet}
+            </GroupedRow>
+          </GroupedList>
+        ) : null}
+
+        <GroupedList label={copy.wallet.advanced}>
+          <GroupedRow
+            onClick={() => onOpen("rpcConnection")}
+            subtitle={
+              rpc.isCustom && rpc.displayEndpoint
+                ? rpc.displayEndpoint
+                : rpcSubtitle
+            }
+          >
+            {copy.wallet.rpcConnection}
+          </GroupedRow>
+        </GroupedList>
+      </div>
     </div>
   );
 }

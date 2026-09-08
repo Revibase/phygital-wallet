@@ -612,7 +612,7 @@ export function ReceiveNearbySheet({
       >
         <SheetContent
           side="bottom"
-          className="mx-auto max-h-[80vh] max-w-lg overflow-y-auto rounded-t-3xl"
+          className="mx-auto max-h-[80vh] max-w-lg overflow-y-auto rounded-t-3xl md:rounded-3xl"
         >
           <SheetHeader className="text-left">
             <SheetTitle>{copy.wallet.selectAsset}</SheetTitle>

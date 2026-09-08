@@ -152,7 +152,7 @@ export function OpenApprovalsSheet({
           e.preventDefault();
           denyIfStillOpen(approval.intentHash);
         }}
-        className="mx-auto max-h-[85vh] max-w-lg overflow-y-auto rounded-t-3xl p-0"
+        className="mx-auto max-h-[85vh] max-w-lg overflow-y-auto rounded-t-3xl p-0 md:rounded-3xl"
       >
         {approval ? (
           <ApprovalSheetBody

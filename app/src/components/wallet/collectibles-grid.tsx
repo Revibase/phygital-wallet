@@ -6,7 +6,7 @@ import type { WalletCollectible } from "@/lib/wallet/portfolio-types";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-/** Collectibles — horizontal strip on home, airy grid on See all. */
+/** Collectibles — strip on phone home, grid on desktop / See all. */
 export function CollectiblesGrid({
   collectibles,
   onSelect,
@@ -16,7 +16,7 @@ export function CollectiblesGrid({
   collectibles: WalletCollectible[];
   onSelect: (c: WalletCollectible) => void;
   className?: string;
-  layout?: "grid" | "strip";
+  layout?: "grid" | "strip" | "responsive";
 }) {
   if (collectibles.length === 0) return null;
 
@@ -37,10 +37,28 @@ export function CollectiblesGrid({
     );
   }
 
+  if (layout === "responsive") {
+    return (
+      <ul
+        className={cn(
+          "flex gap-3 overflow-x-auto px-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+          "md:grid md:grid-cols-2 md:gap-3 md:overflow-visible md:px-0 md:pb-0 lg:grid-cols-3",
+          className,
+        )}
+      >
+        {collectibles.map((c) => (
+          <li key={c.mint} className="w-28 shrink-0 md:w-auto md:shrink">
+            <CollectibleTile collectible={c} onSelect={onSelect} />
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
   return (
     <ul
       className={cn(
-        "grid grid-cols-2 gap-3 sm:grid-cols-3",
+        "grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4",
         className,
       )}
     >

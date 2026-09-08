@@ -27,8 +27,6 @@ import { useIsInAppBrowser } from "@/hooks/layout/use-is-in-app-browser";
 import { tokenHasLinkedMint } from "@/lib/phygital/token";
 import type { Collectible } from "@/lib/tokens/collectible";
 import { copy } from "@/lib/copy/phygital";
-import { shellLayoutClass } from "@/lib/layout";
-import { cn } from "@/lib/utils";
 import { isClaimDismissed } from "@/lib/wallet/claim-setup-href";
 import {
   tokenHref,
@@ -290,12 +288,7 @@ export function WalletRouteShell({ children }: { children: ReactNode }) {
   return (
     <WalletSessionContext.Provider value={sessionValue}>
       <WalletNavContext.Provider value={navValue}>
-        <div
-          className={cn(
-            "mx-auto flex w-full flex-1 flex-col",
-            shellLayoutClass.compact,
-          )}
-        >
+        <div className="mx-auto flex w-full min-w-0 flex-1 flex-col">
           <WalletRouteOverlays
             tokenAddress={tokenAddress}
             isOwner={isOwner}

@@ -630,13 +630,13 @@ function HomeLinksScreen() {
 
   return (
     <div className="flex flex-1 flex-col gap-5">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-large-title tracking-tight">{copy.home.keysTitle}</h1>
         <Button
           type="button"
           variant="outline"
           size="default"
-          className={cn(touchTargetClass, "rounded-full")}
+          className={cn(touchTargetClass, "shrink-0 rounded-full self-start sm:self-auto")}
           onClick={() => {
             link.reset();
             hold.mutate();
