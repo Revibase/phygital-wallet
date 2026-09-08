@@ -8,11 +8,26 @@
  * Titles name what the screen is; subtitles show current state.
  */
 
+const pearl = "#F7F4EF";
+const charcoal = "#1A1F1E";
+const accent = "#00C2B8";
+
 export const brand = {
   company: "Revibase",
   /** Hex for PWA / OG / viewport chrome (Luminous Object pearl / warm dark). */
-  chromeLight: "#F7F4EF",
-  chromeDark: "#1A1F1E",
+  chromeLight: pearl,
+  chromeDark: charcoal,
+  /**
+   * Locked identity colors. Shape is constant; color follows context.
+   * - Master mark: charcoal (production / fashion / engrave)
+   * - Digital default: accent on pearl
+   * - App tiles / splash icons: pearl on accent field
+   */
+  colors: {
+    accent,
+    pearl,
+    charcoal,
+  },
   /**
    * Default meta / PWA description — product, not company slogan.
    * Screen titles still come from `products.*`.

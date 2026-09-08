@@ -17,7 +17,7 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: brand.chromeLight,
     icons: [
       {
-        src: "/revibase-mark-teal-on-dark.png",
+        src: "/revibase-mark-pearl-on-teal.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "any",

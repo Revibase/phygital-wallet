@@ -29,10 +29,10 @@ export function RouteBoot({
         aria-label={message}
       >
         <div
-          className={cn("relative z-10 text-primary", galleryAnimate.rise)}
+          className={cn("relative z-10", galleryAnimate.rise)}
           aria-hidden
         >
-          <RevibaseMark className="size-10 opacity-90" />
+          <RevibaseMark variant="digital" className="size-10 opacity-90" />
         </div>
         <div
           className={cn(

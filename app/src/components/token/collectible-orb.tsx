@@ -121,7 +121,7 @@ export function CollectibleOrb({
               onError={() => setFailedSrc(src!)}
             />
           ) : (
-            <RevibaseMark className={icon} />
+            <RevibaseMark variant="digital" className={icon} />
           )}
         </div>
       </div>
