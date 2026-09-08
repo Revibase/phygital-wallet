@@ -41,7 +41,9 @@ export function NavBarBack({
   );
 }
 
-/** Single chrome row — leading · title · trailing. */
+/** Single chrome row — leading · title · trailing.
+ * Phone: title always centered. `align="start"` only kicks in from `lg`.
+ */
 function NavBarFrame({
   leading,
   title,
@@ -49,7 +51,7 @@ function NavBarFrame({
   className,
   align = "center",
 }: NavBarSlots & { className?: string; align?: "center" | "start" }) {
-  const startAligned = align === "start";
+  const desktopStart = align === "start";
   return (
     <div
       className={cn(
@@ -59,26 +61,25 @@ function NavBarFrame({
     >
       <div
         className={cn(
-          "flex min-w-0 items-center justify-start gap-2",
-          startAligned ? "shrink-0" : "flex-1",
+          "flex min-w-0 flex-1 items-center justify-start gap-2",
+          desktopStart && "lg:flex-none lg:shrink-0",
         )}
       >
-        {leading ?? (startAligned ? null : <span className="w-11" aria-hidden />)}
+        {leading ?? <span className="w-11" aria-hidden />}
       </div>
       {title != null ? (
         <div
           className={cn(
-            "truncate text-sm font-semibold tracking-tight",
-            startAligned
-              ? "min-w-0 flex-1 text-left"
-              : "pointer-events-none absolute left-1/2 max-w-[50%] -translate-x-1/2 text-center",
+            "pointer-events-none absolute left-1/2 max-w-[50%] -translate-x-1/2 truncate text-center text-sm font-semibold tracking-tight",
+            desktopStart &&
+              "lg:pointer-events-auto lg:static lg:max-w-none lg:min-w-0 lg:flex-1 lg:translate-x-0 lg:text-left",
           )}
         >
           {title}
         </div>
       ) : null}
       <div className="flex min-w-0 flex-1 items-center justify-end gap-1">
-        {trailing ?? (startAligned ? null : <span className="w-11" aria-hidden />)}
+        {trailing ?? <span className="w-11" aria-hidden />}
       </div>
     </div>
   );

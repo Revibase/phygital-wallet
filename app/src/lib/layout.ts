@@ -53,9 +53,12 @@ export const walletDesktopMainClass =
 export const settingsDesktopClass =
   "flex flex-1 flex-col gap-6 lg:grid lg:grid-cols-[minmax(15rem,17.5rem)_minmax(0,1fr)] lg:items-start lg:gap-8";
 
-/** Settings hub groups: one column on phone; unused on desktop rail (hub is the rail). */
+/** Settings hub groups: stack on phone, two columns when filling the main pane. */
 export const settingsHubClass =
-  "flex flex-1 flex-col gap-6";
+  "flex flex-1 flex-col gap-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-8 lg:gap-y-6";
+
+/** Compact master list beside a settings detail (no multi-column). */
+export const settingsPanelListClass = "flex flex-col gap-5";
 
 export type ShellLayout = keyof typeof shellLayoutClass;
 

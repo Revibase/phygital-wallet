@@ -8,7 +8,7 @@ import { useFeeBalance } from "@/hooks/wallet/use-fee-balance";
 import { useRpcPreference } from "@/hooks/wallet/use-rpc-preference";
 import { useWalletPolicy } from "@/hooks/wallet/use-wallet-policy";
 import { copy } from "@/lib/copy/phygital";
-import { settingsHubClass } from "@/lib/layout";
+import { settingsHubClass, settingsPanelListClass } from "@/lib/layout";
 import { cn } from "@/lib/utils";
 import type { LinkStatus } from "@/lib/wallet/device-auth-client";
 import type { WalletRole } from "@/components/token/token-address-route";
@@ -155,7 +155,11 @@ export function SettingsHub({
   }
 
   const lists = (
-    <div className={settingsHubClass}>
+    <div
+      className={
+        variant === "panel" ? settingsPanelListClass : settingsHubClass
+      }
+    >
       <GroupedList label={copy.wallet.settingsAccess}>
         <GroupedRow
           onClick={() => onOpen("access")}
@@ -184,6 +188,7 @@ export function SettingsHub({
         <GroupedList
           label={copy.wallet.settingsSendProtections}
           footer={copy.wallet.policyDefaultSigningOnly}
+          className={variant === "page" ? "lg:col-span-2" : undefined}
         >
           <GroupedRow
             onClick={() => onOpen("sendProtections")}
@@ -256,23 +261,19 @@ export function SettingsHub({
   );
 
   if (variant === "panel") {
-    return (
-      <div className="flex flex-col gap-4">
-        <h1 className="px-1 text-display-md tracking-tight">
-          {copy.wallet.settings}
-        </h1>
-        {lists}
-      </div>
-    );
+    return <div className="flex flex-col gap-1">{lists}</div>;
   }
 
   return (
     <div className="flex flex-1 flex-col gap-6">
       <NavBar
-        align="start"
-        leading={<NavBarBack onClick={onBack} desktopHidden />}
+        desktopHidden
+        leading={<NavBarBack onClick={onBack} />}
         title={copy.wallet.settings}
       />
+      <h1 className="hidden text-display-md tracking-tight lg:block">
+        {copy.wallet.settings}
+      </h1>
       {lists}
     </div>
   );

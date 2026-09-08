@@ -11,7 +11,10 @@ import {
 import { settingsDesktopClass } from "@/lib/layout";
 import { settingsFromSegment } from "@/lib/wallet/token-routes";
 
-/** Desktop: sticky settings index + detail. Mobile: children only (full pages). */
+/**
+ * Hub (`/settings`): children fill the main pane (wide 2-col list).
+ * Detail (`/settings/…`): desktop master–detail — compact index + form.
+ */
 export default function WalletSettingsLayout({
   children,
 }: {
@@ -24,10 +27,15 @@ export default function WalletSettingsLayout({
   const segment = pathname.split("/").pop() ?? "";
   const activeTarget =
     segment === "settings" ? null : settingsFromSegment(segment);
+  const isHub = activeTarget === null;
+
+  if (isHub) {
+    return <div className="flex min-w-0 flex-1 flex-col">{children}</div>;
+  }
 
   return (
     <div className={settingsDesktopClass}>
-      <aside className="hidden lg:block lg:sticky lg:top-4">
+      <aside className="hidden lg:block lg:sticky lg:top-4 lg:max-h-[calc(100dvh-3rem)] lg:overflow-y-auto">
         <SettingsHub
           variant="panel"
           phygitalTokenPda={tokenAddress}
