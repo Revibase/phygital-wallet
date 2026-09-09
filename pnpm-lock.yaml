@@ -251,43 +251,6 @@ importers:
         specifier: ^3.2.4
         version: 3.2.7(@types/debug@4.1.13)(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.16.9)(tsx@4.23.13)(yaml@2.9.0)
 
-  examples/token-verifier:
-    dependencies:
-      '@hono/node-server':
-        specifier: ^1.14.4
-        version: 1.19.17(hono@4.12.32)
-      '@noble/curves':
-        specifier: ^2.3.0
-        version: 2.4.0
-      '@solana/kit':
-        specifier: ^8.1.0
-        version: 8.1.0(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@6.0.6)
-      hono:
-        specifier: ^4.8.3
-        version: 4.12.32
-      phygital-policy:
-        specifier: workspace:*
-        version: link:../../clients/js/phygital-policy
-      phygital-token-sdk:
-        specifier: ^1.0.3
-        version: 1.0.3(@solana/kit@8.1.0(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@6.0.6))
-      phygital-verifier-sdk:
-        specifier: workspace:*
-        version: link:../../clients/js/phygital-verifier
-      phygital-wallet-sdk:
-        specifier: workspace:*
-        version: link:../../clients/js/phygital-wallet
-    devDependencies:
-      '@types/node':
-        specifier: ^22.15.30
-        version: 22.20.1
-      tsx:
-        specifier: ^4.20.3
-        version: 4.23.13
-      typescript:
-        specifier: ^5.7.3
-        version: 5.9.3
-
   workers/api:
     dependencies:
       '@noble/curves':
@@ -14470,6 +14433,7 @@ snapshots:
       esbuild: 0.28.1
     optionalDependencies:
       fsevents: 2.3.3
+    optional: true
 
   tsyringe@4.10.0:
     dependencies:

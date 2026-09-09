@@ -2,12 +2,10 @@
  * Per-token SQLite store for TokenSigner Durable Object.
  * One DO instance = one phygitalToken; tables omit the token column.
  */
-import {
-  validatePaymentsPolicyConfig,
-  type PaymentsPolicyConfig,
-} from "phygital-policy";
+import type { PaymentsPolicyConfig } from "phygital-policy";
 
 import { STARTER_FEE_BALANCE_LAMPORTS } from "@/fees/constants";
+import { validatePaymentsPolicyConfig } from "@/payments-policy-config";
 import { bytesToBase64Url } from "@/shared/crypto/base64";
 
 type Sql = DurableObjectStorage["sql"];

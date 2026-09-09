@@ -14,10 +14,7 @@ import {
   type TransactionWithinSizeLimit,
 } from "@solana/kit";
 
-import {
-  DEFAULT_VERIFIER_API_BASE,
-  MAX_ENDPOINT_LEN,
-} from "../constants.js";
+import { DEFAULT_VERIFIER_API_BASE, MAX_ENDPOINT_LEN } from "../constants.js";
 import { decodeConfig } from "../generated/accounts/config.js";
 import { decodeTokenVerifier } from "../generated/accounts/tokenVerifier.js";
 import { findConfigPda } from "../generated/pdas/config.js";
@@ -48,14 +45,15 @@ export function assertHttpsEndpoint(
   return trimmed;
 }
 
-export function createVerifierEndpointSigner<TAddress extends Address>(
-  verifierAddress: TAddress,
+export function createVerifierEndpointSigner(
+  verifierAddress: Address,
+  phygitalToken: Address,
   config: {
     /** Full `/sign` URL */
     endpoint: string;
     fetch?: typeof fetch;
   },
-): TransactionPartialSigner<TAddress> {
+): TransactionPartialSigner<Address> {
   const httpFetch = config.fetch ?? fetch;
 
   return {
@@ -72,6 +70,7 @@ export function createVerifierEndpointSigner<TAddress extends Address>(
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          phygitalToken,
           transactions: transactions.map((transaction) =>
             getBase64EncodedWireTransaction(transaction),
           ),
@@ -91,8 +90,7 @@ export function createVerifierEndpointSigner<TAddress extends Address>(
           throw new PolicyDeniedError({
             code: body.code,
             error:
-              body.error ??
-              `Verifier sign request failed (${response.status})`,
+              body.error ?? `Verifier sign request failed (${response.status})`,
             soft: Boolean(body.soft),
             intentHash:
               typeof body.details?.intentHash === "string"
@@ -144,6 +142,7 @@ export type ResolvedVerifier = VerifierAccountSnapshot & {
 };
 
 function signerFromSnapshot(
+  phygitalToken: Address,
   snapshot: VerifierAccountSnapshot,
   config: {
     fetch?: typeof fetch;
@@ -151,17 +150,23 @@ function signerFromSnapshot(
 ): ResolvedVerifier {
   return {
     ...snapshot,
-    verifier: createVerifierEndpointSigner(snapshot.verifierAddress, {
-      endpoint: verifierSignUrl(snapshot.endpoint),
-      fetch: config.fetch,
-    }),
+    verifier: createVerifierEndpointSigner(
+      snapshot.verifierAddress,
+      phygitalToken,
+      {
+        endpoint: verifierSignUrl(snapshot.endpoint),
+        fetch: config.fetch,
+      },
+    ),
   };
 }
 
 function snapshotFromAccounts(args: {
   tokenVerifierPda: Address;
   configPda: Address;
-  tokenVerifierEncoded: Awaited<ReturnType<typeof fetchEncodedAccounts>>[number];
+  tokenVerifierEncoded: Awaited<
+    ReturnType<typeof fetchEncodedAccounts>
+  >[number];
   configEncoded: Awaited<ReturnType<typeof fetchEncodedAccounts>>[number];
 }): VerifierAccountSnapshot {
   const { tokenVerifierPda, configPda, tokenVerifierEncoded, configEncoded } =
@@ -257,9 +262,9 @@ export async function resolveVerifier(
   } = {},
 ): Promise<ResolvedVerifier> {
   if (config.snapshot) {
-    return signerFromSnapshot(config.snapshot, config);
+    return signerFromSnapshot(phygitalToken, config.snapshot, config);
   }
 
   const snapshot = await fetchVerifierAccountSnapshot(rpc, phygitalToken);
-  return signerFromSnapshot(snapshot, config);
+  return signerFromSnapshot(phygitalToken, snapshot, config);
 }

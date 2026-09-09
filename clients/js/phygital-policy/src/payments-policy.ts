@@ -1,8 +1,7 @@
 /**
- * Revibase payments / collectibles policy — Codama adapters + verifier rules.
- *
- * Config knobs match the app: spend caps + exception programs.
- * Built-in wallet/collectible surface is fixed (always on when a policy exists).
+ * Codama-backed payments / collectibles policy builder.
+ * Prefer importing config helpers from `payments-policy-config` (or package root)
+ * when you only need validate / types — this module pulls generated clients.
  */
 import {
   aggregate,
@@ -33,38 +32,19 @@ import {
 } from "./adapters.js";
 import { formatUiAmount, isUsdcMint, SOL_DECIMALS } from "./amount-format.js";
 import { walletOwnerForAta } from "./ata-owner.js";
+import type {
+  MintSpendLimit,
+  PaymentsPolicyConfig,
+} from "./payments-policy-config.js";
 
 const COMPUTE_BUDGET_PROGRAM_ADDRESS =
   "ComputeBudget111111111111111111111111111111" as const;
-
-export const DEFAULT_MAX_MINT_RAW = "50000000" as const;
-export const DEFAULT_MAX_SOL_LAMPORTS = "100000000" as const;
 
 const COLLECTIBLE_COMPANION_PROGRAMS = [
   "auth9SigNpDKz4sJJ1DfCTuZrZNSAgh9sFD3rboVmgg",
   "cmtDvXumGCrqC1Age74AVPhSRVXJMd8PJS91L8KbNCK",
   "noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV",
 ] as const;
-
-/** Per-mint fungible spend cap (raw token units). */
-export type MintSpendLimit = {
-  mint: string;
-  maxRaw: string;
-};
-
-/**
- * Standing policy document — only what the app configures.
- * Built-in programs / collectibles are always allowed when this document exists.
- */
-export type PaymentsPolicyConfig = {
-  version: "3";
-  /** Fungible spend caps keyed by mint. Absent/empty → no fungible mint caps. */
-  mintLimits?: readonly MintSpendLimit[];
-  /** SOL spend cap in lamports. Absent → uncapped SOL. */
-  maxSolLamports?: string;
-  /** Extra programs allowed without spend-cap checks. */
-  extraPrograms?: readonly string[];
-};
 
 type TransferCheckedIx = ParsedProgramIx & {
   accounts: {
@@ -103,89 +83,6 @@ function parseMintLimits(
     }
   }
   return map;
-}
-
-export function uiAmountToRaw(ui: number, decimals: number): bigint {
-  if (!Number.isFinite(ui) || !Number.isInteger(decimals) || decimals < 0) {
-    throw new RangeError("uiAmountToRaw: ui must be finite and decimals >= 0");
-  }
-  const [whole, frac = ""] = String(ui).split(".");
-  const padded = (frac + "0".repeat(decimals)).slice(0, decimals);
-  const negative = whole.startsWith("-");
-  const absWhole = negative ? whole.slice(1) : whole;
-  const raw =
-    BigInt(absWhole || "0") * 10n ** BigInt(decimals) + BigInt(padded || "0");
-  return negative ? -raw : raw;
-}
-
-function isMintSpendLimit(value: unknown): value is MintSpendLimit {
-  if (value == null || typeof value !== "object") return false;
-  const o = value as Record<string, unknown>;
-  return typeof o.mint === "string" && typeof o.maxRaw === "string";
-}
-
-/**
- * Validate knobs JSON into a clean PaymentsPolicyConfig.
- */
-export function validatePaymentsPolicyConfig(
-  raw: unknown,
-):
-  | { ok: true; config: PaymentsPolicyConfig }
-  | { ok: false; code: string; message: string } {
-  if (raw == null || typeof raw !== "object") {
-    return {
-      ok: false,
-      code: "invalid_policy",
-      message: "Policy config must be an object",
-    };
-  }
-  const obj = raw as Record<string, unknown>;
-  if (obj.version !== "3") {
-    return {
-      ok: false,
-      code: "invalid_policy",
-      message: `Unsupported policy version: ${String(obj.version)}`,
-    };
-  }
-
-  let mintLimits: MintSpendLimit[] | undefined;
-  if (obj.mintLimits !== undefined) {
-    if (!Array.isArray(obj.mintLimits)) {
-      return {
-        ok: false,
-        code: "invalid_policy",
-        message: "mintLimits must be an array",
-      };
-    }
-    mintLimits = [];
-    for (const entry of obj.mintLimits) {
-      if (!isMintSpendLimit(entry)) {
-        return {
-          ok: false,
-          code: "invalid_policy",
-          message: "mintLimits entries must be { mint, maxRaw } strings",
-        };
-      }
-      mintLimits.push({ mint: entry.mint.trim(), maxRaw: entry.maxRaw });
-    }
-  }
-
-  const config: PaymentsPolicyConfig = {
-    version: "3",
-    ...(mintLimits && mintLimits.length > 0 ? { mintLimits } : {}),
-    ...(typeof obj.maxSolLamports === "string" && obj.maxSolLamports.length > 0
-      ? { maxSolLamports: obj.maxSolLamports }
-      : {}),
-    ...(Array.isArray(obj.extraPrograms)
-      ? {
-          extraPrograms: obj.extraPrograms.filter(
-            (v): v is string => typeof v === "string",
-          ),
-        }
-      : {}),
-  };
-
-  return { ok: true, config };
 }
 
 function pushTokenProgramRules(

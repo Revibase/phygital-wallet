@@ -4,6 +4,7 @@
   "main": "src/index.ts",
   "compatibility_date": "2025-07-01",
   "compatibility_flags": ["nodejs_compat"],
+  "minify": true,
   "workers_dev": true,
   "d1_databases": [
     {

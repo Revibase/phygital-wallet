@@ -1,7 +1,5 @@
 /**
  * Decode verifier `/sign` wire txs (execute + config).
- * Keep in sync with `workers/api/src/verifier/decode-tx.ts` (api also exports
- * `instructionFromJson` for preview JSON).
  */
 import {
   getBase64Encoder,

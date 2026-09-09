@@ -1,6 +1,6 @@
 import { Hono, type Context } from "hono";
 import type { AuthenticationResponseJSON } from "@simplewebauthn/server";
-import { validatePaymentsPolicyConfig } from "phygital-policy";
+import type { PaymentsPolicyConfig } from "phygital-policy";
 
 import { requireDeviceSession } from "@/auth/device-session";
 import { parseMutationBinding } from "@/auth/mutation-binding";
@@ -110,16 +110,8 @@ policyRoutes.put("/policies/:phygitalToken", async (c) => {
     );
   }
 
-  const valid = validatePaymentsPolicyConfig(body.policy);
-  if (!valid.ok) {
-    return json(
-      { error: valid.message, code: valid.code },
-      { status: 400 },
-    );
-  }
-
   const result = await owner.stub.setPolicy({
-    policy: valid.config,
+    policy: body.policy as PaymentsPolicyConfig,
     challengeId: body.challengeId,
     assertion: body.assertion,
     origin,

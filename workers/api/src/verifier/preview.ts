@@ -1,12 +1,46 @@
+/**
+ * POST /preview — authorize instructions against standing policy (soft-deny inbox).
+ */
 import { Hono } from "hono";
+import {
+  AccountRole,
+  getBase64Encoder,
+  type Address,
+  type Instruction,
+} from "@solana/kit";
 
 import { readDeviceSession } from "@/auth/device-session";
 import { json } from "@/shared/http";
 import { createLogger } from "@/shared/log";
-import type { Instruction } from "@solana/kit";
-import { instructionFromJson } from "@/verifier/decode-tx";
 import { verifierJsonError } from "@/verifier/errors";
 import { tokenSigner } from "@/verifier/token-signer";
+
+const base64Encoder = getBase64Encoder();
+
+function instructionFromJson(raw: {
+  programAddress: string;
+  accounts?: { address: string; role?: string | number }[];
+  data?: string;
+}): Instruction {
+  const dataB64 = raw.data ?? "";
+  const data =
+    dataB64.length > 0
+      ? new Uint8Array(base64Encoder.encode(dataB64))
+      : new Uint8Array();
+  const role = (r: string | number | undefined): AccountRole => {
+    const n = typeof r === "number" ? r : Number(r);
+    if (Number.isInteger(n) && n >= 0 && n <= 3) return n as AccountRole;
+    return AccountRole.READONLY;
+  };
+  return {
+    programAddress: raw.programAddress as Address,
+    accounts: (raw.accounts ?? []).map((a) => ({
+      address: a.address as Address,
+      role: role(a.role),
+    })),
+    data,
+  } satisfies Instruction;
+}
 
 /** Soft deny may record a DO inbox row for the owner phone. */
 export const previewRoutes = new Hono<{ Bindings: Env }>();

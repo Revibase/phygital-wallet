@@ -10,7 +10,6 @@ import { Hono } from "hono";
 import type { AuthenticationResponseJSON } from "@simplewebauthn/server";
 
 import { json } from "@/shared/http";
-import { decodeWireTransaction } from "@/verifier/decode-tx";
 import { verifierJsonError } from "@/verifier/errors";
 import { tokenSigner } from "@/verifier/token-signer";
 
@@ -19,25 +18,19 @@ export const signRoutes = new Hono<{ Bindings: Env }>();
 signRoutes.post("/sign", async (c) => {
   try {
     const body = (await c.req.json()) as {
+      phygitalToken?: string;
       transactions?: string[];
       challengeId?: string;
       assertion?: AuthenticationResponseJSON;
     };
-    if (!Array.isArray(body.transactions) || body.transactions.length === 0) {
+    const phygitalToken = body.phygitalToken?.trim();
+    if (!phygitalToken || !Array.isArray(body.transactions) || body.transactions.length === 0) {
       return json(
-        { error: "transactions required", code: "invalid_transaction" },
+        { error: "phygitalToken and transactions required", code: "invalid_transaction" },
         { status: 400 },
       );
     }
 
-    const first = body.transactions[0];
-    if (!first) {
-      return json(
-        { error: "transactions required", code: "invalid_transaction" },
-        { status: 400 },
-      );
-    }
-    const { phygitalToken } = decodeWireTransaction(first);
     const result = await tokenSigner(c.env, phygitalToken).signTransactions(
       body.transactions,
       {

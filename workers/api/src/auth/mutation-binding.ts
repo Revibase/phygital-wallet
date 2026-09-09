@@ -3,11 +3,9 @@
  * Keep in sync with workers/api-signer/src/webauthn-mutation.ts MutationBinding.
  *
  * `addOwner` is minted only via device claim routes (not `parseMutationBinding`).
+ * Policy shape is validated only in the TokenSigner DO on upsert / load.
  */
-import {
-  validatePaymentsPolicyConfig,
-  type PaymentsPolicyConfig,
-} from "phygital-policy";
+import type { PaymentsPolicyConfig } from "phygital-policy";
 
 export type MutationBinding =
   | { kind: "addOwner"; credentialId: string }
@@ -25,9 +23,11 @@ export function parseMutationBinding(
   const raw = body as Record<string, unknown>;
   const kind = raw.kind;
   if (kind === "setPolicy") {
-    const valid = validatePaymentsPolicyConfig(raw.policy);
-    if (!valid.ok) return null;
-    return { kind: "setPolicy", policy: valid.config };
+    if (raw.policy == null || typeof raw.policy !== "object") return null;
+    return {
+      kind: "setPolicy",
+      policy: raw.policy as PaymentsPolicyConfig,
+    };
   }
   if (kind === "clearPolicy") return { kind: "clearPolicy" };
   if (kind === "createGrant") {

@@ -1,15 +1,16 @@
 /**
  * Public API for `phygital-policy`.
  *
- * Codama adapters, program IDs, and transfer helpers stay internal —
- * use `buildPaymentsPolicy` / config types only.
+ * Config types/defaults are side-effect free and tree-shakeable.
+ * `buildPaymentsPolicy` pulls Codama adapters — import only when verifying.
+ * Persistence validation is owned by api-signer.
  */
 export {
   DEFAULT_MAX_MINT_RAW,
   DEFAULT_MAX_SOL_LAMPORTS,
-  buildPaymentsPolicy,
   uiAmountToRaw,
-  validatePaymentsPolicyConfig,
   type MintSpendLimit,
   type PaymentsPolicyConfig,
-} from "./payments-policy.js";
+} from "./payments-policy-config.js";
+
+export { buildPaymentsPolicy } from "./payments-policy.js";

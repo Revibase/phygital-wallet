@@ -4,6 +4,7 @@
   "main": "src/index.ts",
   "compatibility_date": "2025-07-01",
   "compatibility_flags": ["nodejs_compat"],
+  "minify": true,
   // Private worker — only reachable via DO binding from revibase-api.
   "workers_dev": false,
   "durable_objects": {

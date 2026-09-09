@@ -5,7 +5,6 @@ import {
   DEFAULT_MAX_MINT_RAW,
   DEFAULT_MAX_SOL_LAMPORTS,
   uiAmountToRaw,
-  validatePaymentsPolicyConfig,
   type PaymentsPolicyConfig,
 } from "phygital-policy";
 import {
@@ -284,11 +283,7 @@ export async function compilePolicySettings(
     ...(extras.length > 0 ? { extraPrograms: extras } : {}),
   };
 
-  const valid = validatePaymentsPolicyConfig(config);
-  if (!valid.ok) {
-    throw Object.assign(new Error(valid.message), { code: valid.code });
-  }
-  return valid.config;
+  return config;
 }
 
 export async function applyPolicySettingsPatch(

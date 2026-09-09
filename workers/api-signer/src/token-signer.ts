@@ -5,10 +5,7 @@
 import { DurableObject } from "cloudflare:workers";
 import type { Instruction } from "@solana/kit";
 import type { AuthenticationResponseJSON } from "@simplewebauthn/server";
-import {
-  validatePaymentsPolicyConfig,
-  type PaymentsPolicyConfig,
-} from "phygital-policy";
+import type { PaymentsPolicyConfig } from "phygital-policy";
 
 import { createVerifierSignerBackend } from "@/backend/create";
 import type { VerifierSignerBackend } from "@/backend/types";
@@ -261,18 +258,10 @@ export class TokenSigner extends DurableObject<Env> {
         bindingKind: input.binding.kind,
       },
       async () => {
-        let binding = input.binding;
-        if (binding.kind === "setPolicy") {
-          const valid = validatePaymentsPolicyConfig(binding.policy);
-          if (!valid.ok) {
-            return { ok: false, code: valid.code, error: valid.message };
-          }
-          binding = { kind: "setPolicy", policy: valid.config };
-        }
         const built = await buildMutationOptions(
           this.#getStore(),
           input.origin,
-          binding,
+          input.binding,
         );
         if (!built.ok) {
           return { ok: false, code: built.code, error: built.error };
@@ -302,11 +291,7 @@ export class TokenSigner extends DurableObject<Env> {
         origin: input.origin,
       },
       async () => {
-        const valid = validatePaymentsPolicyConfig(input.policy);
-        if (!valid.ok) {
-          return { ok: false, code: valid.code, error: valid.message };
-        }
-        const policy = valid.config;
+        const policy = input.policy;
         const auth = await verifyMutationAssertion({
           store: this.#getStore(),
           challengeId: input.challengeId,
