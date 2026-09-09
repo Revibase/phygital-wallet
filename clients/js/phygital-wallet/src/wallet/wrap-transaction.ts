@@ -3,12 +3,17 @@ import {
   decompileTransactionMessageFetchingLookupTables,
   estimateResourceLimitsFactory,
   getCompiledTransactionMessageDecoder,
+  isAdvanceNonceAccountInstruction,
   isTransactionMessageWithBlockhashLifetime,
+  isTransactionMessageWithDurableNonceLifetime,
   isTransactionWithBlockhashLifetime,
   isWritableRole,
   prependTransactionMessageInstructions,
+  setTransactionMessageComputeUnitLimit,
   setTransactionMessageFeePayerSigner,
   setTransactionMessageLifetimeUsingBlockhash,
+  setTransactionMessageLoadedAccountsDataSizeLimit,
+  setTransactionMessagePriorityFeeLamports,
   type AccountMeta,
   type Address,
   type Blockhash,
@@ -49,6 +54,9 @@ import {
 const MEMO_PROGRAM_ADDRESS =
   "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr" as Address;
 
+/** Round loaded-accounts data size up to the next 32 KiB page (v1 cost model). */
+const LOADED_ACCOUNTS_PAGE_BYTES = 32 * 1024;
+
 /** Account metas for execute don't depend on the passkey payload. */
 const PLACEHOLDER_SECP_ARGS: Secp256r1VerifyArgsArgs = {
   verifyArgsRelativeIndex: 0,
@@ -74,6 +82,7 @@ type DecompiledMessage = Awaited<
 type PreparedWalletWrap = {
   transaction: Transaction & TransactionWithLifetime;
   decompiled: DecompiledMessage;
+  advanceNonceInstruction: Instruction | null;
   bodyInstructions: Instruction[];
   memoInstructions: Instruction[];
 };
@@ -135,6 +144,19 @@ function withMargin(unitsConsumed: number): number {
   );
 }
 
+function roundUpLoadedAccountsDataSize(bytes: number): number {
+  if (bytes <= 0) return LOADED_ACCOUNTS_PAGE_BYTES;
+  return Math.ceil(bytes / LOADED_ACCOUNTS_PAGE_BYTES) * LOADED_ACCOUNTS_PAGE_BYTES;
+}
+
+/** micro-lamports/CU × CU limit → absolute lamports for v1 priority fee. */
+function priorityFeeLamportsFromMicroLamports(
+  microLamportsPerCu: bigint,
+  unitLimit: number,
+): bigint {
+  return (microLamportsPerCu * BigInt(unitLimit)) / 1_000_000n;
+}
+
 function collectWritableAddresses(message: DecompiledMessage): Address[] {
   const writable = new Set<Address>();
 
@@ -153,23 +175,59 @@ function collectWritableAddresses(message: DecompiledMessage): Address[] {
   return [...writable];
 }
 
-function applyComputeBudget<T extends DecompiledMessage>(
+/**
+ * Apply CU / priority fee for the message version:
+ * - legacy / v0 → prepend ComputeBudget instructions
+ * - v1 → message `config` (ComputeBudget ixs are no-ops)
+ */
+function applyResourceLimits<T extends DecompiledMessage>(
   message: T,
   unitLimit: number,
-  unitPrice: bigint,
+  unitPriceMicroLamports: bigint,
+  loadedAccountsDataSizeLimit?: number,
 ): T {
   const withoutBudget = {
     ...message,
     instructions: stripComputeBudgetInstructions(message.instructions),
   } as T;
 
-  return prependTransactionMessageInstructions(
-    [
-      getSetComputeUnitLimitInstruction({ units: unitLimit }),
-      getSetComputeUnitPriceInstruction({ microLamports: unitPrice }),
-    ],
-    withoutBudget,
-  ) as T;
+  if (withoutBudget.version === 1) {
+    let next = setTransactionMessageComputeUnitLimit(
+      unitLimit,
+      withoutBudget as never,
+    ) as T;
+    next = setTransactionMessagePriorityFeeLamports(
+      priorityFeeLamportsFromMicroLamports(unitPriceMicroLamports, unitLimit),
+      next as never,
+    ) as T;
+    const dataSize =
+      loadedAccountsDataSizeLimit ?? LOADED_ACCOUNTS_PAGE_BYTES;
+    return setTransactionMessageLoadedAccountsDataSizeLimit(
+      roundUpLoadedAccountsDataSize(dataSize),
+      next as never,
+    ) as T;
+  }
+
+  // Keep AdvanceNonce as instruction 0 for durable-nonce messages.
+  const budgetIxs = [
+    getSetComputeUnitLimitInstruction({ units: unitLimit }),
+    getSetComputeUnitPriceInstruction({
+      microLamports: unitPriceMicroLamports,
+    }),
+  ];
+
+  if (
+    withoutBudget.instructions[0] &&
+    isAdvanceNonceAccountInstruction(withoutBudget.instructions[0])
+  ) {
+    const [advanceNonce, ...rest] = withoutBudget.instructions;
+    return {
+      ...withoutBudget,
+      instructions: [advanceNonce, ...budgetIxs, ...rest],
+    } as T;
+  }
+
+  return prependTransactionMessageInstructions(budgetIxs, withoutBudget) as T;
 }
 
 function applyBlockhashIfNeeded<T extends DecompiledMessage>(
@@ -220,6 +278,21 @@ function withVerifierFeePayerIfWallet<T extends DecompiledMessage>(
   return setTransactionMessageFeePayerSigner(verifier, message) as T;
 }
 
+function assertDurableNonceAuthorityNotWallet(
+  message: DecompiledMessage,
+  walletPda: Address,
+): void {
+  if (!isTransactionMessageWithDurableNonceLifetime(message)) return;
+  const advanceNonce = message.instructions[0];
+  if (!advanceNonce || !isAdvanceNonceAccountInstruction(advanceNonce)) return;
+  const authority = advanceNonce.accounts[2]?.address;
+  if (authority === walletPda) {
+    throw new Error(
+      "Durable nonce authority cannot be the phygital wallet PDA (PDA cannot outer-sign AdvanceNonceAccount); use the verifier or another ed25519 key as nonce authority",
+    );
+  }
+}
+
 /**
  * Post fee-payer-swap wrap message for CU / fee account selection.
  * Omit secp to price fees before the passkey tap.
@@ -249,6 +322,9 @@ function buildWrappedBaseMessage(input: {
     pending.remainingAccounts,
   );
   const instructions = [
+    ...(pending.prepared.advanceNonceInstruction
+      ? [pending.prepared.advanceNonceInstruction]
+      : []),
     ...(input.secp256r1VerifyInstruction
       ? [input.secp256r1VerifyInstruction]
       : []),
@@ -344,6 +420,7 @@ function applyVerifierCoSignature(
 async function prepareWrappedWalletTransaction(input: {
   rpc: Rpc<SolanaRpcApi>;
   transaction: Transaction & TransactionWithLifetime;
+  walletPda: Address;
 }): Promise<PreparedWalletWrap> {
   const compiledMessage = getCompiledTransactionMessageDecoder().decode(
     input.transaction.messageBytes,
@@ -362,9 +439,29 @@ async function prepareWrappedWalletTransaction(input: {
     decompileConfig,
   );
 
+  assertDurableNonceAuthorityNotWallet(decompiled, input.walletPda);
+
+  const durableNonce = isTransactionMessageWithDurableNonceLifetime(decompiled);
+  const instructions = decompiled.instructions;
+  let advanceNonceInstruction: Instruction | null = null;
+  let bodyStart = 0;
+
+  if (durableNonce) {
+    const first = instructions[0];
+    if (!first || !isAdvanceNonceAccountInstruction(first)) {
+      throw new Error(
+        "Durable-nonce transaction is missing AdvanceNonceAccount as the first instruction",
+      );
+    }
+    advanceNonceInstruction = first;
+    bodyStart = 1;
+  }
+
   const bodyInstructions: Instruction[] = [];
   const memoInstructions: Instruction[] = [];
-  for (const instruction of decompiled.instructions) {
+
+  for (let i = bodyStart; i < instructions.length; i++) {
+    const instruction = instructions[i]!;
     if (instruction.programAddress === COMPUTE_BUDGET_PROGRAM_ADDRESS) continue;
     if (instruction.programAddress === MEMO_PROGRAM_ADDRESS) {
       memoInstructions.push(instruction);
@@ -382,6 +479,7 @@ async function prepareWrappedWalletTransaction(input: {
   return {
     transaction: input.transaction,
     decompiled,
+    advanceNonceInstruction,
     bodyInstructions,
     memoInstructions,
   };
@@ -413,7 +511,7 @@ function buildPendingWalletWrap(
 }
 
 /**
- * After passkey: execute ix, CU + fees, fresh blockhash, compile.
+ * After passkey: execute ix, resource limits, lifetime, compile.
  */
 async function finalizeWrappedWalletTransaction(input: {
   rpc: Rpc<SolanaRpcApi>;
@@ -437,6 +535,9 @@ async function finalizeWrappedWalletTransaction(input: {
     secp256r1VerifyArgs,
   });
 
+  const needsBlockhashRefresh =
+    isTransactionMessageWithBlockhashLifetime(baseMessage);
+
   const [limits, unitPrice, block] = await Promise.all([
     estimateResourceLimitsFactory({ rpc })(baseMessage),
     input.unitPricePromise ??
@@ -447,18 +548,23 @@ async function finalizeWrappedWalletTransaction(input: {
         verifier,
         executeAccounts,
       }),
-    rpc
-      .getLatestBlockhash({ commitment: "confirmed" })
-      .send()
-      .then(({ value: latestBlockhash }) => latestBlockhash),
+    needsBlockhashRefresh
+      ? rpc
+          .getLatestBlockhash({ commitment: "confirmed" })
+          .send()
+          .then(({ value: latestBlockhash }) => latestBlockhash)
+      : Promise.resolve(null),
   ]);
 
-  let message = applyComputeBudget(
+  let message = applyResourceLimits(
     baseMessage,
     withMargin(limits.computeUnitLimit),
     unitPrice,
+    limits.loadedAccountsDataSizeLimit,
   );
-  message = applyBlockhashIfNeeded(message, block);
+  if (block) {
+    message = applyBlockhashIfNeeded(message, block);
+  }
 
   const compiledTx = compileTransaction(
     message as Parameters<typeof compileTransaction>[0],
@@ -490,6 +596,7 @@ export async function modifyAndWrapWalletTransaction(input: {
   const prepared = await prepareWrappedWalletTransaction({
     rpc: input.rpc,
     transaction: input.transaction,
+    walletPda: input.walletPda,
   });
 
   const earlyCompiled = compileWalletInstructions(

@@ -31,7 +31,7 @@ import { tryParseAddress } from "@/lib/solana/address";
 import { cn, shortAddress } from "@/lib/utils";
 import { toUserErrorMessage } from "@/lib/user-errors";
 import { useFeeBalance } from "@/hooks/wallet/use-fee-balance";
-import { useResolvedVerifier } from "@/hooks/wallet/use-resolved-verifier";
+import { useTokenVerifier } from "@/hooks/wallet/use-token-verifier";
 import { identifyAccessory } from "@/lib/wallet/identify-accessory";
 import { createOneTimeGrant } from "@/lib/wallet/policies-client";
 import { handleOwnerAuthFailure } from "@/lib/wallet/device-sign-in-href";
@@ -129,8 +129,8 @@ export function SendDialog({
   const [visitorPhase, setVisitorPhase] = useState<"denied" | "idle">("idle");
   const sendAbortRef = useRef<AbortController | null>(null);
   const feeBalance = useFeeBalance(phygitalTokenPda);
-  const resolvedVerifier = useResolvedVerifier(phygitalTokenPda);
-  const usesFeeBalance = resolvedVerifier.data?.usesDefaultPaymaster === true;
+  const tokenVerifier = useTokenVerifier(phygitalTokenPda);
+  const usesFeeBalance = tokenVerifier.data?.usesDefaultPaymaster === true;
   const prefersReducedMotion = useReducedMotion();
   const enter = snapEnter(prefersReducedMotion);
   const amountInputRef = useRef<HTMLInputElement>(null);
@@ -286,7 +286,6 @@ export function SendDialog({
           decimals: asset.decimals,
           tokenProgram: asset.tokenProgram,
         },
-        resolvedVerifier: resolvedVerifier.data,
         abortSignal: abort.signal,
         signer: {
           onPhaseChange: (phase) => {

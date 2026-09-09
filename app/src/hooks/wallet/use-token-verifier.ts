@@ -3,8 +3,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { address } from "@solana/kit";
 import {
+  fetchMaybeConfig,
   fetchMaybeTokenVerifier,
+  findConfigPda,
   findTokenVerifierPda,
+  isConfigDefaultVerifier,
 } from "phygital-wallet-sdk";
 
 import { queryKeys, queryOptions } from "@/lib/queries";
@@ -17,6 +20,8 @@ export type TokenVerifierStatus = {
   endpoint: string | null;
   /** Rent payer of the override PDA (for clear). */
   payer: string | null;
+  /** True when default-verifier fee balance / paymaster applies. */
+  usesDefaultPaymaster: boolean;
 };
 
 /** On-chain token verifier override for a phygital token (signing settings). */
@@ -26,21 +31,33 @@ export function useTokenVerifier(phygitalToken: string | null) {
     queryFn: async (): Promise<TokenVerifierStatus> => {
       const rpc = getSolanaRpc();
       const token = address(phygitalToken!);
-      const [pda] = await findTokenVerifierPda({ phygitalToken: token });
-      const account = await fetchMaybeTokenVerifier(rpc, pda);
+      const [[pda], [configPda]] = await Promise.all([
+        findTokenVerifierPda({ phygitalToken: token }),
+        findConfigPda(),
+      ]);
+      const [account, config] = await Promise.all([
+        fetchMaybeTokenVerifier(rpc, pda),
+        fetchMaybeConfig(rpc, configPda),
+      ]);
       if (!account.exists) {
         return {
           custom: false,
           verifier: null,
           endpoint: null,
           payer: null,
+          usesDefaultPaymaster: true,
         };
       }
+      const verifier = String(account.data.verifier);
       return {
         custom: true,
-        verifier: String(account.data.verifier),
+        verifier,
         endpoint: account.data.endpoint || null,
         payer: String(account.data.payer),
+        usesDefaultPaymaster: isConfigDefaultVerifier(
+          config.exists ? config.data : null,
+          verifier,
+        ),
       };
     },
     enabled: Boolean(phygitalToken),

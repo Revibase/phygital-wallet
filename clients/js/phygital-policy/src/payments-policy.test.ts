@@ -1,7 +1,31 @@
-import { address } from "@solana/kit";
+import { AccountRole, address, type Instruction } from "@solana/kit";
 import { describe, expect, it } from "vitest";
 import { getTransferSolInstruction } from "./generated/system/instructions/transferSol.js";
 import { buildPaymentsPolicy } from "./payments-policy.js";
+
+const SYSTEM = "11111111111111111111111111111111";
+const RECENT_BLOCKHASHES = "SysvarRecentB1ockHashes11111111111111111111";
+
+function advanceNonceIx(): Instruction {
+  return {
+    programAddress: address(SYSTEM),
+    data: new Uint8Array([4, 0, 0, 0]),
+    accounts: [
+      {
+        address: address("11111111111111111111111111111112"),
+        role: AccountRole.WRITABLE,
+      },
+      {
+        address: address(RECENT_BLOCKHASHES),
+        role: AccountRole.READONLY,
+      },
+      {
+        address: address("11111111111111111111111111111113"),
+        role: AccountRole.READONLY_SIGNER,
+      },
+    ],
+  };
+}
 
 describe("buildPaymentsPolicy", () => {
   it("allows empty instruction lists", () => {
@@ -21,6 +45,24 @@ describe("buildPaymentsPolicy", () => {
     ]);
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.code).toBe("instruction_denied");
+  });
+
+  it("allows AdvanceNonceAccount (durable nonce outer ix)", () => {
+    const gate = buildPaymentsPolicy({ version: "3" });
+    expect(gate.verify([advanceNonceIx()]).ok).toBe(true);
+  });
+
+  it("allows AdvanceNonceAccount alongside a SOL transfer", () => {
+    const gate = buildPaymentsPolicy({
+      version: "3",
+      maxSolLamports: "100000000",
+    });
+    const transfer = getTransferSolInstruction({
+      source: address("11111111111111111111111111111112"),
+      destination: address("11111111111111111111111111111113"),
+      amount: 50_000_000n,
+    });
+    expect(gate.verify([advanceNonceIx(), transfer]).ok).toBe(true);
   });
 
   it("allows SOL transfer under cap", () => {

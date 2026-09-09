@@ -94,12 +94,6 @@ export const queryKeys = {
       [...queryKeys.tokenVerifier.all(), token] as const,
   },
 
-  resolvedVerifier: {
-    all: () => ["resolvedVerifier"] as const,
-    byToken: (token: string | null) =>
-      [...queryKeys.resolvedVerifier.all(), token] as const,
-  },
-
   phygitalToken: {
     all: () => ["phygitalTokens"] as const,
     byIdentifier: (identifier: string | null) =>

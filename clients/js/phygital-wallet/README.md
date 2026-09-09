@@ -52,6 +52,20 @@ Signing runs policy checks and a body simulation before the passkey prompt, then
 
 Soft deny throws `PolicyDeniedError` (soft) with a stable `intentHash`. The pending approval lands in the owner inbox — after they approve on their phone, retry the **same** instructions and sign again.
 
+## Wallet Standard (`@solana/connectors` / adapters)
+
+Register Revibase once at app startup so any Wallet Standard consumer can discover it:
+
+```typescript
+import { registerPhygitalWallet } from "phygital-wallet-sdk";
+
+registerPhygitalWallet({ rpc });
+```
+
+The wallet appears as **Revibase**. On connect, the user taps their accessory (`startAuthentication` → `verifyResponse` → token PDA → wallet PDA). The session (token + wallet PDAs) is stored in `localStorage` so refresh restores without another tap; disconnect clears it.
+
+Features: `standard:connect` / `disconnect` / `events`, `solana:signTransaction`, `solana:signAndSendTransaction`, and `solana:signMessage` (declared for connector compatibility — PDA accounts cannot produce ed25519 message signatures). Signing uses the same wrap/`execute` path as `getPhygitalWalletSigner` (legacy, v0, and v1; blockhash or durable nonce).
+
 ## Optional: ceremony progress
 
 ```typescript
@@ -59,20 +73,6 @@ const source = await getPhygitalWalletSigner(rpc, phygitalTokenPda, {
   onPhaseChange: (phase) => {
     /* hold / progress UI */
   },
-});
-```
-
-## Optional: reuse a resolved verifier
-
-```typescript
-import {
-  fetchVerifierAccountSnapshot,
-  getPhygitalWalletSigner,
-} from "phygital-wallet-sdk";
-
-const snapshot = await fetchVerifierAccountSnapshot(rpc, phygitalTokenPda);
-const source = await getPhygitalWalletSigner(rpc, phygitalTokenPda, {
-  snapshot,
 });
 ```
 

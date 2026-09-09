@@ -124,4 +124,22 @@ describe("evaluatePolicy", () => {
       "FakeProgram1111111111111111111111111111111",
     );
   });
+
+  it("allows AdvanceNonceAccount", () => {
+    const r = evaluatePolicy({ version: "3" }, [
+      {
+        programAddress: SYSTEM as never,
+        data: new Uint8Array([4, 0, 0, 0]),
+        accounts: [
+          { address: SOURCE as never, role: 1 },
+          {
+            address: "SysvarRecentB1ockHashes11111111111111111111" as never,
+            role: 0,
+          },
+          { address: AUTH as never, role: 2 },
+        ],
+      },
+    ]);
+    expect(r.ok).toBe(true);
+  });
 });

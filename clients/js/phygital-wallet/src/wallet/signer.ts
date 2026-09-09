@@ -10,10 +10,7 @@ import { authenticatePasskeyForSecp256r1Verify } from "phygital-token-sdk";
 
 import { findWalletPda } from "../generated/pdas/wallet.js";
 import { previewWalletIntent } from "./preview.js";
-import {
-  resolveVerifier,
-  type VerifierAccountSnapshot,
-} from "./resolve-verifier.js";
+import { resolveVerifier } from "./resolve-verifier.js";
 import { modifyAndWrapWalletTransaction } from "./wrap-transaction.js";
 
 /**
@@ -34,8 +31,6 @@ export type PhygitalWalletSignerCallbacks = {
 
 export type PhygitalWalletSignerConfig = PhygitalWalletSignerCallbacks & {
   fetch?: typeof fetch;
-  /** Host-resolved verifier+config; skips getMultipleAccounts. */
-  snapshot?: VerifierAccountSnapshot;
 };
 
 /**

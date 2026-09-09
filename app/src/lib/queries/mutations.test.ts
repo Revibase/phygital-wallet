@@ -265,6 +265,7 @@ describe("applyOptimisticTokenVerifier / restoreTokenVerifierSnapshot", () => {
       verifier: null,
       endpoint: null,
       payer: null,
+      usesDefaultPaymaster: true,
     };
     qc.setQueryData(key, previous);
 
@@ -273,6 +274,7 @@ describe("applyOptimisticTokenVerifier / restoreTokenVerifierSnapshot", () => {
       verifier: "Verifier11111111111111111111111111111111",
       endpoint: "https://example.com",
       payer: null,
+      usesDefaultPaymaster: false,
     };
     const snapshot = applyOptimisticTokenVerifier(qc, "token", next);
     expect(snapshot).toEqual(previous);

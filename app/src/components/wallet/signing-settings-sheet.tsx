@@ -170,6 +170,7 @@ export function SigningSettingsSheet({
           verifier: String(verifierAddr),
           endpoint: endpoint.trim(),
           payer: verifierStatus.data?.payer ?? null,
+          usesDefaultPaymaster: false,
         },
         onSuccess: () => {
           toast.success(copy.wallet.signingCustomSaved);
@@ -222,6 +223,7 @@ export function SigningSettingsSheet({
           verifier: null,
           endpoint: null,
           payer: null,
+          usesDefaultPaymaster: true,
         },
         onSuccess: () => {
           toast.success(copy.wallet.signingRestored);

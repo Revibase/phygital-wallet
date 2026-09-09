@@ -31,6 +31,27 @@ type SignableTransaction = Transaction &
 
 const base64Encoder = getBase64Encoder();
 
+/** Active Config verifier addresses (`verifiers[0..verifierCount)`). */
+export function activeConfigVerifierAddresses(config: {
+  verifiers: readonly Address[];
+  verifierCount: number;
+}): Set<string> {
+  return new Set(
+    config.verifiers.slice(0, config.verifierCount).map((v) => String(v)),
+  );
+}
+
+export function isConfigDefaultVerifier(
+  config: {
+    verifiers: readonly Address[];
+    verifierCount: number;
+  } | null,
+  verifier: Address | string,
+): boolean {
+  if (!config) return false;
+  return activeConfigVerifierAddresses(config).has(String(verifier));
+}
+
 export function assertHttpsEndpoint(
   endpoint: string,
   options: { maxLen?: number } = {},
@@ -124,8 +145,7 @@ export function createVerifierEndpointSigner(
   };
 }
 
-/** Cacheable TokenVerifier + Config resolution (no HTTP signer). */
-export type VerifierAccountSnapshot = {
+export type ResolvedVerifier = {
   verifierAddress: Address;
   /** Verifier API base (e.g. `https://api.revibase.com`). */
   endpoint: string;
@@ -135,53 +155,32 @@ export type VerifierAccountSnapshot = {
   requiresOwnerCosignAssertion: boolean;
   /** True when default-verifier fee balance / paymaster applies. */
   usesDefaultPaymaster: boolean;
-};
-
-export type ResolvedVerifier = VerifierAccountSnapshot & {
   verifier: TransactionPartialSigner;
 };
 
-function signerFromSnapshot(
-  phygitalToken: Address,
-  snapshot: VerifierAccountSnapshot,
-  config: {
-    fetch?: typeof fetch;
-  },
-): ResolvedVerifier {
-  return {
-    ...snapshot,
-    verifier: createVerifierEndpointSigner(
-      snapshot.verifierAddress,
-      phygitalToken,
-      {
-        endpoint: verifierSignUrl(snapshot.endpoint),
-        fetch: config.fetch,
-      },
-    ),
-  };
-}
-
-function snapshotFromAccounts(args: {
+function resolvedFromAccounts(args: {
+  phygitalToken: Address;
   tokenVerifierPda: Address;
   configPda: Address;
   tokenVerifierEncoded: Awaited<
     ReturnType<typeof fetchEncodedAccounts>
   >[number];
   configEncoded: Awaited<ReturnType<typeof fetchEncodedAccounts>>[number];
-}): VerifierAccountSnapshot {
-  const { tokenVerifierPda, configPda, tokenVerifierEncoded, configEncoded } =
-    args;
+  fetch?: typeof fetch;
+}): ResolvedVerifier {
+  const {
+    phygitalToken,
+    tokenVerifierPda,
+    configPda,
+    tokenVerifierEncoded,
+    configEncoded,
+    fetch: httpFetch,
+  } = args;
 
   const onChainConfig = decodeConfig(configEncoded);
-  const defaults = new Set<string>();
-  if (onChainConfig.exists) {
-    for (const v of onChainConfig.data.verifiers.slice(
-      0,
-      onChainConfig.data.verifierCount,
-    )) {
-      defaults.add(String(v));
-    }
-  }
+  const defaults = onChainConfig.exists
+    ? activeConfigVerifierAddresses(onChainConfig.data)
+    : new Set<string>();
 
   const tokenVerifier = decodeTokenVerifier(tokenVerifierEncoded);
   if (tokenVerifier.exists) {
@@ -199,6 +198,10 @@ function snapshotFromAccounts(args: {
       tokenVerifierPda,
       requiresOwnerCosignAssertion: isConfigDefault,
       usesDefaultPaymaster: isConfigDefault,
+      verifier: createVerifierEndpointSigner(verifierAddress, phygitalToken, {
+        endpoint: verifierSignUrl(apiBase),
+        fetch: httpFetch,
+      }),
     };
   }
 
@@ -226,14 +229,20 @@ function snapshotFromAccounts(args: {
     tokenVerifierPda,
     requiresOwnerCosignAssertion: true,
     usesDefaultPaymaster: true,
+    verifier: createVerifierEndpointSigner(selectedVerifier, phygitalToken, {
+      endpoint: verifierSignUrl(DEFAULT_VERIFIER_API_BASE),
+      fetch: httpFetch,
+    }),
   };
 }
 
-/** Fetch TokenVerifier + Config into a {@link VerifierAccountSnapshot}. */
-export async function fetchVerifierAccountSnapshot(
+export async function resolveVerifier(
   rpc: Rpc<GetAccountInfoApi & GetMultipleAccountsApi>,
   phygitalToken: Address,
-): Promise<VerifierAccountSnapshot> {
+  config: {
+    fetch?: typeof fetch;
+  } = {},
+): Promise<ResolvedVerifier> {
   const [[tokenVerifierPda], [configPda]] = await Promise.all([
     findTokenVerifierPda({ phygitalToken }),
     findConfigPda(),
@@ -244,27 +253,12 @@ export async function fetchVerifierAccountSnapshot(
     [tokenVerifierPda, configPda],
   );
 
-  return snapshotFromAccounts({
+  return resolvedFromAccounts({
+    phygitalToken,
     tokenVerifierPda,
     configPda,
     tokenVerifierEncoded,
     configEncoded,
+    fetch: config.fetch,
   });
-}
-
-export async function resolveVerifier(
-  rpc: Rpc<GetAccountInfoApi & GetMultipleAccountsApi>,
-  phygitalToken: Address,
-  config: {
-    fetch?: typeof fetch;
-    /** Skip getMultipleAccounts when provided. */
-    snapshot?: VerifierAccountSnapshot;
-  } = {},
-): Promise<ResolvedVerifier> {
-  if (config.snapshot) {
-    return signerFromSnapshot(phygitalToken, config.snapshot, config);
-  }
-
-  const snapshot = await fetchVerifierAccountSnapshot(rpc, phygitalToken);
-  return signerFromSnapshot(phygitalToken, snapshot, config);
 }

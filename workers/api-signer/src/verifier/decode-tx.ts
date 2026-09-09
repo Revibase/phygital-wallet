@@ -6,6 +6,7 @@ import {
   getCompiledTransactionMessageDecoder,
   getInstructionsFromCompiledTransactionMessage,
   getTransactionDecoder,
+  isAdvanceNonceAccountInstruction,
   AccountRole,
   type AccountMeta,
   type Instruction,
@@ -23,6 +24,7 @@ import { MEMO_PROGRAM_ADDRESS } from "@/fees/constants";
 import {
   COMPUTE_BUDGET_PROGRAM,
   SECP256R1_PROGRAM,
+  SYSTEM_PROGRAM,
 } from "@/verifier/constants";
 
 const base64Encoder = getBase64Encoder();
@@ -38,6 +40,29 @@ const TOP_LEVEL_OK = new Set<string>([
 
 function coded(message: string, code: string): Error {
   return Object.assign(new Error(message), { code });
+}
+
+/**
+ * Top-level programs allowed on `/sign` wire txs.
+ * System Program is only allowed for AdvanceNonceAccount (durable nonce outer ix).
+ */
+export function assertTopLevelInstructionAllowed(ix: Instruction): void {
+  const program = String(ix.programAddress);
+  if (program === SYSTEM_PROGRAM) {
+    if (!isAdvanceNonceAccountInstruction(ix)) {
+      throw coded(
+        "Unexpected system program instruction at top level",
+        "unexpected_instruction",
+      );
+    }
+    return;
+  }
+  if (!TOP_LEVEL_OK.has(program)) {
+    throw coded(
+      `Unexpected top-level program ${program}`,
+      "unexpected_instruction",
+    );
+  }
 }
 
 type WalletIx = Instruction &
@@ -159,14 +184,9 @@ export function decodeWireTransaction(base64Tx: string): DecodedSignTx {
   let inner: Instruction[] = [];
 
   for (const ix of topLevel) {
-    const program = String(ix.programAddress);
-    if (!TOP_LEVEL_OK.has(program)) {
-      throw coded(
-        `Unexpected top-level program ${program}`,
-        "unexpected_instruction",
-      );
-    }
+    assertTopLevelInstructionAllowed(ix);
 
+    const program = String(ix.programAddress);
     if (program !== PHYGITAL_WALLET_PROGRAM_ADDRESS) continue;
 
     const parsed = parseWalletTopLevel(ix);

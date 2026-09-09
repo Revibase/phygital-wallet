@@ -41,7 +41,7 @@ only types those instructions transitively need (deletes the rest).
 
 | Program | Kept instructions |
 |---------|-------------------|
-| system | transferSol, createAccount, allocate, assign |
+| system | transferSol, createAccount, allocate, assign; AdvanceNonceAccount via Kit guard (not in Codama IDL) |
 | token / token-2022 | transferChecked, transfer, closeAccount |
 | associated-token | create, createIdempotent |
 | token-metadata | Transfer |

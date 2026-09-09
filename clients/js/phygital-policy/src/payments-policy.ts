@@ -3,6 +3,7 @@
  * Prefer importing config helpers from `payments-policy-config` (or package root)
  * when you only need validate / types — this module pulls generated clients.
  */
+import { isAdvanceNonceAccountInstruction } from "@solana/kit";
 import {
   aggregate,
   allow,
@@ -25,6 +26,7 @@ import {
   AssociatedTokenAccountInstruction,
   BubblegumInstruction,
   MplCoreProgramInstruction,
+  SYSTEM_PROGRAM_ADDRESS,
   SystemInstruction,
   TokenInstruction,
   Token2022Instruction,
@@ -39,6 +41,32 @@ import type {
 
 const COMPUTE_BUDGET_PROGRAM_ADDRESS =
   "ComputeBudget111111111111111111111111111111" as const;
+
+/** Kit-only: Codama system IDL does not include AdvanceNonceAccount. */
+type AdvanceNonceParsed = ParsedProgramIx & {
+  instructionType: "AdvanceNonceAccount";
+};
+
+function parseAdvanceNonce(ix: Parameters<
+  InstructionMatcher["tryMatch"]
+>[0]): AdvanceNonceParsed | undefined {
+  if (!isAdvanceNonceAccountInstruction(ix)) return undefined;
+  return {
+    programAddress: SYSTEM_PROGRAM_ADDRESS,
+    instructionType: "AdvanceNonceAccount",
+  };
+}
+
+const advanceNonceAccount: InstructionMatcher<AdvanceNonceParsed> = {
+  kind: "instruction",
+  programAddress: SYSTEM_PROGRAM_ADDRESS,
+  instructionType: "AdvanceNonceAccount",
+  adapter: {
+    programAddress: SYSTEM_PROGRAM_ADDRESS,
+    tryParse: parseAdvanceNonce,
+  },
+  tryMatch: parseAdvanceNonce,
+};
 
 const COLLECTIBLE_COMPANION_PROGRAMS = [
   "auth9SigNpDKz4sJJ1DfCTuZrZNSAgh9sFD3rboVmgg",
@@ -216,6 +244,7 @@ export function buildPaymentsPolicy(
       : allow(transferSol),
   );
   rules.push(
+    allow(advanceNonceAccount),
     allow(system.instruction(SystemInstruction.CreateAccount)),
     allow(system.instruction(SystemInstruction.Allocate)),
     allow(system.instruction(SystemInstruction.Assign)),

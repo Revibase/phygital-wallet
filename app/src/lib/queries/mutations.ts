@@ -40,6 +40,7 @@ export type TokenVerifierCache = {
   verifier: string | null;
   endpoint: string | null;
   payer: string | null;
+  usesDefaultPaymaster: boolean;
 };
 
 /** First-page sizes used by `useWalletActivity` (default) and ActivityAllSheet. */
@@ -393,9 +394,6 @@ export function applyOptimisticTokenVerifier(
   const key = queryKeys.tokenVerifier.byToken(token);
   const previous = queryClient.getQueryData<TokenVerifierCache>(key);
   queryClient.setQueryData(key, next);
-  void queryClient.invalidateQueries({
-    queryKey: queryKeys.resolvedVerifier.byToken(token),
-  });
   return previous;
 }
 
@@ -410,9 +408,6 @@ export function restoreTokenVerifierSnapshot(
   } else {
     queryClient.setQueryData(key, previous);
   }
-  void queryClient.invalidateQueries({
-    queryKey: queryKeys.resolvedVerifier.byToken(token),
-  });
 }
 
 /** Invalidate DAS / portfolio caches when the active RPC preference changes. */

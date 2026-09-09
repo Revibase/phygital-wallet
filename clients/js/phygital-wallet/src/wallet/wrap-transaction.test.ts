@@ -42,7 +42,7 @@ import {
 import { findConfigPda } from "../generated/pdas/config.js";
 import { findTokenVerifierPda } from "../generated/pdas/tokenVerifier.js";
 import { findWalletPda } from "../generated/pdas/wallet.js";
-import { createVerifierEndpointSigner, fetchVerifierAccountSnapshot, resolveVerifier } from "./resolve-verifier.js";
+import { createVerifierEndpointSigner, resolveVerifier } from "./resolve-verifier.js";
 import { getPhygitalWalletSigner } from "./signer.js";
 
 type MockRpc = Rpc<GetAccountInfoApi & GetMultipleAccountsApi>;
@@ -302,26 +302,6 @@ describe("resolveVerifier", () => {
     const verifier = await resolveVerifier(rpc, PHYGITAL_TOKEN);
     expect(verifier.verifier.address).toBe(CONFIG_VERIFIER);
     expect(verifier.usesDefaultPaymaster).toBe(true);
-  });
-
-  it("reuses a snapshot without calling getMultipleAccounts", async () => {
-    const rpc = await createMockRpc({
-      config: defaultConfigArgs(CONFIG_VERIFIER),
-    });
-    const snapshot = await fetchVerifierAccountSnapshot(rpc, PHYGITAL_TOKEN);
-    const getMultipleAccounts = vi.fn(() => {
-      throw new Error("should not fetch");
-    });
-    const coldRpc = {
-      getMultipleAccounts,
-      getAccountInfo: rpc.getAccountInfo,
-    } as unknown as MockRpc;
-
-    const resolved = await resolveVerifier(coldRpc, PHYGITAL_TOKEN, {
-      snapshot,
-    });
-    expect(resolved.verifier.address).toBe(snapshot.verifierAddress);
-    expect(getMultipleAccounts).not.toHaveBeenCalled();
   });
 });
 

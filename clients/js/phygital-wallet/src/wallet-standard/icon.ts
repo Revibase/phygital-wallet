@@ -1,0 +1,7 @@
+import type { WalletIcon } from "@wallet-standard/base";
+
+/** Hardcoded Revibase mark (teal square + pearl monogram). */
+export const REVIBASE_WALLET_ICON =
+  "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzAwQkZBNSIvPjxwYXRoIGZpbGw9IiNGN0Y0RUYiIGQ9Ik04IDE3LjU0IEwyMi43NyA0Mi41NiBMMzAuMTEgMzAuMTYgTDQ3LjE0IDMwLjE2IEwxNi4zIDgyLjQ2IEwzMC45NyA4Mi40NiBMMzguNjIgNjkuNTIgTDQ2LjM5IDgyLjQ2IEw2MS4xNiA4Mi40NiBMOTIgMzAuMjcgTDg0Ljc4IDE3LjU0IEw2OS41NyAxNy41NCBMNzcuMDEgMzAuODEgTDUzLjYxIDY5Ljk1IEw0Ni4wNiA1Ni43OSBMNjEuODEgMzAuMzcgTDU0LjY5IDE3LjU0IFoiLz48L3N2Zz4=" as WalletIcon;
+
+export const REVIBASE_WALLET_NAME = "Revibase" as const;
