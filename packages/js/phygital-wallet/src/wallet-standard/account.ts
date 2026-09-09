@@ -1,12 +1,12 @@
 import { getAddressEncoder, type Address } from "@solana/kit";
 import type { IdentifierArray, WalletAccount } from "@wallet-standard/base";
-import { SOLANA_CHAINS } from "@solana/wallet-standard-chains";
 import {
   SolanaSignAndSendTransaction,
   SolanaSignMessage,
   SolanaSignTransaction,
 } from "@solana/wallet-standard-features";
 
+import { PHYGITAL_WALLET_CHAINS } from "../constants.js";
 import { REVIBASE_WALLET_ICON } from "./icon.js";
 
 const addressEncoder = getAddressEncoder();
@@ -19,7 +19,7 @@ const ACCOUNT_FEATURES = [
 
 export function createPhygitalWalletAccount(
   walletPda: Address,
-  chains: IdentifierArray = SOLANA_CHAINS,
+  chains: IdentifierArray = PHYGITAL_WALLET_CHAINS,
 ): WalletAccount {
   const publicKey = new Uint8Array(addressEncoder.encode(walletPda));
   return Object.freeze({

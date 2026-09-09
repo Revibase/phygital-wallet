@@ -58,6 +58,7 @@ registerPhygitalWallet({ rpc }); // idempotent per rpc instance
 ```
 
 - UI name: **Revibase**. Browser-only (WebAuthn + `localStorage` session key `revibase:wallet-standard:v1`).
+- Chains default to **mainnet only** (`solana:mainnet`); the program is not deployed on other clusters.
 - Connect: tap → token PDA → wallet PDA. Session restore avoids a second tap after refresh.
 - Implements `solana:signTransaction` / `signAndSendTransaction`. `solana:signMessage` is declared for connectors but **throws** (PDA cannot ed25519-sign messages).
 

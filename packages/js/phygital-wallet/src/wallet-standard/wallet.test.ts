@@ -82,9 +82,7 @@ describe("PhygitalWallet Wallet Standard surface", () => {
     expect(wallet.name).toBe(REVIBASE_WALLET_NAME);
     expect(wallet.version).toBe("1.0.0");
     expect(wallet.accounts).toEqual([]);
-    expect(wallet.chains.every((c) => String(c).startsWith("solana:"))).toBe(
-      true,
-    );
+    expect(wallet.chains).toEqual(["solana:mainnet"]);
     expect(StandardConnect in wallet.features).toBe(true);
     expect(StandardEvents in wallet.features).toBe(true);
     expect(StandardDisconnect in wallet.features).toBe(true);

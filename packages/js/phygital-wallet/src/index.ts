@@ -27,6 +27,7 @@ export { normalizeVerifierApiBase } from "./wallet/verifier-endpoint.js";
 export {
   DEFAULT_VERIFIER_API_BASE,
   MAX_ENDPOINT_LEN,
+  PHYGITAL_WALLET_CHAINS,
 } from "./constants.js";
 
 export {

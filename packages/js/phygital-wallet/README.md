@@ -69,7 +69,7 @@ import { registerPhygitalWallet } from "phygital-wallet-sdk";
 registerPhygitalWallet({ rpc /* , chains?, fetch?, onPhaseChange? */ });
 ```
 
-Options: `rpc` (required), optional `chains` (defaults to all Solana clusters), `fetch`, `onPhaseChange`.
+Options: `rpc` (required), optional `chains` (defaults to mainnet only — the program is not deployed elsewhere), `fetch`, `onPhaseChange`.
 
 The wallet appears as **Revibase**. On connect, the user taps their accessory (`startAuthentication` → `verifyResponse` → token PDA → wallet PDA). Session PDAs are stored under `revibase:wallet-standard:v1` so refresh restores without another tap; disconnect clears it.
 
@@ -96,6 +96,7 @@ const source = await getPhygitalWalletSigner(rpc, phygitalTokenPda, {
 | `registerPhygitalWallet` | Wallet Standard registration (Revibase) |
 | `resolveVerifier` / `ResolvedVerifier` | Resolve TokenVerifier override or default paymaster |
 | `DEFAULT_VERIFIER_API_BASE` | Default co-signer origin when no override is set |
+| `PHYGITAL_WALLET_CHAINS` | Wallet Standard default (`solana:mainnet` only) |
 | `assertHttpsEndpoint` / `normalizeVerifierApiBase` | Endpoint helpers |
 | `activeConfigVerifierAddresses` / `isConfigDefaultVerifier` | Config default-verifier membership |
 | `buildSet*Challenge` / `buildClear*Challenge` | Config instruction challenges |

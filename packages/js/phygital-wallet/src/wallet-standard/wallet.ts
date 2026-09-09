@@ -11,7 +11,7 @@ import {
   type TransactionModifyingSigner,
   type TransactionWithLifetime,
 } from "@solana/kit";
-import { SOLANA_CHAINS, type SolanaChain } from "@solana/wallet-standard-chains";
+import { type SolanaChain } from "@solana/wallet-standard-chains";
 import {
   SolanaSignAndSendTransaction,
   type SolanaSignAndSendTransactionFeature,
@@ -50,6 +50,7 @@ import {
   verifyResponse,
 } from "phygital-token-sdk";
 
+import { PHYGITAL_WALLET_CHAINS } from "../constants.js";
 import { findWalletPda } from "../generated/pdas/wallet.js";
 import {
   getPhygitalWalletSigner,
@@ -83,6 +84,7 @@ type PhygitalWalletFeatures = StandardConnectFeature &
 
 export type PhygitalWalletOptions = {
   rpc: Rpc<SolanaRpcApi>;
+  /** Defaults to mainnet only (`solana:mainnet`). Override only for local testing. */
   chains?: readonly SolanaChain[];
   fetch?: typeof fetch;
   onPhaseChange?: PhygitalWalletSignerCallbacks["onPhaseChange"];
@@ -165,7 +167,7 @@ export class PhygitalWallet implements Wallet {
     }
     this.#rpc = options.rpc;
     this.#chains = Object.freeze([
-      ...(options.chains ?? SOLANA_CHAINS),
+      ...(options.chains ?? PHYGITAL_WALLET_CHAINS),
     ]) as IdentifierArray;
     this.#fetch = options.fetch;
     this.#onPhaseChange = options.onPhaseChange;
