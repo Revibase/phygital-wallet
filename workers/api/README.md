@@ -8,7 +8,7 @@ Cloudflare Worker (Hono) behind `https://api.revibase.com`.
 api/src/
   index.ts          Worker entry — CORS, request store, mounts domains
   shared/           Cross-cutting: HTTP helpers, D1, Solana cluster, crypto
-  tokens/           Verified catalog, rarity index, fee-balance (proxied to DO)
+  tokens/           Verified catalog, fee-balance (proxied to DO)
   tap/              NFC /verify-tap (pubkey + counter anti-replay)
   auth/             Device session + link index + policy HTTP (WebAuthn → DO)
   verifier/         POST /preview + /sign (proxies to TokenSigner DO)
@@ -50,7 +50,7 @@ one is present). Login also sets `revibase_device_refresh` (~30d); use
 | GET | `/health` | Public | Liveness |
 | POST | `/preview` / `/sign` | Public | Verifier (open CORS for 3p; app origins stay credentialed) |
 | GET | `/auth/device/gate` | Public | Token landing (works with zero cookies; may refresh access) |
-| GET | `/auth/device/register-options` | Public | Start passkey registration |
+| GET | `/auth/device/register-options` | Public | Start passkey registration (`?username=` required) |
 | POST | `/auth/device` | Public | Finish registration → access + refresh cookies |
 | GET | `/auth/device-session/options` | Public | Start passkey sign-in |
 | POST | `/auth/device-session` | Public | Finish sign-in → access + refresh cookies |
@@ -70,7 +70,6 @@ one is present). Login also sets `revibase_device_refresh` (~30d); use
 | POST | `/policies/:token/approvals/deny` | Protected | Owner deny |
 | GET | `/tokens/fee-balance` | Protected‡ | Matching browse-unlock **or** owner device session |
 | GET | `/tokens/verified` | Protected | Verified catalog |
-| POST | `/tokens/rarity` | Protected | Rarity index |
 
 \*Webhook is on the cookie allowlist but still requires `HELIUS_WEBHOOK_AUTH`.  
 ‡Not readable cross-token with a random device session — must own the token or hold browse-unlock for it.
@@ -91,7 +90,7 @@ Per-token prepaid balance lives in the **TokenSigner DO** (not D1):
 | `TOKEN_SIGNER` | DO binding | `TokenSigner` on `revibase-verifier-signer` |
 | `VERIFIER_SECRET_KEYS` | **api-signer** | verifier seeds |
 | `POLICY_SESSION_SECRET` | api **and app** | device session + browse-unlock HMAC (app middleware verifies cookies) |
-| `phygital_token` | D1 | credentials, link index, rarity |
+| `phygital_token` | D1 | credentials, link index |
 
 ## Deploy
 

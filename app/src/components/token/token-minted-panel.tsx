@@ -19,7 +19,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useMintedCollectibleView } from "@/hooks/token/use-minted-collectible-view";
 import { useShortcutOpener } from "@/hooks/token/use-shortcut-opener";
 import { copy } from "@/lib/copy/phygital";
-import type { CollectibleAttributeWithRarity } from "@/lib/tokens/collectible";
 import {
   filterShortcutChips,
   pickPrimaryCtaShortcut,
@@ -44,8 +43,7 @@ export function TokenMintedPanel({
   onHoldToCheck?: () => void;
 }) {
   const mint = tokenHasLinkedMint(token) ? String(token.mint) : null;
-  const { collectible, rarity, shortcuts, loading, rarityLoading } =
-    useMintedCollectibleView(mint);
+  const { collectible, shortcuts, loading } = useMintedCollectibleView(mint);
   const { openCollectibleShortcut, iframeSheet } = useShortcutOpener();
   const [detailsOpen, setDetailsOpen] = useState(false);
 
@@ -63,12 +61,11 @@ export function TokenMintedPanel({
     [mint, token.currentOwner, collectible?.collectionMint],
   );
 
-  const attributesWithRarity: CollectibleAttributeWithRarity[] =
-    rarity?.attributes ?? collectible?.attributes ?? [];
+  const attributes = collectible?.attributes ?? [];
 
   const name = collectible?.name ?? copy.token.unnamedCard;
   const hasBelowFold =
-    attributesWithRarity.length > 0 ||
+    attributes.length > 0 ||
     Boolean(collectible?.description) ||
     Boolean(collectible) ||
     Boolean(mint);
@@ -104,8 +101,6 @@ export function TokenMintedPanel({
                     name={collectible.name}
                     collectionName={collectible.collectionName}
                     collectionImage={collectible.collectionImage}
-                    rarity={rarity}
-                    rarityLoading={rarityLoading}
                   />
                 </div>
               ) : loading ? (
@@ -163,9 +158,9 @@ export function TokenMintedPanel({
 
             {detailsOpen ? (
               <div className="flex flex-col gap-5">
-                {collectible && attributesWithRarity.length > 0 ? (
+                {collectible && attributes.length > 0 ? (
                   <MotionSection staggerIndex={stagger++}>
-                    <CollectibleAttributes attributes={attributesWithRarity} />
+                    <CollectibleAttributes attributes={attributes} />
                   </MotionSection>
                 ) : null}
 

@@ -4,7 +4,7 @@ Owner-app authentication and standing-policy HTTP surface.
 
 | File | Role |
 |------|------|
-| `device-routes.ts` | Platform passkey register / login; `GET /auth/device/gate` (session+browse+link+claimed); link → WebAuthn + DO `addOwner`; unlink → on-chain teardown + WebAuthn + DO clear; `POST /auth/browse-unlock` (Hold mint) |
+| `device-routes.ts` | Platform passkey register / login; `GET /auth/device/gate` (session+browse+link+claimed); link → WebAuthn + DO `addOwner`; unlink → on-chain teardown + WebAuthn + DO clear; `POST /auth/browse-unlock` (Hold mint). Registration requires a unique Twitter-style `username` (also WebAuthn userID / `user_handle`). |
 | `browse-unlock-session.ts` | Short-lived httpOnly `revibase_browse_unlock` (tap / Hold); `Domain=.revibase.com` in prod |
 | `device-session.ts` | Access cookie (`revibase_device_session`, ~15m) + refresh cookie (`revibase_device_refresh`, ~30d); shared domain in prod |
 | `session-hmac.ts` | Shared HMAC mint/parse for session cookies |

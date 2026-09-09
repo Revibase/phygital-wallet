@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { UsernameSetupForm } from "@/components/home/username-setup-form";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { CeremonyShell } from "@/components/shared/ceremony-shell";
@@ -32,28 +33,6 @@ function platformAuthAvailable(): boolean {
   );
 }
 
-async function ensureSession(
-  existing: Awaited<ReturnType<typeof fetchDeviceSession>>,
-  preferRegister: boolean,
-): Promise<NonNullable<Awaited<ReturnType<typeof fetchDeviceSession>>>> {
-  if (existing) return existing;
-  if (preferRegister) {
-    try {
-      return await registerDevice();
-    } catch {
-      return await loginDevice();
-    }
-  }
-  try {
-    return await loginDevice();
-  } catch (e) {
-    if (e instanceof Error && /cancelled|not allowed/i.test(e.message)) {
-      throw e;
-    }
-    return await registerDevice();
-  }
-}
-
 /** Full-screen claim ceremony — passkey then platform WebAuthn link. */
 export function ClaimItemSheet({
   phygitalTokenPda,
@@ -66,7 +45,7 @@ export function ClaimItemSheet({
 }) {
   const queryClient = useQueryClient();
   const [success, setSuccess] = useState(false);
-  const [preferRegister, setPreferRegister] = useState(false);
+  const [registering, setRegistering] = useState(false);
   const [enteredWithSession, setEnteredWithSession] = useState<boolean | null>(
     null,
   );
@@ -115,36 +94,45 @@ export function ClaimItemSheet({
     return () => window.clearTimeout(id);
   }, [success]);
 
+  async function afterSession(
+    sessionInfo: NonNullable<Awaited<ReturnType<typeof fetchDeviceSession>>>,
+  ) {
+    queryClient.setQueryData(queryKeys.deviceAuth.session(), sessionInfo);
+    const data = await fetchTokenGate(phygitalTokenPda);
+    queryClient.setQueryData(queryKeys.deviceAuth.session(), data.session);
+    queryClient.setQueryData(
+      queryKeys.deviceAuth.browseUnlock(phygitalTokenPda),
+      data.browseUnlocked,
+    );
+    queryClient.setQueryData(queryKeys.deviceAuth.gate(phygitalTokenPda), data);
+    if (data.linkStatus) {
+      queryClient.setQueryData(
+        queryKeys.deviceAuth.linkStatus(phygitalTokenPda),
+        data.linkStatus,
+      );
+    }
+    queryClient.setQueryData(
+      queryKeys.deviceAuth.claimed(phygitalTokenPda),
+      data.claimed,
+    );
+    if (data.linkStatus === "linked_elsewhere") {
+      exitLinkedElsewhere();
+    }
+  }
+
   const signIn = useMutation({
     mutationFn: async () => {
-      const sessionInfo = await ensureSession(
-        session.data ?? null,
-        preferRegister,
-      );
-      queryClient.setQueryData(queryKeys.deviceAuth.session(), sessionInfo);
-      return sessionInfo;
+      if (session.data) return session.data;
+      return loginDevice();
     },
-    onSuccess: async () => {
-      const data = await fetchTokenGate(phygitalTokenPda);
-      queryClient.setQueryData(queryKeys.deviceAuth.session(), data.session);
-      queryClient.setQueryData(
-        queryKeys.deviceAuth.browseUnlock(phygitalTokenPda),
-        data.browseUnlocked,
-      );
-      queryClient.setQueryData(queryKeys.deviceAuth.gate(phygitalTokenPda), data);
-      if (data.linkStatus) {
-        queryClient.setQueryData(
-          queryKeys.deviceAuth.linkStatus(phygitalTokenPda),
-          data.linkStatus,
-        );
-      }
-      queryClient.setQueryData(
-        queryKeys.deviceAuth.claimed(phygitalTokenPda),
-        data.claimed,
-      );
-      if (data.linkStatus === "linked_elsewhere") {
-        exitLinkedElsewhere();
-      }
+    onSuccess: afterSession,
+  });
+
+  const register = useMutation({
+    mutationFn: async (username: string) => registerDevice(username),
+    onSuccess: async (sessionInfo) => {
+      setRegistering(false);
+      await afterSession(sessionInfo);
     },
   });
 
@@ -228,8 +216,34 @@ export function ClaimItemSheet({
     );
   }
 
+  if (registering) {
+    return (
+      <CeremonyShell>
+        <UsernameSetupForm
+          eyebrow={copy.wallet.setupStepPasskey}
+          title={copy.wallet.usernameTitle}
+          body={copy.wallet.usernameBody}
+          busy={register.isPending}
+          error={
+            register.error ? toUserErrorMessage(register.error) : null
+          }
+          onSubmit={(username) => {
+            claim.reset();
+            signIn.reset();
+            register.mutate(username);
+          }}
+          onBack={() => {
+            register.reset();
+            setRegistering(false);
+          }}
+        />
+      </CeremonyShell>
+    );
+  }
+
   const signedIn = Boolean(session.data);
-  const busy = signIn.isPending || claim.isPending || session.isPending;
+  const busy =
+    signIn.isPending || claim.isPending || session.isPending || register.isPending;
   const activeError = signedIn ? claim.error : signIn.error;
   const authError = activeError ? toUserErrorMessage(activeError) : null;
   const showRetry = Boolean(authError);
@@ -280,8 +294,8 @@ export function ClaimItemSheet({
                   claim.mutate();
                   return;
                 }
-                setPreferRegister(false);
                 claim.reset();
+                register.reset();
                 signIn.mutate();
               }}
             >
@@ -300,9 +314,10 @@ export function ClaimItemSheet({
               className="w-full rounded-full"
               disabled={busy}
               onClick={() => {
-                setPreferRegister(true);
                 claim.reset();
-                signIn.mutate();
+                signIn.reset();
+                register.reset();
+                setRegistering(true);
               }}
             >
               <span className="text-muted-foreground">

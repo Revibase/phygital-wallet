@@ -18,11 +18,14 @@ const textEncoder = new TextEncoder();
 import {
   deleteLinkForToken,
   getCredentialById,
+  getCredentialByUserHandle,
   insertCredential,
   listLinksForCredential,
   updateCredentialCounter,
   upsertLink,
+  type DeviceTokenLink,
 } from "@/auth/device-db";
+import { parseUsername } from "@/auth/username";
 import {
   ensureDeviceAccessSession,
   issueDeviceSessionCookies,
@@ -45,6 +48,28 @@ import { tokenSigner } from "@/verifier/token-signer";
 
 export const deviceAuthRoutes = new Hono<{ Bindings: Env }>();
 
+async function sessionPayload(credentialId: string, expiresAt: number) {
+  const device = await getCredentialById(credentialId);
+  if (!device) {
+    return null;
+  }
+  return {
+    credentialId,
+    expiresAt,
+    username: device.userHandle,
+  };
+}
+
+function mapLinks(links: DeviceTokenLink[]) {
+  return links.map((l) => ({
+    phygitalToken: l.phygitalToken,
+    label: l.label,
+    imageUrl: l.imageUrl,
+    mint: l.mint,
+    linkedAt: l.linkedAt,
+  }));
+}
+
 deviceAuthRoutes.get("/auth/device-session", async (c) => {
   const session = await ensureDeviceAccessSession(c);
   if (!session) {
@@ -56,10 +81,17 @@ deviceAuthRoutes.get("/auth/device-session", async (c) => {
       { status: 401 },
     );
   }
-  return json({
-    credentialId: session.credentialId,
-    expiresAt: session.exp,
-  });
+  const payload = await sessionPayload(session.credentialId, session.exp);
+  if (!payload) {
+    return json(
+      {
+        error: "Sign in with this phone to continue.",
+        code: "device_session_required",
+      },
+      { status: 401 },
+    );
+  }
+  return json(payload);
 });
 
 /** Reissue access (+ rotate refresh) from the refresh cookie. */
@@ -79,15 +111,44 @@ deviceAuthRoutes.post("/auth/device-session/refresh", async (c) => {
   }
 
   const issued = await issueDeviceSessionCookies(c, refresh.credentialId);
-  return json({
-    credentialId: issued.credentialId,
-    expiresAt: issued.expiresAt,
-  });
+  const payload = await sessionPayload(issued.credentialId, issued.expiresAt);
+  if (!payload) {
+    return json(
+      {
+        error: "Sign in with this phone to continue.",
+        code: "device_session_required",
+      },
+      { status: 401 },
+    );
+  }
+  return json(payload);
 });
 
 deviceAuthRoutes.get("/auth/device/register-options", async (c) => {
   const limited = await denyIfAuthRateLimited(c, "register");
   if (limited) return limited;
+
+  const parsed = parseUsername(c.req.query("username") ?? "");
+  if (!parsed) {
+    return json(
+      {
+        error:
+          "Choose a username: 4–15 characters, letters, numbers, and underscores.",
+        code: "username_invalid",
+      },
+      { status: 400 },
+    );
+  }
+
+  if (await getCredentialByUserHandle(parsed.id)) {
+    return json(
+      {
+        error: "That username is taken. Try another.",
+        code: "username_taken",
+      },
+      { status: 409 },
+    );
+  }
 
   const rp = resolveWebAuthnRp(c.req.header("Origin") ?? null);
   if (!rp) {
@@ -97,12 +158,12 @@ deviceAuthRoutes.get("/auth/device/register-options", async (c) => {
     );
   }
 
-  const userHandle = crypto.randomUUID();
+  const userHandle = parsed.id;
   const options = await generateRegistrationOptions({
     rpName: rp.rpName,
     rpID: rp.rpId,
-    userName: `Revibase Owner's Key`,
-    userDisplayName: "Revibase",
+    userName: parsed.display,
+    userDisplayName: parsed.display,
     userID: new Uint8Array(textEncoder.encode(userHandle)),
     attestationType: "none",
     authenticatorSelection: {
@@ -115,7 +176,7 @@ deviceAuthRoutes.get("/auth/device/register-options", async (c) => {
   });
   await storeWebAuthnChallenge("register", userHandle, options.challenge);
 
-  return json({ ...options, userHandle });
+  return json({ ...options, userHandle, username: parsed.display });
 });
 
 deviceAuthRoutes.post("/auth/device", async (c) => {
@@ -127,8 +188,8 @@ deviceAuthRoutes.post("/auth/device", async (c) => {
       userHandle?: string;
       credential?: RegistrationResponseJSON;
     };
-    const userHandle = body.userHandle?.trim();
-    if (!userHandle || !body.credential) {
+    const parsedHandle = parseUsername(body.userHandle ?? "");
+    if (!parsedHandle || !body.credential) {
       return json(
         {
           error: "userHandle and credential required",
@@ -137,6 +198,7 @@ deviceAuthRoutes.post("/auth/device", async (c) => {
         { status: 400 },
       );
     }
+    const userHandle = parsedHandle.id;
 
     const rp = resolveWebAuthnRp(c.req.header("Origin") ?? null);
     if (!rp) {
@@ -191,21 +253,40 @@ deviceAuthRoutes.post("/auth/device", async (c) => {
       );
     }
 
-    await insertCredential({ credentialId, publicKey, userHandle });
+    if (await getCredentialByUserHandle(userHandle)) {
+      return json(
+        {
+          error: "That username is taken. Try another.",
+          code: "username_taken",
+        },
+        { status: 409 },
+      );
+    }
+
+    try {
+      await insertCredential({ credentialId, publicKey, userHandle });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (/UNIQUE|constraint/i.test(message)) {
+        return json(
+          {
+            error: "That username is taken. Try another.",
+            code: "username_taken",
+          },
+          { status: 409 },
+        );
+      }
+      throw err;
+    }
 
     const issued = await issueDeviceSessionCookies(c, credentialId);
     const links = await listLinksForCredential(credentialId);
     return json({
       enrolled: true,
-      expiresAt: issued.expiresAt,
       credentialId: issued.credentialId,
-      links: links.map((l) => ({
-        phygitalToken: l.phygitalToken,
-        label: l.label,
-        imageUrl: l.imageUrl,
-        mint: l.mint,
-        linkedAt: l.linkedAt,
-      })),
+      expiresAt: issued.expiresAt,
+      username: userHandle,
+      links: mapLinks(links),
     });
   } catch (err) {
     return json(
@@ -324,15 +405,10 @@ deviceAuthRoutes.post("/auth/device-session", async (c) => {
     const issued = await issueDeviceSessionCookies(c, device.credentialId);
     const links = await listLinksForCredential(device.credentialId);
     return json({
-      expiresAt: issued.expiresAt,
       credentialId: issued.credentialId,
-      links: links.map((l) => ({
-        phygitalToken: l.phygitalToken,
-        label: l.label,
-        imageUrl: l.imageUrl,
-        mint: l.mint,
-        linkedAt: l.linkedAt,
-      })),
+      expiresAt: issued.expiresAt,
+      username: device.userHandle,
+      links: mapLinks(links),
     });
   } catch (err) {
     return json(
@@ -351,13 +427,7 @@ deviceAuthRoutes.get("/auth/device/links", async (c) => {
 
   const links = await listLinksForCredential(session.credentialId);
   return json({
-    links: links.map((l) => ({
-      phygitalToken: l.phygitalToken,
-      label: l.label,
-      imageUrl: l.imageUrl,
-      mint: l.mint,
-      linkedAt: l.linkedAt,
-    })),
+    links: mapLinks(links),
   });
 });
 
@@ -393,7 +463,7 @@ deviceAuthRoutes.get("/auth/device/gate", async (c) => {
 
   return json({
     session: session
-      ? { credentialId: session.credentialId, expiresAt: session.exp }
+      ? await sessionPayload(session.credentialId, session.exp)
       : null,
     browseUnlocked,
     linkStatus,

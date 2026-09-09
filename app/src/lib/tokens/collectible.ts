@@ -1,27 +1,9 @@
 import { shortAddress } from "@/lib/utils";
 import type { DasAsset, DasContent } from "@/lib/solana/das-schema";
-import type { RarityTier } from "@/lib/tokens/rarity/rarity-tier";
-
-export type { RarityTier };
 
 export type CollectibleAttribute = {
   traitType: string;
   value: string;
-};
-
-export type CollectibleAttributeWithRarity = CollectibleAttribute & {
-  rarityPercent?: number;
-  tier?: RarityTier;
-};
-
-export type CollectibleRarity = {
-  algorithm: "howrare";
-  rank: number;
-  total: number;
-  rankSharedWith: number;
-  score: number;
-  tier: RarityTier;
-  attributes: CollectibleAttributeWithRarity[];
 };
 
 /** Lean collectible for minted `/token` UI — not a payment (fungible) token. */

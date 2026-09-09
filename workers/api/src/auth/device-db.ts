@@ -21,6 +21,24 @@ function db() {
   return getD1();
 }
 
+type CredentialRow = {
+  credential_id: string;
+  public_key: string;
+  counter: number;
+  user_handle: string;
+  created_at: number;
+};
+
+function mapCredential(row: CredentialRow): DeviceCredential {
+  return {
+    credentialId: row.credential_id,
+    publicKey: row.public_key,
+    counter: row.counter,
+    userHandle: row.user_handle,
+    createdAt: row.created_at,
+  };
+}
+
 export async function getCredentialById(
   credentialId: string,
 ): Promise<DeviceCredential | null> {
@@ -30,21 +48,21 @@ export async function getCredentialById(
        FROM device_credentials WHERE credential_id = ?`,
     )
     .bind(credentialId)
-    .first<{
-      credential_id: string;
-      public_key: string;
-      counter: number;
-      user_handle: string;
-      created_at: number;
-    }>();
-  if (!row) return null;
-  return {
-    credentialId: row.credential_id,
-    publicKey: row.public_key,
-    counter: row.counter,
-    userHandle: row.user_handle,
-    createdAt: row.created_at,
-  };
+    .first<CredentialRow>();
+  return row ? mapCredential(row) : null;
+}
+
+export async function getCredentialByUserHandle(
+  userHandle: string,
+): Promise<DeviceCredential | null> {
+  const row = await db()
+    .prepare(
+      `SELECT credential_id, public_key, counter, user_handle, created_at
+       FROM device_credentials WHERE user_handle = ?`,
+    )
+    .bind(userHandle)
+    .first<CredentialRow>();
+  return row ? mapCredential(row) : null;
 }
 
 export async function insertCredential(args: {

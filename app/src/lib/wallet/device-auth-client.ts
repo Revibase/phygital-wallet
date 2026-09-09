@@ -33,6 +33,7 @@ export type DeviceLink = {
 export type DeviceSessionInfo = {
   credentialId: string;
   expiresAt: number;
+  username: string;
   links?: DeviceLink[];
 };
 
@@ -103,8 +104,10 @@ export async function refreshDeviceSession(): Promise<DeviceSessionInfo | null> 
   return readJson<DeviceSessionInfo>(res, "Couldn’t renew sign-in");
 }
 
-export async function registerDevice(): Promise<DeviceSessionInfo> {
-  const optionsRes = await queryFetch("/auth/device/register-options");
+export async function registerDevice(username: string): Promise<DeviceSessionInfo> {
+  const optionsRes = await queryFetch(
+    `/auth/device/register-options?username=${encodeURIComponent(username)}`,
+  );
   const options = await readJson<
     PublicKeyCredentialCreationOptionsJSON & { userHandle: string }
   >(optionsRes, "Couldn’t start registration");
@@ -125,13 +128,19 @@ export async function registerDevice(): Promise<DeviceSessionInfo> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ userHandle, credential }),
   });
-  const body = await readJson<{ expiresAt: number; credentialId: string; links?: DeviceLink[] }>(
+  const body = await readJson<{
+    expiresAt: number;
+    credentialId: string;
+    username: string;
+    links?: DeviceLink[];
+  }>(
     res,
     "Couldn’t register this phone",
   );
   return {
     credentialId: body.credentialId,
     expiresAt: body.expiresAt,
+    username: body.username,
     links: body.links,
   };
 }
@@ -166,13 +175,19 @@ export async function loginDevice(): Promise<DeviceSessionInfo> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ challengeId, credential }),
   });
-  const body = await readJson<{ expiresAt: number; credentialId: string; links?: DeviceLink[] }>(
+  const body = await readJson<{
+    expiresAt: number;
+    credentialId: string;
+    username: string;
+    links?: DeviceLink[];
+  }>(
     res,
     "Couldn’t sign in",
   );
   return {
     credentialId: body.credentialId,
     expiresAt: body.expiresAt,
+    username: body.username,
     links: body.links,
   };
 }

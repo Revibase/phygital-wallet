@@ -2,29 +2,18 @@
 
 import { useState } from "react";
 
-import { RarityTierBadge } from "@/components/token/rarity-tier-badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { formatRarityRankWithTie } from "@/lib/tokens/rarity/format";
-import type { CollectibleRarity } from "@/lib/tokens/collectible";
 import { cn } from "@/lib/utils";
 
-/** Collectible identity — title, collection, rarity (Tensor/ME style). */
+/** Collectible identity — title and collection. */
 export function CollectibleHeader({
   name,
   collectionName,
   collectionImage,
-  rarity,
-  rarityLoading = false,
   className,
 }: {
   name: string;
   collectionName?: string | null;
   collectionImage?: string | null;
-  rarity?: Pick<
-    CollectibleRarity,
-    "rank" | "total" | "tier" | "rankSharedWith"
-  > | null;
-  rarityLoading?: boolean;
   className?: string;
 }) {
   const [imageFailed, setImageFailed] = useState(false);
@@ -55,18 +44,6 @@ export function CollectibleHeader({
             </p>
           ) : null}
         </div>
-      ) : null}
-      {rarityLoading ? (
-        <Skeleton className="h-5 w-40 rounded-full" aria-hidden />
-      ) : rarity ? (
-        <RarityTierBadge
-          tier={rarity.tier}
-          detail={formatRarityRankWithTie(
-            rarity.rank,
-            rarity.total,
-            rarity.rankSharedWith,
-          )}
-        />
       ) : null}
     </div>
   );

@@ -9,6 +9,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { GroupedList, GroupedRow } from "@/components/shared/grouped-list";
 import { LoadingStatus } from "@/components/shared/loading-status";
 import { CeremonyShell } from "@/components/shared/ceremony-shell";
+import { UsernameSetupForm } from "@/components/home/username-setup-form";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { NfcHoldStatus } from "@/components/shared/nfc-hold-status";
@@ -18,6 +19,7 @@ import { queryKeys, queryOptions } from "@/lib/queries";
 import { galleryAnimate } from "@/lib/motion";
 import { cn, shortAddress } from "@/lib/utils";
 import { toUserErrorMessage } from "@/lib/user-errors";
+import { formatHandle } from "@/lib/username";
 import {
   fetchDeviceLinks,
   fetchDeviceSession,
@@ -87,7 +89,7 @@ function OwnedHomeRoot() {
     );
   }
 
-  return <HomeLinksScreen />;
+  return <HomeLinksScreen username={session.data.username} />;
 }
 
 function HomePasskeyScreen({
@@ -98,11 +100,13 @@ function HomePasskeyScreen({
   claimMode: boolean;
 }) {
   const queryClient = useQueryClient();
+  const [registering, setRegistering] = useState(false);
 
   function onAuthSuccess(next: Awaited<ReturnType<typeof loginDevice>>) {
     queryClient.setQueryData(queryKeys.deviceAuth.session(), {
       credentialId: next.credentialId,
       expiresAt: next.expiresAt,
+      username: next.username,
     });
     if (next.links) {
       queryClient.setQueryData(queryKeys.deviceAuth.links(), next.links);
@@ -118,12 +122,40 @@ function HomePasskeyScreen({
     onSuccess: onAuthSuccess,
   });
   const registerMutation = useMutation({
-    mutationFn: registerDevice,
+    mutationFn: (username: string) => registerDevice(username),
     onSuccess: onAuthSuccess,
   });
 
   const busy = loginMutation.isPending || registerMutation.isPending;
   const authError = loginMutation.error ?? registerMutation.error;
+
+  if (registering) {
+    return (
+      <CeremonyShell>
+        <UsernameSetupForm
+          eyebrow={
+            setupMode && claimMode ? copy.wallet.setupStepPasskey : null
+          }
+          title={copy.wallet.usernameTitle}
+          body={copy.wallet.usernameBody}
+          busy={registerMutation.isPending}
+          error={
+            registerMutation.error
+              ? toUserErrorMessage(registerMutation.error)
+              : null
+          }
+          onSubmit={(username) => {
+            loginMutation.reset();
+            registerMutation.mutate(username);
+          }}
+          onBack={() => {
+            registerMutation.reset();
+            setRegistering(false);
+          }}
+        />
+      </CeremonyShell>
+    );
+  }
 
   return (
     <CeremonyShell>
@@ -176,19 +208,16 @@ function HomePasskeyScreen({
             disabled={busy}
             onClick={() => {
               loginMutation.reset();
-              registerMutation.mutate();
+              registerMutation.reset();
+              setRegistering(true);
             }}
           >
-            {registerMutation.isPending ? (
-              <Spinner className="size-4" />
-            ) : (
-              <span className="text-muted-foreground">
-                {copy.wallet.newPhoneHint}{" "}
-                <span className="font-medium text-foreground">
-                  {copy.wallet.setUpThisPhone}
-                </span>
+            <span className="text-muted-foreground">
+              {copy.wallet.newPhoneHint}{" "}
+              <span className="font-medium text-foreground">
+                {copy.wallet.setUpThisPhone}
               </span>
-            )}
+            </span>
           </Button>
         </div>
       </div>
@@ -433,10 +462,11 @@ function HomeLinkSetup({
   );
 }
 
-function HomeLinksScreen() {
+function HomeLinksScreen({ username }: { username: string }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [pendingPda, setPendingPda] = useState<string | null>(null);
+  const handle = formatHandle(username);
   const links = useQuery({
     queryKey: queryKeys.deviceAuth.links(),
     queryFn: fetchDeviceLinks,
@@ -575,9 +605,7 @@ function HomeLinksScreen() {
       <CeremonyShell>
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 px-4 py-16 text-center">
           <div className="space-y-2">
-            <h1 className="text-large-title tracking-tight">
-              {copy.home.keysTitle}
-            </h1>
+            <h1 className="text-large-title tracking-tight">{handle}</h1>
             <p className="mx-auto max-w-sm text-sm leading-relaxed text-muted-foreground">
               {toUserErrorMessage(links.error)}
             </p>
@@ -604,7 +632,7 @@ function HomeLinksScreen() {
         <NfcHoldStatus
           size="lg"
           pulsing={false}
-          title={copy.home.emptyTitle}
+          title={handle}
           body={error ?? copy.home.emptyBody}
           action={
             <Button
@@ -630,8 +658,15 @@ function HomeLinksScreen() {
 
   return (
     <div className="flex flex-1 flex-col gap-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-large-title tracking-tight">{copy.home.keysTitle}</h1>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0 space-y-1">
+          <h1 className="truncate font-(family-name:--font-display) text-4xl font-medium tracking-tight md:text-5xl">
+            {handle}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {copy.home.keysSubtitle}
+          </p>
+        </div>
         <Button
           type="button"
           variant="outline"

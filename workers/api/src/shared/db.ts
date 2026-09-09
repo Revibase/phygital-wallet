@@ -1,6 +1,6 @@
 import { getEnv } from "@/shared/request-context";
 
-/** D1 binding used for rarity indexes + verifier policies/grants. */
+/** D1 binding used for device credentials, link index, and related auth tables. */
 export const D1_BATCH_CHUNK = 100;
 
 export function getD1(): D1Database {
