@@ -1,5 +1,5 @@
 packages:
   - "workers/*"
   - "app"
-  - "clients/js/*"
+  - "packages/js/*"
   - "examples/*"

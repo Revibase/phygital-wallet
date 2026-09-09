@@ -7,7 +7,7 @@
     "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
     "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
     "idl:sync": "cp target/idl/phygital_wallet.json idl/phygital_wallet.json",
-    "generate:client": "codama run js && node clients/js/phygital-wallet/scripts/add-import-extensions.mjs",
+    "generate:client": "codama run js && node packages/js/phygital-wallet/scripts/add-import-extensions.mjs",
     "build:client": "pnpm --filter phygital-wallet-sdk build",
     "build:program": "anchor build && pnpm idl:sync && pnpm generate:client && pnpm build:client",
     "dev": "pnpm --filter app dev",

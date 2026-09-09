@@ -100,7 +100,7 @@ You will be asked:
 
 1. **Where is your IDL?** — e.g. `idl/my_program.json`
 2. **Which script preset?** — choose **Generate JavaScript client** (skip Rust unless you need it)
-3. **Where should the JavaScript code be generated?** — e.g. `clients/js/my-program`
+3. **Where should the JavaScript code be generated?** — e.g. `packages/js/my-program`
 
 `init` may offer to install the packages from step 2 if they are missing.
 
@@ -114,7 +114,7 @@ Or write the config by hand (matches this monorepo’s wallet client):
     "js": {
       "from": "@codama/renderers-js",
       "args": [
-        "clients/js/my-program",
+        "packages/js/my-program",
         {
           "formatCode": true,
           "syncPackageJson": true,
@@ -157,7 +157,7 @@ pnpm exec codama run js
 You should see files such as:
 
 ```text
-clients/js/my-program/
+packages/js/my-program/
   package.json          # if syncPackageJson
   src/generated/
     programs/
@@ -197,7 +197,7 @@ import {
   MyProgramInstruction,
   identifyMyProgramInstruction,
   parseMyProgramInstruction,
-} from "../clients/js/my-program/src/generated"; // adjust to your package exports
+} from "../packages/js/my-program/src/generated"; // adjust to your package exports
 
 const my = fromCodamaProgram({
   programAddress: MY_PROGRAM_PROGRAM_ADDRESS,

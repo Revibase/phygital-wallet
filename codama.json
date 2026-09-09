@@ -5,7 +5,7 @@
     "js": {
       "from": "@codama/renderers-js",
       "args": [
-        "clients/js/phygital-wallet",
+        "packages/js/phygital-wallet",
         {
           "formatCode": true,
           "syncPackageJson": true,
