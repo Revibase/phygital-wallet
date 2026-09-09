@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { TOKEN_PROGRAM_ADDRESS } from "phygital-policy";
+import { TOKEN_PROGRAM_ADDRESS } from "@solana-program/token";
 
 import { getUsdcMint } from "@/lib/tokens/usdc-mint";
 import {

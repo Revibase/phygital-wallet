@@ -321,9 +321,8 @@ export const copy = {
       "They need more network fees. Ask them to top up, then try again.",
     nearbyPolicyGotIt: "Got it",
     visitorNeedsApprovalBody:
-      "Ask the owner to approve this send on their linked phone. When they approve, you’ll hold your accessory to finish.",
-    visitorNeedsApprovalHint:
-      "Your amount and recipient stay filled in. Requests expire in about 5 minutes.",
+      "Ask the owner to approve this send on their linked phone. Once approved, try the same transaction again.",
+    visitorNeedsApprovalHint: "Requests will expire in about 5 minutes.",
     visitorDeniedTitle: "Send not approved",
     visitorDeniedBody: "The owner declined this send.",
     openApprovalDenied: "Declined",

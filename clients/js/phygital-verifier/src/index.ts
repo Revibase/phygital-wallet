@@ -25,14 +25,19 @@ export type {
 export { addressString, fromCodamaProgram } from "./core/adapter.js";
 
 export type {
+  AggregateOpts,
   AggregateRule,
   AggregateSource,
+  AllowOptions,
   AllowProgramRule,
   AllowRule,
   DenyProgramRule,
   DenyRule,
   Policy,
   Rule,
+  RuleFail,
+  RuleFailContext,
+  RuleOnFail,
 } from "./core/policy.js";
 export {
   aggregate,

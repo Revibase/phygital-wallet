@@ -22,6 +22,10 @@ Defaults (not persisted — only caps + extras are configurable):
 collectibles, system setup, NFT token transfers, and ATA create are on;
 token `closeAccount` is off.
 
+Soft-deny UX belongs in rule `onFail` when you build the policy
+(amountUi, destination owner via sibling ixs, etc.). Codama adapters and
+program IDs are package-internal — not part of the public export surface.
+
 ## Generated clients
 
 Codama output lives under `src/generated/`. After regenerating from IDLs, trim

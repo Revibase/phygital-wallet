@@ -2,22 +2,30 @@
  * Owner policy settings ↔ PaymentsPolicyConfig (client-side).
  */
 import {
-  ASSOCIATED_TOKEN_ACCOUNT_PROGRAM_ADDRESS,
-  BUBBLEGUM_PROGRAM_ADDRESS,
-  COLLECTIBLE_COMPANION_PROGRAMS,
   DEFAULT_MAX_MINT_RAW,
   DEFAULT_MAX_SOL_LAMPORTS,
-  MPL_CORE_PROGRAM_PROGRAM_ADDRESS,
-  SYSTEM_PROGRAM_ADDRESS,
-  TOKEN_2022_PROGRAM_ADDRESS,
-  TOKEN_METADATA_PROGRAM_ADDRESS,
-  TOKEN_PROGRAM_ADDRESS,
   uiAmountToRaw,
   validatePaymentsPolicyConfig,
   type PaymentsPolicyConfig,
 } from "phygital-policy";
+import {
+  ASSOCIATED_TOKEN_PROGRAM,
+  CLASSIC_TOKEN_PROGRAM,
+  SYSTEM_PROGRAM,
+  TOKEN_2022_PROGRAM,
+} from "@/lib/tokens/payment-token";
 import { getUsdcMint, USDC_DECIMALS } from "@/lib/tokens/usdc-mint";
 
+/** Built-in Metaplex / compression programs (not in @solana-program/*). */
+const TOKEN_METADATA_PROGRAM =
+  "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s";
+const BUBBLEGUM_PROGRAM = "BGUMAp9Gq7iTEuizy4pqaxsTyUCBK68MDfK752saRPUY";
+const MPL_CORE_PROGRAM = "CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d";
+const COLLECTIBLE_COMPANION_PROGRAMS = [
+  "auth9SigNpDKz4sJJ1DfCTuZrZNSAgh9sFD3rboVmgg",
+  "cmtDvXumGCrqC1Age74AVPhSRVXJMd8PJS91L8KbNCK",
+  "noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV",
+] as const;
 /** One fungible mint spend cap in UI units. */
 export type MintSpendCapSetting = {
   mint: string;
@@ -138,13 +146,13 @@ export function resolveMintSymbol(
 }
 
 const BASE_PROGRAM_IDS = new Set<string>([
-  String(SYSTEM_PROGRAM_ADDRESS),
-  String(TOKEN_PROGRAM_ADDRESS),
-  String(TOKEN_2022_PROGRAM_ADDRESS),
-  String(ASSOCIATED_TOKEN_ACCOUNT_PROGRAM_ADDRESS),
-  String(TOKEN_METADATA_PROGRAM_ADDRESS),
-  String(BUBBLEGUM_PROGRAM_ADDRESS),
-  String(MPL_CORE_PROGRAM_PROGRAM_ADDRESS),
+  String(SYSTEM_PROGRAM),
+  String(CLASSIC_TOKEN_PROGRAM),
+  String(TOKEN_2022_PROGRAM),
+  String(ASSOCIATED_TOKEN_PROGRAM),
+  TOKEN_METADATA_PROGRAM,
+  BUBBLEGUM_PROGRAM,
+  MPL_CORE_PROGRAM,
   ...COLLECTIBLE_COMPANION_PROGRAMS,
 ]);
 
@@ -155,37 +163,37 @@ export const STANDARD_ALLOWED_PROGRAMS: readonly {
   blurb: string;
 }[] = [
   {
-    programId: String(SYSTEM_PROGRAM_ADDRESS),
+    programId: String(SYSTEM_PROGRAM),
     label: "System",
     blurb: "Native SOL transfers and basic account setup.",
   },
   {
-    programId: String(TOKEN_PROGRAM_ADDRESS),
+    programId: String(CLASSIC_TOKEN_PROGRAM),
     label: "Token",
     blurb: "Classic SPL token transfers (including USDC).",
   },
   {
-    programId: String(TOKEN_2022_PROGRAM_ADDRESS),
+    programId: String(TOKEN_2022_PROGRAM),
     label: "Token-2022",
     blurb: "Token-2022 transfers for assets that use the newer token program.",
   },
   {
-    programId: String(ASSOCIATED_TOKEN_ACCOUNT_PROGRAM_ADDRESS),
+    programId: String(ASSOCIATED_TOKEN_PROGRAM),
     label: "Associated Token",
     blurb: "Creates the standard token accounts used when you send tokens.",
   },
   {
-    programId: String(TOKEN_METADATA_PROGRAM_ADDRESS),
+    programId: TOKEN_METADATA_PROGRAM,
     label: "Token Metadata",
     blurb: "Transfers for Metaplex NFTs and pNFTs.",
   },
   {
-    programId: String(BUBBLEGUM_PROGRAM_ADDRESS),
+    programId: BUBBLEGUM_PROGRAM,
     label: "Bubblegum",
     blurb: "Transfers for compressed NFTs (cNFTs).",
   },
   {
-    programId: String(MPL_CORE_PROGRAM_PROGRAM_ADDRESS),
+    programId: MPL_CORE_PROGRAM,
     label: "Core",
     blurb: "Transfers for Metaplex Core digital assets.",
   },

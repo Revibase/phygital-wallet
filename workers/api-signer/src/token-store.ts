@@ -54,31 +54,6 @@ export type PendingApproval = {
   details: Record<string, unknown> | null;
 };
 
-/** Fields the owner approval sheet reads — drop the rest before SQLite write. */
-const INBOX_DETAIL_KEYS = [
-  "amountUi",
-  "symbol",
-  "destination",
-  "requestedUi",
-  "amount",
-  "decimals",
-  "mint",
-  "instructionName",
-  "programId",
-  "limitUi",
-] as const;
-
-export function slimInboxDetails(
-  details?: Record<string, unknown>,
-): Record<string, unknown> | undefined {
-  if (!details) return undefined;
-  const out: Record<string, unknown> = {};
-  for (const key of INBOX_DETAIL_KEYS) {
-    if (details[key] !== undefined) out[key] = details[key];
-  }
-  return Object.keys(out).length > 0 ? out : undefined;
-}
-
 function parseStoredPolicy(policyJson: string): PaymentsPolicyConfig | "invalid" {
   try {
     const parsed = JSON.parse(policyJson) as unknown;
@@ -497,8 +472,8 @@ export class TokenStore {
     const now = Date.now();
     this.gcPendingApprovals(now);
     const expiresAt = now + PENDING_APPROVAL_TTL_MS;
-    const slim = slimInboxDetails(args.details);
-    const detailsJson = slim != null ? JSON.stringify(slim) : null;
+    const detailsJson =
+      args.details != null ? JSON.stringify(args.details) : null;
     const intentHash = args.intentHash.trim();
 
     const openRow = this.sql

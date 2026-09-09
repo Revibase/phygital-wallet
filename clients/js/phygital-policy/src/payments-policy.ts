@@ -31,16 +31,16 @@ import {
   Token2022Instruction,
   TokenMetadataInstruction,
 } from "./adapters.js";
+import { formatUiAmount, isUsdcMint, SOL_DECIMALS } from "./amount-format.js";
+import { walletOwnerForAta } from "./ata-owner.js";
 
-export const COMPUTE_BUDGET_PROGRAM_ADDRESS =
+const COMPUTE_BUDGET_PROGRAM_ADDRESS =
   "ComputeBudget111111111111111111111111111111" as const;
 
-export const DEFAULT_MINT =
-  "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v" as const;
 export const DEFAULT_MAX_MINT_RAW = "50000000" as const;
 export const DEFAULT_MAX_SOL_LAMPORTS = "100000000" as const;
 
-export const COLLECTIBLE_COMPANION_PROGRAMS = [
+const COLLECTIBLE_COMPANION_PROGRAMS = [
   "auth9SigNpDKz4sJJ1DfCTuZrZNSAgh9sFD3rboVmgg",
   "cmtDvXumGCrqC1Age74AVPhSRVXJMd8PJS91L8KbNCK",
   "noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV",
@@ -67,16 +67,20 @@ export type PaymentsPolicyConfig = {
 };
 
 type TransferCheckedIx = ParsedProgramIx & {
-  accounts: { mint: { address: string } };
-  data: { amount: bigint };
+  accounts: {
+    mint: { address: string };
+    destination: { address: string };
+  };
+  data: { amount: bigint; decimals: number };
 };
 
 type TransferIx = ParsedProgramIx & {
   data: { amount: bigint };
 };
 
-type CloseAccountIx = ParsedProgramIx & {
+type TransferSolIx = ParsedProgramIx & {
   accounts: { destination: { address: string } };
+  data: { amount: bigint };
 };
 
 function hasCap(value: string | null | undefined): value is string {
@@ -194,14 +198,42 @@ function pushTokenProgramRules(
 ) {
   const { transferChecked, transfer, mintLimits } = opts;
 
+  // Dust / NFT unit transfers — no owned error when amount > 1 (fall through).
   rules.push(allow(transferChecked, (ix) => ix.data.amount <= 1n));
 
   if (mintLimits.size > 0) {
     rules.push(
-      allow(transferChecked, (ix) => {
-        const limit = mintLimits.get(String(ix.accounts.mint.address));
-        if (limit == null) return false;
-        return ix.data.amount <= limit;
+      allow(transferChecked, {
+        when: (ix) => {
+          const limit = mintLimits.get(String(ix.accounts.mint.address));
+          if (limit == null) return false;
+          return ix.data.amount <= limit;
+        },
+        onFail: (ix, { instructions }) => {
+          const mint = String(ix.accounts.mint.address);
+          const limit = mintLimits.get(mint);
+          if (limit == null) return undefined;
+          const decimals = ix.data.decimals;
+          const symbol = isUsdcMint(mint) ? "USDC" : undefined;
+          const ata = String(ix.accounts.destination.address);
+          const destination =
+            walletOwnerForAta(instructions, ata, mint) ?? ata;
+          return {
+            code: "spend_limit",
+            message: "This send is over your spending limit.",
+            details: {
+              instructionName: "TransferChecked",
+              amount: ix.data.amount.toString(),
+              decimals,
+              amountUi: formatUiAmount(ix.data.amount, decimals),
+              destination,
+              mint,
+              limit: limit.toString(),
+              limitUi: formatUiAmount(limit, decimals),
+              ...(symbol ? { symbol } : {}),
+            },
+          };
+        },
       }),
     );
     for (const [mint, maxRaw] of mintLimits) {
@@ -214,7 +246,19 @@ function pushTokenProgramRules(
               when: (ix) => String(ix.accounts.mint.address) === mint,
             },
           ],
-          { lte: maxRaw },
+          {
+            lte: maxRaw,
+            onFail: ({ limit, actual }) => ({
+              code: "spend_limit",
+              message: "This send is over your spending limit.",
+              details: {
+                mint,
+                limit: limit.toString(),
+                actual: actual.toString(),
+                ...(isUsdcMint(mint) ? { symbol: "USDC" } : {}),
+              },
+            }),
+          },
         ),
       );
     }
@@ -227,6 +271,8 @@ function pushTokenProgramRules(
  * Build a fail-closed payments/collectibles policy from knobs.
  * Standing-surface flags use fixed defaults; only spend caps and extraPrograms
  * come from PaymentsPolicyConfig.
+ *
+ * Spend caps declare their soft-deny via `onFail` (code `spend_limit` + details).
  */
 export function buildPaymentsPolicy(
   opts: PaymentsPolicyConfig = { version: "3" },
@@ -249,12 +295,28 @@ export function buildPaymentsPolicy(
     ),
   );
 
-  const transferSol = system.instruction(SystemInstruction.TransferSol);
+  const transferSol = system.instruction(
+    SystemInstruction.TransferSol,
+  ) as InstructionMatcher<TransferSolIx>;
   rules.push(
-    allow(
-      transferSol,
-      maxSol != null ? (ix) => ix.data.amount <= maxSol : undefined,
-    ),
+    maxSol != null
+      ? allow(transferSol, {
+          when: (ix) => ix.data.amount <= maxSol,
+          onFail: (ix) => ({
+            code: "spend_limit",
+            message: "This send is over your SOL spending limit.",
+            details: {
+              instructionName: "TransferSol",
+              amount: ix.data.amount.toString(),
+              decimals: SOL_DECIMALS,
+              amountUi: formatUiAmount(ix.data.amount, SOL_DECIMALS),
+              destination: String(ix.accounts.destination.address),
+              symbol: "SOL",
+              limit: maxSol.toString(),
+            },
+          }),
+        })
+      : allow(transferSol),
   );
   rules.push(
     allow(system.instruction(SystemInstruction.CreateAccount)),
@@ -302,7 +364,18 @@ export function buildPaymentsPolicy(
             amount: (ix) => ix.data.amount,
           },
         ],
-        { lte: maxSol },
+        {
+          lte: maxSol,
+          onFail: ({ limit, actual }) => ({
+            code: "spend_limit",
+            message: "This send is over your SOL spending limit.",
+            details: {
+              symbol: "SOL",
+              limit: limit.toString(),
+              actual: actual.toString(),
+            },
+          }),
+        },
       ),
     );
   }

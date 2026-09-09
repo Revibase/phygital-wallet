@@ -41,12 +41,23 @@ describe("buildPaymentsPolicy", () => {
       version: "3",
       maxSolLamports: "1000",
     });
+    const dest = address("11111111111111111111111111111113");
     const ix = getTransferSolInstruction({
       source: address("11111111111111111111111111111112"),
-      destination: address("11111111111111111111111111111113"),
+      destination: dest,
       amount: 2000n,
     });
     const r = gate.verify([ix]);
     expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.code).toBe("spend_limit");
+      expect(r.details).toMatchObject({
+        instructionName: "TransferSol",
+        symbol: "SOL",
+        amount: "2000",
+        limit: "1000",
+        destination: String(dest),
+      });
+    }
   });
 });

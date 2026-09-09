@@ -258,30 +258,29 @@ describe("TokenStore pending approvals", () => {
     expect(store.listOpenApprovals()).toHaveLength(5);
   });
 
-  it("slims details before write", () => {
+  it("persists policy details as returned", () => {
     const sql = pendingSql();
     initTokenSchema(sql);
     const store = new TokenStore(sql, "Tok");
     store.ensureToken("Tok");
 
+    const details = {
+      amountUi: "1.5",
+      symbol: "USDC",
+      destination: "Dest111",
+      instructionIndex: 0,
+      noise: "keep-me",
+      nested: { a: 1 },
+    };
+
     store.upsertPendingApproval({
       intentHash: "h1",
       code: "over_limit",
       error: "x",
-      details: {
-        amountUi: "1.5",
-        symbol: "USDC",
-        destination: "Dest111",
-        noise: "drop-me",
-        nested: { a: 1 },
-      },
+      details,
     });
 
-    expect(store.listOpenApprovals()[0]!.details).toEqual({
-      amountUi: "1.5",
-      symbol: "USDC",
-      destination: "Dest111",
-    });
+    expect(store.listOpenApprovals()[0]!.details).toEqual(details);
   });
 
   it("keeps resolved rows and details for audit", () => {

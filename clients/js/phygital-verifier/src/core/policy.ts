@@ -9,12 +9,46 @@ import {
   type ParsedProgramIx,
   type ProgramAdapter,
 } from "./adapter.js";
-import { fail, ok, type VerifyFailDetails, type VerifyResult } from "./types.js";
+import {
+  fail,
+  ok,
+  type VerifyFailDetails,
+  type VerifyResult,
+} from "./types.js";
+
+/** Custom soft/hard fail produced by a rule that matched but rejected. */
+export type RuleFail = {
+  code: string;
+  message: string;
+  details?: VerifyFailDetails;
+};
+
+/** Full transaction context for {@link RuleOnFail} (e.g. ATA→owner from sibling ixs). */
+export type RuleFailContext = {
+  instructions: readonly Instruction[];
+  instructionIndex: number;
+};
+
+/**
+ * When a matcher hits but `when` is false:
+ * - return a {@link RuleFail} → fail verify with that code/details
+ * - return null/undefined → try later allow rules
+ */
+export type RuleOnFail<TParsed extends ParsedProgramIx = ParsedProgramIx> = (
+  parsed: TParsed,
+  ctx: RuleFailContext,
+) => RuleFail | null | undefined;
+
+export type AllowOptions<TParsed extends ParsedProgramIx = ParsedProgramIx> = {
+  when?: (parsed: TParsed) => boolean;
+  onFail?: RuleOnFail<TParsed>;
+};
 
 export type AllowRule<TParsed extends ParsedProgramIx = ParsedProgramIx> = {
   readonly kind: "allow";
   readonly matcher: InstructionMatcher<TParsed>;
   readonly predicate?: (parsed: TParsed) => boolean;
+  readonly onFail?: RuleOnFail<TParsed>;
 };
 
 export type DenyRule<TParsed extends ParsedProgramIx = ParsedProgramIx> = {
@@ -41,12 +75,28 @@ export type AggregateSource<TParsed extends ParsedProgramIx = ParsedProgramIx> =
   when?: (parsed: TParsed) => boolean;
 };
 
+export type AggregateOpts = {
+  lte?: bigint;
+  lt?: bigint;
+  gte?: bigint;
+  gt?: bigint;
+  eq?: bigint;
+  /** Custom fail when the aggregate comparison fails. */
+  onFail?: (ctx: {
+    op: AggregateRule["op"];
+    limit: bigint;
+    actual: bigint;
+    instructions: readonly Instruction[];
+  }) => RuleFail | null | undefined;
+};
+
 export type AggregateRule = {
   readonly kind: "aggregate";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   readonly sources: readonly AggregateSource<any>[];
   readonly op: "lte" | "lt" | "gte" | "gt" | "eq";
   readonly value: bigint;
+  readonly onFail?: AggregateOpts["onFail"];
 };
 
 export type Rule =
@@ -61,9 +111,17 @@ export type Rule =
 
 export function allow<TParsed extends ParsedProgramIx>(
   matcher: InstructionMatcher<TParsed>,
-  predicate?: (parsed: TParsed) => boolean,
+  predicateOrOpts?: ((parsed: TParsed) => boolean) | AllowOptions<TParsed>,
 ): AllowRule<TParsed> {
-  return { kind: "allow", matcher, predicate };
+  if (typeof predicateOrOpts === "function") {
+    return { kind: "allow", matcher, predicate: predicateOrOpts };
+  }
+  return {
+    kind: "allow",
+    matcher,
+    predicate: predicateOrOpts?.when,
+    onFail: predicateOrOpts?.onFail,
+  };
 }
 
 export function deny<TParsed extends ParsedProgramIx>(
@@ -83,17 +141,17 @@ export function denyProgram(programAddress: AddressLike): DenyProgramRule {
 
 export function aggregate<TParsed extends ParsedProgramIx>(
   sources: readonly AggregateSource<TParsed>[],
-  opts: { lte?: bigint; lt?: bigint; gte?: bigint; gt?: bigint; eq?: bigint },
+  opts: AggregateOpts,
 ): AggregateRule {
-  const entries = Object.entries(opts).filter(([, v]) => v !== undefined) as [
-    AggregateRule["op"],
-    bigint,
-  ][];
+  const cmpKeys = ["lte", "lt", "gte", "gt", "eq"] as const;
+  const entries = cmpKeys
+    .filter((k) => opts[k] !== undefined)
+    .map((k) => [k, opts[k]!] as [AggregateRule["op"], bigint]);
   if (entries.length !== 1) {
     throw new Error("aggregate: provide exactly one of lte|lt|gte|gt|eq");
   }
   const [op, value] = entries[0]!;
-  return { kind: "aggregate", sources, op, value };
+  return { kind: "aggregate", sources, op, value, onFail: opts.onFail };
 }
 
 export type Policy = {
@@ -118,7 +176,54 @@ function compare(op: AggregateRule["op"], actual: bigint, limit: bigint): boolea
 
 function instructionNameOf(parsed: ParsedProgramIx | undefined): string | null {
   if (!parsed) return null;
-  return String(parsed.instructionType);
+  const t = parsed.instructionType;
+  // String enums already carry the label; numeric TS enums stringify as the discriminant.
+  return typeof t === "string" ? t : String(t);
+}
+
+/** Pull transfer-shaped fields off a Codama parse for soft-deny UX. */
+function detailsFromParsed(
+  base: VerifyFailDetails,
+  parsed: ParsedProgramIx | undefined,
+): VerifyFailDetails {
+  const instructionName = instructionNameOf(parsed);
+  if (!parsed) {
+    return instructionName != null
+      ? { ...base, instructionName }
+      : { ...base, instructionName: null };
+  }
+
+  const out: VerifyFailDetails = { ...base, instructionName };
+  const accounts = parsed.accounts;
+  if (accounts && typeof accounts === "object") {
+    const dest = (accounts as { destination?: { address?: unknown } })
+      .destination?.address;
+    if (dest != null) out.destination = String(dest);
+    const mint = (accounts as { mint?: { address?: unknown } }).mint?.address;
+    if (mint != null) out.mint = String(mint);
+  }
+  const data = parsed.data;
+  if (data && typeof data === "object") {
+    const amount = (data as { amount?: unknown }).amount;
+    if (typeof amount === "bigint") out.amount = amount.toString();
+    else if (typeof amount === "number" || typeof amount === "string") {
+      out.amount = String(amount);
+    }
+    const decimals = (data as { decimals?: unknown }).decimals;
+    if (typeof decimals === "number") out.decimals = decimals;
+  }
+  return out;
+}
+
+function failFromRule(
+  base: VerifyFailDetails,
+  parsed: ParsedProgramIx | undefined,
+  custom: RuleFail,
+): VerifyResult {
+  return fail(custom.code, custom.message, {
+    ...detailsFromParsed(base, parsed),
+    ...custom.details,
+  });
 }
 
 /**
@@ -191,10 +296,7 @@ export function policy(rules: readonly Rule[]): Policy {
           return fail(
             "instruction_denied",
             `Instruction denied: ${instructionNameOf(parsed)}`,
-            {
-              ...details,
-              instructionName: instructionNameOf(parsed),
-            },
+            detailsFromParsed(details, parsed),
           );
         }
       }
@@ -216,11 +318,19 @@ export function policy(rules: readonly Rule[]): Policy {
             allowed = true;
             break;
           }
+          // Matched but rejected — optional owned error, else try later allows.
+          if (rule.onFail) {
+            const custom = rule.onFail(parsed, {
+              instructions,
+              instructionIndex: i,
+            });
+            if (custom) return failFromRule(details, parsed, custom);
+          }
         }
       }
 
       if (!allowed) {
-        // Try parse for a better error name
+        // Try parse for amount / destination / name on soft-deny UX paths.
         const adapter = adapters.get(programId);
         const parsed = adapter?.tryParse(ix);
         return fail(
@@ -228,10 +338,7 @@ export function policy(rules: readonly Rule[]): Policy {
           parsed
             ? `Instruction not allowed: ${instructionNameOf(parsed)}`
             : `Instruction not allowed for program ${programId}`,
-          {
-            ...details,
-            instructionName: instructionNameOf(parsed),
-          },
+          detailsFromParsed(details, parsed),
         );
       }
     }
@@ -258,6 +365,22 @@ export function policy(rules: readonly Rule[]): Policy {
         }
       }
       if (!compare(agg.op, sum, agg.value)) {
+        if (agg.onFail) {
+          const custom = agg.onFail({
+            op: agg.op,
+            limit: agg.value,
+            actual: sum,
+            instructions,
+          });
+          if (custom) {
+            return fail(custom.code, custom.message, {
+              op: agg.op,
+              limit: agg.value.toString(),
+              actual: sum.toString(),
+              ...custom.details,
+            });
+          }
+        }
         return fail(
           "aggregate_limit",
           `Aggregate ${agg.op} ${agg.value.toString()} failed (actual ${sum.toString()})`,

@@ -17,10 +17,10 @@ export function policySoftDenyBody(deny: PolicyDeniedError): string {
     return copy.wallet.approveSendBodyApproval;
   }
   if (deny.code === "instruction_not_allowed") {
-    return deny.message || copy.wallet.approveSendBodyInstruction;
+    return copy.wallet.approveSendBodyInstruction;
   }
   if (deny.code === "program_not_allowed") {
-    return deny.message || copy.wallet.approveSendBodyProgram;
+    return copy.wallet.approveSendBodyProgram;
   }
   if (deny.code === "unexpected_instruction") {
     return copy.wallet.approveSendBodyUnexpected;
@@ -83,17 +83,11 @@ export function policyApprovalDetailRows(
   if (!options?.omitAmount) {
     const amountUi =
       typeof details.amountUi === "string" ? details.amountUi : null;
-    const requestedUi =
-      typeof details.requestedUi === "string" ? details.requestedUi : null;
     const amount = typeof details.amount === "string" ? details.amount : null;
     const decimals =
       typeof details.decimals === "number" ? details.decimals : null;
 
     let displayAmount: string | null = amountUi;
-    if (!displayAmount && requestedUi) {
-      // USDC spend-limit enrichment is dollar-denominated.
-      displayAmount = `$${requestedUi}`;
-    }
     if (!displayAmount && amount != null && decimals != null && decimals >= 0) {
       try {
         displayAmount = formatTokenAmount(BigInt(amount), decimals);

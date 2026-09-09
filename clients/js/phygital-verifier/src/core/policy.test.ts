@@ -69,13 +69,61 @@ describe("policy.verify", () => {
     expect(gate.verify([makeIx(PROGRAM_A, 1)]).ok).toBe(true);
   });
 
-  it("rejects when predicate fails", () => {
+  it("rejects when predicate fails and includes transfer fields", () => {
     const gate = policy([
       allow(programA.instruction(FakeIx.Transfer), (ix) => ix.data.amount <= 5n),
     ]);
     const r = gate.verify([makeIx(PROGRAM_A, 1)]);
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.code).toBe("instruction_not_allowed");
+    if (!r.ok) {
+      expect(r.code).toBe("instruction_not_allowed");
+      expect(r.details).toMatchObject({
+        instructionName: "Transfer",
+        amount: "10",
+        destination: "Dest111111111111111111111111111111111111111",
+      });
+    }
+  });
+
+  it("uses allow onFail when when rejects", () => {
+    const gate = policy([
+      allow(programA.instruction(FakeIx.Transfer), {
+        when: (ix) => ix.data.amount <= 5n,
+        onFail: (ix) => ({
+          code: "spend_limit",
+          message: "over cap",
+          details: {
+            limit: "5",
+            amount: ix.data.amount.toString(),
+            symbol: "FAKE",
+          },
+        }),
+      }),
+    ]);
+    const r = gate.verify([makeIx(PROGRAM_A, 1)]);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.code).toBe("spend_limit");
+      expect(r.message).toBe("over cap");
+      expect(r.details).toMatchObject({
+        instructionName: "Transfer",
+        amount: "10",
+        limit: "5",
+        symbol: "FAKE",
+        destination: "Dest111111111111111111111111111111111111111",
+      });
+    }
+  });
+
+  it("falls through when onFail returns undefined", () => {
+    const gate = policy([
+      allow(programA.instruction(FakeIx.Transfer), {
+        when: () => false,
+        onFail: () => undefined,
+      }),
+      allow(programA.instruction(FakeIx.Transfer), (ix) => ix.data.amount <= 100n),
+    ]);
+    expect(gate.verify([makeIx(PROGRAM_A, 1)]).ok).toBe(true);
   });
 
   it("denies before allow", () => {
@@ -133,5 +181,33 @@ describe("policy.verify", () => {
     ]);
     expect(over.ok).toBe(false);
     if (!over.ok) expect(over.code).toBe("aggregate_limit");
+  });
+
+  it("uses aggregate onFail", () => {
+    const gate = policy([
+      allow(programA.instruction(FakeIx.Transfer)),
+      aggregate(
+        [
+          {
+            matcher: programA.instruction(FakeIx.Transfer),
+            amount: (ix) => ix.data.amount,
+          },
+        ],
+        {
+          lte: 5n,
+          onFail: ({ limit, actual }) => ({
+            code: "spend_limit",
+            message: "aggregate over",
+            details: { symbol: "FAKE", limit: limit.toString(), actual: actual.toString() },
+          }),
+        },
+      ),
+    ]);
+    const r = gate.verify([makeIx(PROGRAM_A, 1)]);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.code).toBe("spend_limit");
+      expect(r.details).toMatchObject({ symbol: "FAKE", limit: "5", actual: "10" });
+    }
   });
 });
