@@ -1,12 +1,17 @@
 # phygital-verifier-sdk
 
-Verify Solana instructions against **composable TypeScript policies** over **Codama** parses.
+Verify Solana instructions against **composable TypeScript policies** over **Codama** parses (ESM, Node ≥18 / bundlers).
+
+This package does **not** ship program parsers or product presets. Generate Codama Kit clients from your IDLs, wrap them with `fromCodamaProgram`, and compose rules in your app.
 
 ## Install
 
 ```bash
 pnpm add phygital-verifier-sdk
+# or: npm i phygital-verifier-sdk
 ```
+
+Depends on `@solana/instructions` (compatible with `@solana/kit` ^8). Your Codama-generated clients typically need `@solana/kit` as well.
 
 ## Quick start
 
@@ -14,6 +19,7 @@ pnpm add phygital-verifier-sdk
 import {
   fromCodamaProgram,
   allow,
+  denyProgram,
   aggregate,
   policy,
 } from "phygital-verifier-sdk";
@@ -22,7 +28,7 @@ import {
   TokenInstruction,
   identifyTokenInstruction,
   parseTokenInstruction,
-} from "./generated/token"; // your Codama client
+} from "./generated/token"; // your Codama client — not shipped by this package
 
 const token = fromCodamaProgram({
   programAddress: TOKEN_PROGRAM_ADDRESS,
@@ -31,6 +37,7 @@ const token = fromCodamaProgram({
 });
 
 const gate = policy([
+  denyProgram("ComputeBudget111111111111111111111111111111"),
   allow(token.instruction(TokenInstruction.TransferChecked), (ix) =>
     ix.data.amount <= 50_000_000n
   ),
@@ -59,17 +66,22 @@ if (!result.ok) {
 | `allow(matcher, predicate?)` | Permit a Codama instruction branch |
 | `deny(matcher, predicate?)` | Reject a matching instruction |
 | `allowProgram(address)` | Permit any ix for a program id (no parse) |
+| `denyProgram(address)` | Reject any ix for a program id |
 | `aggregate(sources, { lte \| … })` | Sum amounts across the tx |
 | `policy(rules).verify(instructions)` | Fail-closed gate |
 
-This package ships **no** STANDARD program parsers or payments presets. Generate Codama clients from IDLs (`codama run js`) and compose rules in your app — or use `phygital-policy` for Revibase’s payments preset.
+Also exported: types (`InstructionMatcher`, `Policy`, `VerifyResult`, …), plus `fail` / `ok` / `addressString` helpers.
 
-**New program?** Follow [From IDL to policy (Codama)](./docs/custom-programs.md) — install Codama, `codama init` / `codama run js`, then wire `identify*` / `parse*` into `fromCodamaProgram`.
+Generate Codama clients from IDLs (`codama run js`) and compose rules in your app.
+
+**New program?** Follow [From IDL to policy (Codama)](./docs/custom-programs.md).
+
+**Kit-only instruction (no Codama branch)?** Build a custom `InstructionMatcher` — see [Writing policies](./docs/writing-policies.md#custom-instructionmatcher).
 
 ## Docs
 
 - [Getting started](./docs/getting-started.md)
-- [From IDL to policy (Codama)](./docs/custom-programs.md) — install Codama, generate Kit clients, wire the SDK
+- [From IDL to policy (Codama)](./docs/custom-programs.md)
 - [Writing policies](./docs/writing-policies.md)
 - [Verify results](./docs/verify-and-errors.md)
 

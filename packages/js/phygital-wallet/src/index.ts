@@ -19,11 +19,15 @@ export {
   activeConfigVerifierAddresses,
   isConfigDefaultVerifier,
   resolveVerifier,
+  type ResolvedVerifier,
 } from "./wallet/resolve-verifier.js";
 
 export { normalizeVerifierApiBase } from "./wallet/verifier-endpoint.js";
 
-export { MAX_ENDPOINT_LEN } from "./constants.js";
+export {
+  DEFAULT_VERIFIER_API_BASE,
+  MAX_ENDPOINT_LEN,
+} from "./constants.js";
 
 export {
   buildClearRecoveryWalletChallenge,

@@ -27,7 +27,8 @@ For each program you gate, the generated Kit client must export:
 | `parse*Instruction` | Typed `{ accounts, data, instructionType }` |
 
 Builders (`get*Instruction`), account `fetch*` / `decode*`, PDAs, and errors are
-optional for policy. Prefer trimming them away for smaller bundles (step 5).
+optional for policy. Prefer trimming unused instructions before render when you
+care about bundle size.
 
 ---
 
@@ -100,11 +101,11 @@ You will be asked:
 
 1. **Where is your IDL?** — e.g. `idl/my_program.json`
 2. **Which script preset?** — choose **Generate JavaScript client** (skip Rust unless you need it)
-3. **Where should the JavaScript code be generated?** — e.g. `packages/js/my-program`
+3. **Where should the JavaScript code be generated?** — e.g. `clients/js/my-program`
 
 `init` may offer to install the packages from step 2 if they are missing.
 
-Or write the config by hand (matches this monorepo’s wallet client):
+Or write the config by hand:
 
 ```json
 {
@@ -114,7 +115,7 @@ Or write the config by hand (matches this monorepo’s wallet client):
     "js": {
       "from": "@codama/renderers-js",
       "args": [
-        "packages/js/my-program",
+        "clients/js/my-program",
         {
           "formatCode": true,
           "syncPackageJson": true,
@@ -157,7 +158,7 @@ pnpm exec codama run js
 You should see files such as:
 
 ```text
-packages/js/my-program/
+clients/js/my-program/
   package.json          # if syncPackageJson
   src/generated/
     programs/
@@ -185,6 +186,8 @@ In policy code, import **named** `identify*` / `parse*` / enums — avoid
 
 ## 5. Wire into `phygital-verifier-sdk`
 
+Published-package style (adjust the client package name/exports to yours):
+
 ```ts
 import {
   fromCodamaProgram,
@@ -197,7 +200,7 @@ import {
   MyProgramInstruction,
   identifyMyProgramInstruction,
   parseMyProgramInstruction,
-} from "../packages/js/my-program/src/generated"; // adjust to your package exports
+} from "my-program-sdk"; // your Codama-generated package
 
 const my = fromCodamaProgram({
   programAddress: MY_PROGRAM_PROGRAM_ADDRESS,
@@ -235,15 +238,13 @@ See [Writing policies](./writing-policies.md) and
 
 ---
 
-## 7. Checklist
+## 6. Checklist
 
 1. IDL on disk (Anchor or Codama JSON)
 2. `pnpm add -D codama @codama/renderers-js @codama/nodes-from-anchor`
 3. `codama init` (or hand-written `codama.json`)
 4. `codama run js` → `identify*` / `parse*` / `*Instruction` / `*_PROGRAM_ADDRESS`
-5. `fromCodamaProgram` + `allow` / `deny` / `aggregate` + `policy(…).verify(…)`
+5. `fromCodamaProgram` + `allow` / `deny` / `denyProgram` / `aggregate` + `policy(…).verify(…)`
 
-Do **not** use a verifier-specific IDL→`tryDecode` generator or hand-rolled
-discriminators. If a helper is missing, regenerate or extend Codama output.
-
----
+Do **not** hand-roll discriminators or layouts that duplicate Codama. If a helper
+is missing, regenerate or extend Codama output.

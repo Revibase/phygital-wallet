@@ -2,7 +2,8 @@
   "name": "phygital-wallet-sdk",
   "version": "0.1.0",
   "description": "TypeScript client for the phygital-wallet Solana program",
-  "license": "ISC",
+  "license": "MIT",
+  "author": "Revibase",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -16,11 +17,37 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "LICENSE",
+    "README.md",
+    "AGENTS.md"
   ],
   "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Revibase/phygital-wallet.git",
+    "directory": "packages/js/phygital-wallet"
+  },
+  "homepage": "https://github.com/Revibase/phygital-wallet/tree/main/packages/js/phygital-wallet",
+  "bugs": {
+    "url": "https://github.com/Revibase/phygital-wallet/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "solana",
+    "wallet",
+    "phygital",
+    "kit",
+    "wallet-standard"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist",
+    "build": "pnpm clean && tsc -p tsconfig.json",
+    "prepublishOnly": "pnpm test && pnpm build",
     "test": "vitest run"
   },
   "peerDependencies": {

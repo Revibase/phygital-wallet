@@ -13,4 +13,4 @@ export const MIN_BLOCKHASH_REMAINING_SLOTS = 64n;
 export const COMPUTE_UNIT_ESTIMATE_MARGIN = 1.1;
 
 /** Fallback micro-lamports/CU when recent prioritization fees are empty. */
-export const DEFAULT_PRIORITY_FEE_MICRO_LAMPORTS = 1_000n;
+export const DEFAULT_PRIORITY_FEE_MICRO_LAMPORTS = 10_000n;

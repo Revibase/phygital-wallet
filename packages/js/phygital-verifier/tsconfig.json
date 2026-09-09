@@ -2,7 +2,7 @@
   "compilerOptions": {
     "lib": ["ESNext"],
     "strict": true,
-    "removeComments": true,
+    "removeComments": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "allowSyntheticDefaultImports": true,

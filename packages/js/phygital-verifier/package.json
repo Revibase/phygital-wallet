@@ -2,7 +2,8 @@
   "name": "phygital-verifier-sdk",
   "version": "0.2.0",
   "description": "Verify Solana instructions against composable Codama-backed policies",
-  "license": "ISC",
+  "license": "MIT",
+  "author": "Revibase",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -14,19 +15,44 @@
       "default": "./dist/index.js"
     }
   },
-  "dependencies": {
-    "@solana/instructions": "^8.1.0"
-  },
   "files": [
     "dist",
     "docs",
+    "LICENSE",
     "README.md",
     "AGENTS.md"
   ],
   "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Revibase/phygital-wallet.git",
+    "directory": "packages/js/phygital-verifier"
+  },
+  "homepage": "https://github.com/Revibase/phygital-wallet/tree/main/packages/js/phygital-verifier",
+  "bugs": {
+    "url": "https://github.com/Revibase/phygital-wallet/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "solana",
+    "policy",
+    "codama",
+    "verifier",
+    "phygital"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist",
+    "build": "pnpm clean && tsc -p tsconfig.json",
+    "prepublishOnly": "pnpm test && pnpm build",
     "test": "vitest run"
+  },
+  "dependencies": {
+    "@solana/instructions": "^8.1.0"
   },
   "devDependencies": {
     "typescript": "^5.7.3",
