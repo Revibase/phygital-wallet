@@ -12,19 +12,13 @@ import { CollectibleShortcuts } from "@/components/token/collectible-shortcuts";
 import { VerificationMetadataRow } from "@/components/token/authenticity-badge";
 import { TokenDetails } from "@/components/token/token-details";
 import { StatusPill } from "@/components/shared/status-pill";
-import { StickyActions } from "@/components/shared/sticky-actions";
 import { MotionSection } from "@/components/shared/motion-section";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMintedCollectibleView } from "@/hooks/token/use-minted-collectible-view";
 import { useShortcutOpener } from "@/hooks/token/use-shortcut-opener";
 import { copy } from "@/lib/copy/phygital";
-import {
-  filterShortcutChips,
-  pickPrimaryCtaShortcut,
-} from "@/lib/tokens/shortcuts";
 import { detailSplitClass } from "@/lib/layout";
-import { STICKY_ENTER_DELAY_MS } from "@/lib/motion";
 import {
   tokenHasLinkedMint,
   type PhygitalToken,
@@ -46,11 +40,6 @@ export function TokenMintedPanel({
   const { collectible, shortcuts, loading } = useMintedCollectibleView(mint);
   const { openCollectibleShortcut, iframeSheet } = useShortcutOpener();
   const [detailsOpen, setDetailsOpen] = useState(false);
-
-  const primaryShortcut = liveConfirmed
-    ? pickPrimaryCtaShortcut(shortcuts)
-    : null;
-  const chipShortcuts = filterShortcutChips(shortcuts, primaryShortcut);
 
   const shortcutCtx = useMemo(
     () => ({
@@ -117,7 +106,7 @@ export function TokenMintedPanel({
               </div>
             </MotionSection>
 
-            {!liveConfirmed && chipShortcuts.length > 0 ? (
+            {!liveConfirmed && shortcuts.length > 0 ? (
               <MotionSection staggerIndex={stagger++}>
                 <p className="px-0.5 text-xs text-muted-foreground">
                   {copy.verify.verifyToUnlockShortcut}
@@ -125,10 +114,10 @@ export function TokenMintedPanel({
               </MotionSection>
             ) : null}
 
-            {chipShortcuts.length > 0 ? (
+            {shortcuts.length > 0 ? (
               <MotionSection staggerIndex={stagger++}>
                 <CollectibleShortcuts
-                  shortcuts={chipShortcuts}
+                  shortcuts={shortcuts}
                   onOpenShortcut={(shortcut) =>
                     openCollectibleShortcut(shortcut, shortcutCtx)
                   }
@@ -192,22 +181,6 @@ export function TokenMintedPanel({
               </div>
             ) : null}
           </div>
-
-          {primaryShortcut ? (
-            <StickyActions enterDelayMs={STICKY_ENTER_DELAY_MS}>
-                <Button
-                  type="button"
-                  variant="default"
-                  size="lg"
-                  className="w-full"
-                  onClick={() =>
-                    openCollectibleShortcut(primaryShortcut, shortcutCtx)
-                  }
-                >
-                  {primaryShortcut.label}
-                </Button>
-            </StickyActions>
-          ) : null}
         </div>
       </div>
     </div>

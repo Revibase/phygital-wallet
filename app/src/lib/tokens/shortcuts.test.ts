@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  filterShortcutChips,
-  pickPrimaryCtaShortcut,
   resolveShortcutUri,
   shortcutOpensExternally,
 } from "./shortcuts";
@@ -50,24 +48,5 @@ describe("resolveShortcutUri", () => {
     expect(resolveShortcutUri("https://x.com/{{tokenId}}", {})).toBe(
       "https://x.com/",
     );
-  });
-});
-
-describe("pickPrimaryCtaShortcut / filterShortcutChips", () => {
-  const primary = {
-    label: "Play",
-    uri: "https://madlads.com/play",
-    primaryCta: true as const,
-  };
-  const chip = { label: "X", uri: "https://x.com", prefersExternalTarget: true };
-
-  it("picks the first primaryCta", () => {
-    expect(pickPrimaryCtaShortcut([chip, primary])).toEqual(primary);
-    expect(pickPrimaryCtaShortcut([chip])).toBeNull();
-  });
-
-  it("filters the promoted primary out of chips", () => {
-    expect(filterShortcutChips([primary, chip], primary)).toEqual([chip]);
-    expect(filterShortcutChips([chip], null)).toEqual([chip]);
   });
 });

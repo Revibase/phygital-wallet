@@ -7,8 +7,6 @@ export type CollectibleShortcut = {
   label: string;
   uri: string;
   icon?: string | null;
-  /** Revibase extension — promote to sticky primary when token verified. */
-  primaryCta?: boolean;
   /** Phantom v2 — `true` = external popup; `false`/omitted = in-app iframe sheet. */
   prefersExternalTarget?: boolean;
 };
@@ -26,7 +24,6 @@ type RawShortcut = {
   type?: string;
   platform?: string;
   limitToCollections?: string[];
-  primaryCta?: boolean;
   prefersExternalTarget?: boolean;
 };
 
@@ -52,24 +49,6 @@ export function resolveShortcutUri(
     .replaceAll("{{tokenId}}", ctx.tokenId ?? "")
     .replaceAll("{{ownerAddress}}", ctx.ownerAddress ?? "")
     .replaceAll("{{collectionId}}", ctx.collectionId ?? "");
-}
-
-/** First shortcut marked `primaryCta: true`, else null. */
-export function pickPrimaryCtaShortcut(
-  shortcuts: CollectibleShortcut[],
-): CollectibleShortcut | null {
-  return shortcuts.find((s) => s.primaryCta === true) ?? null;
-}
-
-/** Chip list — exclude the promoted primary CTA to avoid duplication. */
-export function filterShortcutChips(
-  shortcuts: CollectibleShortcut[],
-  primary: CollectibleShortcut | null,
-): CollectibleShortcut[] {
-  if (!primary) return shortcuts;
-  return shortcuts.filter(
-    (s) => s.label !== primary.label || s.uri !== primary.uri,
-  );
 }
 
 function shortcutsJsonUrl(externalUrl: string): string | null {
@@ -167,9 +146,6 @@ function parseCollectibleShortcuts(
       icon: raw.icon?.trim() || null,
       prefersExternalTarget,
     };
-    if (raw.primaryCta === true) {
-      entry.primaryCta = true;
-    }
     out.push(entry);
   }
   return out;
