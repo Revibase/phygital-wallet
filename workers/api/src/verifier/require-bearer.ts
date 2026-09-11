@@ -18,12 +18,9 @@ import {
   type VerifierBearerPayload,
 } from "phygital-verifier-sdk";
 
+import { getDefaultVerifierSet } from "@/fees/default-verifier";
 import { json } from "@/shared/http";
-import {
-  createAuthorizedVerifierCheck,
-  createRpc,
-  decodeVerifierKey,
-} from "@/verifier/verifier-keys";
+import { decodeVerifierKey } from "@/verifier/verifier-keys";
 
 function unauthorized(code: string, error: string): Response {
   return json({ error, code }, { status: 401 });
@@ -45,7 +42,12 @@ export async function readVerifierBearer(
 
   const payload = await verifyVerifierBearer(token, {
     decodeVerifierKey,
-    isAuthorizedVerifier: createAuthorizedVerifierCheck(createRpc()),
+    // Our endpoints only honor bearers WE minted, and we only sign with keys in
+    // DEFAULT_VERIFIER_PUBKEYS — so `iss ∈ our keys` ⟺ "we issued this". A local
+    // Set lookup, no RPC. On-chain authorization was enforced at mint (/connect)
+    // and is re-enforced by the program at execute, so there is nothing to
+    // re-check here on every request.
+    isAuthorizedVerifier: ({ iss }) => getDefaultVerifierSet().has(iss),
   });
   if (!payload) {
     return unauthorized(

@@ -18,10 +18,7 @@
 import { Hono } from "hono";
 import { ConnectProofError, normalizeOrigin } from "phygital-verifier-sdk";
 import type { Address, Rpc, SolanaRpcApi } from "@solana/kit";
-import {
-  fetchPhygitalTokenByIdentifier,
-  findPhygitalTokenPda,
-} from "phygital-token-sdk";
+import { findPhygitalTokenPda } from "phygital-token-sdk";
 
 import { denyIfAuthRateLimited } from "@/auth/rate-limit";
 import { requireRevibaseAppOrigin } from "@/shared/cors";
@@ -32,6 +29,7 @@ import { tokenSigner, type TokenSignerRpc } from "@/verifier/token-signer";
 import {
   createRpc,
   resolveAuthorizedVerifiers,
+  resolveTokenFromIdentifier,
 } from "@/verifier/verifier-keys";
 
 export const connectRoutes = new Hono<{ Bindings: Env }>();
@@ -140,14 +138,13 @@ connectRoutes.post("/connect/tap", async (c) => {
     }
 
     const rpc = createRpc();
-    const account = await fetchPhygitalTokenByIdentifier(rpc, body.pk);
-    if (!account) {
+    const phygitalToken = await resolveTokenFromIdentifier(rpc, body.pk);
+    if (!phygitalToken) {
       throw new ConnectProofError(
         "token_not_found",
         "No phygital token for this accessory"
       );
     }
-    const phygitalToken = await findPhygitalTokenPda(account.publicKey);
     const authorized = await resolveBearerVerifiers(rpc, phygitalToken);
     if (authorized instanceof Response) return authorized;
     const minted = await tokenSigner(

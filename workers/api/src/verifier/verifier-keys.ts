@@ -1,10 +1,10 @@
 /**
- * Which verifier keys a token authorizes, read from chain.
+ * On-chain verifier resolution + caches for the hot connect paths.
  *
- * A `TokenVerifier` override names exactly one verifier; otherwise the token
- * accepts **any** active `Config.verifiers` entry (and `resolveVerifier` picks
- * one at random), so bearer validation is a membership test, never equality
- * against a single address.
+ * `/preview` and `/sign` do NOT use this — they verify a bearer's `iss` against
+ * our own key set locally (see `require-bearer.ts`). Only `/connect` and
+ * `/connect/tap` read chain here, to gate bearer minting on the token actually
+ * being configured to a verifier key we hold.
  */
 import {
   createSolanaRpc,
@@ -21,32 +21,39 @@ import {
   findConfigPda,
   findTokenVerifierPda,
 } from "phygital-wallet-sdk";
-import type { DecodeVerifierKey, IsAuthorizedVerifier } from "phygital-verifier-sdk";
+import {
+  fetchPhygitalTokenByIdentifier,
+  findPhygitalTokenPda,
+} from "phygital-token-sdk";
+import type { DecodeVerifierKey } from "phygital-verifier-sdk";
 
 import { getRpcUrl } from "@/shared/solana/cluster";
 
 const base58Encoder = getBase58Encoder();
 
+/** One Kit RPC client per isolate — building it each call wastes CPU. */
+let rpcClient: { url: string; rpc: Rpc<SolanaRpcApi> } | null = null;
+export function createRpc(): Rpc<SolanaRpcApi> {
+  const url = getRpcUrl();
+  if (rpcClient?.url === url) return rpcClient.rpc;
+  const rpc = createSolanaRpc(url);
+  rpcClient = { url, rpc };
+  return rpc;
+}
+
 /**
- * Short-lived cache of each token's authorized verifier set. These accounts only
- * change on an explicit on-chain mutation, and `/connect`, `/auth/app-session`,
- * `/preview` and `/sign` all ask the same question within one user action — so
- * without this a single tap-and-send costs four identical account fetches.
- *
- * The TTL is far shorter than a session (15 min), so repointing a token's
- * verifier still takes effect well within one session's life.
+ * Per-token authorized verifier set. Only non-empty results are cached (so a
+ * token configured moments ago is not locked out by a cached empty set), and
+ * only long enough that a verifier repoint still takes effect well inside a
+ * 15-min session. On-chain authorization is re-enforced by the program at
+ * execute, so a briefly-stale positive is harmless.
  */
-const AUTHORIZED_TTL_MS = 30_000;
+const AUTHORIZED_TTL_MS = 120_000;
 const authorizedCache = new Map<
   string,
   { verifiers: Set<string>; expiresAt: number }
 >();
 
-export function createRpc(): Rpc<SolanaRpcApi> {
-  return createSolanaRpc(getRpcUrl());
-}
-
-/** Verifier addresses this token authorizes (override wins, else Config defaults). */
 export async function resolveAuthorizedVerifiers(
   rpc: Rpc<SolanaRpcApi>,
   phygitalToken: Address,
@@ -77,11 +84,41 @@ export async function resolveAuthorizedVerifiers(
       : new Set<string>();
   }
 
-  authorizedCache.set(key, {
-    verifiers,
-    expiresAt: Date.now() + AUTHORIZED_TTL_MS,
-  });
+  if (verifiers.size > 0) {
+    authorizedCache.set(key, {
+      verifiers,
+      expiresAt: Date.now() + AUTHORIZED_TTL_MS,
+    });
+  }
   return verifiers;
+}
+
+/**
+ * Chip identifier → token PDA. This mapping is immutable once a token is minted,
+ * so it is cached for the life of the isolate — turning the `getProgramAccounts`
+ * scan on `/connect/tap` into a one-time cost per chip per isolate. Bounded so a
+ * long-lived isolate cannot grow it without limit.
+ *
+ * For fleet-wide hit rate at scale, front this with a colo-shared `caches.default`
+ * entry (immutable, long max-age) so cold isolates also skip the scan.
+ */
+const MAX_CHIP_CACHE = 50_000;
+const tokenByChip = new Map<string, string>();
+
+export async function resolveTokenFromIdentifier(
+  rpc: Rpc<SolanaRpcApi>,
+  identifier: string,
+): Promise<Address | null> {
+  const hit = tokenByChip.get(identifier);
+  if (hit) return hit as Address;
+
+  const account = await fetchPhygitalTokenByIdentifier(rpc, identifier);
+  if (!account) return null;
+  const token = String(await findPhygitalTokenPda(account.publicKey));
+
+  if (tokenByChip.size >= MAX_CHIP_CACHE) tokenByChip.clear();
+  tokenByChip.set(identifier, token);
+  return token as Address;
 }
 
 /**
@@ -96,16 +133,3 @@ export const decodeVerifierKey: DecodeVerifierKey = (iss) => {
     return null;
   }
 };
-
-/** On-chain membership test, run only once a bearer's signature has verified. */
-export function createAuthorizedVerifierCheck(
-  rpc: Rpc<SolanaRpcApi>,
-): IsAuthorizedVerifier {
-  return async ({ sub, iss }) => {
-    try {
-      return (await resolveAuthorizedVerifiers(rpc, sub as Address)).has(iss);
-    } catch {
-      return false;
-    }
-  };
-}

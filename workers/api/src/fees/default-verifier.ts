@@ -49,7 +49,7 @@ function parseDefaultVerifierPubkeys(raw: string | undefined): Set<string> {
   return set;
 }
 
-function getDefaultVerifierSet(): Set<string> {
+export function getDefaultVerifierSet(): Set<string> {
   if (cached) return cached;
   cached = parseDefaultVerifierPubkeys(getEnv().DEFAULT_VERIFIER_PUBKEYS);
   return cached;
