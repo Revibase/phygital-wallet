@@ -99,6 +99,7 @@ Generate Codama clients from IDLs (`codama run js`) and compose rules in your ap
 
 - [Getting started](./docs/getting-started.md)
 - [Verifier HTTP contract](./docs/verifier-http.md)
+- [Verifier scaffold](./docs/scaffold.md)
 - [From IDL to policy (Codama)](./docs/custom-programs.md)
 - [Writing policies](./docs/writing-policies.md)
 - [Verify results](./docs/verify-and-errors.md)

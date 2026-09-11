@@ -5,6 +5,9 @@ service may be operated by Revibase or by a third party. The verifier selected
 for a token is the service that issues the bearer used for that token's
 `/preview` and `/sign` requests.
 
+For a runnable, framework-agnostic reference that wires all five endpoints
+with the SDK, see [the verifier scaffold](./scaffold.md).
+
 ## Endpoint Summary
 
 | Method | Path           | Access                           | Purpose                                             |
@@ -165,10 +168,7 @@ fee and policy checks, and return:
 ```
 
 It must never sign solely because a bearer is valid. Any additional owner or
-operation authorization required by the verifier remains mandatory. A verifier
-may define additional fields such as `challengeId` and `assertion` for
-application-specific owner authorization, but they are not part of the portable
-verifier contract.
+operation authorization required by the verifier remains mandatory.
 
 ## Bearer and Origin Rules
 
@@ -189,18 +189,9 @@ another browser origin.
 
 ## Implementation Guidance
 
-A verifier implementation should keep proof verification, replay-counter
-updates, token-PDA matching, and bearer minting in one serialized operation for
-the token. This prevents a proof from being accepted by one operation and
-minted by another.
-
 The security invariant is that the bearer's `sub` must be the token derived
 from the proof's own identifier — the assertion passkey for `/connect`, or the
 accessory id `pk` for `/connect/tap` — never a value the client supplies. A
 front-end router may extract that token first only to locate the token-specific
 verifier; treat it as untrusted and re-derive inside the verifier boundary
-unless the router performed exactly the same trusted on-chain resolution. (In
-Revibase's implementation the router resolves the token once from `pk` to
-address the per-token signer, then reuses it when minting — safe because the
-signer is bound to that token and consumes the replay counter under the proof's
-identifier, so a second `getProgramAccounts` scan would only repeat work.)
+unless the router performed exactly the same trusted on-chain resolution.
