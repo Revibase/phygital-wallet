@@ -23,7 +23,7 @@ export async function denyIfRateLimited(
   bucket: string,
   opts?: { maxHits?: number; windowSeconds?: number },
 ): Promise<Response | null> {
-  const kv = getEnv().revibase_counter;
+  const kv = getEnv().revibase_auth_kv;
   if (!kv) return null;
 
   const windowSeconds = opts?.windowSeconds ?? AUTH_WINDOW_SECONDS;

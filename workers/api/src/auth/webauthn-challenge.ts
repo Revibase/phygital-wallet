@@ -1,10 +1,10 @@
 import { getEnv } from "@/shared/request-context";
 
-const CHALLENGE_TTL_SEC = 300;
+const CHALLENGE_TTL_SEC = 60;
 const CHALLENGE_PREFIX = "webauthn:challenge:";
 
 function kv() {
-  return getEnv().revibase_counter;
+  return getEnv().revibase_auth_kv;
 }
 
 export async function storeWebAuthnChallenge(

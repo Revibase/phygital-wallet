@@ -23,8 +23,12 @@
   },
   "kv_namespaces": [
     {
-      "binding": "revibase_counter",
-      "id": "a9aa768ab4854f11ac0314170849c172"
+      // Ephemeral auth KV: WebAuthn challenges + rate-limit counters (short TTLs).
+      // Create a fresh namespace with:
+      //   wrangler kv namespace create revibase_auth_kv
+      // then paste the returned id below.
+      "binding": "revibase_auth_kv",
+      "id": "REPLACE_WITH_WRANGLER_KV_NAMESPACE_ID"
     }
   ],
   "durable_objects": {
