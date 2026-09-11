@@ -18,3 +18,12 @@ export async function isDefaultConfigVerifier(
 ): Promise<boolean> {
   return getDefaultVerifierSet().has(verifier);
 }
+
+export function getRandomVerifier(): string {
+  const verifiers = [...getDefaultVerifierSet()];
+  const verifier = verifiers[Math.floor(Math.random() * verifiers.length)];
+  if (!verifier) {
+    throw new Error("No verifiers in default config");
+  }
+  return verifier;
+}

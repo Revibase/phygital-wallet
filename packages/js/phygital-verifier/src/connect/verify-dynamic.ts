@@ -37,23 +37,15 @@ export type ConsumeTapCounter = (args: {
 export async function verifyDynamicConnectProof(
   proof: DynamicTapParams,
   opts: {
-    /** Needed only when `phygitalToken` is omitted (to resolve it from `pk`). */
-    rpc?: Rpc<SolanaRpcApi>;
+    rpc: Rpc<SolanaRpcApi>;
     consumeCounter: ConsumeTapCounter;
-    /**
-     * Token already resolved for this chip identifier. A caller that resolved it
-     * to route the request (e.g. to a per-token store) passes it here to skip a
-     * second `getProgramAccounts` scan — the most expensive call in this flow.
-     * Omit it for the self-contained default.
-     */
-    phygitalToken?: Address;
+    expectedPhygitalToken: Address;
   },
 ): Promise<{
   phygitalToken: Address;
   identifier: string;
   counter: number;
 }> {
-  // 1. Pure signature check — no IO.
   let tap: ReturnType<typeof verifyDynamicTap>;
   try {
     tap = verifyDynamicTap(proof);
@@ -67,30 +59,25 @@ export async function verifyDynamicConnectProof(
     throw new ConnectProofError("invalid_signature", "Invalid tap signature");
   }
 
-  // 2. Resolve the token from the chip identifier (on-chain truth), unless the
-  //    caller already did so to route here.
-  let phygitalToken = opts.phygitalToken;
-  if (!phygitalToken) {
-    if (!opts.rpc) {
-      throw new ConnectProofError(
-        "invalid_proof",
-        "rpc is required when phygitalToken is not provided",
-      );
-    }
-    const account = await fetchPhygitalTokenByIdentifier(
-      opts.rpc,
-      tap.identifier,
+  const account = await fetchPhygitalTokenByIdentifier(
+    opts.rpc,
+    tap.identifier,
+  );
+  if (!account) {
+    throw new ConnectProofError(
+      "token_not_found",
+      "No phygital token for this accessory",
     );
-    if (!account) {
-      throw new ConnectProofError(
-        "token_not_found",
-        "No phygital token for this accessory",
-      );
-    }
-    phygitalToken = await findPhygitalTokenPda(account.publicKey);
+  }
+  const phygitalToken = await findPhygitalTokenPda(account.publicKey);
+
+  if (String(phygitalToken) !== String(opts.expectedPhygitalToken)) {
+    throw new ConnectProofError(
+      "token_not_found",
+      "Phygital token does not match expected token",
+    );
   }
 
-  // 3. Monotonic counter — the only replay defence for a dynamic tap.
   const fresh = await opts.consumeCounter({
     identifier: tap.identifier,
     counter: tap.counter,

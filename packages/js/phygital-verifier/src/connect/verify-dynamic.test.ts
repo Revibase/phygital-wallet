@@ -5,6 +5,22 @@ import { describe, expect, it, vi } from "vitest";
 import { base64UrlEncode } from "../util/encoding.js";
 import { verifyDynamicConnectProof } from "./verify-dynamic.js";
 
+const TOKEN = "So11111111111111111111111111111111111111112" as Address;
+const OTHER_TOKEN = "So11111111111111111111111111111111111111113" as Address;
+const MINT = "Mint1111111111111111111111111111111111111111" as Address;
+
+// The token resolution (identifier → mint → PDA) is on-chain, so mock it here
+// and keep the test focused on the proof/counter logic `verifyDynamicConnectProof`
+// owns. `fetchPhygitalTokenByIdentifier` returns the resolved chip account; the
+// map below decides which token `findPhygitalTokenPda` derives from it.
+const tokenForMint = new Map<string, Address>([[String(MINT), TOKEN]]);
+vi.mock("phygital-token-sdk", () => ({
+  fetchPhygitalTokenByIdentifier: vi.fn(async () => ({ publicKey: MINT })),
+  findPhygitalTokenPda: vi.fn(
+    async (mint: Address) => tokenForMint.get(String(mint)) ?? OTHER_TOKEN,
+  ),
+}));
+
 function chipMessage(counter: number, nonce: Uint8Array): Uint8Array {
   const msg = new Uint8Array(12);
   new DataView(msg.buffer).setUint32(0, counter, false);
@@ -28,18 +44,17 @@ function tap(counter: number) {
 /** An rpc that fails loudly if touched, proving no on-chain scan happened. */
 const rpcThatMustNotBeUsed = new Proxy({} as Rpc<SolanaRpcApi>, {
   get() {
-    throw new Error("rpc should not be used when phygitalToken is provided");
+    throw new Error("rpc should not be used before the signature is verified");
   },
 });
-
-const TOKEN = "So11111111111111111111111111111111111111112" as Address;
+const rpc = {} as Rpc<SolanaRpcApi>;
 
 describe("verifyDynamicConnectProof", () => {
-  it("skips the on-chain scan when phygitalToken is provided", async () => {
+  it("verifies a tap whose resolved token matches the expected token", async () => {
     const consumeCounter = vi.fn().mockResolvedValue(true);
     const result = await verifyDynamicConnectProof(tap(7), {
-      rpc: rpcThatMustNotBeUsed,
-      phygitalToken: TOKEN,
+      rpc,
+      expectedPhygitalToken: TOKEN,
       consumeCounter,
     });
     expect(result.phygitalToken).toBe(TOKEN);
@@ -49,11 +64,21 @@ describe("verifyDynamicConnectProof", () => {
     );
   });
 
+  it("rejects when the resolved token differs from the expected token", async () => {
+    await expect(
+      verifyDynamicConnectProof(tap(7), {
+        rpc,
+        expectedPhygitalToken: OTHER_TOKEN,
+        consumeCounter: async () => true,
+      }),
+    ).rejects.toMatchObject({ code: "token_not_found" });
+  });
+
   it("rejects a replayed counter (consumeCounter returns false)", async () => {
     await expect(
       verifyDynamicConnectProof(tap(7), {
-        rpc: rpcThatMustNotBeUsed,
-        phygitalToken: TOKEN,
+        rpc,
+        expectedPhygitalToken: TOKEN,
         consumeCounter: async () => false,
       }),
     ).rejects.toMatchObject({ code: "tap_replay" });
@@ -64,7 +89,7 @@ describe("verifyDynamicConnectProof", () => {
     await expect(
       verifyDynamicConnectProof(bad, {
         rpc: rpcThatMustNotBeUsed,
-        phygitalToken: TOKEN,
+        expectedPhygitalToken: TOKEN,
         consumeCounter: async () => true,
       }),
     ).rejects.toMatchObject({ code: "invalid_signature" });

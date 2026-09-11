@@ -127,13 +127,8 @@ export async function connectPhygitalWallet(
     const challenge = latest.blockhash;
     const response = await startAuthentication(challenge, rpc);
 
-    const verified = verifyResponse({ expectedMessage: challenge, response });
-    if (!verified.isVerified || !verified.secp256r1PublicKey) {
-      throw new Error("Couldn’t verify this accessory");
-    }
-
     const phygitalToken = await findPhygitalTokenPda(
-      verified.secp256r1PublicKey
+      response.id
     );
 
     const resolved = await resolveVerifier(rpc, phygitalToken, {

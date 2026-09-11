@@ -3,8 +3,6 @@ import {
   getBase64Encoder,
   getBase64EncodedWireTransaction,
   type Address,
-  type GetAccountInfoApi,
-  type GetMultipleAccountsApi,
   type Rpc,
   type SignatureBytes,
   type SignatureDictionary,
@@ -13,6 +11,7 @@ import {
   type TransactionWithLifetime,
   type TransactionWithinSizeLimit,
   type SolanaRpcApi,
+  address,
 } from "@solana/kit";
 
 import { DEFAULT_VERIFIER_API_BASE, MAX_ENDPOINT_LEN } from "../constants.js";
@@ -160,11 +159,11 @@ export type ResolvedVerifier = {
   requiresOwnerCosignAssertion: boolean;
   /** True when default-verifier fee balance / paymaster applies. */
   usesDefaultPaymaster: boolean;
+  /** The signer for interacting with the resolved verifier. */
   verifier: TransactionPartialSigner;
 };
 
 function resolvedFromAccounts(args: {
-  phygitalToken: Address;
   tokenVerifierPda: Address;
   configPda: Address;
   tokenVerifierEncoded: Awaited<
@@ -175,7 +174,6 @@ function resolvedFromAccounts(args: {
   getAccessToken?: () => string | null | Promise<string | null>;
 }): ResolvedVerifier {
   const {
-    phygitalToken,
     tokenVerifierPda,
     configPda,
     tokenVerifierEncoded,
@@ -205,7 +203,7 @@ function resolvedFromAccounts(args: {
       tokenVerifierPda,
       requiresOwnerCosignAssertion: isConfigDefault,
       usesDefaultPaymaster: isConfigDefault,
-      verifier: createVerifierEndpointSigner(verifierAddress, {
+      verifier: createVerifierEndpointSigner(address(verifierAddress), {
         endpoint: verifierSignUrl(apiBase),
         fetch: httpFetch,
         getAccessToken,
@@ -226,18 +224,15 @@ function resolvedFromAccounts(args: {
 
   const selectedVerifier =
     activeVerifiers[Math.floor(Math.random() * activeVerifiers.length)];
-  if (!selectedVerifier) {
-    throw new Error("No verifier configured for phygital-wallet execute");
-  }
 
   return {
-    verifierAddress: selectedVerifier,
+    verifierAddress: address(selectedVerifier),
     endpoint: DEFAULT_VERIFIER_API_BASE,
     configPda,
     tokenVerifierPda,
     requiresOwnerCosignAssertion: true,
     usesDefaultPaymaster: true,
-    verifier: createVerifierEndpointSigner(selectedVerifier, {
+    verifier: createVerifierEndpointSigner(address(selectedVerifier), {
       endpoint: verifierSignUrl(DEFAULT_VERIFIER_API_BASE),
       fetch: httpFetch,
       getAccessToken,
@@ -264,7 +259,6 @@ export async function resolveVerifier(
   );
 
   return resolvedFromAccounts({
-    phygitalToken,
     tokenVerifierPda,
     configPda,
     tokenVerifierEncoded,

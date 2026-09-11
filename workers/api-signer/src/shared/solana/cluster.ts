@@ -1,4 +1,4 @@
-import { createSolanaRpc } from "@solana/kit";
+import { createSolanaRpc, SolanaRpcApi, Rpc } from "@solana/kit";
 
 import { getEnv } from "@/shared/request-context";
 
@@ -22,12 +22,10 @@ export function isMainnet(): boolean {
   return getCluster() === "mainnet";
 }
 
-type SolanaRpc = ReturnType<typeof createSolanaRpc>;
-
-let cachedRpc: { url: string; rpc: SolanaRpc } | null = null;
+let cachedRpc: { url: string; rpc: Rpc<SolanaRpcApi> } | null = null;
 
 /** Reuse one Kit RPC client per isolate for a given URL. */
-export function getSolanaRpc(): SolanaRpc {
+export function getSolanaRpc(): Rpc<SolanaRpcApi> {
   const url = getRpcUrl();
   if (cachedRpc?.url === url) return cachedRpc.rpc;
   const rpc = createSolanaRpc(url);

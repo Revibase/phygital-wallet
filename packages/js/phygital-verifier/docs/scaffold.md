@@ -171,8 +171,8 @@ async function connectTap(req: Request) {
   if (!origin || !isAppOrigin(origin)) {
     return Response.json({ error: "Forbidden", code: "origin_forbidden" }, { status: 403 });
   }
-  const body = (await req.json()) as { pk?: string; s?: string; c?: string; n?: string };
-  if (!body.pk || !body.s || body.c === undefined || !body.n) {
+  const body = (await req.json()) as { phygitalToken?: string; pk?: string; s?: string; c?: string; n?: string };
+  if (!body.phygitalToken || !body.pk || !body.s || body.c === undefined || !body.n) {
     return Response.json({ error: "Missing tap params", code: "invalid_proof" }, { status: 400 });
   }
   try {
@@ -180,10 +180,9 @@ async function connectTap(req: Request) {
       { pk: body.pk, s: body.s, c: body.c, n: body.n },
       {
         rpc,
+        expectedPhygitalToken: body.phygitalToken,
         consumeCounter: ({ identifier, counter }) =>
           counters.consume("tap", identifier, counter),
-        // Omit `phygitalToken` to let the SDK resolve it from `pk` itself; pass
-        // it only if you already resolved it to route this request.
       },
     );
     return mint(phygitalToken, origin);
@@ -200,7 +199,6 @@ async function requireBearer(req: Request): Promise<VerifierBearerPayload | Resp
     return Response.json({ error: "Connect this item", code: "connect_required" }, { status: 401 });
   }
   const payload = await verifyVerifierBearer(token, {
-    // Pure base58 decode of `iss` → 32-byte Ed25519 key (runs before the sig check).
     decodeVerifierKey: (iss) => {
       try {
         const b = new Uint8Array(base58.encode(iss));

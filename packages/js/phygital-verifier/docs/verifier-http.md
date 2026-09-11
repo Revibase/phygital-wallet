@@ -78,9 +78,12 @@ Successful response:
 }
 ```
 
-Typical failures include `invalid_proof`, `passkey_invalid`,
-`stale_blockhash`, `assertion_replay`, `token_mismatch`, `no_verifier`, and
-`verifier_mismatch`.
+Typical failures (the `ConnectProofError` codes) are `invalid_proof` (400),
+`stale_blockhash` (400), `invalid_signature` (400), `passkey_invalid` (403),
+`assertion_replay` (409), and `token_not_found` (404). A verifier that declines
+a token it is not configured for may additionally answer `verifier_mismatch`
+(403); Revibase's own service does not (it mints for any token whose bearer its
+`/preview`·`/sign` will later accept).
 
 ## `POST /connect/tap`
 
@@ -93,12 +96,20 @@ Request:
 
 ```json
 {
+  "phygitalToken": "phygital token PDA (base58)",
   "pk": "base64url accessory identifier",
   "s": "base64url raw 64-byte ECDSA signature",
   "c": "uint32 counter as a decimal string",
   "n": "base64url 8-byte nonce"
 }
 ```
+
+`phygitalToken` is the token PDA the caller already resolved from `pk` (it uses
+it to route to that token's verifier). It is **not trusted** — the verifier
+re-resolves the token from the proof's `pk` and rejects the request
+(`token_not_found`) if the two disagree — but sending it lets a verifier whose
+state is sharded per token (e.g. a Cloudflare Durable Object keyed by the token)
+dispatch to the right shard before doing the on-chain scan.
 
 `pk` is the accessory identifier from the NFC URL, not the token PDA or the
 token's on-chain `secp256r1PublicKey` field. Its current encoding is a
@@ -107,10 +118,15 @@ the tap signature. The signed message is `counter (4-byte big-endian) || nonce
 (8 bytes)`. The verifier must:
 
 1. Verify the P-256 signature.
-2. Resolve the token from the accessory identifier `pk`.
-3. Check that the counter is strictly newer than the stored counter.
-4. Check that the resolved PDA matches the verifier's token context.
+2. Resolve the token from the accessory identifier `pk` (on-chain).
+3. Check that the resolved PDA matches `phygitalToken` from the body (reject
+   `token_not_found` on mismatch) — the body value is a routing hint, never the
+   source of truth.
+4. Check that the counter is strictly newer than the stored counter.
 5. Issue a short-lived bearer signed by the configured verifier key.
+
+`verifyDynamicConnectProof({ pk, s, c, n }, { rpc, expectedPhygitalToken, consumeCounter })`
+performs steps 1–4; pass the body's `phygitalToken` as `expectedPhygitalToken`.
 
 The response has the same shape as `/connect`.
 

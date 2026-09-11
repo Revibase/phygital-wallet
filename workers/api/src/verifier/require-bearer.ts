@@ -20,7 +20,7 @@ import {
 
 import { getDefaultVerifierSet } from "@/fees/default-verifier";
 import { json } from "@/shared/http";
-import { decodeVerifierKey } from "@/verifier/verifier-keys";
+import { getBase58Encoder } from "@solana/kit";
 
 function unauthorized(code: string, error: string): Response {
   return json({ error, code }, { status: 401 });
@@ -33,7 +33,6 @@ function unauthorized(code: string, error: string): Response {
 export async function readVerifierBearer(
   c: Context<{ Bindings: Env }>
 ): Promise<VerifierBearerPayload | Response> {
-  // `Headers.get` is case-insensitive, so one lookup covers every casing.
   const header = c.req.header("Authorization")?.trim();
   const token = header ? /^Bearer\s+(.+)$/i.exec(header)?.[1]?.trim() : null;
   if (!token) {
@@ -41,12 +40,16 @@ export async function readVerifierBearer(
   }
 
   const payload = await verifyVerifierBearer(token, {
-    decodeVerifierKey,
-    // Our endpoints only honor bearers WE minted, and we only sign with keys in
-    // DEFAULT_VERIFIER_PUBKEYS — so `iss ∈ our keys` ⟺ "we issued this". A local
-    // Set lookup, no RPC. On-chain authorization was enforced at mint (/connect)
-    // and is re-enforced by the program at execute, so there is nothing to
-    // re-check here on every request.
+    // Must return null (never throw) on a malformed iss, so a bad bearer is a
+    // clean 401 rather than a thrown error the route maps to 400.
+    decodeVerifierKey: (iss) => {
+      try {
+        const bytes = new Uint8Array(getBase58Encoder().encode(iss));
+        return bytes.length === 32 ? bytes : null;
+      } catch {
+        return null;
+      }
+    },
     isAuthorizedVerifier: ({ iss }) => getDefaultVerifierSet().has(iss),
   });
   if (!payload) {

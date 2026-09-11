@@ -29,7 +29,6 @@ export type TokenSignerRpc = {
     blockhash: string;
     response: unknown;
     origin: string | null;
-    verifiers: readonly string[];
     ttlMs: number;
   }): Promise<
     | { ok: true; accessToken: string; expiresAt: number; verifier: string }
@@ -41,7 +40,6 @@ export type TokenSignerRpc = {
     c: string | number;
     n: string;
     origin: string | null;
-    verifiers: readonly string[];
     ttlMs: number;
   }): Promise<
     | { ok: true; accessToken: string; expiresAt: number; verifier: string }

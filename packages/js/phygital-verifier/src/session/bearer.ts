@@ -37,7 +37,7 @@ export type VerifierBearerPayload = {
 };
 
 export function normalizeOrigin(
-  origin: string | null | undefined
+  origin: string | null | undefined,
 ): string | null {
   if (!origin) return null;
   try {
@@ -88,7 +88,7 @@ export async function signVerifierBearer(
     ttlMs: number;
   },
   sign: (message: Uint8Array) => Uint8Array | Promise<Uint8Array>,
-  now = Date.now()
+  now = Date.now(),
 ): Promise<{ accessToken: string; expiresAt: number }> {
   const exp = now + fields.ttlMs;
   const payload: VerifierBearerPayload = {
@@ -101,7 +101,7 @@ export async function signVerifierBearer(
   const payloadBytes = utf8.encode(JSON.stringify(payload));
   const signature = await sign(signingMessage(payloadBytes));
   const accessToken = `${base64UrlEncode(payloadBytes)}.${base64UrlEncode(
-    signature
+    signature,
   )}`;
   return { accessToken, expiresAt: exp };
 }
@@ -119,18 +119,43 @@ export async function verifyVerifierBearer(
   opts: {
     decodeVerifierKey: DecodeVerifierKey;
     isAuthorizedVerifier: IsAuthorizedVerifier;
-    now?: number;
-  }
+  },
 ): Promise<VerifierBearerPayload | null> {
   if (!token) return null;
-  const now = opts.now ?? Date.now();
+  const result = decodeVerifierBearer(token);
+  if (!result) return null;
+  const { payload, payloadBytes, signature } = result;
+
+  const publicKey = opts.decodeVerifierKey(payload.iss);
+  if (!publicKey) return null;
+
+  // Signature first (pure), so forged bearers never reach the chain.
+  if (!ed25519.verify(signature, signingMessage(payloadBytes), publicKey)) {
+    return null;
+  }
+
+  const authorized = await opts.isAuthorizedVerifier({
+    sub: payload.sub,
+    iss: payload.iss,
+  });
+  return authorized ? payload : null;
+}
+
+export function decodeVerifierBearer(
+  token: string,
+): {
+  payload: VerifierBearerPayload;
+  payloadBytes: Uint8Array;
+  signature: Uint8Array;
+} | null {
+  const now = Date.now();
   const dot = token.indexOf(".");
   if (dot <= 0 || dot === token.length - 1) return null;
   try {
     const payloadBytes = base64UrlDecode(token.slice(0, dot));
     const signature = base64UrlDecode(token.slice(dot + 1));
     const payload = JSON.parse(
-      fromUtf8.decode(payloadBytes)
+      fromUtf8.decode(payloadBytes),
     ) as VerifierBearerPayload;
     if (
       typeof payload.sub !== "string" ||
@@ -142,20 +167,7 @@ export async function verifyVerifierBearer(
     ) {
       return null;
     }
-
-    const publicKey = opts.decodeVerifierKey(payload.iss);
-    if (!publicKey) return null;
-
-    // Signature first (pure), so forged bearers never reach the chain.
-    if (!ed25519.verify(signature, signingMessage(payloadBytes), publicKey)) {
-      return null;
-    }
-
-    const authorized = await opts.isAuthorizedVerifier({
-      sub: payload.sub,
-      iss: payload.iss,
-    });
-    return authorized ? payload : null;
+    return { payload, payloadBytes, signature };
   } catch {
     return null;
   }

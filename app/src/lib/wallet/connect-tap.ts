@@ -9,7 +9,10 @@
  * and `/sign` even when that verifier is a third party, and the app-session
  * exchange can validate it against the on-chain verifier set.
  */
-import { fetchPhygitalTokenByIdentifier, findPhygitalTokenPda } from "phygital-token-sdk";
+import {
+  fetchPhygitalTokenByIdentifier,
+  findPhygitalTokenPda,
+} from "phygital-token-sdk";
 import { normalizeVerifierApiBase, resolveVerifier } from "phygital-wallet-sdk";
 import type { Address } from "@solana/kit";
 
@@ -39,15 +42,15 @@ export async function connectDynamicTap(
   if (!account) {
     throw new Error("No phygital token for this accessory");
   }
-  const phygitalToken = String(await findPhygitalTokenPda(account.publicKey));
+  const phygitalToken = await findPhygitalTokenPda(account.publicKey);
 
-  const resolved = await resolveVerifier(rpc, phygitalToken as Address);
+  const resolved = await resolveVerifier(rpc, phygitalToken);
   const url = `${normalizeVerifierApiBase(resolved.endpoint)}/connect/tap`;
 
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(params),
+    body: JSON.stringify({ phygitalToken, ...params }),
   });
   const body = (await res.json().catch(() => ({}))) as {
     accessToken?: string;

@@ -17,7 +17,7 @@
  */
 import { Hono } from "hono";
 import { ConnectProofError, normalizeOrigin } from "phygital-verifier-sdk";
-import type { Address, Rpc, SolanaRpcApi } from "@solana/kit";
+import type { Address } from "@solana/kit";
 import { findPhygitalTokenPda } from "phygital-token-sdk";
 
 import { requireRevibaseAppOrigin } from "@/shared/cors";
@@ -25,36 +25,12 @@ import { json } from "@/shared/http";
 import { VERIFIER_SESSION_TTL_MS } from "@/shared/session-ttl";
 import { verifierJsonError } from "@/verifier/errors";
 import { tokenSigner, type TokenSignerRpc } from "@/verifier/token-signer";
-import {
-  createRpc,
-  isRecentBlockhash,
-  resolveAuthorizedVerifiers,
-  resolveTokenFromIdentifier,
-} from "@/verifier/verifier-keys";
 
 export const connectRoutes = new Hono<{ Bindings: Env }>();
 
-/**
- * Resolve the verifier set the token authorizes. The TokenSigner DO selects the
- * matching signing key when it atomically consumes the proof and mints a bearer.
- */
-async function resolveBearerVerifiers(
-  rpc: Rpc<SolanaRpcApi>,
-  phygitalToken: Address
-): Promise<readonly string[] | Response> {
-  const authorized = await resolveAuthorizedVerifiers(rpc, phygitalToken);
-  if (authorized.size === 0) {
-    return json(
-      { error: "No verifier configured for this item", code: "no_verifier" },
-      { status: 409 }
-    );
-  }
-  return [...authorized];
-}
-
 function bearerResponse(
   minted: { accessToken: string; expiresAt: number },
-  phygitalToken: Address
+  phygitalToken: Address,
 ): Response {
   return json({
     accessToken: minted.accessToken,
@@ -69,20 +45,17 @@ function bearerResultResponse(
   minted: Awaited<
     ReturnType<TokenSignerRpc["verifyWebAuthnConnectAndMintBearer"]>
   >,
-  phygitalToken: Address
+  phygitalToken: Address,
 ): Response {
   if (!minted.ok) {
-    // The DO carries the right status (ConnectProofError's own, or 403 for a
-    // verifier mismatch), so there is no second code→status table here.
     return json(
       { error: minted.error, code: minted.code },
-      { status: minted.status }
+      { status: minted.status },
     );
   }
   return bearerResponse(minted, phygitalToken);
 }
 
-/** WebAuthn-over-slotHash connect — the portable contract. */
 connectRoutes.post("/connect", async (c) => {
   try {
     const body = (await c.req.json()) as {
@@ -97,29 +70,14 @@ connectRoutes.post("/connect", async (c) => {
     if (typeof response?.id !== "string" || !response.id.trim()) {
       throw new ConnectProofError("invalid_proof", "response.id is required");
     }
-
-    const rpc = createRpc();
     const phygitalToken = await findPhygitalTokenPda(response.id);
-
-    // Freshness (stateless) and authz (on-chain) are independent — run both in
-    // parallel, and settle them before touching the per-token signer, which then
-    // does no network I/O of its own.
-    const [authorized, fresh] = await Promise.all([
-      resolveBearerVerifiers(rpc, phygitalToken),
-      isRecentBlockhash(rpc, blockhash),
-    ]);
-    if (!fresh) {
-      throw new ConnectProofError("stale_blockhash", "This check expired — tap again");
-    }
-    if (authorized instanceof Response) return authorized;
     const minted = await tokenSigner(
       c.env,
-      String(phygitalToken)
+      String(phygitalToken),
     ).verifyWebAuthnConnectAndMintBearer({
       blockhash,
       response: body.response,
       origin: normalizeOrigin(c.req.header("Origin")),
-      verifiers: authorized,
       ttlMs: VERIFIER_SESSION_TTL_MS,
     });
     return bearerResultResponse(minted, phygitalToken);
@@ -128,45 +86,40 @@ connectRoutes.post("/connect", async (c) => {
   }
 });
 
-/** Dynamic NFC URL connect — Revibase app origins only. */
 connectRoutes.post("/connect/tap", async (c) => {
   try {
     const forbidden = requireRevibaseAppOrigin(c);
     if (forbidden) return forbidden;
 
     const body = (await c.req.json()) as {
+      phygitalToken?: Address;
       pk?: string;
       s?: string;
       c?: string | number;
       n?: string;
     };
-    if (!body.pk || !body.s || body.c === undefined || !body.n) {
+    if (
+      !body.phygitalToken ||
+      !body.pk ||
+      !body.s ||
+      body.c === undefined ||
+      !body.n
+    ) {
       throw new ConnectProofError("invalid_proof", "Missing tap parameters");
     }
 
-    const rpc = createRpc();
-    const phygitalToken = await resolveTokenFromIdentifier(rpc, body.pk);
-    if (!phygitalToken) {
-      throw new ConnectProofError(
-        "token_not_found",
-        "No phygital token for this accessory"
-      );
-    }
-    const authorized = await resolveBearerVerifiers(rpc, phygitalToken);
-    if (authorized instanceof Response) return authorized;
     const minted = await tokenSigner(
       c.env,
-      String(phygitalToken)
+      String(body.phygitalToken),
     ).verifyDynamicConnectAndMintBearer({
       pk: body.pk,
       s: body.s,
       c: body.c,
       n: body.n,
       origin: normalizeOrigin(c.req.header("Origin")),
-      verifiers: authorized,
       ttlMs: VERIFIER_SESSION_TTL_MS,
     });
-    return bearerResultResponse(minted, phygitalToken);
+    return bearerResultResponse(minted, body.phygitalToken);
   } catch (err) {
     return verifierJsonError(err);
   }
