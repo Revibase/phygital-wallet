@@ -193,43 +193,42 @@ export class TokenSigner extends DurableObject<Env> {
     return this.#rpc(
       "verifyWebAuthnConnectAndMintBearer",
       { phygitalToken: this.#getToken() },
-      async () => {
-        try {
-          await verifyConnectProof(
-            {
-              blockhash: input.blockhash,
-              response: input.response as never,
-            },
-            {
-              rpc: createSolanaRpc(getRpcUrl()),
-              consumeSignCount: async ({
-                identifier,
-                signCount,
-                phygitalToken,
-              }) => {
-                if (String(phygitalToken) !== this.#getToken()) return false;
-                return this.#getStore().consumeAccessoryCounter(
-                  "webauthn",
-                  identifier,
-                  signCount
-                );
+      () =>
+        this.#withEnv(async () => {
+          try {
+            await verifyConnectProof(
+              {
+                blockhash: input.blockhash,
+                response: input.response as never,
               },
-            }
-          );
-          return this.#mintVerifierBearer({
-            verifiers: input.verifiers,
-            origin: input.origin,
-            ttlMs: input.ttlMs,
-          });
-        } catch (err) {
-          return {
-            ok: false as const,
-            code: err instanceof ConnectProofError ? err.code : "invalid_proof",
-            error: err instanceof Error ? err.message : "Invalid connect proof",
-            status: err instanceof ConnectProofError ? err.status : 400,
-          };
-        }
-      }
+              {
+                rpc: createSolanaRpc(getRpcUrl()),
+                consumeSignCount: async ({ identifier, signCount, phygitalToken }) => {
+                  if (String(phygitalToken) !== this.#getToken()) return false;
+                  return this.#getStore().consumeAccessoryCounter(
+                    "webauthn",
+                    identifier,
+                    signCount
+                  );
+                },
+              }
+            );
+            return this.#mintVerifierBearer({
+              verifiers: input.verifiers,
+              origin: input.origin,
+              ttlMs: input.ttlMs,
+            });
+          } catch (err) {
+            return {
+              ok: false as const,
+              code:
+                err instanceof ConnectProofError ? err.code : "invalid_proof",
+              error:
+                err instanceof Error ? err.message : "Invalid connect proof",
+              status: err instanceof ConnectProofError ? err.status : 400,
+            };
+          }
+        })
     );
   }
 
@@ -249,37 +248,40 @@ export class TokenSigner extends DurableObject<Env> {
     return this.#rpc(
       "verifyDynamicConnectAndMintBearer",
       { phygitalToken: this.#getToken() },
-      async () => {
-        try {
-          await verifyDynamicConnectProof(
-            { pk: input.pk, s: input.s, c: input.c, n: input.n },
-            {
-              rpc: createSolanaRpc(getRpcUrl()),
-              // This DO is named by the token the worker already resolved from
-              // the chip id, so reuse it rather than scanning a second time.
-              phygitalToken: this.#getToken() as Address,
-              consumeCounter: async ({ identifier, counter }) =>
-                this.#getStore().consumeAccessoryCounter(
-                  "tap",
-                  identifier,
-                  counter
-                ),
-            }
-          );
-          return this.#mintVerifierBearer({
-            verifiers: input.verifiers,
-            origin: input.origin,
-            ttlMs: input.ttlMs,
-          });
-        } catch (err) {
-          return {
-            ok: false as const,
-            code: err instanceof ConnectProofError ? err.code : "invalid_proof",
-            error: err instanceof Error ? err.message : "Invalid connect proof",
-            status: err instanceof ConnectProofError ? err.status : 400,
-          };
-        }
-      }
+      () =>
+        this.#withEnv(async () => {
+          try {
+            await verifyDynamicConnectProof(
+              { pk: input.pk, s: input.s, c: input.c, n: input.n },
+              {
+                rpc: createSolanaRpc(getRpcUrl()),
+                // This DO is named by the token the worker already resolved from
+                // the chip id, so reuse it rather than scanning a second time.
+                phygitalToken: this.#getToken() as Address,
+                consumeCounter: async ({ identifier, counter }) =>
+                  this.#getStore().consumeAccessoryCounter(
+                    "tap",
+                    identifier,
+                    counter
+                  ),
+              }
+            );
+            return this.#mintVerifierBearer({
+              verifiers: input.verifiers,
+              origin: input.origin,
+              ttlMs: input.ttlMs,
+            });
+          } catch (err) {
+            return {
+              ok: false as const,
+              code:
+                err instanceof ConnectProofError ? err.code : "invalid_proof",
+              error:
+                err instanceof Error ? err.message : "Invalid connect proof",
+              status: err instanceof ConnectProofError ? err.status : 400,
+            };
+          }
+        })
     );
   }
 
