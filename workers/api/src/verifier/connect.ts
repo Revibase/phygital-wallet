@@ -16,21 +16,31 @@
  * only by `POST /auth/app-session`, which exchanges a bearer for it.
  */
 import { Hono } from "hono";
-import { ConnectProofError, normalizeOrigin } from "phygital-verifier-sdk";
+import {
+  ConnectProofError,
+  decodeVerifierBearer,
+  normalizeOrigin,
+} from "phygital-verifier-sdk";
 import type { Address } from "@solana/kit";
 import { findPhygitalTokenPda } from "phygital-token-sdk";
 
+import { auditMeta, recordAudit } from "@/audit/audit-log";
 import { requireRevibaseAppOrigin } from "@/shared/cors";
 import { json } from "@/shared/http";
 import { VERIFIER_SESSION_TTL_MS } from "@/shared/session-ttl";
 import { verifierJsonError } from "@/verifier/errors";
 import { tokenSigner, type TokenSignerRpc } from "@/verifier/token-signer";
 
+/** jti of a freshly minted bearer — the connect/preview/sign correlation key. */
+function bearerSessionId(accessToken: string): string | null {
+  return decodeVerifierBearer(accessToken)?.payload.jti ?? null;
+}
+
 export const connectRoutes = new Hono<{ Bindings: Env }>();
 
 function bearerResponse(
   minted: { accessToken: string; expiresAt: number },
-  phygitalToken: Address,
+  phygitalToken: Address
 ): Response {
   return json({
     accessToken: minted.accessToken,
@@ -45,18 +55,21 @@ function bearerResultResponse(
   minted: Awaited<
     ReturnType<TokenSignerRpc["verifyWebAuthnConnectAndMintBearer"]>
   >,
-  phygitalToken: Address,
+  phygitalToken: Address
 ): Response {
   if (!minted.ok) {
     return json(
       { error: minted.error, code: minted.code },
-      { status: minted.status },
+      { status: minted.status }
     );
   }
   return bearerResponse(minted, phygitalToken);
 }
 
 connectRoutes.post("/connect", async (c) => {
+  const started = Date.now();
+  const meta = auditMeta(c);
+  let phygitalToken: Address | null = null;
   try {
     const body = (await c.req.json()) as {
       blockhash?: string;
@@ -70,23 +83,50 @@ connectRoutes.post("/connect", async (c) => {
     if (typeof response?.id !== "string" || !response.id.trim()) {
       throw new ConnectProofError("invalid_proof", "response.id is required");
     }
-    const phygitalToken = await findPhygitalTokenPda(response.id);
+    // response.id is the accessory's own WebAuthn credential (the chip), not a
+    // person's passkey — the token PDA is derived from it, so phygitalToken
+    // already carries this identity. Actor is the accessory; no credential_id.
+    phygitalToken = await findPhygitalTokenPda(response.id);
     const minted = await tokenSigner(
       c.env,
-      String(phygitalToken),
+      String(phygitalToken)
     ).verifyWebAuthnConnectAndMintBearer({
       blockhash,
       response: body.response,
       origin: normalizeOrigin(c.req.header("Origin")),
       ttlMs: VERIFIER_SESSION_TTL_MS,
     });
+    recordAudit({
+      event: "connect",
+      phygitalToken: String(phygitalToken),
+      ok: minted.ok,
+      code: minted.ok ? null : minted.code,
+      actor: "accessory",
+      sessionId: minted.ok ? bearerSessionId(minted.accessToken) : null,
+      origin: meta.origin,
+      ms: Date.now() - started,
+      requestId: meta.requestId,
+    });
     return bearerResultResponse(minted, phygitalToken);
   } catch (err) {
+    recordAudit({
+      event: "connect",
+      phygitalToken: phygitalToken ? String(phygitalToken) : null,
+      ok: false,
+      code: "exception",
+      actor: "accessory",
+      origin: meta.origin,
+      ms: Date.now() - started,
+      requestId: meta.requestId,
+    });
     return verifierJsonError(err);
   }
 });
 
 connectRoutes.post("/connect/tap", async (c) => {
+  const started = Date.now();
+  const meta = auditMeta(c);
+  let phygitalToken: Address | null = null;
   try {
     const forbidden = requireRevibaseAppOrigin(c);
     if (forbidden) return forbidden;
@@ -107,10 +147,11 @@ connectRoutes.post("/connect/tap", async (c) => {
     ) {
       throw new ConnectProofError("invalid_proof", "Missing tap parameters");
     }
+    phygitalToken = body.phygitalToken;
 
     const minted = await tokenSigner(
       c.env,
-      String(body.phygitalToken),
+      String(body.phygitalToken)
     ).verifyDynamicConnectAndMintBearer({
       pk: body.pk,
       s: body.s,
@@ -119,8 +160,29 @@ connectRoutes.post("/connect/tap", async (c) => {
       origin: normalizeOrigin(c.req.header("Origin")),
       ttlMs: VERIFIER_SESSION_TTL_MS,
     });
+    recordAudit({
+      event: "connect_tap",
+      phygitalToken: String(body.phygitalToken),
+      ok: minted.ok,
+      code: minted.ok ? null : minted.code,
+      actor: "accessory",
+      sessionId: minted.ok ? bearerSessionId(minted.accessToken) : null,
+      origin: meta.origin,
+      ms: Date.now() - started,
+      requestId: meta.requestId,
+    });
     return bearerResultResponse(minted, body.phygitalToken);
   } catch (err) {
+    recordAudit({
+      event: "connect_tap",
+      phygitalToken: phygitalToken ? String(phygitalToken) : null,
+      ok: false,
+      code: "exception",
+      actor: "accessory",
+      origin: meta.origin,
+      ms: Date.now() - started,
+      requestId: meta.requestId,
+    });
     return verifierJsonError(err);
   }
 });

@@ -93,7 +93,7 @@ export type TokenSignerRpc = {
   }): Promise<{ ok: true; credentialId: string } | MutationFail>;
   applyFeeEvents(
     events: { signature: string; kind: "credit" | "debit"; lamports: number }[]
-  ): Promise<{ applied: number }>;
+  ): Promise<{ applied: number; appliedSignatures: string[] }>;
   previewAuthorize(input: { instructions: Instruction[] }): Promise<
     | { ok: true; intentHash: string }
     | {
@@ -114,7 +114,17 @@ export type TokenSignerRpc = {
       origin?: string | null;
     }
   ): Promise<
-    | { ok: true; signatures: string[] }
+    | {
+        ok: true;
+        signatures: string[];
+        audit?: {
+          kind: "execute" | "config";
+          configAction?: string;
+          verifier: string;
+          intentHash: string | null;
+          signatureCount: number;
+        };
+      }
     | {
         ok: false;
         status: number;

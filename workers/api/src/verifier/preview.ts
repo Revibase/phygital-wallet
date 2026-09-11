@@ -9,9 +9,9 @@ import {
   type Instruction,
 } from "@solana/kit";
 
+import { auditMeta, recordAudit, type AuditEntry } from "@/audit/audit-log";
 import { readDeviceSession } from "@/auth/device-session";
 import { json } from "@/shared/http";
-import { createLogger } from "@/shared/log";
 import { previewJsonError } from "@/verifier/errors";
 import { readVerifierBearer } from "@/verifier/require-bearer";
 import { tokenSigner } from "@/verifier/token-signer";
@@ -47,10 +47,13 @@ function instructionFromJson(raw: {
 export const previewRoutes = new Hono<{ Bindings: Env }>();
 
 previewRoutes.post("/preview", async (c) => {
+  const started = Date.now();
+  const meta = auditMeta(c);
   try {
     const session = await readVerifierBearer(c);
     if (session instanceof Response) return session;
     const phygitalToken = session.sub;
+    const sessionId = session.jti;
 
     const body = (await c.req.json()) as {
       instructions?: {
@@ -68,13 +71,12 @@ previewRoutes.post("/preview", async (c) => {
           error: "instructions are required",
           soft: false,
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
-    const instructions: Instruction[] = body.instructions.map(
-      instructionFromJson,
-    );
+    const instructions: Instruction[] =
+      body.instructions.map(instructionFromJson);
 
     const stub = tokenSigner(c.env, phygitalToken);
     const result = await stub.previewAuthorize({
@@ -82,25 +84,63 @@ previewRoutes.post("/preview", async (c) => {
     });
 
     if (result.ok) {
+      recordAudit({
+        event: "preview",
+        phygitalToken,
+        ok: true,
+        actor: "accessory",
+        intentHash: result.intentHash,
+        sessionId,
+        origin: meta.origin,
+        ms: Date.now() - started,
+        requestId: meta.requestId,
+      });
       return json({ ok: true, intentHash: result.intentHash });
     }
 
+    const events: AuditEntry[] = [
+      {
+        event: "preview",
+        phygitalToken,
+        ok: false,
+        code: result.code,
+        actor: "accessory",
+        intentHash: result.intentHash ?? null,
+        sessionId,
+        origin: meta.origin,
+        detail: { soft: result.soft },
+        ms: Date.now() - started,
+        requestId: meta.requestId,
+      },
+    ];
+
     if (result.soft && result.intentHash) {
-      const session = await readDeviceSession(c);
+      const deviceSession = await readDeviceSession(c);
       const { recorded } = await stub.recordSoftDeny({
         intentHash: result.intentHash,
         code: result.code,
         error: result.error,
         details: result.details,
-        visitorCredentialId: session?.credentialId ?? null,
+        visitorCredentialId: deviceSession?.credentialId ?? null,
       });
       if (recorded) {
-        createLogger("api", c.env).debug("approvals.soft_deny", {
+        // The pending row is raised against the browsing visitor's passkey.
+        events.push({
+          event: "pending_approval",
           phygitalToken,
+          code: result.code,
+          actor: "visitor_device",
           intentHash: result.intentHash,
+          credentialId: deviceSession?.credentialId ?? null,
+          sessionId,
+          origin: meta.origin,
+          detail: { resolution: "created" },
+          requestId: meta.requestId,
         });
       }
     }
+
+    recordAudit(events);
 
     return json(
       {
@@ -111,9 +151,18 @@ previewRoutes.post("/preview", async (c) => {
         intentHash: result.intentHash,
         details: result.details,
       },
-      { status: result.httpStatus ?? 200 },
+      { status: result.httpStatus ?? 200 }
     );
   } catch (err) {
+    recordAudit({
+      event: "preview",
+      ok: false,
+      code: "exception",
+      actor: "accessory",
+      origin: meta.origin,
+      ms: Date.now() - started,
+      requestId: meta.requestId,
+    });
     return previewJsonError(err);
   }
 });

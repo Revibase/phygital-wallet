@@ -15,6 +15,7 @@ import { isoBase64URL } from "@simplewebauthn/server/helpers";
 
 const textEncoder = new TextEncoder();
 
+import { auditMeta, recordAudit } from "@/audit/audit-log";
 import {
   deleteLinkForToken,
   getCredentialById,
@@ -78,7 +79,7 @@ deviceAuthRoutes.get("/auth/device-session", async (c) => {
         error: "Sign in with this phone to continue.",
         code: "device_session_required",
       },
-      { status: 401 },
+      { status: 401 }
     );
   }
   const payload = await sessionPayload(session.credentialId, session.exp);
@@ -88,7 +89,7 @@ deviceAuthRoutes.get("/auth/device-session", async (c) => {
         error: "Sign in with this phone to continue.",
         code: "device_session_required",
       },
-      { status: 401 },
+      { status: 401 }
     );
   }
   return json(payload);
@@ -103,7 +104,7 @@ deviceAuthRoutes.post("/auth/device-session/refresh", async (c) => {
         error: "Sign in with this phone to continue.",
         code: "device_session_required",
       },
-      { status: 401 },
+      { status: 401 }
     );
   }
 
@@ -115,7 +116,7 @@ deviceAuthRoutes.post("/auth/device-session/refresh", async (c) => {
         error: "Sign in with this phone to continue.",
         code: "device_session_required",
       },
-      { status: 401 },
+      { status: 401 }
     );
   }
   return json(payload);
@@ -130,7 +131,7 @@ deviceAuthRoutes.get("/auth/device/register-options", async (c) => {
           "Choose a username: 4–15 characters, letters, numbers, and underscores.",
         code: "username_invalid",
       },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -140,7 +141,7 @@ deviceAuthRoutes.get("/auth/device/register-options", async (c) => {
         error: "That username is taken. Try another.",
         code: "username_taken",
       },
-      { status: 409 },
+      { status: 409 }
     );
   }
 
@@ -148,7 +149,7 @@ deviceAuthRoutes.get("/auth/device/register-options", async (c) => {
   if (!rp) {
     return json(
       { error: "Unsupported origin", code: "invalid_transaction" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -186,7 +187,7 @@ deviceAuthRoutes.post("/auth/device", async (c) => {
           error: "userHandle and credential required",
           code: "invalid_transaction",
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
     const userHandle = parsedHandle.id;
@@ -195,14 +196,14 @@ deviceAuthRoutes.post("/auth/device", async (c) => {
     if (!rp) {
       return json(
         { error: "Unsupported origin", code: "invalid_transaction" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
     const clientData = JSON.parse(
       new TextDecoder().decode(
-        isoBase64URL.toBuffer(body.credential.response.clientDataJSON),
-      ),
+        isoBase64URL.toBuffer(body.credential.response.clientDataJSON)
+      )
     ) as { challenge?: string };
     const challenge = clientData.challenge;
     if (
@@ -211,7 +212,7 @@ deviceAuthRoutes.post("/auth/device", async (c) => {
     ) {
       return json(
         { error: "Registration challenge expired", code: "challenge_invalid" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -226,7 +227,7 @@ deviceAuthRoutes.post("/auth/device", async (c) => {
     if (!verification.verified || !verification.registrationInfo) {
       return json(
         { error: "Couldn’t verify this phone", code: "device_invalid" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -240,7 +241,7 @@ deviceAuthRoutes.post("/auth/device", async (c) => {
           error: "This phone is already registered",
           code: "device_already_enrolled",
         },
-        { status: 409 },
+        { status: 409 }
       );
     }
 
@@ -250,7 +251,7 @@ deviceAuthRoutes.post("/auth/device", async (c) => {
           error: "That username is taken. Try another.",
           code: "username_taken",
         },
-        { status: 409 },
+        { status: 409 }
       );
     }
 
@@ -264,7 +265,7 @@ deviceAuthRoutes.post("/auth/device", async (c) => {
             error: "That username is taken. Try another.",
             code: "username_taken",
           },
-          { status: 409 },
+          { status: 409 }
         );
       }
       throw err;
@@ -282,10 +283,11 @@ deviceAuthRoutes.post("/auth/device", async (c) => {
   } catch (err) {
     return json(
       {
-        error: err instanceof Error ? err.message : "Couldn’t set up this phone",
+        error:
+          err instanceof Error ? err.message : "Couldn’t set up this phone",
         code: "device_invalid",
       },
-      { status: 400 },
+      { status: 400 }
     );
   }
 });
@@ -295,7 +297,7 @@ deviceAuthRoutes.get("/auth/device-session/options", async (c) => {
   if (!rp) {
     return json(
       { error: "Unsupported origin", code: "invalid_transaction" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -321,7 +323,7 @@ deviceAuthRoutes.post("/auth/device-session", async (c) => {
           error: "challengeId and credential required",
           code: "invalid_transaction",
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -329,14 +331,14 @@ deviceAuthRoutes.post("/auth/device-session", async (c) => {
     if (!rp) {
       return json(
         { error: "Unsupported origin", code: "invalid_transaction" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
     const clientData = JSON.parse(
       new TextDecoder().decode(
-        isoBase64URL.toBuffer(body.credential.response.clientDataJSON),
-      ),
+        isoBase64URL.toBuffer(body.credential.response.clientDataJSON)
+      )
     ) as { challenge?: string };
     const challenge = clientData.challenge;
     if (
@@ -344,12 +346,12 @@ deviceAuthRoutes.post("/auth/device-session", async (c) => {
       !(await consumeWebAuthnChallenge(
         "auth",
         body.challengeId.trim(),
-        challenge,
+        challenge
       ))
     ) {
       return json(
         { error: "Sign-in challenge expired", code: "challenge_invalid" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -357,7 +359,7 @@ deviceAuthRoutes.post("/auth/device-session", async (c) => {
     if (!device) {
       return json(
         { error: "No phone registered", code: "device_not_enrolled" },
-        { status: 404 },
+        { status: 404 }
       );
     }
 
@@ -378,13 +380,13 @@ deviceAuthRoutes.post("/auth/device-session", async (c) => {
     if (!verification.verified) {
       return json(
         { error: "Couldn’t sign in", code: "device_invalid" },
-        { status: 401 },
+        { status: 401 }
       );
     }
 
     await updateCredentialCounter(
       device.credentialId,
-      verification.authenticationInfo.newCounter,
+      verification.authenticationInfo.newCounter
     );
 
     const issued = await issueDeviceSessionCookies(c, device.credentialId);
@@ -401,7 +403,7 @@ deviceAuthRoutes.post("/auth/device-session", async (c) => {
         error: err instanceof Error ? err.message : "Couldn’t sign in",
         code: "device_invalid",
       },
-      { status: 400 },
+      { status: 400 }
     );
   }
 });
@@ -425,7 +427,7 @@ deviceAuthRoutes.get("/auth/device/gate", async (c) => {
   if (!phygitalToken) {
     return json(
       { error: "phygitalToken required", code: "invalid_transaction" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -433,17 +435,20 @@ deviceAuthRoutes.get("/auth/device/gate", async (c) => {
   const session = await ensureDeviceAccessSession(c);
   const browse = await readBrowseUnlock(c);
   const browseUnlocked = Boolean(
-    browse && browse.phygitalToken === phygitalToken,
+    browse && browse.phygitalToken === phygitalToken
   );
 
-  const ownerId = await tokenSigner(c.env, phygitalToken).getOwnerCredentialId();
+  const ownerId = await tokenSigner(
+    c.env,
+    phygitalToken
+  ).getOwnerCredentialId();
   const claimed = Boolean(ownerId);
   const linkStatus = session
     ? !ownerId
       ? ("unlinked" as const)
       : ownerId === session.credentialId
-        ? ("linked_here" as const)
-        : ("linked_elsewhere" as const)
+      ? ("linked_here" as const)
+      : ("linked_elsewhere" as const)
     : null;
 
   return json({
@@ -467,7 +472,7 @@ deviceAuthRoutes.post(
     if (!phygitalToken) {
       return json(
         { error: "phygitalToken required", code: "invalid_transaction" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -475,12 +480,15 @@ deviceAuthRoutes.post(
     if (!origin) {
       return json(
         { error: "Unsupported origin", code: "invalid_transaction" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
     // DO createMutationChallenge already rejects linked_elsewhere.
-    const result = await tokenSigner(c.env, phygitalToken).createMutationChallenge({
+    const result = await tokenSigner(
+      c.env,
+      phygitalToken
+    ).createMutationChallenge({
       origin,
       binding: { kind: "addOwner", credentialId: session.credentialId },
     });
@@ -492,13 +500,13 @@ deviceAuthRoutes.post(
             result.code === "linked_elsewhere"
               ? 409
               : result.code === "not_owner"
-                ? 403
-                : 400,
-        },
+              ? 403
+              : 400,
+        }
       );
     }
     return json({ challengeId: result.challengeId, options: result.options });
-  },
+  }
 );
 
 deviceAuthRoutes.post("/auth/device/links", async (c) => {
@@ -518,7 +526,7 @@ deviceAuthRoutes.post("/auth/device/links", async (c) => {
   } catch {
     return json(
       { error: "Invalid JSON body", code: "invalid_transaction" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -526,7 +534,7 @@ deviceAuthRoutes.post("/auth/device/links", async (c) => {
   if (!phygitalToken) {
     return json(
       { error: "phygitalToken required", code: "invalid_transaction" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -534,7 +542,7 @@ deviceAuthRoutes.post("/auth/device/links", async (c) => {
   if (!origin) {
     return json(
       { error: "Unsupported origin", code: "invalid_transaction" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -544,7 +552,7 @@ deviceAuthRoutes.post("/auth/device/links", async (c) => {
         error: "challengeId and assertion required",
         code: "invalid_transaction",
       },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -556,7 +564,7 @@ deviceAuthRoutes.post("/auth/device/links", async (c) => {
         error: "Sign in with this phone to continue.",
         code: "device_session_required",
       },
-      { status: 401 },
+      { status: 401 }
     );
   }
 
@@ -575,9 +583,12 @@ deviceAuthRoutes.post("/auth/device/links", async (c) => {
       added.code === "linked_elsewhere"
         ? 409
         : added.code === "challenge_invalid"
-          ? 400
-          : 403;
-    return json({ error: added.error, code: added.code }, { status: statusCode });
+        ? 400
+        : 403;
+    return json(
+      { error: added.error, code: added.code },
+      { status: statusCode }
+    );
   }
 
   await upsertLink({
@@ -599,7 +610,7 @@ deviceAuthRoutes.delete("/auth/device/links/:phygitalToken", async (c) => {
   if (!phygitalToken) {
     return json(
       { error: "phygitalToken required", code: "invalid_transaction" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -607,7 +618,7 @@ deviceAuthRoutes.delete("/auth/device/links/:phygitalToken", async (c) => {
   if (!origin) {
     return json(
       { error: "Unsupported origin", code: "invalid_transaction" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -621,7 +632,7 @@ deviceAuthRoutes.delete("/auth/device/links/:phygitalToken", async (c) => {
         error: "challengeId and assertion required",
         code: "invalid_transaction",
       },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -630,7 +641,7 @@ deviceAuthRoutes.delete("/auth/device/links/:phygitalToken", async (c) => {
     if (!(await stub.isOwner(session.credentialId))) {
       return json(
         { error: "Not linked on this phone", code: "not_owner" },
-        { status: 403 },
+        { status: 403 }
       );
     }
 
@@ -644,20 +655,28 @@ deviceAuthRoutes.delete("/auth/device/links/:phygitalToken", async (c) => {
         cleared.code === "teardown_required"
           ? 409
           : cleared.code === "challenge_invalid"
-            ? 400
-            : 403;
+          ? 400
+          : 403;
       return json(
         {
           error: cleared.error,
           code: cleared.code,
           details: "details" in cleared ? cleared.details : undefined,
         },
-        { status },
+        { status }
       );
     }
 
     await deleteLinkForToken(phygitalToken);
     // Inbox cleared inside DO removeOwnerAndClear / clearOwnerAndPolicies.
+    recordAudit({
+      event: "owner_unlink",
+      phygitalToken,
+      ok: true,
+      actor: "owner_device",
+      credentialId: session.credentialId,
+      ...auditMeta(c),
+    });
     return json({ ok: true });
   } catch (err) {
     return json(
@@ -665,7 +684,7 @@ deviceAuthRoutes.delete("/auth/device/links/:phygitalToken", async (c) => {
         error: err instanceof Error ? err.message : "Couldn’t unlink",
         code: "unlink_failed",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 });

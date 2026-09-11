@@ -2,6 +2,7 @@ import { Hono, type Context } from "hono";
 import type { AuthenticationResponseJSON } from "@simplewebauthn/server";
 import type { PaymentsPolicyConfig } from "phygital-policy";
 
+import { auditMeta, recordAudit } from "@/audit/audit-log";
 import { requireDeviceSession } from "@/auth/device-session";
 import { parseMutationBinding } from "@/auth/mutation-binding";
 import { json } from "@/shared/http";
@@ -28,7 +29,7 @@ async function requireOwnerSession(c: Context<{ Bindings: Env }>): Promise<
   if (!phygitalToken) {
     return json(
       { error: "Missing phygitalToken", code: "invalid_transaction" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -36,7 +37,7 @@ async function requireOwnerSession(c: Context<{ Bindings: Env }>): Promise<
   if (!(await stub.isOwner(session.credentialId))) {
     return json(
       { error: "Only the owner phone can do this.", code: "not_owner" },
-      { status: 403 },
+      { status: 403 }
     );
   }
 
@@ -57,7 +58,7 @@ policyRoutes.post("/policies/:phygitalToken/mutation-options", async (c) => {
   if (!origin) {
     return json(
       { error: "Unsupported origin", code: "invalid_transaction" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -68,7 +69,7 @@ policyRoutes.post("/policies/:phygitalToken/mutation-options", async (c) => {
         error: "Valid owner mutation binding required",
         code: "invalid_transaction",
       },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -76,7 +77,7 @@ policyRoutes.post("/policies/:phygitalToken/mutation-options", async (c) => {
   if (!result.ok) {
     return json(
       { error: result.error, code: result.code },
-      { status: result.code === "not_owner" ? 403 : 400 },
+      { status: result.code === "not_owner" ? 403 : 400 }
     );
   }
   return json({ challengeId: result.challengeId, options: result.options });
@@ -90,7 +91,7 @@ policyRoutes.put("/policies/:phygitalToken", async (c) => {
   if (!origin) {
     return json(
       { error: "Unsupported origin", code: "invalid_transaction" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -106,7 +107,7 @@ policyRoutes.put("/policies/:phygitalToken", async (c) => {
         error: "policy, challengeId and assertion required",
         code: "invalid_transaction",
       },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -123,9 +124,17 @@ policyRoutes.put("/policies/:phygitalToken", async (c) => {
         : 400;
     return json(
       { error: result.error, code: result.code, details: result.details },
-      { status },
+      { status }
     );
   }
+  recordAudit({
+    event: "policy_set",
+    phygitalToken: owner.phygitalToken,
+    ok: true,
+    actor: "owner_device",
+    credentialId: owner.session.credentialId,
+    ...auditMeta(c),
+  });
   return json(result.policy);
 });
 
@@ -137,7 +146,7 @@ policyRoutes.delete("/policies/:phygitalToken", async (c) => {
   if (!origin) {
     return json(
       { error: "Unsupported origin", code: "invalid_transaction" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -151,7 +160,7 @@ policyRoutes.delete("/policies/:phygitalToken", async (c) => {
         error: "challengeId and assertion required",
         code: "invalid_transaction",
       },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -161,12 +170,17 @@ policyRoutes.delete("/policies/:phygitalToken", async (c) => {
     origin,
   });
   if (!result.ok) {
-    return json(
-      { error: result.error, code: result.code },
-      { status: 403 },
-    );
+    return json({ error: result.error, code: result.code }, { status: 403 });
   }
   // Inbox cleared inside DO clearPolicyAndGrants.
+  recordAudit({
+    event: "policy_clear",
+    phygitalToken: owner.phygitalToken,
+    ok: true,
+    actor: "owner_device",
+    credentialId: owner.session.credentialId,
+    ...auditMeta(c),
+  });
   return json(result.policy);
 });
 
@@ -178,7 +192,7 @@ policyRoutes.post("/policies/:phygitalToken/grants", async (c) => {
   if (!origin) {
     return json(
       { error: "Unsupported origin", code: "invalid_transaction" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -195,7 +209,7 @@ policyRoutes.post("/policies/:phygitalToken/grants", async (c) => {
         error: "intentHash, challengeId and assertion required",
         code: "invalid_transaction",
       },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -207,11 +221,32 @@ policyRoutes.post("/policies/:phygitalToken/grants", async (c) => {
     origin,
   });
   if (!result.ok) {
-    return json(
-      { error: result.error, code: result.code },
-      { status: 403 },
-    );
+    return json({ error: result.error, code: result.code }, { status: 403 });
   }
+
+  const meta = auditMeta(c);
+  recordAudit([
+    {
+      event: "grant_create",
+      phygitalToken: owner.phygitalToken,
+      ok: true,
+      actor: "owner_device",
+      credentialId: owner.session.credentialId,
+      intentHash: result.intentHash,
+      detail: { grantId: result.grantId, ttlSeconds: body.ttlSeconds ?? null },
+      ...meta,
+    },
+    {
+      // createGrant resolves the open soft-deny inbox row inside the DO.
+      event: "pending_approval",
+      phygitalToken: owner.phygitalToken,
+      actor: "owner_device",
+      credentialId: owner.session.credentialId,
+      intentHash: result.intentHash,
+      detail: { resolution: "granted" },
+      ...meta,
+    },
+  ]);
 
   return json({
     grantId: result.grantId,
@@ -245,13 +280,22 @@ policyRoutes.post("/policies/:phygitalToken/approvals/deny", async (c) => {
   if (!intentHash) {
     return json(
       { error: "intentHash required", code: "invalid_transaction" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
   await owner.stub.resolvePendingApproval({
     intentHash,
     resolution: "denied",
+  });
+  recordAudit({
+    event: "pending_approval",
+    phygitalToken: owner.phygitalToken,
+    actor: "owner_device",
+    credentialId: owner.session.credentialId,
+    intentHash,
+    detail: { resolution: "denied" },
+    ...auditMeta(c),
   });
   return json({ ok: true });
 });

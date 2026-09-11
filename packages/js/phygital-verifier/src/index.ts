@@ -54,6 +54,7 @@ export type {
   VerifierBearerPayload,
 } from "./session/bearer.js";
 export {
+  decodeVerifierBearer,
   normalizeOrigin,
   signVerifierBearer,
   verifyVerifierBearer,

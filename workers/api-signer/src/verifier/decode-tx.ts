@@ -52,7 +52,7 @@ export function assertTopLevelInstructionAllowed(ix: Instruction): void {
     if (!isAdvanceNonceAccountInstruction(ix)) {
       throw coded(
         "Unexpected system program instruction at top level",
-        "unexpected_instruction",
+        "unexpected_instruction"
       );
     }
     return;
@@ -60,7 +60,7 @@ export function assertTopLevelInstructionAllowed(ix: Instruction): void {
   if (!TOP_LEVEL_OK.has(program)) {
     throw coded(
       `Unexpected top-level program ${program}`,
-      "unexpected_instruction",
+      "unexpected_instruction"
     );
   }
 }
@@ -71,12 +71,15 @@ type WalletIx = Instruction &
 
 function asWalletInstruction(ix: Instruction): WalletIx {
   if (!ix.data?.length) {
-    throw coded("Phygital-wallet instruction missing data", "invalid_transaction");
+    throw coded(
+      "Phygital-wallet instruction missing data",
+      "invalid_transaction"
+    );
   }
   if (!ix.accounts) {
     throw coded(
       "Phygital-wallet instruction missing accounts",
-      "invalid_transaction",
+      "invalid_transaction"
     );
   }
   return ix as WalletIx;
@@ -84,7 +87,7 @@ function asWalletInstruction(ix: Instruction): WalletIx {
 
 function expandExecuteInner(
   ix: WalletIx,
-  parsed: ReturnType<typeof parsePhygitalWalletInstruction>,
+  parsed: ReturnType<typeof parsePhygitalWalletInstruction>
 ): Instruction[] {
   if (parsed.instructionType !== PhygitalWalletInstruction.Execute) {
     throw coded("Expected execute instruction", "invalid_transaction");
@@ -97,7 +100,7 @@ function expandExecuteInner(
     if (!programAddress) {
       throw coded(
         "Compact instruction program index out of range",
-        "invalid_transaction",
+        "invalid_transaction"
       );
     }
     return {
@@ -107,7 +110,7 @@ function expandExecuteInner(
         if (!address) {
           throw coded(
             "Compact instruction account index out of range",
-            "invalid_transaction",
+            "invalid_transaction"
           );
         }
         return { address, role: AccountRole.READONLY };
@@ -119,6 +122,7 @@ function expandExecuteInner(
 
 function parseWalletTopLevel(ix: Instruction): {
   kind: SignTxKind;
+  configAction?: ConfigAction;
   verifier: string;
   phygitalToken: string;
   instructions: Instruction[];
@@ -130,7 +134,7 @@ function parseWalletTopLevel(ix: Instruction): {
   } catch {
     throw coded(
       "Unexpected phygital-wallet instruction",
-      "unexpected_instruction",
+      "unexpected_instruction"
     );
   }
 
@@ -148,6 +152,7 @@ function parseWalletTopLevel(ix: Instruction): {
     case PhygitalWalletInstruction.ClearRecoveryWallet:
       return {
         kind: "config",
+        configAction: CONFIG_ACTIONS[parsed.instructionType],
         verifier: String(parsed.accounts.verifier.address),
         phygitalToken: String(parsed.accounts.phygitalToken.address),
         instructions: [ix],
@@ -155,12 +160,27 @@ function parseWalletTopLevel(ix: Instruction): {
     default:
       throw coded(
         "Unexpected phygital-wallet instruction",
-        "unexpected_instruction",
+        "unexpected_instruction"
       );
   }
 }
 
 export type SignTxKind = "execute" | "config";
+
+/** Which config change a config-kind tx performs (for audit logging). */
+export type ConfigAction =
+  | "set_token_verifier"
+  | "clear_token_verifier"
+  | "set_recovery_wallet"
+  | "clear_recovery_wallet";
+
+const CONFIG_ACTIONS: Partial<Record<PhygitalWalletInstruction, ConfigAction>> =
+  {
+    [PhygitalWalletInstruction.SetTokenVerifier]: "set_token_verifier",
+    [PhygitalWalletInstruction.ClearTokenVerifier]: "clear_token_verifier",
+    [PhygitalWalletInstruction.SetRecoveryWallet]: "set_recovery_wallet",
+    [PhygitalWalletInstruction.ClearRecoveryWallet]: "clear_recovery_wallet",
+  };
 
 export type DecodedSignTx = {
   messageBytes: Uint8Array;
@@ -169,6 +189,8 @@ export type DecodedSignTx = {
   phygitalToken: string;
   instructions: Instruction[];
   kind: SignTxKind;
+  /** Present only when kind === "config". */
+  configAction?: ConfigAction;
 };
 
 export function decodeWireTransaction(base64Tx: string): DecodedSignTx {
@@ -179,6 +201,7 @@ export function decodeWireTransaction(base64Tx: string): DecodedSignTx {
   const topLevel = getInstructionsFromCompiledTransactionMessage(compiled);
 
   let kind: SignTxKind | null = null;
+  let configAction: ConfigAction | undefined;
   let phygitalToken: string | null = null;
   let verifier: string | null = null;
   let inner: Instruction[] = [];
@@ -193,10 +216,11 @@ export function decodeWireTransaction(base64Tx: string): DecodedSignTx {
     if (kind) {
       throw coded(
         "Transaction mixes multiple phygital-wallet instructions",
-        "unexpected_instruction",
+        "unexpected_instruction"
       );
     }
     kind = parsed.kind;
+    configAction = parsed.configAction;
     verifier = parsed.verifier;
     phygitalToken = parsed.phygitalToken;
     inner = parsed.instructions;
@@ -205,7 +229,7 @@ export function decodeWireTransaction(base64Tx: string): DecodedSignTx {
   if (!kind || !phygitalToken || !verifier) {
     throw coded(
       "Transaction missing phygital-wallet execute or config instruction",
-      "unexpected_instruction",
+      "unexpected_instruction"
     );
   }
 
@@ -215,5 +239,6 @@ export function decodeWireTransaction(base64Tx: string): DecodedSignTx {
     phygitalToken,
     instructions: inner,
     kind,
+    configAction,
   };
 }

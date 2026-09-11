@@ -5,6 +5,9 @@ import { initTokenSchema, TokenStore } from "@/token-store";
 /**
  * Minimal in-memory SqlStorage for pending_approvals coverage.
  * Only implements the statements TokenStore pending helpers use.
+ *
+ * The DO keeps only *open* inbox rows now: resolve/expire/overflow DELETE the
+ * row (the durable audit history lives in the centralized D1 audit_log).
  */
 function pendingSql() {
   type Row = Record<string, unknown>;
@@ -48,24 +51,32 @@ function pendingSql() {
       return { toArray: () => [] };
     }
 
+    // gcPendingApprovals: DELETE FROM pending_approvals WHERE expires_at < ?
     if (
-      q.includes("UPDATE pending_approvals") &&
-      q.includes("SET resolved_at = ?") &&
-      q.includes("resolution = 'expired'")
+      q.startsWith("DELETE FROM pending_approvals") &&
+      q.includes("expires_at < ?")
     ) {
       const now = params[0] as number;
       const rows = tables.get("pending_approvals") ?? [];
-      for (const r of rows) {
-        if (r.resolved_at == null && (r.expires_at as number) < now) {
-          r.resolved_at = now;
-          r.resolution = "expired";
-        }
-      }
+      tables.set(
+        "pending_approvals",
+        rows.filter((r) => (r.expires_at as number) >= now)
+      );
       return { toArray: () => [] };
     }
 
-    if (q.startsWith("DELETE FROM pending_approvals")) {
-      throw new Error("pending approvals must not be deleted");
+    // #deleteRow: DELETE FROM pending_approvals WHERE id = ?
+    if (
+      q.startsWith("DELETE FROM pending_approvals") &&
+      q.includes("WHERE id = ?")
+    ) {
+      const id = params[0];
+      const rows = tables.get("pending_approvals") ?? [];
+      tables.set(
+        "pending_approvals",
+        rows.filter((r) => r.id !== id)
+      );
+      return { toArray: () => [] };
     }
 
     if (
@@ -81,7 +92,7 @@ function pendingSql() {
         (r) =>
           r.intent_hash === intent &&
           r.resolved_at == null &&
-          (r.expires_at as number) > now,
+          (r.expires_at as number) > now
       );
       return { toArray: () => (hit ? [{ id: hit.id }] : []) };
     }
@@ -109,26 +120,10 @@ function pendingSql() {
     ) {
       const now = params[0] as number;
       const rows = (tables.get("pending_approvals") ?? [])
-        .filter(
-          (r) => r.resolved_at == null && (r.expires_at as number) > now,
-        )
+        .filter((r) => r.resolved_at == null && (r.expires_at as number) > now)
         .sort((a, b) => (a.created_at as number) - (b.created_at as number))
         .map((r) => ({ id: r.id }));
       return { toArray: () => rows };
-    }
-
-    if (
-      q.includes("UPDATE pending_approvals") &&
-      q.includes("SET resolved_at = ?") &&
-      q.includes("WHERE id = ?")
-    ) {
-      const rows = tables.get("pending_approvals") ?? [];
-      const row = rows.find((r) => r.id === params[2] && r.resolved_at == null);
-      if (row) {
-        row.resolved_at = params[0];
-        row.resolution = params[1];
-      }
-      return { toArray: () => [] };
     }
 
     if (q.includes("INSERT INTO pending_approvals")) {
@@ -157,9 +152,7 @@ function pendingSql() {
       const now = params[0] as number;
       const limit = params[1] as number;
       const rows = (tables.get("pending_approvals") ?? [])
-        .filter(
-          (r) => r.resolved_at == null && (r.expires_at as number) > now,
-        )
+        .filter((r) => r.resolved_at == null && (r.expires_at as number) > now)
         .sort((a, b) => (b.created_at as number) - (a.created_at as number))
         .slice(0, limit)
         .map((r) => ({
@@ -180,43 +173,21 @@ function pendingSql() {
       const intent = params[0];
       const rows = tables.get("pending_approvals") ?? [];
       const hit = rows.find(
-        (r) => r.intent_hash === intent && r.resolved_at == null,
+        (r) => r.intent_hash === intent && r.resolved_at == null
       );
       return { toArray: () => (hit ? [{ id: hit.id }] : []) };
-    }
-
-    if (
-      q.includes("SELECT expires_at, resolved_at, resolution") &&
-      q.includes("WHERE intent_hash = ?")
-    ) {
-      const intent = params[0];
-      const rows = tables.get("pending_approvals") ?? [];
-      const hits = rows
-        .filter((r) => r.intent_hash === intent)
-        .sort((a, b) => (b.created_at as number) - (a.created_at as number));
-      const hit = hits[0];
-      return {
-        toArray: () =>
-          hit
-            ? [
-                {
-                  expires_at: hit.expires_at,
-                  resolved_at: hit.resolved_at,
-                  resolution: hit.resolution,
-                },
-              ]
-            : [],
-      };
     }
 
     throw new Error(`pendingSql unhandled: ${q}`);
   };
 
-  return { exec: exec as DurableObjectStorage["sql"]["exec"] } as DurableObjectStorage["sql"];
+  return {
+    exec: exec as DurableObjectStorage["sql"]["exec"],
+  } as DurableObjectStorage["sql"];
 }
 
 describe("TokenStore pending approvals", () => {
-  it("upserts, lists, resolves, and reports watch status", () => {
+  it("upserts, lists, and resolves (deletes) an open row", () => {
     const sql = pendingSql();
     initTokenSchema(sql);
     const store = new TokenStore(sql, "Tok");
@@ -239,6 +210,7 @@ describe("TokenStore pending approvals", () => {
 
     expect(store.resolvePendingApproval("h1", "granted")).toBe(true);
     expect(store.listOpenApprovals()).toHaveLength(0);
+    // Row is gone — a second resolve finds nothing.
     expect(store.resolvePendingApproval("h1", "denied")).toBe(false);
   });
 
@@ -283,7 +255,7 @@ describe("TokenStore pending approvals", () => {
     expect(store.listOpenApprovals()[0]!.details).toEqual(details);
   });
 
-  it("keeps resolved rows and details for audit", () => {
+  it("deletes resolved rows (audit history lives in D1)", () => {
     const sql = pendingSql();
     initTokenSchema(sql);
     const store = new TokenStore(sql, "Tok");
@@ -298,7 +270,7 @@ describe("TokenStore pending approvals", () => {
     expect(store.resolvePendingApproval("h1", "granted")).toBe(true);
     expect(store.listOpenApprovals()).toHaveLength(0);
 
-    // Upsert/GC must not delete the resolved audit row.
+    // A later upsert only ever sees remaining open rows.
     store.upsertPendingApproval({
       intentHash: "h2",
       code: "over_limit",

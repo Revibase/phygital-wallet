@@ -20,6 +20,7 @@ import {
   PHYGITAL_WALLET_PROGRAM_ADDRESS,
 } from "phygital-wallet-sdk";
 
+import { recordAudit } from "@/audit/audit-log";
 import { isDefaultConfigVerifier } from "@/fees/default-verifier";
 import { getEnv } from "@/shared/request-context";
 import { tryParseAddress } from "@/shared/solana/address";
@@ -64,7 +65,10 @@ function unwrapHeliusTx(raw: HeliusTxLike): HeliusTxLike {
 
 function nativeChange(tx: HeliusTxLike, account: string): number {
   for (const row of tx.accountData ?? []) {
-    if (row.account === account && typeof row.nativeBalanceChange === "number") {
+    if (
+      row.account === account &&
+      typeof row.nativeBalanceChange === "number"
+    ) {
       return row.nativeBalanceChange;
     }
   }
@@ -123,7 +127,8 @@ export function decodeMemoText(data: string | undefined): string | null {
   try {
     const decoded = parseAddMemoInstruction({
       programAddress: MEMO_PROGRAM_ADDRESS,
-      data: heliusIxData({ data: trimmed }) ?? new TextEncoder().encode(trimmed),
+      data:
+        heliusIxData({ data: trimmed }) ?? new TextEncoder().encode(trimmed),
     });
     return decoded.data.memo.trim() || null;
   } catch {
@@ -145,7 +150,7 @@ function findMemoPhygitalToken(tx: HeliusTxLike): string | null {
       }
     }
     const fallback = decodeMemoText(
-      typeof ix.parsed === "string" ? ix.parsed : ix.data,
+      typeof ix.parsed === "string" ? ix.parsed : ix.data
     );
     const addr = tryParseAddress(fallback);
     if (addr) return String(addr);
@@ -189,7 +194,7 @@ export function findExecuteAccounts(tx: HeliusTxLike): ExecuteAccounts | null {
  * Ledger lives on TokenSigner DO; idempotent by signature.
  */
 async function processHeliusFeeTx(
-  raw: HeliusTxLike,
+  raw: HeliusTxLike
 ): Promise<{ credited: boolean; debited: boolean }> {
   const tx = unwrapHeliusTx(raw);
   const signature = tx.signature?.trim();
@@ -250,10 +255,22 @@ async function processHeliusFeeTx(
   let credited = false;
   let debited = false;
   for (const [token, batch] of byToken) {
-    const { applied } = await tokenSigner(env, token).applyFeeEvents(batch);
-    if (applied > 0) {
-      if (batch.some((e) => e.kind === "credit")) credited = true;
-      if (batch.some((e) => e.kind === "debit")) debited = true;
+    const { appliedSignatures } = await tokenSigner(env, token).applyFeeEvents(
+      batch
+    );
+    if (appliedSignatures.length === 0) continue;
+    const applied = new Set(appliedSignatures);
+    for (const ev of batch) {
+      if (!applied.has(ev.signature)) continue;
+      if (ev.kind === "credit") credited = true;
+      else debited = true;
+      recordAudit({
+        event: ev.kind === "credit" ? "fee_credit" : "fee_debit",
+        phygitalToken: token,
+        ok: true,
+        actor: "system",
+        detail: { signature, lamports: ev.lamports },
+      });
     }
   }
 
@@ -261,13 +278,13 @@ async function processHeliusFeeTx(
 }
 
 export async function processHeliusWebhookPayload(
-  body: unknown,
+  body: unknown
 ): Promise<{ processed: number; credited: number; debited: number }> {
   const list: HeliusTxLike[] = Array.isArray(body)
     ? (body as HeliusTxLike[])
     : body && typeof body === "object"
-      ? [body as HeliusTxLike]
-      : [];
+    ? [body as HeliusTxLike]
+    : [];
 
   let processed = 0;
   let credited = 0;
