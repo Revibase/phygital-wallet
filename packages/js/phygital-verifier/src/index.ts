@@ -47,3 +47,28 @@ export {
   denyProgram,
   policy,
 } from "./core/policy.js";
+
+export type {
+  DecodeVerifierKey,
+  IsAuthorizedVerifier,
+  VerifierBearerPayload,
+} from "./session/bearer.js";
+export {
+  normalizeOrigin,
+  signVerifierBearer,
+  verifyVerifierBearer,
+} from "./session/bearer.js";
+
+export type {
+  ConsumeSignCount,
+  WebAuthnConnectProof,
+} from "./connect/verify.js";
+export { verifyConnectProof } from "./connect/verify.js";
+export type { ConnectProofCode } from "./connect/proof-error.js";
+export { ConnectProofError } from "./connect/proof-error.js";
+export type { ConsumeTapCounter } from "./connect/verify-dynamic.js";
+export { verifyDynamicConnectProof } from "./connect/verify-dynamic.js";
+export type {
+  DynamicTapParams,
+  DynamicTapResult,
+} from "./connect/dynamic-url.js";

@@ -15,7 +15,7 @@ pnpm add phygital-wallet-sdk @solana/kit
 - **Dependency:** `phygital-token-sdk` (pulled in automatically; import it when you need passkey helpers)
 - **Example-only:** `@solana-program/system` (quickstart transfer below)
 
-## Quickstart
+## Quickstart: connect and transact
 
 ```typescript
 import {
@@ -25,14 +25,14 @@ import {
   setTransactionMessageFeePayerSigner,
   setTransactionMessageLifetimeUsingBlockhash,
   signTransactionMessageWithSigners,
+  sendTransactionWithoutConfirmingFactory,
 } from "@solana/kit";
 import { getTransferSolInstruction } from "@solana-program/system";
-import {
-  getPhygitalWalletSigner,
-  PolicyDeniedError,
-} from "phygital-wallet-sdk";
+import { connectPhygitalWallet } from "phygital-wallet-sdk";
 
-const source = await getPhygitalWalletSigner(rpc, phygitalTokenPda);
+// Connect once: this performs the tap, resolves the token verifier, obtains the
+// bearer, and wires that bearer into preview and sign requests.
+const { signer: source } = await connectPhygitalWallet(rpc);
 const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
 
 const message = pipe(
@@ -48,16 +48,22 @@ const message = pipe(
           amount: 1_000_000n,
         }),
       ],
-      m,
-    ),
+      m
+    )
 );
 
 const signed = await signTransactionMessageWithSigners(message);
+const send = sendTransactionWithoutConfirmingFactory({ rpc });
+await send(signed);
 ```
 
-Signing runs policy checks and a body simulation before the passkey prompt, then wraps (`secp256r1` + `execute`) and co-signs.
+`connectPhygitalWallet` performs the NFC/passkey connection and keeps the
+verifier bearer available for `/preview` and `/sign`. Signing then runs policy
+checks and a body simulation before the passkey prompt, wraps (`secp256r1` +
+`execute`), co-signs, and submits the transaction.
 
-Soft deny throws `PolicyDeniedError` (soft) with a stable `intentHash`. After the owner approves on their device, retry the **same** instructions and sign again.
+Soft policy denial throws `PolicyDeniedError` with a stable `intentHash`. After
+the owner approves on their device, retry the same instructions.
 
 ## Wallet Standard (`@solana/connectors` / adapters)
 
@@ -71,16 +77,19 @@ registerPhygitalWallet({ rpc /* , chains?, fetch?, onPhaseChange? */ });
 
 Options: `rpc` (required), optional `chains` (defaults to mainnet only — the program is not deployed elsewhere), `fetch`, `onPhaseChange`.
 
-The wallet appears as **Revibase**. On connect, the user taps their accessory (`startAuthentication` → `verifyResponse` → token PDA → wallet PDA). Session PDAs are stored under `revibase:wallet-standard:v1` so refresh restores without another tap; disconnect clears it.
+The wallet appears as **Revibase**. It uses `connectPhygitalWallet` to obtain
+the verifier bearer, persists the bearer-backed session under
+`revibase:wallet-standard:v2`, and renews it through the same connect flow when
+it expires.
 
 Features: `standard:connect` / `disconnect` / `events`, `solana:signTransaction`, `solana:signAndSendTransaction`, and `solana:signMessage` (declared for connector compatibility — PDA accounts cannot produce ed25519 message signatures). Signing uses the same wrap/`execute` path as `getPhygitalWalletSigner` (legacy, v0, and v1; blockhash or durable nonce).
 
-Kit-only apps can skip `registerPhygitalWallet` and use `getPhygitalWalletSigner` alone.
+Kit-only apps can skip `registerPhygitalWallet` and use `connectPhygitalWallet` alone.
 
 ## Optional: ceremony progress
 
 ```typescript
-const source = await getPhygitalWalletSigner(rpc, phygitalTokenPda, {
+const source = await connectPhygitalWallet(rpc, {
   onPhaseChange: (phase) => {
     /* hold / progress UI */
   },
@@ -89,18 +98,16 @@ const source = await getPhygitalWalletSigner(rpc, phygitalTokenPda, {
 
 ## Public API (summary)
 
-| Export | Role |
-|--------|------|
-| `getPhygitalWalletSigner` | Kit modifying signer (preview → passkey → wrap → co-sign) |
-| `PolicyDeniedError` | Soft/hard policy deny from preview or `/sign` |
-| `registerPhygitalWallet` | Wallet Standard registration (Revibase) |
-| `resolveVerifier` / `ResolvedVerifier` | Resolve TokenVerifier override or default paymaster |
-| `DEFAULT_VERIFIER_API_BASE` | Default co-signer origin when no override is set |
-| `PHYGITAL_WALLET_CHAINS` | Wallet Standard default (`solana:mainnet` only) |
-| `assertHttpsEndpoint` / `normalizeVerifierApiBase` | Endpoint helpers |
-| `activeConfigVerifierAddresses` / `isConfigDefaultVerifier` | Config default-verifier membership |
-| `buildSet*Challenge` / `buildClear*Challenge` | Config instruction challenges |
-| Codama generated client | `findWalletPda`, `getExecuteInstruction`, accounts, etc. |
+| Export                                 | Role                                                            |
+| -------------------------------------- | --------------------------------------------------------------- |
+| `connectPhygitalWallet`                | Tap an accessory and return a bearer-backed transaction signer. |
+| `getPhygitalWalletSigner`              | Build a signer when the token and bearer are already known.     |
+| `registerPhygitalWallet`               | Register the bearer-backed wallet with Wallet Standard.         |
+| `PolicyDeniedError`                    | Policy denial from `/preview` or `/sign`.                       |
+| `resolveVerifier` / `ResolvedVerifier` | Resolve a token verifier or default verifier.                   |
+| `DEFAULT_VERIFIER_API_BASE`            | Default verifier origin.                                        |
+| `PHYGITAL_WALLET_CHAINS`               | Wallet Standard default chains.                                 |
+| Generated client                       | PDAs, instructions, accounts, and types.                        |
 
 ## Default verifier
 

@@ -9,9 +9,8 @@ api/src/
   index.ts          Worker entry — CORS, request store, mounts domains
   shared/           Cross-cutting: HTTP helpers, D1, Solana cluster, crypto
   tokens/           Verified catalog, fee-balance (proxied to DO)
-  tap/              NFC /verify-tap (pubkey + counter anti-replay)
   auth/             Device session + link index + policy HTTP (WebAuthn → DO)
-  verifier/         POST /preview + /sign (proxies to TokenSigner DO)
+  verifier/         POST /connect, /connect/tap, /preview, /sign
   fees/             Helius fee accounting → DO applyFeeEvents
   webhooks/         POST /webhooks/helius
 
@@ -48,7 +47,9 @@ one is present). Login also sets `revibase_device_refresh` (~30d); use
 | Method | Path | Access | Notes |
 |--------|------|--------|--------|
 | GET | `/health` | Public | Liveness |
-| POST | `/preview` / `/sign` | Public | Verifier (open CORS for 3p; app origins stay credentialed) |
+| POST | `/connect` | Public | WebAuthn tap → verifier session bearer (open CORS; portable contract) |
+| POST | `/connect/tap` | Public | NFC dynamic URL → bearer (strictly scoped to `app.revibase.com`) |
+| POST | `/preview` / `/sign` | Bearer | Verifier API — **bearer-only**, never the cookie (open CORS for 3rd party) |
 | GET | `/auth/device/gate` | Public | Token landing (works with zero cookies; may refresh access) |
 | GET | `/auth/device/register-options` | Public | Start passkey registration (`?username=` required) |
 | POST | `/auth/device` | Public | Finish registration → access + refresh cookies |
@@ -56,9 +57,8 @@ one is present). Login also sets `revibase_device_refresh` (~30d); use
 | POST | `/auth/device-session` | Public | Finish sign-in → access + refresh cookies |
 | POST | `/auth/device-session/refresh` | Public | Refresh cookie → new access (+ rotate refresh) |
 | GET | `/auth/device-session` | Public | Current access session (silent refresh if needed) |
-| GET | `/verify-tap` | Public | NFC → may set browse-unlock |
-| POST | `/auth/browse-unlock` | Public | Accessory Hold → browse-unlock |
-| POST | `/webhooks/helius` | Public\* | Shared secret (`HELIUS_WEBHOOK_AUTH`) |
+| POST | `/auth/app-session` | Public | Verifier bearer → browse-unlock session cookie (app origins only) |
+| POST | `/webhooks/helius` | Protected | Shared secret (`HELIUS_WEBHOOK_AUTH`) |
 | GET | `/auth/device/links` | Protected | Listing index |
 | POST | `/auth/device/links` | Protected | Link → WebAuthn → DO `addOwner` |
 | POST | `/auth/device/links/:token/mutation-options` | Protected | Claim WebAuthn challenge |
@@ -71,7 +71,6 @@ one is present). Login also sets `revibase_device_refresh` (~30d); use
 | GET | `/tokens/fee-balance` | Protected‡ | Matching browse-unlock **or** owner device session |
 | GET | `/tokens/verified` | Protected | Verified catalog |
 
-\*Webhook is on the cookie allowlist but still requires `HELIUS_WEBHOOK_AUTH`.  
 ‡Not readable cross-token with a random device session — must own the token or hold browse-unlock for it.
 
 ## Fee balance

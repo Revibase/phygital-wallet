@@ -38,8 +38,9 @@ const token = fromCodamaProgram({
 
 const gate = policy([
   denyProgram("ComputeBudget111111111111111111111111111111"),
-  allow(token.instruction(TokenInstruction.TransferChecked), (ix) =>
-    ix.data.amount <= 50_000_000n
+  allow(
+    token.instruction(TokenInstruction.TransferChecked),
+    (ix) => ix.data.amount <= 50_000_000n
   ),
   aggregate(
     [
@@ -48,7 +49,7 @@ const gate = policy([
         amount: (ix) => ix.data.amount,
       },
     ],
-    { lte: 50_000_000n },
+    { lte: 50_000_000n }
   ),
 ]);
 
@@ -60,17 +61,33 @@ if (!result.ok) {
 
 ## API
 
-| Export | Role |
-|--------|------|
+| Export                                                   | Role                                        |
+| -------------------------------------------------------- | ------------------------------------------- |
 | `fromCodamaProgram({ programAddress, identify, parse })` | Fail-closed adapter over Codama Kit helpers |
-| `allow(matcher, predicate?)` | Permit a Codama instruction branch |
-| `deny(matcher, predicate?)` | Reject a matching instruction |
-| `allowProgram(address)` | Permit any ix for a program id (no parse) |
-| `denyProgram(address)` | Reject any ix for a program id |
-| `aggregate(sources, { lte \| … })` | Sum amounts across the tx |
-| `policy(rules).verify(instructions)` | Fail-closed gate |
+| `allow(matcher, predicate?)`                             | Permit a Codama instruction branch          |
+| `deny(matcher, predicate?)`                              | Reject a matching instruction               |
+| `allowProgram(address)`                                  | Permit any ix for a program id (no parse)   |
+| `denyProgram(address)`                                   | Reject any ix for a program id              |
+| `aggregate(sources, { lte \| … })`                       | Sum amounts across the tx                   |
+| `policy(rules).verify(instructions)`                     | Fail-closed gate                            |
 
 Also exported: types (`InstructionMatcher`, `Policy`, `VerifyResult`, …), plus `fail` / `ok` / `addressString` helpers.
+
+### Verifier connection helpers
+
+The connect API exposes protocol-level helpers for the verifier's `/connect` and
+`/connect/tap` endpoints:
+
+| Export                                        | Role                                                                                                     |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `verifyConnectProof`                          | Verify a blockhash WebAuthn/NFC proof and enforce its blockhash freshness and replay callback.           |
+| `verifyDynamicConnectProof`                   | Verify a dynamic NFC proof, resolve its token by accessory identifier, and enforce its counter callback. |
+| `signVerifierBearer` / `verifyVerifierBearer` | Issue and validate token-bound verifier session bearers.                                                 |
+| `ConnectProofError`                           | Stable error type with a machine-readable code and HTTP status.                                          |
+
+The SDK keeps proof parsing details such as the WebAuthn sign-count parser and
+dynamic tap signature primitive internal to these workflows. Integrators only
+provide Solana RPC, token-counter storage, and verifier signing callbacks.
 
 Generate Codama clients from IDLs (`codama run js`) and compose rules in your app.
 
@@ -81,6 +98,7 @@ Generate Codama clients from IDLs (`codama run js`) and compose rules in your ap
 ## Docs
 
 - [Getting started](./docs/getting-started.md)
+- [Verifier HTTP contract](./docs/verifier-http.md)
 - [From IDL to policy (Codama)](./docs/custom-programs.md)
 - [Writing policies](./docs/writing-policies.md)
 - [Verify results](./docs/verify-and-errors.md)

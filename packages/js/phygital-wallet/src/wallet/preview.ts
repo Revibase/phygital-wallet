@@ -1,4 +1,4 @@
-import { getBase64Decoder, type Address, type Instruction } from "@solana/kit";
+import { getBase64Decoder, type Instruction } from "@solana/kit";
 
 import { verifierPreviewUrl } from "./verifier-endpoint.js";
 
@@ -30,20 +30,27 @@ export class PolicyDeniedError extends Error {
 /**
  * Advisory policy check before NFC. Throws {@link PolicyDeniedError} when denied.
  * `endpoint` is the verifier API base; posts to `/preview`.
+ *
+ * The token is not sent: the verifier derives it from the bearer, so a session can
+ * only ever preview for the accessory it was minted for.
  */
 export async function previewWalletIntent(args: {
-  phygitalToken: Address;
   instructions: readonly Instruction[];
   endpoint: string;
   fetch?: typeof fetch;
+  /** Verifier session bearer; `/preview` is bearer-authenticated. */
+  getAccessToken?: () => string | null | Promise<string | null>;
   abortSignal?: AbortSignal;
 }): Promise<void> {
   const httpFetch = args.fetch ?? fetch;
+  const accessToken = (await args.getAccessToken?.()) ?? null;
   const response = await httpFetch(verifierPreviewUrl(args.endpoint), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
     body: JSON.stringify({
-      phygitalToken: String(args.phygitalToken),
       instructions: args.instructions.map((ix) => ({
         programAddress: String(ix.programAddress),
         accounts: (ix.accounts ?? []).map((a) => ({

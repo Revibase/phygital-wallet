@@ -18,12 +18,17 @@ import {
   type SentTransaction,
 } from "@/lib/solana/tx";
 import { assertPolicyMutation } from "@/lib/wallet/policies-client";
+import { accessTokenFor } from "@/lib/wallet/verifier-session";
 
 const DEFAULT_VERIFIER_API_ORIGIN = "https://api.revibase.com";
 
 /**
  * App fetch for verifier `/preview` + `/sign`.
- * Sends cookies and rewrites the default Revibase origin to this app's API base.
+ *
+ * The rewrite maps the SDK's default Revibase origin onto this app's configured
+ * API base (so local/staging work); it is **not** how these calls authenticate —
+ * both endpoints are bearer-only, and the bearer is attached by the SDK via
+ * `getAccessToken`. Cookies still ride along for Revibase app routes.
  */
 export function appVerifierFetch(
   input: RequestInfo | URL,
@@ -81,6 +86,7 @@ export async function createAppVerifierSigner(
   let requiresOwnerCosignAssertion = false;
 
   const resolved = await resolveVerifier(rpc, phygitalToken, {
+    getAccessToken: accessTokenFor(String(phygitalToken)),
     fetch: (input, init) => {
       const raw =
         typeof input === "string"

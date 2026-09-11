@@ -57,7 +57,7 @@ describe("QueryHttpError / retry policy", () => {
     await queryFetch("/tokens/verified", { cache: "force-cache" });
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://127.0.0.1:8787/tokens/verified",
+      "http://localhost:8787/tokens/verified",
       expect.objectContaining({ cache: "no-store" }),
     );
   });

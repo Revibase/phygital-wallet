@@ -44,14 +44,13 @@ import {
   type StandardEventsNames,
   type StandardEventsOnMethod,
 } from "@wallet-standard/features";
-import {
-  findPhygitalTokenPda,
-  startAuthentication,
-  verifyResponse,
-} from "phygital-token-sdk";
-
 import { PHYGITAL_WALLET_CHAINS } from "../constants.js";
 import { findWalletPda } from "../generated/pdas/wallet.js";
+import {
+  AccessoryMismatchError,
+  connectPhygitalWallet,
+  SESSION_SKEW_MS,
+} from "../wallet/connect.js";
 import {
   getPhygitalWalletSigner,
   type PhygitalWalletSignerCallbacks,
@@ -198,10 +197,10 @@ export class PhygitalWallet implements Wallet {
 
   #off<E extends StandardEventsNames>(
     event: E,
-    listener: StandardEventsListeners[E],
+    listener: StandardEventsListeners[E]
   ): void {
     this.#listeners[event] = (this.#listeners[event] ?? []).filter(
-      (existing) => listener !== existing,
+      (existing) => listener !== existing
     );
   }
 
@@ -227,22 +226,23 @@ export class PhygitalWallet implements Wallet {
       return { accounts: this.accounts };
     }
 
-    const message = crypto.randomUUID();
-    const response = await startAuthentication(message, this.#rpc);
-    const verified = verifyResponse({ expectedMessage: message, response });
-    if (!verified.isVerified || !verified.secp256r1PublicKey?.trim()) {
-      throw new Error("Passkey verification failed");
-    }
-
-    const phygitalTokenPda = await findPhygitalTokenPda(
-      verified.secp256r1PublicKey.trim(),
-    );
-    const [walletPda] = await findWalletPda({
-      phygitalToken: phygitalTokenPda,
+    const connection = await connectPhygitalWallet(this.#rpc, {
+      fetch: this.#fetch,
+      onPhaseChange: this.#onPhaseChange,
     });
-
-    await this.#restoreSession({ phygitalTokenPda, walletPda });
-    savePhygitalWalletSession({ phygitalTokenPda, walletPda });
+    const [walletPda] = await findWalletPda({
+      phygitalToken: connection.phygitalToken,
+    });
+    const persistedSession = {
+      phygitalTokenPda: connection.phygitalToken,
+      walletPda,
+      ...connection.getSession(),
+    } satisfies PhygitalWalletSession;
+    this.#adoptSession(persistedSession);
+    this.#signer = connection.signer;
+    this.#signerPromise = Promise.resolve(connection.signer);
+    savePhygitalWalletSession(persistedSession);
+    this.#emit("change", { accounts: this.accounts });
     return { accounts: this.accounts };
   };
 
@@ -256,7 +256,7 @@ export class PhygitalWallet implements Wallet {
     this.#session = session;
     this.#account = createPhygitalWalletAccount(
       session.walletPda,
-      this.#chains,
+      this.#chains
     );
   }
 
@@ -277,18 +277,42 @@ export class PhygitalWallet implements Wallet {
   }
 
   async #loadSigner(
-    session: PhygitalWalletSession,
+    session: PhygitalWalletSession
   ): Promise<TransactionModifyingSigner> {
     try {
       await this.#assertSessionPda(session);
+      let current = session;
+      const getAccessToken = async (): Promise<string> => {
+        if (current.expiresAt - SESSION_SKEW_MS > Date.now()) {
+          return current.accessToken;
+        }
+        const connection = await connectPhygitalWallet(this.#rpc, {
+          fetch: this.#fetch,
+          onPhaseChange: this.#onPhaseChange,
+        });
+        if (
+          String(connection.phygitalToken) !== String(session.phygitalTokenPda)
+        ) {
+          throw new AccessoryMismatchError();
+        }
+        current = {
+          ...current,
+          ...connection.getSession(),
+        };
+        this.#session = current;
+        savePhygitalWalletSession(current);
+        return current.accessToken;
+      };
       const signer = await getPhygitalWalletSigner(
         this.#rpc,
         session.phygitalTokenPda,
         {
           fetch: this.#fetch,
           onPhaseChange: this.#onPhaseChange,
-        },
+          getAccessToken,
+        }
       );
+      this.#session = current;
       this.#signer = signer;
       return signer;
     } catch (error) {
@@ -320,12 +344,12 @@ export class PhygitalWallet implements Wallet {
   }
 
   async #modifyAndSignWire(
-    transactionBytes: Uint8Array,
+    transactionBytes: Uint8Array
   ): Promise<Transaction & TransactionWithLifetime> {
     const decoded = transactionDecoder.decode(transactionBytes) as Transaction;
     if (!("lifetimeConstraint" in decoded)) {
       throw new Error(
-        "Revibase wallet requires transactions with a lifetime constraint (blockhash or durable nonce)",
+        "Revibase wallet requires transactions with a lifetime constraint (blockhash or durable nonce)"
       );
     }
 

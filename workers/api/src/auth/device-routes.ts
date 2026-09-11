@@ -36,8 +36,9 @@ import {
   issueBrowseUnlockCookie,
   readBrowseUnlock,
 } from "@/auth/browse-unlock-session";
-import { verifyAccessoryAndResolveToken } from "@/auth/accessory-verify";
 import { denyIfAuthRateLimited } from "@/auth/rate-limit";
+import { requireAppOrigin } from "@/shared/cors";
+import { readVerifierBearer } from "@/verifier/require-bearer";
 import {
   consumeWebAuthnChallenge,
   resolveWebAuthnRp,
@@ -688,59 +689,22 @@ deviceAuthRoutes.delete("/auth/device/links/:phygitalToken", async (c) => {
   }
 });
 
-/** Accessory Hold → mint browse-unlock cookie. */
-deviceAuthRoutes.post("/auth/browse-unlock", async (c) => {
-  let body: {
-    message?: string;
-    response?: Parameters<
-      typeof verifyAccessoryAndResolveToken
-    >[0]["response"];
-    phygitalToken?: string;
-  };
-  try {
-    body = (await c.req.json()) as typeof body;
-  } catch {
-    return json(
-      { error: "Invalid JSON body", code: "invalid_transaction" },
-      { status: 400 },
-    );
-  }
-  if (!body.message?.trim() || !body.response) {
-    return json(
-      {
-        error: "message and response required",
-        code: "invalid_transaction",
-      },
-      { status: 400 },
-    );
-  }
+/**
+ * Bearer → app-session cookie. The **only** place `browse_unlock` is minted.
+ *
+ * Accepts a bearer from the token's own verifier — Revibase's or a third
+ * party's — because the bearer is asymmetric and its issuer is verified against
+ * the token's on-chain verifier set. Restricted to Revibase app origins: this
+ * cookie authenticates Revibase app routes only, so a third party calling our
+ * verifier never receives one.
+ */
+deviceAuthRoutes.post("/auth/app-session", async (c) => {
+  const forbidden = requireAppOrigin(c);
+  if (forbidden) return forbidden;
 
-  const verified = await verifyAccessoryAndResolveToken({
-    message: body.message.trim(),
-    response: body.response,
-  });
-  if (!verified.ok) {
-    return json(
-      { error: verified.error, code: "passkey_invalid" },
-      { status: verified.status },
-    );
-  }
+  const payload = await readVerifierBearer(c);
+  if (payload instanceof Response) return payload;
 
-  const expected = body.phygitalToken?.trim();
-  if (expected && expected !== verified.phygitalToken) {
-    return json(
-      { error: "That isn’t the same accessory.", code: "passkey_invalid" },
-      { status: 403 },
-    );
-  }
-
-  const { expiresAt } = await issueBrowseUnlockCookie(
-    c,
-    verified.phygitalToken,
-  );
-  return json({
-    unlocked: true,
-    phygitalToken: verified.phygitalToken,
-    expiresAt,
-  });
+  const { expiresAt } = await issueBrowseUnlockCookie(c, payload.sub);
+  return json({ unlocked: true, phygitalToken: payload.sub, expiresAt });
 });

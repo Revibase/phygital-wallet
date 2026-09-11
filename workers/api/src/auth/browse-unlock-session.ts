@@ -10,9 +10,9 @@ import {
   mintSignedSessionToken,
   parseSignedSessionToken,
 } from "@/auth/session-hmac";
+import { VERIFIER_SESSION_TTL_MS } from "@/shared/session-ttl";
 
 const BROWSE_UNLOCK_COOKIE = "revibase_browse_unlock";
-const BROWSE_UNLOCK_TTL_MS = 5 * 60 * 1000;
 
 export type BrowseUnlock = {
   phygitalToken: string;
@@ -70,7 +70,7 @@ export async function issueBrowseUnlockCookie(
 ): Promise<{ expiresAt: number }> {
   const { token, expiresAt } = await mintSignedSessionToken(
     phygitalToken.trim(),
-    BROWSE_UNLOCK_TTL_MS,
+    VERIFIER_SESSION_TTL_MS,
   );
   setBrowseUnlockCookie(c, token, expiresAt);
   return { expiresAt };

@@ -5,7 +5,6 @@ import {
   evaluateAppAccess,
   isOpenCorsPath,
   isPublicApiPath,
-  isVerifierPublicPath,
   normalizeApiPath,
 } from "./require-app-access";
 
@@ -20,9 +19,12 @@ describe("isPublicApiPath", () => {
   it("allows verifier and bootstrap routes", () => {
     expect(isPublicApiPath("POST", "/preview")).toBe(true);
     expect(isPublicApiPath("POST", "/sign")).toBe(true);
+    expect(isPublicApiPath("POST", "/connect")).toBe(true);
+    expect(isPublicApiPath("POST", "/connect/tap")).toBe(true);
     expect(isPublicApiPath("GET", "/health")).toBe(true);
-    expect(isPublicApiPath("GET", "/verify-tap")).toBe(true);
-    expect(isPublicApiPath("POST", "/auth/browse-unlock")).toBe(true);
+    // The removed `/verify-tap` route is not public.
+    expect(isPublicApiPath("GET", "/verify-tap")).toBe(false);
+    expect(isPublicApiPath("POST", "/auth/app-session")).toBe(true);
     expect(isPublicApiPath("GET", "/auth/device/register-options")).toBe(true);
     expect(isPublicApiPath("POST", "/auth/device")).toBe(true);
     expect(isPublicApiPath("GET", "/auth/device-session/options")).toBe(true);
@@ -36,9 +38,9 @@ describe("isPublicApiPath", () => {
   it("rejects protected routes", () => {
     expect(isPublicApiPath("GET", "/tokens/verified")).toBe(false);
     expect(isPublicApiPath("GET", "/tokens/fee-balance")).toBe(false);
-    expect(isPublicApiPath("GET", "/auth/browse-unlock")).toBe(false);
-    expect(isPublicApiPath("DELETE", "/auth/browse-unlock")).toBe(false);
-    expect(isPublicApiPath("POST", "/auth/browse-unlock")).toBe(true);
+    expect(isPublicApiPath("GET", "/auth/app-session")).toBe(false);
+    expect(isPublicApiPath("DELETE", "/auth/app-session")).toBe(false);
+    expect(isPublicApiPath("POST", "/auth/app-session")).toBe(true);
     expect(isPublicApiPath("GET", "/auth/device/links/claimed")).toBe(false);
     expect(isPublicApiPath("GET", "/policies/Tok/approvals")).toBe(false);
     expect(isPublicApiPath("POST", "/policies/Tok/approvals/deny")).toBe(false);
@@ -61,14 +63,6 @@ describe("isOpenCorsPath", () => {
     );
     expect(isOpenCorsPath("GET", "/health")).toBe(false);
     expect(isOpenCorsPath("GET", "/tokens/verified")).toBe(false);
-  });
-});
-
-describe("isVerifierPublicPath", () => {
-  it("matches preview and sign only", () => {
-    expect(isVerifierPublicPath("/preview")).toBe(true);
-    expect(isVerifierPublicPath("/sign/")).toBe(true);
-    expect(isVerifierPublicPath("/health")).toBe(false);
   });
 });
 

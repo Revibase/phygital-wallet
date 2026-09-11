@@ -12,6 +12,7 @@ import {
   type TransactionPartialSigner,
   type TransactionWithLifetime,
   type TransactionWithinSizeLimit,
+  type SolanaRpcApi,
 } from "@solana/kit";
 
 import { DEFAULT_VERIFIER_API_BASE, MAX_ENDPOINT_LEN } from "../constants.js";
@@ -68,11 +69,12 @@ export function assertHttpsEndpoint(
 
 export function createVerifierEndpointSigner(
   verifierAddress: Address,
-  phygitalToken: Address,
   config: {
     /** Full `/sign` URL */
     endpoint: string;
     fetch?: typeof fetch;
+    /** Verifier session bearer; `/sign` is bearer-authenticated. */
+    getAccessToken?: () => string | null | Promise<string | null>;
   },
 ): TransactionPartialSigner<Address> {
   const httpFetch = config.fetch ?? fetch;
@@ -86,12 +88,15 @@ export function createVerifierEndpointSigner(
       options?.abortSignal?.throwIfAborted();
 
       const endpoint = assertHttpsEndpoint(config.endpoint);
+      const accessToken = (await config.getAccessToken?.()) ?? null;
 
       const response = await httpFetch(endpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
         body: JSON.stringify({
-          phygitalToken,
           transactions: transactions.map((transaction) =>
             getBase64EncodedWireTransaction(transaction),
           ),
@@ -167,6 +172,7 @@ function resolvedFromAccounts(args: {
   >[number];
   configEncoded: Awaited<ReturnType<typeof fetchEncodedAccounts>>[number];
   fetch?: typeof fetch;
+  getAccessToken?: () => string | null | Promise<string | null>;
 }): ResolvedVerifier {
   const {
     phygitalToken,
@@ -175,6 +181,7 @@ function resolvedFromAccounts(args: {
     tokenVerifierEncoded,
     configEncoded,
     fetch: httpFetch,
+    getAccessToken,
   } = args;
 
   const onChainConfig = decodeConfig(configEncoded);
@@ -198,9 +205,10 @@ function resolvedFromAccounts(args: {
       tokenVerifierPda,
       requiresOwnerCosignAssertion: isConfigDefault,
       usesDefaultPaymaster: isConfigDefault,
-      verifier: createVerifierEndpointSigner(verifierAddress, phygitalToken, {
+      verifier: createVerifierEndpointSigner(verifierAddress, {
         endpoint: verifierSignUrl(apiBase),
         fetch: httpFetch,
+        getAccessToken,
       }),
     };
   }
@@ -229,18 +237,20 @@ function resolvedFromAccounts(args: {
     tokenVerifierPda,
     requiresOwnerCosignAssertion: true,
     usesDefaultPaymaster: true,
-    verifier: createVerifierEndpointSigner(selectedVerifier, phygitalToken, {
+    verifier: createVerifierEndpointSigner(selectedVerifier, {
       endpoint: verifierSignUrl(DEFAULT_VERIFIER_API_BASE),
       fetch: httpFetch,
+      getAccessToken,
     }),
   };
 }
 
 export async function resolveVerifier(
-  rpc: Rpc<GetAccountInfoApi & GetMultipleAccountsApi>,
+  rpc: Rpc<SolanaRpcApi>,
   phygitalToken: Address,
   config: {
     fetch?: typeof fetch;
+    getAccessToken?: () => string | null | Promise<string | null>;
   } = {},
 ): Promise<ResolvedVerifier> {
   const [[tokenVerifierPda], [configPda]] = await Promise.all([
@@ -260,5 +270,6 @@ export async function resolveVerifier(
     tokenVerifierEncoded,
     configEncoded,
     fetch: config.fetch,
+    getAccessToken: config.getAccessToken,
   });
 }

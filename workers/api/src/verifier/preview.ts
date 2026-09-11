@@ -12,7 +12,8 @@ import {
 import { readDeviceSession } from "@/auth/device-session";
 import { json } from "@/shared/http";
 import { createLogger } from "@/shared/log";
-import { verifierJsonError } from "@/verifier/errors";
+import { previewJsonError } from "@/verifier/errors";
+import { readVerifierBearer } from "@/verifier/require-bearer";
 import { tokenSigner } from "@/verifier/token-signer";
 
 const base64Encoder = getBase64Encoder();
@@ -47,8 +48,11 @@ export const previewRoutes = new Hono<{ Bindings: Env }>();
 
 previewRoutes.post("/preview", async (c) => {
   try {
+    const session = await readVerifierBearer(c);
+    if (session instanceof Response) return session;
+    const phygitalToken = session.sub;
+
     const body = (await c.req.json()) as {
-      phygitalToken?: string;
       instructions?: {
         programAddress: string;
         accounts?: { address: string; role?: string | number }[];
@@ -56,13 +60,12 @@ previewRoutes.post("/preview", async (c) => {
       }[];
     };
 
-    const phygitalToken = body.phygitalToken?.trim();
-    if (!phygitalToken || !Array.isArray(body.instructions)) {
+    if (!Array.isArray(body.instructions)) {
       return json(
         {
           ok: false,
           code: "invalid_transaction",
-          error: "phygitalToken and instructions are required",
+          error: "instructions are required",
           soft: false,
         },
         { status: 400 },
@@ -111,6 +114,6 @@ previewRoutes.post("/preview", async (c) => {
       { status: result.httpStatus ?? 200 },
     );
   } catch (err) {
-    return verifierJsonError(err, "preview");
+    return previewJsonError(err);
   }
 });

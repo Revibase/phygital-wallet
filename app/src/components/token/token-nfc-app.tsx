@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { findPhygitalTokenPda } from "phygital-token-sdk";
 
 import { InAppBrowserGate } from "@/components/shared/in-app-browser-gate";
 import { CeremonyShell } from "@/components/shared/ceremony-shell";
@@ -18,7 +17,6 @@ import {
 import { useTapVerify } from "@/hooks/token/use-tap-verify";
 import { copy } from "@/lib/copy/phygital";
 import { toUserErrorMessage } from "@/lib/user-errors";
-import { unlockBrowseFromAccessory } from "@/lib/wallet/device-auth-client";
 import { clearClaimDismiss } from "@/lib/wallet/claim-setup-href";
 import { tokenHasLinkedMint } from "@/lib/phygital/token";
 import { queryKeys } from "@/lib/queries";
@@ -40,7 +38,7 @@ export function TokenNfcApp({ nfcCopy }: { nfcCopy: TokenNfcCopy }) {
   const accessory = useAccessoryHold();
   const [holdError, setHoldError] = useState<string | null>(null);
 
-  // Prefer PDA from /verify-tap (server already ran GPA). Fall back to
+  // Prefer PDA resolved during the tap connect. Fall back to
   // identifier GPA only when the server could not resolve the account.
   const pdaFromTap =
     hasTapProof && verify === "verified"
@@ -58,7 +56,7 @@ export function TokenNfcApp({ nfcCopy }: { nfcCopy: TokenNfcCopy }) {
   useEffect(() => {
     if (!tokenQuery.data) return;
     const pda = String(tokenQuery.data.address);
-    // Browse-unlock cookie is set by /verify-tap (credentials: include).
+    // Browse-unlock cookie was minted by the app-session exchange.
     clearClaimDismiss(pda);
     queryClient.setQueryData(queryKeys.deviceAuth.browseUnlock(pda), true);
     router.replace(
@@ -68,15 +66,10 @@ export function TokenNfcApp({ nfcCopy }: { nfcCopy: TokenNfcCopy }) {
 
   async function holdToOpen() {
     setHoldError(null);
-    const auth = await accessory.hold();
-    if (!auth) return;
+    const connection = await accessory.hold();
+    if (!connection) return;
     try {
-      const pda = String(await findPhygitalTokenPda(auth.secp256r1PublicKey));
-      await unlockBrowseFromAccessory({
-        message: auth.message,
-        response: auth.response,
-        phygitalToken: pda,
-      });
+      const { phygitalToken: pda } = connection;
       queryClient.setQueryData(queryKeys.deviceAuth.browseUnlock(pda), true);
       // Address page redirects unminted → wallet; minted lands on card.
       router.replace(tokenHref(pda));

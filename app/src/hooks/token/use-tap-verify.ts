@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { queryKeys, queryOptions } from "@/lib/queries";
-import { queryFetch, readJson } from "@/lib/queries/http";
+import { connectDynamicTap } from "@/lib/wallet/connect-tap";
 
 export type TapVerifyStatus = "pending" | "verified" | "failed";
 
@@ -17,31 +17,33 @@ export type TapVerifyResult = {
   phygitalToken?: string;
 };
 
+/**
+ * Exchange the tap proof at the token's own verifier for a session bearer, then
+ * for the app-session cookie.
+ */
 async function fetchTapVerification(
   params: URLSearchParams,
 ): Promise<TapVerifyResult> {
-  if (!["pk", "s", "c", "n"].every((k) => params.get(k))) {
+  const pk = params.get("pk");
+  const s = params.get("s");
+  const c = params.get("c");
+  const n = params.get("n");
+  if (!pk || !s || !c || !n) {
     throw new Error("Missing tap parameters");
   }
 
-  const res = await queryFetch(`/verify-tap?${params.toString()}`);
-  const body = await readJson<{
-    isVerified?: boolean;
-    identifier?: string;
-    counter?: number;
-    phygitalToken?: string;
-    error?: string;
-  }>(res, "verification failed");
-
-  if (!body.isVerified) {
-    throw new Error(body.error ?? "verification failed");
-  }
+  const { phygitalToken, identifier } = await connectDynamicTap({
+    pk,
+    s,
+    c,
+    n,
+  });
 
   return {
     status: "verified",
-    identifier: body.identifier,
-    counter: body.counter,
-    phygitalToken: body.phygitalToken,
+    identifier,
+    counter: Number(c),
+    phygitalToken,
   };
 }
 
@@ -77,7 +79,7 @@ export function useTapVerify() {
       const result = await fetchTapVerification(
         new URLSearchParams(tapParamsString),
       );
-      // Cookie is set by /verify-tap; seed RQ so the address page skips GET.
+      // Cookie is set by the app-session exchange; seed RQ so the address page skips GET.
       if (result.phygitalToken) {
         queryClient.setQueryData(
           queryKeys.deviceAuth.browseUnlock(result.phygitalToken),

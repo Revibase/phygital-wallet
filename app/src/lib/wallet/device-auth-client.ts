@@ -16,7 +16,6 @@ import type {
 } from "@simplewebauthn/browser";
 
 import { queryFetch, readJson } from "@/lib/queries/http";
-import { authenticateToken } from "@/lib/token/authenticate";
 import { clearClaimDismiss } from "@/lib/wallet/claim-setup-href";
 import { assertPolicyMutation } from "@/lib/wallet/policies-client";
 
@@ -66,20 +65,19 @@ export async function fetchTokenGate(phygitalToken: string): Promise<TokenGate> 
   };
 }
 
-/** After Hold crypto, mint browse-unlock cookie without a second prompt. */
-export async function unlockBrowseFromAccessory(args: {
-  message: string;
-  response: Awaited<ReturnType<typeof authenticateToken>>["response"];
-  phygitalToken?: string;
-}): Promise<{ phygitalToken: string; expiresAt: number }> {
-  const res = await queryFetch("/auth/browse-unlock", {
+/**
+ * Exchange a verifier session bearer for the `browse_unlock` app cookie.
+ *
+ * Works with a bearer from any verifier — Revibase's or a third party's — since
+ * the bearer is asymmetric and the API validates its issuer against the token's
+ * on-chain verifier set. This is the only way the cookie is minted.
+ */
+export async function exchangeAppSession(
+  accessToken: string,
+): Promise<{ phygitalToken: string; expiresAt: number }> {
+  const res = await queryFetch("/auth/app-session", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      message: args.message,
-      response: args.response,
-      ...(args.phygitalToken ? { phygitalToken: args.phygitalToken } : {}),
-    }),
+    headers: { Authorization: `Bearer ${accessToken}` },
   });
   const body = await readJson<{
     phygitalToken: string;

@@ -310,7 +310,8 @@ describe("createVerifierEndpointSigner", () => {
     const signatureBase64 = Buffer.alloc(64, 7).toString("base64");
     const mockFetch = vi.fn(async (_url, init) => {
       const body = JSON.parse(String(init?.body));
-      expect(body.phygitalToken).toBe(PHYGITAL_TOKEN);
+      // The token is NOT sent — the verifier derives it from the bearer.
+      expect(body.phygitalToken).toBeUndefined();
       expect(body.transactions).toHaveLength(1);
       return {
         ok: true,
@@ -318,7 +319,7 @@ describe("createVerifierEndpointSigner", () => {
       };
     });
 
-    const signer = createVerifierEndpointSigner(CONFIG_VERIFIER, PHYGITAL_TOKEN, {
+    const signer = createVerifierEndpointSigner(CONFIG_VERIFIER, {
       endpoint: "https://example.com/sign",
       fetch: mockFetch as typeof fetch,
     });

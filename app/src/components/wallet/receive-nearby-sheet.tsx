@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import type { TransactionModifyingSigner } from "@solana/kit";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
-import { PolicyDeniedError } from "phygital-wallet-sdk";
+import { connectPhygitalWallet, PolicyDeniedError } from "phygital-wallet-sdk";
 
 import { CeremonyShell } from "@/components/shared/ceremony-shell";
 import { NfcHoldStatus } from "@/components/shared/nfc-hold-status";
@@ -33,12 +34,13 @@ import {
 } from "@/lib/queries";
 import { shortAddress } from "@/lib/utils";
 import { toUserErrorMessage } from "@/lib/user-errors";
-import { identifyAccessory } from "@/lib/wallet/identify-accessory";
 import { policySoftDenyBody } from "@/lib/wallet/policy-deny-copy";
 import { ALL_LIST_SEARCH_THRESHOLD } from "@/lib/wallet/portfolio-preview";
 import type { WalletPortfolio } from "@/lib/wallet/portfolio-types";
 import { receiveAssetFromNearbyPayer } from "@/lib/wallet/send-asset";
 import { resolveTokenIconSrc } from "@/lib/tokens/payment-token";
+import { getSolanaRpc } from "@/lib/solana/rpc";
+import { walletPdaForToken } from "@/lib/wallet/pda";
 import {
   isWalletSignCeremonyPhase,
   walletSignPhaseCopy,
@@ -54,6 +56,7 @@ import { GroupedList, GroupedRow } from "@/components/shared/grouped-list";
 type LinkedPayer = {
   walletPda: string;
   tokenPda: string;
+  signer: TransactionModifyingSigner;
 };
 
 type Phase =
@@ -138,13 +141,21 @@ export function ReceiveNearbySheet({
     setPhase("identifying");
     setBusy(true);
     try {
-      const id = await identifyAccessory();
-      if (String(id.walletPda) === recipientWallet) {
+      const connection = await connectPhygitalWallet(getSolanaRpc(), {
+        onPhaseChange: (phase) => {
+          setSignPhase(phase);
+          if (isWalletSignCeremonyPhase(phase)) setPhase("holding");
+        },
+      });
+      const tokenPda = connection.phygitalToken;
+      const walletPda = await walletPdaForToken(tokenPda);
+      if (String(walletPda) === recipientWallet) {
         throw new Error(copy.wallet.cantReceiveFromSelf);
       }
       setFrom({
-        walletPda: String(id.walletPda),
-        tokenPda: String(id.token.address),
+        walletPda: String(walletPda),
+        tokenPda,
+        signer: connection.signer,
       });
       setHardError(null);
       setHandoffDeny(null);
@@ -192,12 +203,7 @@ export function ReceiveNearbySheet({
           decimals: asset.decimals,
           tokenProgram: asset.tokenProgram,
         },
-        signer: {
-          onPhaseChange: (phase) => {
-            setSignPhase(phase);
-            if (isWalletSignCeremonyPhase(phase)) setPhase("holding");
-          },
-        },
+        walletSigner: from.signer,
       });
       submittedSignature = signature;
       setPhase("holding");

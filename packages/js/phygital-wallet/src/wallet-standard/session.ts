@@ -1,16 +1,19 @@
 import { address, type Address } from "@solana/kit";
 
-const STORAGE_KEY = "revibase:wallet-standard:v1";
+const STORAGE_KEY = "revibase:wallet-standard:v2";
 
 export type PhygitalWalletSession = {
   phygitalTokenPda: Address;
   walletPda: Address;
+  accessToken: string;
+  expiresAt: number;
 };
 
-type StoredSessionV1 = {
-  v: 1;
+type StoredSession = {
   phygitalTokenPda: string;
   walletPda: string;
+  accessToken: string;
+  expiresAt: number;
 };
 
 function storage(): Storage | null {
@@ -28,13 +31,16 @@ export function loadPhygitalWalletSession(): PhygitalWalletSession | null {
   try {
     const raw = store.getItem(STORAGE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<StoredSessionV1>;
+    const parsed = JSON.parse(raw) as Partial<StoredSession>;
     if (
-      parsed.v !== 1 ||
       typeof parsed.phygitalTokenPda !== "string" ||
       typeof parsed.walletPda !== "string" ||
+      typeof parsed.accessToken !== "string" ||
+      typeof parsed.expiresAt !== "number" ||
       !parsed.phygitalTokenPda ||
-      !parsed.walletPda
+      !parsed.walletPda ||
+      !parsed.accessToken ||
+      !Number.isFinite(parsed.expiresAt)
     ) {
       store.removeItem(STORAGE_KEY);
       return null;
@@ -42,6 +48,8 @@ export function loadPhygitalWalletSession(): PhygitalWalletSession | null {
     return {
       phygitalTokenPda: address(parsed.phygitalTokenPda),
       walletPda: address(parsed.walletPda),
+      accessToken: parsed.accessToken,
+      expiresAt: parsed.expiresAt,
     };
   } catch {
     try {
@@ -54,14 +62,15 @@ export function loadPhygitalWalletSession(): PhygitalWalletSession | null {
 }
 
 export function savePhygitalWalletSession(
-  session: PhygitalWalletSession,
+  session: PhygitalWalletSession
 ): void {
   const store = storage();
   if (!store) return;
-  const payload: StoredSessionV1 = {
-    v: 1,
+  const payload: StoredSession = {
     phygitalTokenPda: String(session.phygitalTokenPda),
     walletPda: String(session.walletPda),
+    accessToken: session.accessToken,
+    expiresAt: session.expiresAt,
   };
   try {
     store.setItem(STORAGE_KEY, JSON.stringify(payload));

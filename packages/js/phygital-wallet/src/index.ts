@@ -15,6 +15,14 @@ export {
 export { PolicyDeniedError } from "./wallet/preview.js";
 
 export {
+  AccessoryMismatchError,
+  connectPhygitalWallet,
+  SESSION_SKEW_MS,
+  type PhygitalConnection,
+  type VerifierSessionBearer,
+} from "./wallet/connect.js";
+
+export {
   assertHttpsEndpoint,
   activeConfigVerifierAddresses,
   isConfigDefaultVerifier,

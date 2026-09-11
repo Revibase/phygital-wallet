@@ -2,7 +2,7 @@
  * Revibase API Worker entry.
  *
  * Code map → `api/README.md`
- * Domains → `tokens/`, `tap/`, `auth/`, `verifier/`, `shared/`
+ * Domains → `tokens/`, `auth/`, `verifier/`, `shared/`
  */
 import { Hono } from "hono";
 
@@ -12,7 +12,6 @@ import { requireAppAccess } from "@/auth/require-app-access";
 import { appCors } from "@/shared/cors";
 import { createLogger } from "@/shared/log";
 import { runWithRequestStore } from "@/shared/request-context";
-import { verifyTapRoutes } from "@/tap/routes";
 import { tokenRoutes } from "@/tokens/routes";
 import { verifierRoutes } from "@/verifier";
 import { heliusWebhookRoutes } from "@/webhooks/helius";
@@ -79,7 +78,6 @@ app.use("*", async (c, next) => {
 app.get("/health", (c) => c.json({ ok: true }));
 
 app.route("/", tokenRoutes);
-app.route("/", verifyTapRoutes);
 app.route("/", verifierRoutes);
 app.route("/", policyRoutes);
 app.route("/", deviceAuthRoutes);

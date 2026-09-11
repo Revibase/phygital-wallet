@@ -8,9 +8,15 @@ import { readBrowseUnlock } from "@/auth/browse-unlock-session";
 import { readDeviceSession } from "@/auth/device-session";
 import { json } from "@/shared/http";
 
-/** Exact method+path pairs that mint sessions or serve the public verifier. */
+/**
+ * Exempt from the cookie floor: routes that mint app sessions, plus the verifier
+ * API — which is not unauthenticated, it authenticates with its own bearer
+ * (see `verifier/require-bearer.ts`) rather than the app cookie.
+ */
 const PUBLIC_ROUTES: ReadonlyArray<{ method: string; path: string }> = [
   { method: "GET", path: "/health" },
+  { method: "POST", path: "/connect" },
+  { method: "POST", path: "/connect/tap" },
   { method: "POST", path: "/preview" },
   { method: "POST", path: "/sign" },
   { method: "GET", path: "/auth/device/register-options" },
@@ -19,8 +25,7 @@ const PUBLIC_ROUTES: ReadonlyArray<{ method: string; path: string }> = [
   { method: "POST", path: "/auth/device-session" },
   { method: "POST", path: "/auth/device-session/refresh" },
   { method: "GET", path: "/auth/device-session" },
-  { method: "GET", path: "/verify-tap" },
-  { method: "POST", path: "/auth/browse-unlock" },
+  { method: "POST", path: "/auth/app-session" },
   { method: "POST", path: "/webhooks/helius" },
   // Token landing before tap/Hold — must work with zero cookies.
   { method: "GET", path: "/auth/device/gate" },
@@ -47,13 +52,9 @@ export function isPublicApiPath(method: string, path: string): boolean {
  */
 export function isOpenCorsPath(_method: string, path: string): boolean {
   const p = normalizeApiPath(path);
-  return p === "/preview" || p === "/sign";
-}
-
-/** @deprecated Prefer {@link isOpenCorsPath} — kept for call-site clarity on verifier-only checks. */
-export function isVerifierPublicPath(path: string): boolean {
-  const p = normalizeApiPath(path);
-  return p === "/preview" || p === "/sign";
+  // `/connect/tap` is intentionally absent: it is scoped to app origins, so it
+  // keeps credentialed CORS rather than being opened to third parties.
+  return p === "/preview" || p === "/sign" || p === "/connect";
 }
 
 /**

@@ -1,9 +1,6 @@
 import { registerWallet } from "@wallet-standard/wallet";
 
-import {
-  PhygitalWallet,
-  type PhygitalWalletOptions,
-} from "./wallet.js";
+import { PhygitalWallet, type PhygitalWalletOptions } from "./wallet.js";
 
 const registered = new WeakSet<RpcLike>();
 
@@ -15,10 +12,10 @@ type RpcLike = PhygitalWalletOptions["rpc"];
  *
  * Call once at app startup, before mounting any Wallet Standard consumer.
  *
- * On `standard:connect`, prompts an NFC/passkey tap
- * (`startAuthentication` → `verifyResponse` → `findPhygitalTokenPda`) and
- * exposes the wallet PDA as the connected account. A prior session is restored
- * from `localStorage` without another tap.
+ * On `standard:connect`, uses `connectPhygitalWallet` to prompt an NFC/passkey
+ * tap, issue a verifier bearer, and expose the wallet PDA as the connected
+ * account. The bearer and its expiry are persisted so a prior session can be
+ * restored without another tap until renewal is needed.
  *
  * Idempotent per `rpc` instance in this JS realm.
  */

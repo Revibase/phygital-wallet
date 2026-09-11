@@ -11,22 +11,25 @@ import type { AuthenticationResponseJSON } from "@simplewebauthn/server";
 
 import { json } from "@/shared/http";
 import { verifierJsonError } from "@/verifier/errors";
+import { readVerifierBearer } from "@/verifier/require-bearer";
 import { tokenSigner } from "@/verifier/token-signer";
 
 export const signRoutes = new Hono<{ Bindings: Env }>();
 
 signRoutes.post("/sign", async (c) => {
   try {
+    const session = await readVerifierBearer(c);
+    if (session instanceof Response) return session;
+    const phygitalToken = session.sub;
+
     const body = (await c.req.json()) as {
-      phygitalToken?: string;
       transactions?: string[];
       challengeId?: string;
       assertion?: AuthenticationResponseJSON;
     };
-    const phygitalToken = body.phygitalToken?.trim();
-    if (!phygitalToken || !Array.isArray(body.transactions) || body.transactions.length === 0) {
+    if (!Array.isArray(body.transactions) || body.transactions.length === 0) {
       return json(
-        { error: "phygitalToken and transactions required", code: "invalid_transaction" },
+        { error: "transactions required", code: "invalid_transaction" },
         { status: 400 },
       );
     }
@@ -44,6 +47,6 @@ signRoutes.post("/sign", async (c) => {
     }
     return json({ signatures: result.signatures });
   } catch (err) {
-    return verifierJsonError(err, "sign");
+    return verifierJsonError(err);
   }
 });

@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { findPhygitalTokenPda } from "phygital-token-sdk";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { GroupedList, GroupedRow } from "@/components/shared/grouped-list";
@@ -27,12 +26,12 @@ import {
   linkToken,
   loginDevice,
   registerDevice,
-  unlockBrowseFromAccessory,
   type DeviceLink,
   type LinkStatus,
   type TokenGate,
 } from "@/lib/wallet/device-auth-client";
-import { authenticateToken } from "@/lib/token/authenticate";
+import { completeAccessoryConnection } from "@/lib/wallet/connect-accessory";
+import { AccessoryMismatchError } from "phygital-wallet-sdk";
 import { useWalletPda } from "@/hooks/wallet/use-wallet-pda";
 import { parseDeviceSignInIntent } from "@/lib/wallet/device-sign-in-href";
 import { tokenHref, walletHref } from "@/lib/wallet/token-routes";
@@ -271,16 +270,15 @@ function HomeLinkSetup({
 
   const hold = useMutation({
     mutationFn: async () => {
-      const auth = await authenticateToken();
-      const pda = String(await findPhygitalTokenPda(auth.secp256r1PublicKey));
-      if (pda !== tokenAddress) {
-        throw new Error(copy.token.wrongItem);
+      try {
+        await completeAccessoryConnection({
+          expectedPhygitalToken: tokenAddress,
+        });
+      } catch (e) {
+        throw e instanceof AccessoryMismatchError
+          ? new Error(copy.token.wrongItem)
+          : e;
       }
-      await unlockBrowseFromAccessory({
-        message: auth.message,
-        response: auth.response,
-        phygitalToken: tokenAddress,
-      });
     },
     onSuccess: () => {
       queryClient.setQueryData(
@@ -475,13 +473,7 @@ function HomeLinksScreen({ username }: { username: string }) {
 
   const hold = useMutation({
     mutationFn: async () => {
-      const auth = await authenticateToken();
-      const pda = String(await findPhygitalTokenPda(auth.secp256r1PublicKey));
-      await unlockBrowseFromAccessory({
-        message: auth.message,
-        response: auth.response,
-        phygitalToken: pda,
-      });
+      const { phygitalToken: pda } = await completeAccessoryConnection();
       return pda;
     },
     onSuccess: (pda) => {

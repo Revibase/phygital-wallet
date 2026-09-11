@@ -3,6 +3,7 @@ import {
   type Address,
   type Instruction,
   type TransactionSigner,
+  type TransactionModifyingSigner,
 } from "@solana/kit";
 import { getTransferSolInstruction } from "@solana-program/system";
 import {
@@ -29,6 +30,7 @@ import { buildCnftTransferInstructions } from "@/lib/wallet/transfers/cnft-trans
 import { buildCoreTransferInstructions } from "@/lib/wallet/transfers/core-transfer";
 import { buildPnftTransferInstructions } from "@/lib/wallet/transfers/pnft-transfer";
 import { appVerifierFetch } from "@/lib/wallet/verifier-fee-payer";
+import { accessTokenFor } from "@/lib/wallet/verifier-session";
 
 type SendAssetFields = Pick<
   SendAssetRef,
@@ -42,16 +44,21 @@ export async function sendAssetFromWallet(args: {
   asset: SendAssetFields;
   /** Ceremony UI hooks from `getPhygitalWalletSigner`. */
   signer?: PhygitalWalletSignerConfig;
+  /** Optional already-connected signer for a single transaction. */
+  walletSigner?: TransactionModifyingSigner;
   abortSignal?: AbortSignal;
 }): Promise<{ signature: string; confirmed: Promise<void> }> {
   const rpc = getSolanaRpc();
   const tokenPda = address(String(args.phygitalTokenPda));
   const recipient = address(String(args.recipient));
   args.signer?.onPhaseChange?.("preparing");
-  const walletSigner = await getPhygitalWalletSigner(rpc, tokenPda, {
-    ...args.signer,
-    fetch: appVerifierFetch,
-  });
+  const walletSigner =
+    args.walletSigner ??
+    (await getPhygitalWalletSigner(rpc, tokenPda, {
+      ...args.signer,
+      fetch: appVerifierFetch,
+      getAccessToken: accessTokenFor(String(tokenPda)),
+    }));
   const walletPda = walletSigner.address;
 
   const instructions = await buildSendInstructions({
@@ -81,6 +88,7 @@ export async function receiveAssetFromNearbyPayer(args: {
   amountUi: string;
   asset: SendAssetFields;
   signer?: PhygitalWalletSignerConfig;
+  walletSigner?: TransactionModifyingSigner;
 }): Promise<{ signature: string; confirmed: Promise<void> }> {
   const payerToken = address(String(args.payerPhygitalTokenPda));
   const walletPda = await walletPdaForToken(payerToken);
@@ -94,6 +102,7 @@ export async function receiveAssetFromNearbyPayer(args: {
     amountUi: args.amountUi,
     asset: args.asset,
     signer: args.signer,
+    walletSigner: args.walletSigner,
   });
 }
 

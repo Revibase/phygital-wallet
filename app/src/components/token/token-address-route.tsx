@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { useIsRestoring, useQuery, useQueryClient } from "@tanstack/react-query";
-import { findPhygitalTokenPda } from "phygital-token-sdk";
 
 import { RevibaseMark } from "@/components/brand/revibase-mark";
 import { GateMessage } from "@/components/layout/gate-message";
@@ -23,7 +22,6 @@ import { queryKeys, queryOptions } from "@/lib/queries";
 import { toUserErrorMessage } from "@/lib/user-errors";
 import {
   fetchTokenGate,
-  unlockBrowseFromAccessory,
   type LinkStatus,
   type TokenGate,
 } from "@/lib/wallet/device-auth-client";
@@ -101,7 +99,7 @@ export function TokenAddressRoute({
     ...queryOptions.deviceLinks,
   });
 
-  // Seeded by /verify-tap / Hold — unlock immediately without waiting on gate.
+  // Seeded by tap connect / Hold — unlock immediately without waiting on gate.
   const seededBrowse = useQuery({
     queryKey: queryKeys.deviceAuth.browseUnlock(tokenAddress),
     queryFn: async () => false,
@@ -270,20 +268,11 @@ function AddressHoldGate({
   const accessory = useAccessoryHold();
 
   async function holdToOpen() {
-    const auth = await accessory.hold({
-      expectedPublicKey: token.secp256r1PublicKey,
+    const connection = await accessory.hold({
+      expectedPhygitalToken: tokenAddress,
     });
-    if (!auth) return;
+    if (!connection) return;
     try {
-      const pda = String(await findPhygitalTokenPda(auth.secp256r1PublicKey));
-      if (pda !== tokenAddress) {
-        throw new Error(copy.token.wrongItem);
-      }
-      await unlockBrowseFromAccessory({
-        message: auth.message,
-        response: auth.response,
-        phygitalToken: tokenAddress,
-      });
       onUnlocked();
     } catch (err) {
       accessory.setError(toUserErrorMessage(err, copy.verify.failedBody));

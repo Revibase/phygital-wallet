@@ -19,3 +19,8 @@ export function verifierSignUrl(apiBase: string): string {
 export function verifierPreviewUrl(apiBase: string): string {
   return `${normalizeVerifierApiBase(apiBase)}/preview`;
 }
+
+/** WebAuthn connect — the portable contract every verifier implements. */
+export function verifierConnectUrl(apiBase: string): string {
+  return `${normalizeVerifierApiBase(apiBase)}/connect`;
+}

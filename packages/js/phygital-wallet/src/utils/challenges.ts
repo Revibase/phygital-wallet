@@ -37,12 +37,13 @@ type SlotChallenge = {
   messageHash: Uint8Array;
 };
 
+
 export type SlotEntry = {
   slotNumber: bigint;
   slotHash: Uint8Array;
 };
 
-export async function fetchLatestSlothHash(
+export async function fetchLatestSlotHash(
   rpc: Rpc<GetAccountInfoApi>,
 ): Promise<SlotEntry> {
   const { value } = await rpc
@@ -71,7 +72,7 @@ async function withSlotChallenge(
   rpc: Rpc<GetAccountInfoApi>,
   hashMessage: (slotHash: Uint8Array) => Uint8Array,
 ): Promise<SlotChallenge> {
-  const { slotNumber, slotHash } = await fetchLatestSlothHash(rpc);
+  const { slotNumber, slotHash } = await fetchLatestSlotHash(rpc);
   return { slotNumber, messageHash: hashMessage(slotHash) };
 }
 

@@ -25,6 +25,28 @@ type MutationFail = {
 export type TokenSignerRpc = {
   getPolicy(): Promise<EffectivePolicy>;
   getFeeBalance(): Promise<{ balanceLamports: number }>;
+  verifyWebAuthnConnectAndMintBearer(input: {
+    blockhash: string;
+    response: unknown;
+    origin: string | null;
+    verifiers: readonly string[];
+    ttlMs: number;
+  }): Promise<
+    | { ok: true; accessToken: string; expiresAt: number; verifier: string }
+    | { ok: false; code: string; error: string; status: number }
+  >;
+  verifyDynamicConnectAndMintBearer(input: {
+    pk: string;
+    s: string;
+    c: string | number;
+    n: string;
+    origin: string | null;
+    verifiers: readonly string[];
+    ttlMs: number;
+  }): Promise<
+    | { ok: true; accessToken: string; expiresAt: number; verifier: string }
+    | { ok: false; code: string; error: string; status: number }
+  >;
   hasOwner(): Promise<boolean>;
   isOwner(credentialId: string): Promise<boolean>;
   getOwnerCredentialId(): Promise<string | null>;
@@ -70,16 +92,11 @@ export type TokenSignerRpc = {
     challengeId: string;
     assertion: unknown;
     origin: string;
-  }): Promise<
-    | { ok: true; credentialId: string }
-    | MutationFail
-  >;
+  }): Promise<{ ok: true; credentialId: string } | MutationFail>;
   applyFeeEvents(
-    events: { signature: string; kind: "credit" | "debit"; lamports: number }[],
+    events: { signature: string; kind: "credit" | "debit"; lamports: number }[]
   ): Promise<{ applied: number }>;
-  previewAuthorize(input: {
-    instructions: Instruction[];
-  }): Promise<
+  previewAuthorize(input: { instructions: Instruction[] }): Promise<
     | { ok: true; intentHash: string }
     | {
         ok: false;
@@ -97,7 +114,7 @@ export type TokenSignerRpc = {
       challengeId?: string | null;
       assertion?: unknown;
       origin?: string | null;
-    },
+    }
   ): Promise<
     | { ok: true; signatures: string[] }
     | {

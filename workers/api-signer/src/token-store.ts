@@ -62,6 +62,12 @@ function parseStoredPolicy(policyJson: string): PaymentsPolicyConfig | "invalid"
   }
 }
 
+/**
+ * Which monotonic counter a proof carries. `tap` is the dynamic NFC URL's `c`;
+ * `webauthn` is the assertion's `signCount`. Separate registers, separate rows.
+ */
+export type AccessoryCounterKind = "tap" | "webauthn";
+
 export function initTokenSchema(sql: Sql): void {
   sql.exec(`
     CREATE TABLE IF NOT EXISTS meta (
@@ -108,6 +114,13 @@ export function initTokenSchema(sql: Sql): void {
       binding_hash TEXT NOT NULL,
       origin TEXT NOT NULL,
       expires_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS accessory_counter (
+      kind TEXT NOT NULL,
+      identifier TEXT NOT NULL,
+      c INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      PRIMARY KEY (kind, identifier)
     );
     CREATE TABLE IF NOT EXISTS pending_approvals (
       id TEXT PRIMARY KEY NOT NULL,
@@ -265,6 +278,49 @@ export class TokenStore {
     this.sql.exec(`DELETE FROM policy`);
     this.sql.exec(`DELETE FROM pending_approvals`);
     this.#policyCache = null;
+  }
+
+  // --- accessory replay counters ---
+
+  /**
+   * Check-and-advance an accessory counter high-water. Returns `false` to reject
+   * as a replay.
+   *
+   * Each proof type carries its own monotonic counter from the chip, and they are
+   * **separate registers** — the dynamic URL's `c` and the WebAuthn assertion's
+   * `signCount` hold unrelated values, so they are tracked under different
+   * `kind`s. Sharing one row would let the higher counter permanently lock out
+   * the other proof type.
+   *
+   */
+  consumeAccessoryCounter(
+    kind: AccessoryCounterKind,
+    identifier: string,
+    counter: number,
+  ): boolean {
+    const stored = this.sql
+      .exec<{ c: number }>(
+        `SELECT c FROM accessory_counter WHERE kind = ? AND identifier = ?`,
+        kind,
+        identifier,
+      )
+      .toArray()[0];
+
+    const floor = stored?.c ?? null;
+    if (floor !== null && counter <= floor) return false;
+
+    this.sql.exec(
+      `INSERT INTO accessory_counter (kind, identifier, c, updated_at)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(kind, identifier) DO UPDATE SET
+         c = excluded.c,
+         updated_at = excluded.updated_at`,
+      kind,
+      identifier,
+      counter,
+      Date.now(),
+    );
+    return true;
   }
 
   // --- challenges ---

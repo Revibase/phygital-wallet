@@ -52,7 +52,10 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@solana/instructions": "^8.1.0"
+    "@noble/curves": "^2.3.0",
+    "@solana/instructions": "^8.1.0",
+    "@solana/kit": "^8.1.0",
+    "phygital-token-sdk": "^1.0.3"
   },
   "devDependencies": {
     "typescript": "^5.7.3",

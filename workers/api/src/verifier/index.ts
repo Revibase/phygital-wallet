@@ -10,10 +10,12 @@
  */
 import { Hono } from "hono";
 
+import { connectRoutes } from "@/verifier/connect";
 import { previewRoutes } from "@/verifier/preview";
 import { signRoutes } from "@/verifier/sign";
 
 export const verifierRoutes = new Hono();
 
+verifierRoutes.route("/", connectRoutes);
 verifierRoutes.route("/", previewRoutes);
 verifierRoutes.route("/", signRoutes);

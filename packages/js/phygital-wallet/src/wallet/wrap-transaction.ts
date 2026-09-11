@@ -47,7 +47,7 @@ import type { Secp256r1VerifyArgsArgs } from "../generated/types/secp256r1Verify
 import { compileWalletInstructions } from "./compile.js";
 import {
   buildExecuteChallengeFromSlot,
-  fetchLatestSlothHash,
+  fetchLatestSlotHash,
   type SlotEntry,
 } from "../utils/challenges.js";
 
@@ -623,7 +623,7 @@ export async function modifyAndWrapWalletTransaction(input: {
   if (previewResult.status === "rejected") throw previewResult.reason;
   if (bodySimResult.status === "rejected") throw bodySimResult.reason;
 
-  const slot = await fetchLatestSlothHash(input.rpc);
+  const slot = await fetchLatestSlotHash(input.rpc);
   const pending = buildPendingWalletWrap(
     prepared,
     input.walletPda,

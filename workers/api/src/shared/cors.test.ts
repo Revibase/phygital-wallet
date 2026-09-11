@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { corsModeForRequest, isAppBrowserOrigin } from "./cors";
+import {
+  corsModeForRequest,
+  isAppBrowserOrigin,
+  requireRevibaseAppOrigin,
+} from "./cors";
 
 describe("isAppBrowserOrigin", () => {
   it("allows revibase and localhost", () => {
@@ -35,5 +39,30 @@ describe("corsModeForRequest", () => {
 
   it("defaults open paths without Origin to credentialed (server clients)", () => {
     expect(corsModeForRequest("POST", "/sign", undefined)).toBe("credentialed");
+  });
+});
+
+describe("requireRevibaseAppOrigin", () => {
+  const request = (origin?: string) => ({
+    req: { header: () => origin },
+  });
+
+  it("allows only the app origin and local development", () => {
+    expect(requireRevibaseAppOrigin(request("https://app.revibase.com"))).toBe(
+      null,
+    );
+    expect(requireRevibaseAppOrigin(request("http://localhost:3000"))).toBe(
+      null,
+    );
+    expect(
+      requireRevibaseAppOrigin(request("https://p.revibase.com")),
+    ).toBeInstanceOf(Response);
+    expect(
+      requireRevibaseAppOrigin(request("http://app.revibase.com")),
+    ).toBeInstanceOf(Response);
+  });
+
+  it("rejects missing origins", () => {
+    expect(requireRevibaseAppOrigin(request())).toBeInstanceOf(Response);
   });
 });

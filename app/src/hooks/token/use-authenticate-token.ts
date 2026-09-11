@@ -5,7 +5,7 @@ import { useCallback, useState } from "react";
 import { authenticateToken } from "@/lib/token/authenticate";
 
 /**
- * Hold to Check — live WebAuthn against a client-issued challenge.
+ * Hold to Check — live WebAuthn against a Solana slot-hash challenge.
  */
 export function useAuthenticateToken() {
   const [pending, setPending] = useState(false);

@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 
-import { useAuthenticateToken } from "@/hooks/token/use-authenticate-token";
 import { useIsInAppBrowser } from "@/hooks/layout/use-is-in-app-browser";
 import { copy } from "@/lib/copy/phygital";
 import { toUserErrorMessage } from "@/lib/user-errors";
+import { completeAccessoryConnection } from "@/lib/wallet/connect-accessory";
+import { AccessoryMismatchError } from "phygital-wallet-sdk";
 
 /**
  * Shared Hold gate: in-app browser check + accessory WebAuthn + busy/error.
@@ -13,21 +14,31 @@ import { toUserErrorMessage } from "@/lib/user-errors";
  */
 export function useAccessoryHold() {
   const inApp = useIsInAppBrowser();
-  const { authenticate, pending } = useAuthenticateToken();
+  const [pending, setPending] = useState(false);
   const [showInAppGate, setShowInAppGate] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function hold(args?: { expectedPublicKey?: string }) {
+  async function hold(args?: { expectedPhygitalToken?: string }) {
     if (inApp) {
       setShowInAppGate(true);
       return null;
     }
     setError(null);
+    setPending(true);
     try {
-      return await authenticate(args);
+      return await completeAccessoryConnection(args);
     } catch (e) {
-      setError(toUserErrorMessage(e, copy.verify.failedBody));
+      setError(
+        toUserErrorMessage(
+          e instanceof AccessoryMismatchError
+            ? new Error(copy.token.wrongItem)
+            : e,
+          copy.verify.failedBody,
+        ),
+      );
       return null;
+    } finally {
+      setPending(false);
     }
   }
 
