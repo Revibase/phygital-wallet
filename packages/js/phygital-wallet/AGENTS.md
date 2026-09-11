@@ -6,7 +6,8 @@ Kit client for the **phygital-wallet** Solana program. Prefer public exports fro
 
 | Goal | Use |
 |------|-----|
-| Sign a spend / CPI as the wallet PDA | `getPhygitalWalletSigner(rpc, phygitalTokenPda, opts?)` |
+| Connect an accessory (tap → session bearer) | `startPhygitalConnect(rpc)` then `exchangeConnectProof({ endpoint, blockhash, response })` |
+| Sign a spend / CPI as the wallet PDA | `getPhygitalWalletSigner(rpc, phygitalTokenPda, { getAccessToken, … })` |
 | Discoverable browser wallet (`@solana/connectors`, adapters) | `registerPhygitalWallet({ rpc, … })` once at startup |
 | Resolve co-signer endpoint / paymaster flags | `resolveVerifier(rpc, phygitalTokenPda)` |
 | Build set/clear TokenVerifier or RecoveryWallet ixs | `buildSet*Challenge` / `buildClear*Challenge` |
@@ -22,17 +23,32 @@ Companion packages:
 1. User’s accessory → **phygital token PDA** (passkey / secp256r1).
 2. **Wallet PDA** = PDA of phygital-wallet program seeded by that token.
 3. Transactions that spend from the wallet are Kit messages with the wallet PDA as fee payer / signer; this SDK **wraps** body ixs into `execute` (+ secp256r1 verify), refreshes lifetime, then **co-signs** via the verifier API.
-4. Default co-signer origin when no TokenVerifier override: `DEFAULT_VERIFIER_API_BASE` (`https://api.revibase.com`). Override endpoint comes from on-chain TokenVerifier.
+4. The verifier's `/preview` + `/sign` are **bearer-only**. Get a session bearer by connecting (`startPhygitalConnect` → `exchangeConnectProof`) and hand it to the signer through `getAccessToken`.
+5. Default co-signer origin when no TokenVerifier override: `DEFAULT_VERIFIER_API_BASE` (`https://api.revibase.com`). Override endpoint comes from on-chain TokenVerifier.
 
-## Kit signer (primary path)
+## Connect, then sign (primary path)
 
 ```ts
 import {
+  startPhygitalConnect,
+  exchangeConnectProof,
   getPhygitalWalletSigner,
   PolicyDeniedError,
 } from "phygital-wallet-sdk";
 
-const source = await getPhygitalWalletSigner(rpc, phygitalTokenPda, {
+// Connect: tap → proof → session bearer. (startPhygitalConnect mirrors
+// startAuthentication; exchangeConnectProof mirrors verifyResponse.)
+const proof = await startPhygitalConnect(rpc);
+const session = await exchangeConnectProof({
+  endpoint: proof.resolved.endpoint,
+  blockhash: proof.blockhash,
+  response: proof.response,
+});
+
+// Signer: pass the bearer via getAccessToken (required — /preview + /sign are bearer-only).
+const source = await getPhygitalWalletSigner(rpc, proof.phygitalToken, {
+  resolved: proof.resolved, // skip a redundant verifier re-resolve
+  getAccessToken: () => session.accessToken,
   fetch,           // optional
   onPhaseChange,   // preparing | previewing | awaitingPasskey | building | coSigning | complete
 });
@@ -45,6 +61,7 @@ Constraints agents must respect:
 
 - **Exactly one** transaction per `modifyAndSignTransactions` call.
 - Transaction must have a **lifetime** (blockhash or durable nonce).
+- Session bearer lasts ~15 min. `getAccessToken` returns the cached bearer and should **throw** once it lapses — never silently re-tap; reconnect on an explicit user action.
 - Soft policy deny → throws `PolicyDeniedError` with `soft === true` and often `intentHash`. Retry the **same** instructions after the owner approves; do not invent a new intent.
 - Durable nonce: `AdvanceNonceAccount` stays **outer** ix 0 (not inside `execute`). Nonce authority must **not** be the wallet PDA.
 - Supported versions: legacy, v0, v1 (v1 uses message config for CU/fees, not ComputeBudget ixs).

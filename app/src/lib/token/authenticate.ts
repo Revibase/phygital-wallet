@@ -9,7 +9,8 @@ import { bindVerifiedPasskey } from "@/lib/token/bind-passkey";
  * must be this chip.
  *
  * This is intentionally local-only. Session-bearing connections use the SDK's
- * `connectPhygitalWallet`, which owns the blockhash challenge and server proof.
+ * `startPhygitalConnect` + `exchangeConnectProof`, which own the blockhash
+ * challenge and the verifier proof exchange.
  */
 export async function authenticateToken(args?: {
   expectedPublicKey?: string;

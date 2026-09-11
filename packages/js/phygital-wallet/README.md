@@ -17,6 +17,10 @@ pnpm add phygital-wallet-sdk @solana/kit
 
 ## Quickstart: connect and transact
 
+Connecting is three primitives that mirror `startAuthentication` →
+`verifyResponse` from `phygital-token-sdk` (the login flow): tap to produce a
+proof, exchange it for a session bearer, then build a signer.
+
 ```typescript
 import {
   pipe,
@@ -28,13 +32,33 @@ import {
   sendTransactionWithoutConfirmingFactory,
 } from "@solana/kit";
 import { getTransferSolInstruction } from "@solana-program/system";
-import { connectPhygitalWallet } from "phygital-wallet-sdk";
+import {
+  startPhygitalConnect,
+  exchangeConnectProof,
+  getPhygitalWalletSigner,
+} from "phygital-wallet-sdk";
 
-// Connect once: this performs the tap, resolves the token verifier, obtains the
-// bearer, and wires that bearer into preview and sign requests.
-const { signer: source } = await connectPhygitalWallet(rpc);
+// 1. Tap and produce a proof (counterpart to startAuthentication).
+const proof = await startPhygitalConnect(rpc);
+
+// 2. Exchange it for a session bearer. POST to the token's verifier directly…
+const session = await exchangeConnectProof({
+  endpoint: proof.resolved.endpoint,
+  blockhash: proof.blockhash,
+  response: proof.response,
+});
+//    …or send { blockhash, response } to your own backend, verify it there with
+//    verifyConnectProof (phygital-verifier-sdk) — the counterpart to
+//    verifyResponse — and return the bearer.
+
+// 3. Build a signer from the token + bearer. getAccessToken hands over the
+//    current bearer; re-fetched whenever it lapses (see "Keeping a session").
+const source = await getPhygitalWalletSigner(rpc, proof.phygitalToken, {
+  resolved: proof.resolved,
+  getAccessToken: () => session.accessToken,
+});
+
 const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
-
 const message = pipe(
   createTransactionMessage({ version: 0 }),
   (m) => setTransactionMessageFeePayerSigner(source, m),
@@ -57,13 +81,29 @@ const send = sendTransactionWithoutConfirmingFactory({ rpc });
 await send(signed);
 ```
 
-`connectPhygitalWallet` performs the NFC/passkey connection and keeps the
-verifier bearer available for `/preview` and `/sign`. Signing then runs policy
+The accessory is *discovered*, not chosen: `proof.phygitalToken` is whatever was
+tapped — compare it if your flow expects a specific item. Signing runs policy
 checks and a body simulation before the passkey prompt, wraps (`secp256r1` +
-`execute`), co-signs, and submits the transaction.
+`execute`), co-signs, and submits.
 
 Soft policy denial throws `PolicyDeniedError` with a stable `intentHash`. After
 the owner approves on their device, retry the same instructions.
+
+## When the session expires
+
+`exchangeConnectProof` bearers are short-lived (~15 min). `getAccessToken` is
+called on every `/preview`+`/sign`, so it will **throw once
+it lapses**.
+
+```typescript
+import { SESSION_SKEW_MS } from "phygital-wallet-sdk";
+
+// reuse the `session` from exchangeConnectProof above
+const getAccessToken = () => {
+  if (session.expiresAt - SESSION_SKEW_MS > Date.now()) return session.accessToken;
+  throw new Error("Session expired — reconnect");
+};
+```
 
 ## Wallet Standard (`@solana/connectors` / adapters)
 
@@ -77,31 +117,23 @@ registerPhygitalWallet({ rpc /* , chains?, fetch?, onPhaseChange? */ });
 
 Options: `rpc` (required), optional `chains` (defaults to mainnet only — the program is not deployed elsewhere), `fetch`, `onPhaseChange`.
 
-The wallet appears as **Revibase**. It uses `connectPhygitalWallet` to obtain
-the verifier bearer, persists the bearer-backed session under
-`revibase:wallet-standard:v2`, and renews it through the same connect flow when
-it expires.
+The wallet appears as **Revibase**. On connect it taps with
+`startPhygitalConnect`, mints a bearer with `exchangeConnectProof`, and persists
+the bearer-backed session under `revibase:wallet-standard:v2`. When the session
+expires, signing throws — the consumer reconnects (`standard:connect`) to tap
+again; it never re-taps on its own.
 
 Features: `standard:connect` / `disconnect` / `events`, `solana:signTransaction`, `solana:signAndSendTransaction`, and `solana:signMessage` (declared for connector compatibility — PDA accounts cannot produce ed25519 message signatures). Signing uses the same wrap/`execute` path as `getPhygitalWalletSigner` (legacy, v0, and v1; blockhash or durable nonce).
 
-Kit-only apps can skip `registerPhygitalWallet` and use `connectPhygitalWallet` alone.
-
-## Optional: ceremony progress
-
-```typescript
-const source = await connectPhygitalWallet(rpc, {
-  onPhaseChange: (phase) => {
-    /* hold / progress UI */
-  },
-});
-```
+Kit-only apps can skip `registerPhygitalWallet` and compose the three primitives above.
 
 ## Public API (summary)
 
 | Export                                 | Role                                                            |
 | -------------------------------------- | --------------------------------------------------------------- |
-| `connectPhygitalWallet`                | Tap an accessory and return a bearer-backed transaction signer. |
-| `getPhygitalWalletSigner`              | Build a signer when the token and bearer are already known.     |
+| `startPhygitalConnect`                 | Tap and produce a connect proof (counterpart to `startAuthentication`). |
+| `exchangeConnectProof`                 | POST a proof to a verifier `/connect` and return its session bearer. |
+| `getPhygitalWalletSigner`              | Build a bearer-backed Kit signer for a token.                   |
 | `registerPhygitalWallet`               | Register the bearer-backed wallet with Wallet Standard.         |
 | `PolicyDeniedError`                    | Policy denial from `/preview` or `/sign`.                       |
 | `resolveVerifier` / `ResolvedVerifier` | Resolve a token verifier or default verifier.                   |

@@ -5,7 +5,7 @@ import type { TransactionModifyingSigner } from "@solana/kit";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
-import { connectPhygitalWallet, PolicyDeniedError } from "phygital-wallet-sdk";
+import { getPhygitalWalletSigner, PolicyDeniedError } from "phygital-wallet-sdk";
 
 import { CeremonyShell } from "@/components/shared/ceremony-shell";
 import { NfcHoldStatus } from "@/components/shared/nfc-hold-status";
@@ -40,7 +40,12 @@ import type { WalletPortfolio } from "@/lib/wallet/portfolio-types";
 import { receiveAssetFromNearbyPayer } from "@/lib/wallet/send-asset";
 import { resolveTokenIconSrc } from "@/lib/tokens/payment-token";
 import { getSolanaRpc } from "@/lib/solana/rpc";
+import { connectVerifierSession } from "@/lib/wallet/connect-accessory";
 import { walletPdaForToken } from "@/lib/wallet/pda";
+import {
+  accessTokenFor,
+  setVerifierSession,
+} from "@/lib/wallet/verifier-session";
 import {
   isWalletSignCeremonyPhase,
   walletSignPhaseCopy,
@@ -141,21 +146,27 @@ export function ReceiveNearbySheet({
     setPhase("identifying");
     setBusy(true);
     try {
-      const connection = await connectPhygitalWallet(getSolanaRpc(), {
+      // Tap the payer's accessory and cache its bearer (no app-session cookie —
+      // the payer is authorizing a transfer, not logging in here).
+      const { phygitalToken, proof, session } = await connectVerifierSession();
+      setVerifierSession(phygitalToken, session);
+      const tokenPda = proof.phygitalToken;
+      const walletPda = await walletPdaForToken(tokenPda);
+      if (String(walletPda) === recipientWallet) {
+        throw new Error(copy.wallet.cantReceiveFromSelf);
+      }
+      const signer = await getPhygitalWalletSigner(getSolanaRpc(), tokenPda, {
+        resolved: proof.resolved,
+        getAccessToken: accessTokenFor(phygitalToken),
         onPhaseChange: (phase) => {
           setSignPhase(phase);
           if (isWalletSignCeremonyPhase(phase)) setPhase("holding");
         },
       });
-      const tokenPda = connection.phygitalToken;
-      const walletPda = await walletPdaForToken(tokenPda);
-      if (String(walletPda) === recipientWallet) {
-        throw new Error(copy.wallet.cantReceiveFromSelf);
-      }
       setFrom({
         walletPda: String(walletPda),
         tokenPda,
-        signer: connection.signer,
+        signer,
       });
       setHardError(null);
       setHandoffDeny(null);

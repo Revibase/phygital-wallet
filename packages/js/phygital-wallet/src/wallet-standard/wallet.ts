@@ -46,8 +46,8 @@ import {
 import { PHYGITAL_WALLET_CHAINS } from "../constants.js";
 import { findWalletPda } from "../generated/pdas/wallet.js";
 import {
-  AccessoryMismatchError,
-  connectPhygitalWallet,
+  exchangeConnectProof,
+  startPhygitalConnect,
   SESSION_SKEW_MS,
 } from "../wallet/connect.js";
 import {
@@ -225,21 +225,27 @@ export class PhygitalWallet implements Wallet {
       return { accounts: this.accounts };
     }
 
-    const connection = await connectPhygitalWallet(this.#rpc, {
+    const proof = await startPhygitalConnect(this.#rpc, {
       fetch: this.#fetch,
-      onPhaseChange: this.#onPhaseChange,
+    });
+    const bearer = await exchangeConnectProof({
+      endpoint: proof.resolved.endpoint,
+      blockhash: proof.blockhash,
+      response: proof.response,
+      fetch: this.#fetch,
     });
     const [walletPda] = await findWalletPda({
-      phygitalToken: connection.phygitalToken,
+      phygitalToken: proof.phygitalToken,
     });
     const persistedSession = {
-      phygitalTokenPda: connection.phygitalToken,
+      phygitalTokenPda: proof.phygitalToken,
       walletPda,
-      ...connection.getSession(),
+      ...bearer,
     } satisfies PhygitalWalletSession;
     this.#adoptSession(persistedSession);
-    this.#signer = connection.signer;
-    this.#signerPromise = Promise.resolve(connection.signer);
+    const signer = await this.#buildSigner(persistedSession, proof.resolved);
+    this.#signer = signer;
+    this.#signerPromise = Promise.resolve(signer);
     savePhygitalWalletSession(persistedSession);
     this.#emit("change", { accounts: this.accounts });
     return { accounts: this.accounts };
@@ -275,43 +281,36 @@ export class PhygitalWallet implements Wallet {
     }
   }
 
+  /**
+   * Build a signer for a persisted session. When the bearer lapses the signer
+   * throws instead of silently re-tapping — a surprise NFC prompt mid-action is
+   * bad UX. The consumer reconnects (`standard:connect`) to get a fresh session.
+   */
+  #buildSigner(
+    session: PhygitalWalletSession,
+    resolved?: Awaited<ReturnType<typeof startPhygitalConnect>>["resolved"]
+  ): Promise<TransactionModifyingSigner> {
+    const getAccessToken = (): string => {
+      if (session.expiresAt - SESSION_SKEW_MS > Date.now()) {
+        return session.accessToken;
+      }
+      throw new Error("Revibase session expired — reconnect the accessory");
+    };
+    return getPhygitalWalletSigner(this.#rpc, session.phygitalTokenPda, {
+      fetch: this.#fetch,
+      onPhaseChange: this.#onPhaseChange,
+      getAccessToken,
+      ...(resolved ? { resolved } : {}),
+    });
+  }
+
   async #loadSigner(
     session: PhygitalWalletSession
   ): Promise<TransactionModifyingSigner> {
     try {
       await this.#assertSessionPda(session);
-      let current = session;
-      const getAccessToken = async (): Promise<string> => {
-        if (current.expiresAt - SESSION_SKEW_MS > Date.now()) {
-          return current.accessToken;
-        }
-        const connection = await connectPhygitalWallet(this.#rpc, {
-          fetch: this.#fetch,
-          onPhaseChange: this.#onPhaseChange,
-        });
-        if (
-          String(connection.phygitalToken) !== String(session.phygitalTokenPda)
-        ) {
-          throw new AccessoryMismatchError();
-        }
-        current = {
-          ...current,
-          ...connection.getSession(),
-        };
-        this.#session = current;
-        savePhygitalWalletSession(current);
-        return current.accessToken;
-      };
-      const signer = await getPhygitalWalletSigner(
-        this.#rpc,
-        session.phygitalTokenPda,
-        {
-          fetch: this.#fetch,
-          onPhaseChange: this.#onPhaseChange,
-          getAccessToken,
-        }
-      );
-      this.#session = current;
+      const signer = await this.#buildSigner(session);
+      this.#session = session;
       this.#signer = signer;
       return signer;
     } catch (error) {

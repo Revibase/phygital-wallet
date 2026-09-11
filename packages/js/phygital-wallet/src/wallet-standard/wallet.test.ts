@@ -11,16 +11,15 @@ import {
 } from "@wallet-standard/features";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const connectPhygitalWallet = vi.fn(async () => ({
+const startPhygitalConnect = vi.fn(async () => ({
+  blockhash: "test-blockhash",
+  response: { id: "test-passkey-id" },
   phygitalToken: address("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
-  signer: {
-    address: address("So11111111111111111111111111111111111111112"),
-    modifyAndSignTransactions: vi.fn(async (txs) => txs),
-  },
-  getSession: () => ({
-    accessToken: "test-bearer",
-    expiresAt: Date.now() + 900_000,
-  }),
+  resolved: { endpoint: "https://verifier.test" },
+}));
+const exchangeConnectProof = vi.fn(async () => ({
+  accessToken: "test-bearer",
+  expiresAt: Date.now() + 900_000,
 }));
 
 vi.mock("phygital-token-sdk", () => ({
@@ -28,7 +27,8 @@ vi.mock("phygital-token-sdk", () => ({
 }));
 
 vi.mock("../wallet/connect.js", () => ({
-  connectPhygitalWallet: (...args: unknown[]) => connectPhygitalWallet(...args),
+  startPhygitalConnect: (...args: unknown[]) => startPhygitalConnect(...args),
+  exchangeConnectProof: (...args: unknown[]) => exchangeConnectProof(...args),
   SESSION_SKEW_MS: 5_000,
   AccessoryMismatchError: class extends Error {},
 }));
@@ -81,7 +81,7 @@ function createMemoryStorage(): Storage {
 
 describe("PhygitalWallet Wallet Standard surface", () => {
   beforeEach(() => {
-    connectPhygitalWallet.mockClear();
+    startPhygitalConnect.mockClear();
     vi.stubGlobal("localStorage", createMemoryStorage());
   });
 
@@ -108,7 +108,7 @@ describe("PhygitalWallet Wallet Standard surface", () => {
       silent: true,
     });
     expect(accounts).toEqual([]);
-    expect(connectPhygitalWallet).not.toHaveBeenCalled();
+    expect(startPhygitalConnect).not.toHaveBeenCalled();
   });
 
   it("connect derives wallet PDA from passkey verify and persists session", async () => {
@@ -127,7 +127,7 @@ describe("PhygitalWallet Wallet Standard surface", () => {
     expect(accounts[0]?.features).toContain(SolanaSignMessage);
     expect(wallet.accounts).toHaveLength(1);
     expect(changes).toHaveLength(1);
-    expect(connectPhygitalWallet).toHaveBeenCalledTimes(1);
+    expect(startPhygitalConnect).toHaveBeenCalledTimes(1);
     expect(localStorage.getItem(PHYGITAL_WALLET_SESSION_STORAGE_KEY)).toContain(
       "test-bearer"
     );
@@ -159,7 +159,7 @@ describe("PhygitalWallet Wallet Standard surface", () => {
   it("silent connect restores a persisted session without a new tap", async () => {
     const first = new PhygitalWallet({ rpc: mockRpc() });
     await first.features[StandardConnect].connect();
-    expect(connectPhygitalWallet).toHaveBeenCalledTimes(1);
+    expect(startPhygitalConnect).toHaveBeenCalledTimes(1);
 
     const restored = new PhygitalWallet({ rpc: mockRpc() });
     const { accounts } = await restored.features[StandardConnect].connect({
@@ -169,7 +169,7 @@ describe("PhygitalWallet Wallet Standard surface", () => {
     expect(accounts[0]?.address).toBe(
       "So11111111111111111111111111111111111111112"
     );
-    expect(connectPhygitalWallet).toHaveBeenCalledTimes(1);
+    expect(startPhygitalConnect).toHaveBeenCalledTimes(1);
   });
 
   it("interactive connect reuses persisted session without a new tap", async () => {
@@ -179,7 +179,7 @@ describe("PhygitalWallet Wallet Standard surface", () => {
     const second = new PhygitalWallet({ rpc: mockRpc() });
     const { accounts } = await second.features[StandardConnect].connect();
     expect(accounts).toHaveLength(1);
-    expect(connectPhygitalWallet).toHaveBeenCalledTimes(1);
+    expect(startPhygitalConnect).toHaveBeenCalledTimes(1);
   });
 
   it("solana:signMessage is present but rejects PDA message signing", async () => {

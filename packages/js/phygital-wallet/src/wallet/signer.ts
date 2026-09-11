@@ -38,8 +38,8 @@ export type PhygitalWalletSignerConfig = PhygitalWalletSignerCallbacks & {
   fetch?: typeof fetch;
   /**
    * Verifier session bearer for `/preview` + `/sign` (both are bearer-only).
-   * Prefer {@link connectPhygitalWallet}, which wires this automatically; pass it
-   * directly when you already hold a bearer (e.g. a dynamic-URL cold start).
+   * Obtain one with `startPhygitalConnect` + `exchangeConnectProof` (or your own
+   * backend), then return it here — cached, and re-fetched when it lapses.
    */
   getAccessToken?: () => string | null | Promise<string | null>;
   /**

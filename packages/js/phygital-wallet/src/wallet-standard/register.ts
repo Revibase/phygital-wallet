@@ -12,10 +12,11 @@ type RpcLike = PhygitalWalletOptions["rpc"];
  *
  * Call once at app startup, before mounting any Wallet Standard consumer.
  *
- * On `standard:connect`, uses `connectPhygitalWallet` to prompt an NFC/passkey
- * tap, issue a verifier bearer, and expose the wallet PDA as the connected
- * account. The bearer and its expiry are persisted so a prior session can be
- * restored without another tap until renewal is needed.
+ * On `standard:connect`, taps with `startPhygitalConnect`, exchanges the proof
+ * for a verifier bearer via `exchangeConnectProof`, and exposes the wallet PDA as
+ * the connected account. The bearer and its expiry are persisted so a prior
+ * session can be restored without another tap; once it expires, signing throws
+ * and the consumer reconnects (no silent re-tap).
  *
  * Idempotent per `rpc` instance in this JS realm.
  */

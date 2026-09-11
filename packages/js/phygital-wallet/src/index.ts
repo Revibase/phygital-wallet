@@ -16,9 +16,10 @@ export { PolicyDeniedError } from "./wallet/preview.js";
 
 export {
   AccessoryMismatchError,
-  connectPhygitalWallet,
+  startPhygitalConnect,
+  exchangeConnectProof,
   SESSION_SKEW_MS,
-  type PhygitalConnection,
+  type PhygitalConnectProof,
   type VerifierSessionBearer,
 } from "./wallet/connect.js";
 
