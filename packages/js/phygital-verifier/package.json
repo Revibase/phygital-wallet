@@ -1,6 +1,6 @@
 {
   "name": "phygital-verifier-sdk",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Verify Solana instructions against composable Codama-backed policies",
   "license": "MIT",
   "author": "Revibase",
@@ -20,7 +20,8 @@
     "docs",
     "LICENSE",
     "README.md",
-    "AGENTS.md"
+    "AGENTS.md",
+    "CHANGELOG.md"
   ],
   "sideEffects": false,
   "repository": {

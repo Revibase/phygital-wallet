@@ -57,7 +57,6 @@ export {
   normalizeOrigin,
   signVerifierBearer,
   verifyVerifierBearer,
-  decodeVerifierBearer
 } from "./session/bearer.js";
 
 export type {

@@ -6,11 +6,7 @@
  * bearer, and hands back a signer with that bearer already wired in. Callers
  * never see a bearer, a blockhash, or an HTTP header.
  */
-import {
-  findPhygitalTokenPda,
-  startAuthentication,
-  verifyResponse,
-} from "phygital-token-sdk";
+import { findPhygitalTokenPda, startAuthentication } from "phygital-token-sdk";
 import type {
   Address,
   Rpc,

@@ -4,7 +4,6 @@ import {
   getTransactionDecoder,
   getTransactionEncoder,
   sendTransactionWithoutConfirmingFactory,
-  type Address,
   type Rpc,
   type SolanaRpcApi,
   type Transaction,

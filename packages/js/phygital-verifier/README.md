@@ -83,7 +83,6 @@ The connect API exposes protocol-level helpers for the verifier's `/connect` and
 | `verifyConnectProof`                          | Verify a blockhash WebAuthn/NFC proof and enforce its blockhash freshness and replay callback.           |
 | `verifyDynamicConnectProof`                   | Verify a dynamic NFC proof, resolve its token from the accessory identifier, assert it matches the caller's `expectedPhygitalToken`, and enforce its counter callback. |
 | `signVerifierBearer` / `verifyVerifierBearer` | Issue and validate token-bound verifier session bearers.                                                 |
-| `decodeVerifierBearer`                        | Parse a bearer's payload (and check structure/expiry) **without** verifying its signature — for a client that needs to read `iss`/`sub`/`exp`, not to authorize. |
 | `ConnectProofError`                           | Stable error type with a machine-readable code and HTTP status.                                          |
 
 The SDK keeps proof parsing details such as the WebAuthn sign-count parser and
