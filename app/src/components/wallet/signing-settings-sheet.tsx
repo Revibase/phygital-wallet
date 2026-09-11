@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import {
   buildClearTokenVerifierChallenge,
   buildSetTokenVerifierChallenge,
+  normalizeVerifierApiBase,
 } from "phygital-wallet-sdk";
 import {
   authenticatePasskeyForSecp256r1Verify,
@@ -122,13 +123,30 @@ export function SigningSettingsSheet({
     }
   }
 
+  async function validateEndpoint(endpoint: string): Promise<boolean> {
+    const trimmed = endpoint.trim();
+    if (!trimmed.startsWith("https://")) return false;
+    try {
+      const response = await fetch(
+        `${normalizeVerifierApiBase(trimmed)}/health`,
+        { signal: AbortSignal.timeout(5000) },
+      );
+      if (!response.ok) return false;
+      const body = (await response.json()) as { ok?: boolean };
+      return body?.ok === true;
+    } catch {
+      return false;
+    }
+  }
+
   async function saveCustom() {
     const verifierAddr = tryParseAddress(verifier.trim());
-    if (!verifierAddr || !endpoint.trim().startsWith("https://")) {
+    if (!verifierAddr || !(await validateEndpoint(endpoint.trim()))) {
       toast.error(copy.wallet.signingInvalidCustom);
       return;
     }
     if (!acked) return;
+    const normalizedEndpoint = normalizeVerifierApiBase(endpoint.trim());
     setCeremonyPhase("holding");
     setConfirmPending(false);
     setView("ceremony");
@@ -141,7 +159,7 @@ export function SigningSettingsSheet({
           rpc,
           tokenPda,
           verifierAddr,
-          endpoint.trim(),
+          normalizedEndpoint,
         ),
       ]);
       setNeedsPhoneConfirm(signer.requiresOwnerCosignAssertion);
@@ -153,7 +171,7 @@ export function SigningSettingsSheet({
       const instructions = await getSetTokenVerifierInstructions({
         verifier: signer,
         overrideVerifier: verifierAddr,
-        endpoint: endpoint.trim(),
+        endpoint: normalizedEndpoint,
         passkeyAuth: {
           secp256r1VerifyInstruction: verify.secp256r1VerifyInstruction,
           phygitalTokenPda: verify.phygitalTokenPda,
@@ -168,7 +186,7 @@ export function SigningSettingsSheet({
         nextStatus: {
           custom: true,
           verifier: String(verifierAddr),
-          endpoint: endpoint.trim(),
+          endpoint: normalizedEndpoint,
           payer: verifierStatus.data?.payer ?? null,
           usesDefaultPaymaster: false,
         },
@@ -336,7 +354,9 @@ export function SigningSettingsSheet({
       />
       <p className="text-sm text-muted-foreground">{copy.wallet.signingBody}</p>
       <div className="rounded-2xl bg-muted/25 px-4 py-3">
-        <p className="text-xs text-muted-foreground">{copy.wallet.signingCurrent}</p>
+        <p className="text-xs text-muted-foreground">
+          {copy.wallet.signingCurrent}
+        </p>
         <p className="text-sm font-medium">
           {isCustom ? copy.wallet.signingCustom : copy.wallet.signingDefault}
         </p>

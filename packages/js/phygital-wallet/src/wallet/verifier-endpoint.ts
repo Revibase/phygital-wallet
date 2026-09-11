@@ -8,6 +8,12 @@ export function normalizeVerifierApiBase(endpoint: string): string {
     base = base.slice(0, -"/preview".length);
   } else if (base.endsWith("/sign")) {
     base = base.slice(0, -"/sign".length);
+  } else if (base.endsWith("/connect")) {
+    base = base.slice(0, -"/connect".length);
+  } else if (base.endsWith("/connect/tap")) {
+    base = base.slice(0, -"/connect/tap".length);
+  } else if (base.endsWith("/health")) {
+    base = base.slice(0, -"/health".length);
   }
   return base.replace(/\/+$/, "");
 }
