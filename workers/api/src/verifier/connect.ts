@@ -27,6 +27,7 @@ import { verifierJsonError } from "@/verifier/errors";
 import { tokenSigner, type TokenSignerRpc } from "@/verifier/token-signer";
 import {
   createRpc,
+  isRecentBlockhash,
   resolveAuthorizedVerifiers,
   resolveTokenFromIdentifier,
 } from "@/verifier/verifier-keys";
@@ -88,21 +89,34 @@ connectRoutes.post("/connect", async (c) => {
       blockhash?: string;
       response?: unknown;
     };
-
-    const rpc = createRpc();
+    const blockhash = (body.blockhash ?? "").trim();
     const response = body.response as { id?: unknown } | undefined;
+    if (!blockhash) {
+      throw new ConnectProofError("invalid_proof", "blockhash is required");
+    }
     if (typeof response?.id !== "string" || !response.id.trim()) {
       throw new ConnectProofError("invalid_proof", "response.id is required");
     }
+
+    const rpc = createRpc();
     const phygitalToken = await findPhygitalTokenPda(response.id);
 
-    const authorized = await resolveBearerVerifiers(rpc, phygitalToken);
+    // Freshness (stateless) and authz (on-chain) are independent — run both in
+    // parallel, and settle them before touching the per-token signer, which then
+    // does no network I/O of its own.
+    const [authorized, fresh] = await Promise.all([
+      resolveBearerVerifiers(rpc, phygitalToken),
+      isRecentBlockhash(rpc, blockhash),
+    ]);
+    if (!fresh) {
+      throw new ConnectProofError("stale_blockhash", "This check expired — tap again");
+    }
     if (authorized instanceof Response) return authorized;
     const minted = await tokenSigner(
       c.env,
       String(phygitalToken)
     ).verifyWebAuthnConnectAndMintBearer({
-      blockhash: body.blockhash as string,
+      blockhash,
       response: body.response,
       origin: normalizeOrigin(c.req.header("Origin")),
       verifiers: authorized,

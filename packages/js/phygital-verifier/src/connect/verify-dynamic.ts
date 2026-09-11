@@ -37,7 +37,8 @@ export type ConsumeTapCounter = (args: {
 export async function verifyDynamicConnectProof(
   proof: DynamicTapParams,
   opts: {
-    rpc: Rpc<SolanaRpcApi>;
+    /** Needed only when `phygitalToken` is omitted (to resolve it from `pk`). */
+    rpc?: Rpc<SolanaRpcApi>;
     consumeCounter: ConsumeTapCounter;
     /**
      * Token already resolved for this chip identifier. A caller that resolved it
@@ -70,6 +71,12 @@ export async function verifyDynamicConnectProof(
   //    caller already did so to route here.
   let phygitalToken = opts.phygitalToken;
   if (!phygitalToken) {
+    if (!opts.rpc) {
+      throw new ConnectProofError(
+        "invalid_proof",
+        "rpc is required when phygitalToken is not provided",
+      );
+    }
     const account = await fetchPhygitalTokenByIdentifier(
       opts.rpc,
       tap.identifier,

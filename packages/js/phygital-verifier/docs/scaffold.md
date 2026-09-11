@@ -149,7 +149,10 @@ async function connect(req: Request) {
     const { phygitalToken } = await verifyConnectProof(
       { blockhash: body.blockhash as string, response: body.response as never },
       {
-        rpc,
+        // Stateless freshness check — inject it so it runs where it scales best.
+        isBlockhashValid: (bh) =>
+          rpc.isBlockhashValid(bh, { commitment: "confirmed" }).send()
+            .then((r) => r.value),
         consumeSignCount: ({ identifier, signCount }) =>
           counters.consume("webauthn", identifier, signCount),
       },

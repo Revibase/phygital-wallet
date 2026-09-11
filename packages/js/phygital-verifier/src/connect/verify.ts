@@ -3,9 +3,11 @@
  * `POST /connect`. This is the whole of what a third-party verifier needs.
  *
  * The accessory signs a recent **blockhash**, so the submitted blockhash *is* the
- * expected challenge. Freshness is independent of the client: `isBlockhashValid`
- * answers it in one cheap RPC call (the last ~300 blockhashes, ~2 minutes), so a
- * client cannot mint its own challenge. The token PDA is always derived from the
+ * expected challenge. Freshness is an injected `isBlockhashValid` check (the last
+ * ~300 blockhashes, ~2 minutes), so a client cannot mint its own challenge. It is
+ * injected — not an RPC this function owns — so the caller can run it wherever it
+ * scales best (e.g. a stateless worker tier, in parallel with other work) rather
+ * than inside a per-token actor. The token PDA is always derived from the
  * verified response, never trusted from the request.
  *
  * A blockhash — not a SlotHashes entry — because this proof is checked by the
@@ -25,12 +27,7 @@ import {
   verifyResponse,
   type VerifyResponseOptions,
 } from "phygital-token-sdk";
-import type {
-  Address,
-  Blockhash,
-  IsBlockhashValidApi,
-  Rpc,
-} from "@solana/kit";
+import type { Address } from "@solana/kit";
 
 import { ConnectProofError } from "./proof-error.js";
 import { extractSignCount } from "./sign-count.js";
@@ -50,6 +47,13 @@ export type ConsumeSignCount = (args: {
   phygitalToken: Address;
 }) => Promise<boolean> | boolean;
 
+/**
+ * Is this blockhash still recent enough to accept? Injected so the caller runs
+ * the check (typically `rpc.isBlockhashValid`) where it scales best. Stateless,
+ * so it can run in parallel with other connect work.
+ */
+export type IsBlockhashValid = (blockhash: string) => Promise<boolean> | boolean;
+
 export type WebAuthnConnectProof = {
   /** Recent blockhash (base58) — also the signed WebAuthn challenge. */
   blockhash: string;
@@ -64,7 +68,7 @@ export type WebAuthnConnectProof = {
 export async function verifyConnectProof(
   proof: WebAuthnConnectProof,
   opts: {
-    rpc: Rpc<IsBlockhashValidApi>;
+    isBlockhashValid: IsBlockhashValid;
     consumeSignCount: ConsumeSignCount;
   },
 ): Promise<{
@@ -111,11 +115,8 @@ export async function verifyConnectProof(
     );
   }
 
-  // Freshness: one cheap RPC, no sysvar read or scan.
-  const { value: fresh } = await opts.rpc
-    .isBlockhashValid(blockhash as Blockhash, { commitment: "confirmed" })
-    .send();
-  if (!fresh) {
+  // Freshness: delegated to the caller's check.
+  if (!(await opts.isBlockhashValid(blockhash))) {
     throw new ConnectProofError(
       "stale_blockhash",
       "This check expired — tap again",

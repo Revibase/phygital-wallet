@@ -11,6 +11,7 @@ import {
   fetchEncodedAccounts,
   getBase58Encoder,
   type Address,
+  type Blockhash,
   type Rpc,
   type SolanaRpcApi,
 } from "@solana/kit";
@@ -133,3 +134,17 @@ export const decodeVerifierKey: DecodeVerifierKey = (iss) => {
     return null;
   }
 };
+
+/**
+ * Is this blockhash still recent (accepted by the cluster)? A stateless freshness
+ * check run in the worker — in parallel with authz and off the per-token actor.
+ */
+export async function isRecentBlockhash(
+  rpc: Rpc<SolanaRpcApi>,
+  blockhash: string,
+): Promise<boolean> {
+  const { value } = await rpc
+    .isBlockhashValid(blockhash as Blockhash, { commitment: "confirmed" })
+    .send();
+  return value;
+}

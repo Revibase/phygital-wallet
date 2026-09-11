@@ -61,6 +61,7 @@ export {
 
 export type {
   ConsumeSignCount,
+  IsBlockhashValid,
   WebAuthnConnectProof,
 } from "./connect/verify.js";
 export { verifyConnectProof } from "./connect/verify.js";
