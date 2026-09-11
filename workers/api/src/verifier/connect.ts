@@ -20,7 +20,6 @@ import { ConnectProofError, normalizeOrigin } from "phygital-verifier-sdk";
 import type { Address, Rpc, SolanaRpcApi } from "@solana/kit";
 import { findPhygitalTokenPda } from "phygital-token-sdk";
 
-import { denyIfAuthRateLimited } from "@/auth/rate-limit";
 import { requireRevibaseAppOrigin } from "@/shared/cors";
 import { json } from "@/shared/http";
 import { VERIFIER_SESSION_TTL_MS } from "@/shared/session-ttl";
@@ -85,9 +84,6 @@ function bearerResultResponse(
 /** WebAuthn-over-slotHash connect — the portable contract. */
 connectRoutes.post("/connect", async (c) => {
   try {
-    const limited = await denyIfAuthRateLimited(c, "connect");
-    if (limited) return limited;
-
     const body = (await c.req.json()) as {
       blockhash?: string;
       response?: unknown;
@@ -123,9 +119,6 @@ connectRoutes.post("/connect/tap", async (c) => {
   try {
     const forbidden = requireRevibaseAppOrigin(c);
     if (forbidden) return forbidden;
-
-    const limited = await denyIfAuthRateLimited(c, "connect-tap");
-    if (limited) return limited;
 
     const body = (await c.req.json()) as {
       pk?: string;

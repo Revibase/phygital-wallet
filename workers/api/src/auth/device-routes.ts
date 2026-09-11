@@ -36,7 +36,6 @@ import {
   issueBrowseUnlockCookie,
   readBrowseUnlock,
 } from "@/auth/browse-unlock-session";
-import { denyIfAuthRateLimited } from "@/auth/rate-limit";
 import { requireAppOrigin } from "@/shared/cors";
 import { readVerifierBearer } from "@/verifier/require-bearer";
 import {
@@ -97,9 +96,6 @@ deviceAuthRoutes.get("/auth/device-session", async (c) => {
 
 /** Reissue access (+ rotate refresh) from the refresh cookie. */
 deviceAuthRoutes.post("/auth/device-session/refresh", async (c) => {
-  const limited = await denyIfAuthRateLimited(c, "login");
-  if (limited) return limited;
-
   const refresh = await readDeviceRefresh(c);
   if (!refresh) {
     return json(
@@ -126,9 +122,6 @@ deviceAuthRoutes.post("/auth/device-session/refresh", async (c) => {
 });
 
 deviceAuthRoutes.get("/auth/device/register-options", async (c) => {
-  const limited = await denyIfAuthRateLimited(c, "register");
-  if (limited) return limited;
-
   const parsed = parseUsername(c.req.query("username") ?? "");
   if (!parsed) {
     return json(
@@ -181,9 +174,6 @@ deviceAuthRoutes.get("/auth/device/register-options", async (c) => {
 });
 
 deviceAuthRoutes.post("/auth/device", async (c) => {
-  const limited = await denyIfAuthRateLimited(c, "register");
-  if (limited) return limited;
-
   try {
     const body = (await c.req.json()) as {
       userHandle?: string;
@@ -301,9 +291,6 @@ deviceAuthRoutes.post("/auth/device", async (c) => {
 });
 
 deviceAuthRoutes.get("/auth/device-session/options", async (c) => {
-  const limited = await denyIfAuthRateLimited(c, "login");
-  if (limited) return limited;
-
   const rp = resolveWebAuthnRp(c.req.header("Origin") ?? null);
   if (!rp) {
     return json(
@@ -323,9 +310,6 @@ deviceAuthRoutes.get("/auth/device-session/options", async (c) => {
 });
 
 deviceAuthRoutes.post("/auth/device-session", async (c) => {
-  const limited = await denyIfAuthRateLimited(c, "login");
-  if (limited) return limited;
-
   try {
     const body = (await c.req.json()) as {
       challengeId?: string;
@@ -518,9 +502,6 @@ deviceAuthRoutes.post(
 );
 
 deviceAuthRoutes.post("/auth/device/links", async (c) => {
-  const limited = await denyIfAuthRateLimited(c, "link");
-  if (limited) return limited;
-
   const session = await requireDeviceSession(c);
   if (session instanceof Response) return session;
 
