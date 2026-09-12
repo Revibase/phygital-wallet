@@ -72,7 +72,7 @@ function tokenFromName(name: string | null | undefined): string {
       new Error("TokenSigner requires idFromName(phygitalToken)"),
       {
         code: "signer_misconfigured",
-      }
+      },
     );
   }
   return name.trim();
@@ -103,7 +103,7 @@ export class TokenSigner extends DurableObject<Env> {
   #rpc<T>(
     method: string,
     fields: Record<string, unknown>,
-    fn: () => Promise<T>
+    fn: () => Promise<T>,
   ): Promise<T> {
     return withLoggedRpc(this.#log(), method, fields, fn);
   }
@@ -149,8 +149,8 @@ export class TokenSigner extends DurableObject<Env> {
           env: this.env,
           tokenStore: this.#getStore(),
         },
-        fn
-      )
+        fn,
+      ),
     );
   }
 
@@ -160,7 +160,7 @@ export class TokenSigner extends DurableObject<Env> {
     return this.#rpc(
       "getPolicy",
       { phygitalToken: this.#getToken() },
-      async () => this.#getStore().getEffectivePolicy()
+      async () => this.#getStore().getEffectivePolicy(),
     );
   }
 
@@ -170,7 +170,7 @@ export class TokenSigner extends DurableObject<Env> {
       { phygitalToken: this.#getToken() },
       async () => ({
         balanceLamports: this.#getStore().getFeeBalanceLamports(),
-      })
+      }),
     );
   }
 
@@ -178,7 +178,7 @@ export class TokenSigner extends DurableObject<Env> {
     return this.#rpc(
       "hasOwner",
       { phygitalToken: this.#getToken() },
-      async () => this.#getStore().hasOwner()
+      async () => this.#getStore().hasOwner(),
     );
   }
 
@@ -195,45 +195,52 @@ export class TokenSigner extends DurableObject<Env> {
     return this.#rpc(
       "verifyWebAuthnConnectAndMintBearer",
       { phygitalToken: this.#getToken() },
-      async () => {
-        try {
-          await verifyConnectProof(
-            {
-              blockhash: input.blockhash,
-              response: input.response,
-            },
-            {
-              isBlockhashValid: async () =>
-                (
-                  await getSolanaRpc()
-                    .isBlockhashValid(input.blockhash as Blockhash, {
-                      commitment: "confirmed",
-                    })
-                    .send()
-                ).value,
-              consumeSignCount: ({ identifier, signCount, phygitalToken }) => {
-                if (String(phygitalToken) !== this.#getToken()) return false;
-                return this.#getStore().consumeAccessoryCounter(
-                  "webauthn",
-                  identifier,
-                  signCount
-                );
+      () =>
+        this.#withEnv(async () => {
+          try {
+            await verifyConnectProof(
+              {
+                blockhash: input.blockhash,
+                response: input.response,
               },
-            }
-          );
-          return this.#mintVerifierBearer({
-            origin: input.origin,
-            ttlMs: input.ttlMs,
-          });
-        } catch (err) {
-          return {
-            ok: false as const,
-            code: err instanceof ConnectProofError ? err.code : "invalid_proof",
-            error: err instanceof Error ? err.message : "Invalid connect proof",
-            status: err instanceof ConnectProofError ? err.status : 400,
-          };
-        }
-      }
+              {
+                isBlockhashValid: async () =>
+                  (
+                    await getSolanaRpc()
+                      .isBlockhashValid(input.blockhash as Blockhash, {
+                        commitment: "confirmed",
+                      })
+                      .send()
+                  ).value,
+                consumeSignCount: ({
+                  identifier,
+                  signCount,
+                  phygitalToken,
+                }) => {
+                  if (String(phygitalToken) !== this.#getToken()) return false;
+                  return this.#getStore().consumeAccessoryCounter(
+                    "webauthn",
+                    identifier,
+                    signCount,
+                  );
+                },
+              },
+            );
+            return this.#mintVerifierBearer({
+              origin: input.origin,
+              ttlMs: input.ttlMs,
+            });
+          } catch (err) {
+            return {
+              ok: false as const,
+              code:
+                err instanceof ConnectProofError ? err.code : "invalid_proof",
+              error:
+                err instanceof Error ? err.message : "Invalid connect proof",
+              status: err instanceof ConnectProofError ? err.status : 400,
+            };
+          }
+        }),
     );
   }
 
@@ -252,34 +259,37 @@ export class TokenSigner extends DurableObject<Env> {
     return this.#rpc(
       "verifyDynamicConnectAndMintBearer",
       { phygitalToken: this.#getToken() },
-      async () => {
-        try {
-          await verifyDynamicConnectProof(
-            { pk: input.pk, s: input.s, c: input.c, n: input.n },
-            {
-              rpc: getSolanaRpc(),
-              expectedPhygitalToken: this.#getToken() as Address,
-              consumeCounter: ({ identifier, counter }) =>
-                this.#getStore().consumeAccessoryCounter(
-                  "tap",
-                  identifier,
-                  counter
-                ),
-            }
-          );
-          return this.#mintVerifierBearer({
-            origin: input.origin,
-            ttlMs: input.ttlMs,
-          });
-        } catch (err) {
-          return {
-            ok: false as const,
-            code: err instanceof ConnectProofError ? err.code : "invalid_proof",
-            error: err instanceof Error ? err.message : "Invalid connect proof",
-            status: err instanceof ConnectProofError ? err.status : 400,
-          };
-        }
-      }
+      () =>
+        this.#withEnv(async () => {
+          try {
+            await verifyDynamicConnectProof(
+              { pk: input.pk, s: input.s, c: input.c, n: input.n },
+              {
+                rpc: getSolanaRpc(),
+                expectedPhygitalToken: this.#getToken() as Address,
+                consumeCounter: ({ identifier, counter }) =>
+                  this.#getStore().consumeAccessoryCounter(
+                    "tap",
+                    identifier,
+                    counter,
+                  ),
+              },
+            );
+            return this.#mintVerifierBearer({
+              origin: input.origin,
+              ttlMs: input.ttlMs,
+            });
+          } catch (err) {
+            return {
+              ok: false as const,
+              code:
+                err instanceof ConnectProofError ? err.code : "invalid_proof",
+              error:
+                err instanceof Error ? err.message : "Invalid connect proof",
+              status: err instanceof ConnectProofError ? err.status : 400,
+            };
+          }
+        }),
     );
   }
 
@@ -299,7 +309,7 @@ export class TokenSigner extends DurableObject<Env> {
         ttlMs: input.ttlMs,
       },
       async (message) =>
-        base64ToBytes(await this.#getBackend().sign(signingVerifier, message))
+        base64ToBytes(await this.#getBackend().sign(signingVerifier, message)),
     );
     return {
       ok: true as const,
@@ -313,7 +323,7 @@ export class TokenSigner extends DurableObject<Env> {
     return this.#rpc(
       "isOwner",
       { phygitalToken: this.#getToken(), credentialId },
-      async () => this.#getStore().isOwner(credentialId)
+      async () => this.#getStore().isOwner(credentialId),
     );
   }
 
@@ -322,7 +332,7 @@ export class TokenSigner extends DurableObject<Env> {
     return this.#rpc(
       "getOwnerCredentialId",
       { phygitalToken: this.#getToken() },
-      async () => this.#getStore().ownerCredentialId()
+      async () => this.#getStore().ownerCredentialId(),
     );
   }
 
@@ -333,7 +343,7 @@ export class TokenSigner extends DurableObject<Env> {
       challengeId: string;
       assertion: AuthenticationResponseJSON;
       origin: string;
-    }
+    },
   ): Promise<AddOwnerResult> {
     return this.#rpc(
       "addOwner",
@@ -371,7 +381,7 @@ export class TokenSigner extends DurableObject<Env> {
           };
         }
         return { ok: true };
-      }
+      },
     );
   }
 
@@ -397,7 +407,7 @@ export class TokenSigner extends DurableObject<Env> {
         const built = await buildMutationOptions(
           this.#getStore(),
           input.origin,
-          input.binding
+          input.binding,
         );
         if (!built.ok) {
           return { ok: false, code: built.code, error: built.error };
@@ -407,7 +417,7 @@ export class TokenSigner extends DurableObject<Env> {
           challengeId: built.challengeId,
           options: built.options as unknown as Record<string, unknown>,
         };
-      }
+      },
     );
   }
 
@@ -448,7 +458,7 @@ export class TokenSigner extends DurableObject<Env> {
           };
         }
         return { ok: true, policy: this.#getStore().getEffectivePolicy() };
-      }
+      },
     );
   }
 
@@ -477,7 +487,7 @@ export class TokenSigner extends DurableObject<Env> {
         }
         this.#getStore().clearPolicyAndGrants();
         return { ok: true, policy: this.#getStore().getEffectivePolicy() };
-      }
+      },
     );
   }
 
@@ -512,7 +522,7 @@ export class TokenSigner extends DurableObject<Env> {
         }
         const ttlSeconds = Math.min(
           Math.max(input.ttlSeconds ?? 300, 60),
-          3600
+          3600,
         );
         const grant = this.#getStore().createGrant(intentHash, ttlSeconds);
         this.#getStore().resolvePendingApproval(intentHash, "granted");
@@ -522,7 +532,7 @@ export class TokenSigner extends DurableObject<Env> {
           expiresAt: grant.expiresAt,
           intentHash,
         };
-      }
+      },
     );
   }
 
@@ -579,14 +589,14 @@ export class TokenSigner extends DurableObject<Env> {
 
           this.#getStore().clearOwnerAndPolicies();
           return { ok: true, credentialId: auth.credentialId };
-        })
+        }),
     );
   }
 
   // --- fees ---
 
   async applyFeeEvents(
-    events: FeeEvent[]
+    events: FeeEvent[],
   ): Promise<{ applied: number; appliedSignatures: string[] }> {
     return this.#rpc(
       "applyFeeEvents",
@@ -599,7 +609,7 @@ export class TokenSigner extends DurableObject<Env> {
           }
         }
         return { applied: appliedSignatures.length, appliedSignatures };
-      }
+      },
     );
   }
 
@@ -665,7 +675,7 @@ export class TokenSigner extends DurableObject<Env> {
               httpStatus: mapped.status,
             };
           }
-        })
+        }),
     );
   }
 
@@ -679,7 +689,7 @@ export class TokenSigner extends DurableObject<Env> {
        * `allowedOrigins` inside authorizeIntent. Null for server-to-server callers.
        */
       sessionOrigin?: string | null;
-    } = {}
+    } = {},
   ): Promise<SignTransactionsResult> {
     return this.#rpc(
       "signTransactions",
@@ -808,7 +818,7 @@ export class TokenSigner extends DurableObject<Env> {
               }
 
               signatures.push(
-                await backend.sign(decoded.verifier, decoded.messageBytes)
+                await backend.sign(decoded.verifier, decoded.messageBytes),
               );
             }
 
@@ -839,7 +849,7 @@ export class TokenSigner extends DurableObject<Env> {
               },
             };
           }
-        })
+        }),
     );
   }
 
@@ -870,7 +880,7 @@ export class TokenSigner extends DurableObject<Env> {
           details: input.details,
         });
         return { recorded: true };
-      }
+      },
     );
   }
 
@@ -880,7 +890,7 @@ export class TokenSigner extends DurableObject<Env> {
     return this.#rpc(
       "listOpenApprovals",
       { phygitalToken: this.#getToken() },
-      async () => ({ approvals: this.#getStore().listOpenApprovals() })
+      async () => ({ approvals: this.#getStore().listOpenApprovals() }),
     );
   }
 
@@ -898,9 +908,9 @@ export class TokenSigner extends DurableObject<Env> {
       async () => ({
         resolved: this.#getStore().resolvePendingApproval(
           input.intentHash,
-          input.resolution
+          input.resolution,
         ),
-      })
+      }),
     );
   }
 }
