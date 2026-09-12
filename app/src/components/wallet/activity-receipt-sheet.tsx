@@ -152,7 +152,9 @@ export function ActivityReceiptSheet({
               </div>
             ) : null}
             <div className="flex items-center justify-between gap-3 px-4 py-3">
-              <span className="text-muted-foreground">{copy.wallet.receiptTime}</span>
+              <span className="text-muted-foreground">
+                {copy.wallet.receiptTime}
+              </span>
               <span>{formatReceiptTime(item.timestamp)}</span>
             </div>
           </div>
@@ -170,7 +172,13 @@ export function ActivityReceiptSheet({
                   <Copy className="size-4" aria-hidden />
                   {copy.wallet.copySignature}
                 </Button>
-                <Button type="button" variant="ghost" size="lg" className="w-full gap-2" asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="lg"
+                  className="w-full gap-2"
+                  asChild
+                >
                   <a
                     href={explorerTxUrl(signature)}
                     target="_blank"

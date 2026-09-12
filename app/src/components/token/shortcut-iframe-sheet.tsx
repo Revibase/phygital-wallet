@@ -114,10 +114,7 @@ export function ShortcutIframeSheet({
               title={label}
               src={uri}
               sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
-              className={cn(
-                "size-full border-0",
-                !loaded && "opacity-0",
-              )}
+              className={cn("size-full border-0", !loaded && "opacity-0")}
               onLoad={onLoad}
             />
           )}

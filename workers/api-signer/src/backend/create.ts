@@ -27,10 +27,9 @@ export function createVerifierSignerBackend(
   }
 
   if (kind !== "secrets") {
-    throw Object.assign(
-      new Error(`Unknown VERIFIER_SIGNER_BACKEND: ${kind}`),
-      { code: "signer_misconfigured" },
-    );
+    throw Object.assign(new Error(`Unknown VERIFIER_SIGNER_BACKEND: ${kind}`), {
+      code: "signer_misconfigured",
+    });
   }
 
   return new SecretsVerifierBackend(env.VERIFIER_SECRET_KEYS);

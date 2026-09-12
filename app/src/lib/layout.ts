@@ -46,8 +46,7 @@ export const walletDesktopChromeClass =
 export const walletDesktopRailClass =
   "hidden lg:sticky lg:top-4 lg:flex lg:max-h-[calc(100dvh-3rem)] lg:flex-col lg:gap-6 lg:overflow-y-auto lg:pr-1";
 
-export const walletDesktopMainClass =
-  "flex min-h-0 min-w-0 flex-1 flex-col";
+export const walletDesktopMainClass = "flex min-h-0 min-w-0 flex-1 flex-col";
 
 /** Settings master-detail at lg+. */
 export const settingsDesktopClass =

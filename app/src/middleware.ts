@@ -33,7 +33,9 @@ export async function middleware(request: NextRequest) {
   const rest = match[2] ?? "";
   const secret = process.env.POLICY_SESSION_SECRET?.trim() ?? "";
   if (!secret) {
-    return NextResponse.redirect(new URL(tokenHref(phygitalToken), request.url));
+    return NextResponse.redirect(
+      new URL(tokenHref(phygitalToken), request.url),
+    );
   }
 
   const settingsLeaf = rest.match(/^settings\/([^/]+)\/?$/);

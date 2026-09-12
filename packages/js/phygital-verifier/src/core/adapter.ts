@@ -20,15 +20,18 @@ export type ParsedProgramIx<TInstructionType = string | number> = {
   data?: unknown;
 };
 
-export type ProgramAdapter<TParsed extends ParsedProgramIx = ParsedProgramIx> = {
-  programAddress: string;
-  tryParse(ix: Instruction): TParsed | undefined;
-};
+export type ProgramAdapter<TParsed extends ParsedProgramIx = ParsedProgramIx> =
+  {
+    programAddress: string;
+    tryParse(ix: Instruction): TParsed | undefined;
+  };
 
 /**
  * Matcher for a single Codama instruction branch.
  */
-export type InstructionMatcher<TParsed extends ParsedProgramIx = ParsedProgramIx> = {
+export type InstructionMatcher<
+  TParsed extends ParsedProgramIx = ParsedProgramIx,
+> = {
   readonly kind: "instruction";
   readonly programAddress: string;
   readonly instructionType: TParsed["instructionType"];
@@ -63,7 +66,9 @@ export type FromCodamaProgramOptions<
 export function fromCodamaProgram<
   TEnum extends string | number,
   TParsed extends ParsedProgramIx<TEnum>,
->(options: FromCodamaProgramOptions<TEnum, TParsed>): CodamaProgram<TEnum, TParsed> {
+>(
+  options: FromCodamaProgramOptions<TEnum, TParsed>,
+): CodamaProgram<TEnum, TParsed> {
   const programAddress = addressString(options.programAddress);
 
   const adapter: ProgramAdapter<TParsed> = {

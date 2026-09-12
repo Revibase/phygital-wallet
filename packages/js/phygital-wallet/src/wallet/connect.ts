@@ -33,7 +33,6 @@ export type VerifierSessionBearer = {
   expiresAt: number;
 };
 
-
 /**
  * A client-side connect proof, before it has been exchanged for a bearer.
  *
@@ -67,7 +66,7 @@ export type PhygitalConnectProof = {
  */
 export async function startPhygitalConnect(
   rpc: Rpc<SolanaRpcApi>,
-  config: { fetch?: typeof fetch } = {}
+  config: { fetch?: typeof fetch } = {},
 ): Promise<PhygitalConnectProof> {
   const { value: latest } = await rpc.getLatestBlockhash().send();
   const blockhash = latest.blockhash;
@@ -119,4 +118,3 @@ export async function exchangeConnectProof(args: {
     expiresAt: body.expiresAt ?? Date.now(),
   };
 }
-

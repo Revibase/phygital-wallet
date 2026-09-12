@@ -40,7 +40,10 @@ export function useWalletChrome() {
   return useContext(WalletChromeContext);
 }
 
-function sectionFromPath(pathname: string, tokenAddress: string): WalletSection {
+function sectionFromPath(
+  pathname: string,
+  tokenAddress: string,
+): WalletSection {
   const base = `/token/${encodeURIComponent(tokenAddress)}/wallet`;
   const normalized = pathname.replace(/\/$/, "") || pathname;
   const baseNorm = base.replace(/\/$/, "");
@@ -120,7 +123,10 @@ export function WalletDesktopChrome({
   return (
     <WalletChromeContext.Provider value={{ hasRail: true }}>
       <div className={walletDesktopChromeClass}>
-        <aside className={walletDesktopRailClass} aria-label={copy.common.wallet}>
+        <aside
+          className={walletDesktopRailClass}
+          aria-label={copy.common.wallet}
+        >
           <div className="flex flex-col gap-3">
             <Button
               type="button"
@@ -178,7 +184,10 @@ export function WalletDesktopChrome({
             </div>
           </div>
 
-          <nav className="flex flex-col gap-0.5" aria-label={copy.common.wallet}>
+          <nav
+            className="flex flex-col gap-0.5"
+            aria-label={copy.common.wallet}
+          >
             <RailNavItem
               active={section === "home"}
               label={copy.common.wallet}

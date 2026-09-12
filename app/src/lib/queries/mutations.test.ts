@@ -66,9 +66,10 @@ describe("applyWalletPolicy", () => {
       mintLimits: [{ mint: "UsdcMint", maxRaw: "50000000" }],
     };
     applyWalletPolicy(qc, "token", { policy: nextDoc, status: "ok" });
-    const next = qc.getQueryData<{ policy: PaymentsPolicyConfig | null; status: string }>(
-      key,
-    );
+    const next = qc.getQueryData<{
+      policy: PaymentsPolicyConfig | null;
+      status: string;
+    }>(key);
     expect(next?.status).toBe("ok");
     expect(next?.policy?.mintLimits).toEqual([
       { mint: "UsdcMint", maxRaw: "50000000" },

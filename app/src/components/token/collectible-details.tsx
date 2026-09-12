@@ -26,7 +26,9 @@ export function CollectibleDetails({
 
   return (
     <section className={cn("w-full text-left")}>
-      <h2 className="text-eyebrow text-muted-foreground ">{copy.token.collection}</h2>
+      <h2 className="text-eyebrow text-muted-foreground ">
+        {copy.token.collection}
+      </h2>
 
       <div className="mt-3 flex items-start gap-3">
         {showImage ? (

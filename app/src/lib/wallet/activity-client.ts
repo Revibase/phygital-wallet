@@ -68,7 +68,8 @@ export async function fetchWalletActivity(args: {
     .filter((item): item is WalletActivityItem => item != null);
 
   const nextCursor =
-    typeof result?.paginationToken === "string" && result.paginationToken.length > 0
+    typeof result?.paginationToken === "string" &&
+    result.paginationToken.length > 0
       ? result.paginationToken
       : null;
 

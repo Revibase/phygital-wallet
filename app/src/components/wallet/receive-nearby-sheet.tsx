@@ -5,7 +5,10 @@ import type { TransactionModifyingSigner } from "@solana/kit";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
-import { getPhygitalWalletSigner, PolicyDeniedError } from "phygital-wallet-sdk";
+import {
+  getPhygitalWalletSigner,
+  PolicyDeniedError,
+} from "phygital-wallet-sdk";
 
 import { CeremonyShell } from "@/components/shared/ceremony-shell";
 import { NfcHoldStatus } from "@/components/shared/nfc-hold-status";
@@ -65,12 +68,7 @@ type LinkedPayer = {
 };
 
 type Phase =
-  | "form"
-  | "identifying"
-  | "summary"
-  | "holding"
-  | "success"
-  | "handoff";
+  "form" | "identifying" | "summary" | "holding" | "success" | "handoff";
 
 /**
  * Receive nearby — amount → Hold (identify) → summary → Hold (confirm pay).
@@ -266,7 +264,11 @@ export function ReceiveNearbySheet({
           });
         },
         (err) => {
-          restorePortfolioSnapshot(queryClient, recipientWallet, recipientBefore);
+          restorePortfolioSnapshot(
+            queryClient,
+            recipientWallet,
+            recipientBefore,
+          );
           if (from) {
             restorePortfolioSnapshot(queryClient, from.walletPda, payerBefore);
           }
@@ -324,19 +326,11 @@ export function ReceiveNearbySheet({
       >
         <NfcHoldStatus
           size="lg"
-          pulsing={
-            identifying || (phase === "holding" && holdingCopy.pulse)
-          }
-          busy={
-            identifying || (phase === "holding" && !holdingCopy.pulse)
-          }
+          pulsing={identifying || (phase === "holding" && holdingCopy.pulse)}
+          busy={identifying || (phase === "holding" && !holdingCopy.pulse)}
           progress={!success}
           tone={success ? "success" : "default"}
-          imageSrc={
-            asset
-              ? resolveTokenIconSrc(asset.mint, asset.icon)
-              : null
-          }
+          imageSrc={asset ? resolveTokenIconSrc(asset.mint, asset.icon) : null}
           title={
             success
               ? copy.wallet.received
@@ -359,8 +353,7 @@ export function ReceiveNearbySheet({
                     +{amount} {asset?.symbol ?? ""}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {copy.wallet.from}{" "}
-                    {shortAddress(from?.walletPda ?? "", 6)}
+                    {copy.wallet.from} {shortAddress(from?.walletPda ?? "", 6)}
                   </p>
                 </div>
                 <Button
@@ -446,7 +439,12 @@ export function ReceiveNearbySheet({
       <div className="flex min-h-0 flex-1 flex-col gap-6">
         <NavBar
           leading={
-            <Button type="button" variant="ghost" size="sm" onClick={backToForm}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={backToForm}
+            >
               {copy.common.cancel}
             </Button>
           }
@@ -473,7 +471,9 @@ export function ReceiveNearbySheet({
 
           <div className="w-full max-w-sm space-y-2 text-left">
             <div className="rounded-2xl bg-muted/25 px-4 py-3">
-              <p className="text-xs text-muted-foreground">{copy.wallet.from}</p>
+              <p className="text-xs text-muted-foreground">
+                {copy.wallet.from}
+              </p>
               <p className="mt-0.5 text-sm tabular-nums">
                 {shortAddress(from.walletPda, 6)}
               </p>
@@ -584,9 +584,7 @@ export function ReceiveNearbySheet({
             placeholder="0"
             value={amount}
             disabled={!asset}
-            onChange={(e) =>
-              setAmount(e.target.value.replace(/[^0-9.]/g, ""))
-            }
+            onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
             aria-label={copy.wallet.receive}
           />
         </div>

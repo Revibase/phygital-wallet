@@ -50,7 +50,7 @@ export function parseConfigIntent(ix: Instruction): ConfigIntent | null {
   let parsed;
   try {
     parsed = parsePhygitalWalletInstruction(
-      ix as Parameters<typeof parsePhygitalWalletInstruction>[0]
+      ix as Parameters<typeof parsePhygitalWalletInstruction>[0],
     );
   } catch {
     return null;
@@ -107,7 +107,7 @@ function canonicalConfigString(intent: ConfigIntent): string {
  */
 export async function hashConfigIntent(intent: ConfigIntent): Promise<string> {
   const bytes = new TextEncoder().encode(
-    `${CONFIG_INTENT_DOMAIN}|${canonicalConfigString(intent)}`
+    `${CONFIG_INTENT_DOMAIN}|${canonicalConfigString(intent)}`,
   );
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   return bytesToHex(new Uint8Array(digest));

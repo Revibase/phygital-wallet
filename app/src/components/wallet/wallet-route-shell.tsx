@@ -48,7 +48,15 @@ import type { WalletRole } from "@/components/token/token-address-route";
 
 /** Allowlisted wallet soft-nav targets. */
 export type WalletGo =
-  | [to: "send" | "receive" | "tokens" | "collectibles" | "activity" | "settings"]
+  | [
+      to:
+        | "send"
+        | "receive"
+        | "tokens"
+        | "collectibles"
+        | "activity"
+        | "settings",
+    ]
   | [to: "receive", nested: "nearby"]
   | [to: "collectibles", mint: string];
 
@@ -410,10 +418,7 @@ function WalletRouteOverlays({
   );
 
   const showOpenApprovals =
-    isOwner &&
-    visibleApprovals.length > 0 &&
-    isWalletHome &&
-    !showClaimSheet;
+    isOwner && visibleApprovals.length > 0 && isWalletHome && !showClaimSheet;
 
   const stageKey = showClaimSheet ? "claim" : "wallet";
 

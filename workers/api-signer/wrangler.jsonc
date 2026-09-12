@@ -11,15 +11,15 @@
     "bindings": [
       {
         "name": "TOKEN_SIGNER",
-        "class_name": "TokenSigner"
-      }
-    ]
+        "class_name": "TokenSigner",
+      },
+    ],
   },
   "migrations": [
     {
       "tag": "v1-token-signer",
-      "new_sqlite_classes": ["TokenSigner"]
-    }
+      "new_sqlite_classes": ["TokenSigner"],
+    },
   ],
   "vars": {
     "SOLANA_CLUSTER": "mainnet",
@@ -27,13 +27,13 @@
     "VERIFIER_SIGNER_BACKEND": "secrets",
     "TOP_UP_ACCUMULATOR": "BExDpnx6E1LW3ofkCPxXvBRAmxqPVsmwnPb4oM5FUutv",
     // debug | info | warn | error — override in .dev.vars for local verbosity
-    "LOG_LEVEL": "info"
+    "LOG_LEVEL": "info",
   },
   "observability": {
     "enabled": true,
     "logs": {
       "enabled": true,
-      "invocation_logs": true
-    }
-  }
+      "invocation_logs": true,
+    },
+  },
 }

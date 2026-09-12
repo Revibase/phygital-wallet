@@ -10,9 +10,6 @@ export default function FeeBalancePage() {
   const { tokenAddress } = useWalletSession();
   const { backSettings } = useWalletNav();
   return (
-    <FeeBalanceSheet
-      phygitalTokenPda={tokenAddress}
-      onBack={backSettings}
-    />
+    <FeeBalanceSheet phygitalTokenPda={tokenAddress} onBack={backSettings} />
   );
 }

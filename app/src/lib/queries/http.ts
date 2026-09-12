@@ -177,10 +177,7 @@ export function shouldRetryQuery(
 }
 
 /** Parse JSON and throw `QueryHttpError` when the response is not OK. */
-export async function readJson<T>(
-  res: Response,
-  fallback: string,
-): Promise<T> {
+export async function readJson<T>(res: Response, fallback: string): Promise<T> {
   const body = (await res.json().catch(() => ({}))) as T & {
     error?: string;
     code?: string;

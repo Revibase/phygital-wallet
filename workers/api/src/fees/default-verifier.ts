@@ -26,7 +26,9 @@ function parseDefaultVerifierPubkeys(raw: string | undefined): Set<string> {
   }
   if (!Array.isArray(parsed)) {
     throw Object.assign(
-      new Error("DEFAULT_VERIFIER_PUBKEYS must be a JSON array of base58 pubkeys"),
+      new Error(
+        "DEFAULT_VERIFIER_PUBKEYS must be a JSON array of base58 pubkeys",
+      ),
       { code: "fee_misconfigured" },
     );
   }

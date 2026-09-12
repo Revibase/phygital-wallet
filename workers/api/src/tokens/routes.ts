@@ -5,10 +5,7 @@ import { readDeviceSession } from "@/auth/device-session";
 import { json } from "@/shared/http";
 import { tryParseAddress } from "@/shared/solana/address";
 import { fetchVerifiedTokens } from "@/tokens/verified-tokens";
-import {
-  FEE_BALANCE_LOW_LAMPORTS,
-  lamportsToSolUi,
-} from "@/fees/constants";
+import { FEE_BALANCE_LOW_LAMPORTS, lamportsToSolUi } from "@/fees/constants";
 import { tokenSigner } from "@/verifier/token-signer";
 
 /**

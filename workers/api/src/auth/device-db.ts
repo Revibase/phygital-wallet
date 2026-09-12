@@ -93,7 +93,9 @@ export async function updateCredentialCounter(
   counter: number,
 ): Promise<void> {
   await db()
-    .prepare(`UPDATE device_credentials SET counter = ? WHERE credential_id = ?`)
+    .prepare(
+      `UPDATE device_credentials SET counter = ? WHERE credential_id = ?`,
+    )
     .bind(counter, credentialId)
     .run();
 }
@@ -167,7 +169,9 @@ export async function upsertLink(args: {
   };
 }
 
-export async function deleteLinkForToken(phygitalToken: string): Promise<boolean> {
+export async function deleteLinkForToken(
+  phygitalToken: string,
+): Promise<boolean> {
   const result = await db()
     .prepare(`DELETE FROM device_token_links WHERE phygital_token = ?`)
     .bind(phygitalToken)

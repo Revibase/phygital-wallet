@@ -5,28 +5,28 @@ Private Cloudflare Worker (`revibase-verifier-signer`) that hosts the
 
 Owns:
 
-1. Fee balance gate + ledger  
-2. `authorizeIntent` (standing policy + Approve-once grants)  
-3. Verifier ed25519 co-sign via pluggable backend  
-4. Owner membership + platform WebAuthn-gated policy/grant mutations  
+1. Fee balance gate + ledger
+2. `authorizeIntent` (standing policy + Approve-once grants)
+3. Verifier ed25519 co-sign via pluggable backend
+4. Owner membership + platform WebAuthn-gated policy/grant mutations
 
 It is **not** publicly routed. Only [`api`](../api/) calls it through the
 `TOKEN_SIGNER` Durable Object binding (`script_name`).
 
 ## RPC (`TokenSigner`)
 
-| Method | Auth | Behavior |
-|--------|------|----------|
-| `verifyWebAuthnConnectAndMintBearer({ blockhash, response, origin, ttlMs })` | WebAuthn-over-blockhash proof | verify sig → `isBlockhashValid` (RPC) → consume `webauthn` counter (`signCount`) → mint bearer (`iss` = a random held verifier) — one critical section per token |
-| `verifyDynamicConnectAndMintBearer({ pk, s, c, n, origin, ttlMs })` | dynamic NFC proof | verify P-256 → resolve token from `pk` and assert it equals this DO's token → consume `tap` counter → mint bearer |
-| `signTransactions(wires, { challengeId?, assertion?, origin? })` | every tx's decoded co-signer must be a key we hold (`canSign`); config + Config default verifier: owner WebAuthn (`cosignConfig`); custom token verifier / execute: none | per-tx: `canSign(decoded.verifier)` → (config: fee → optional assertion) → (execute: fee → authorize) → `backend.sign` |
-| `previewAuthorize({ instructions })` | none | wallet PDA → authorize(`preview`) → fee |
-| `getPolicy` / `getFeeBalance` / `hasOwner` / `isOwner` / `getOwnerCredentialId` | none | reads |
-| `createMutationChallenge` | none (api gates session) | mint short-TTL challenge bound to write intent; returns `challengeId` + options |
-| `addOwner` | **WebAuthn** | sole owner; binding `{ kind: "addOwner", credentialId }`; fails `linked_elsewhere` if claimed |
-| `setPolicy` / `clearPolicy` / `createGrant` / `removeOwnerAndClear` | **challengeId + assertion** | binding (policy / intent / kind) must match mint; consume + verify sig |
-| `removeOwnerAndClear` | **WebAuthn** | on-chain: token verifier + recovery wallet PDAs must be closed; then wipe owner + policies/grants |
-| `applyFeeEvents` | webhook auth on api | idempotent credit/debit |
+| Method                                                                          | Auth                                                                                                                                                                     | Behavior                                                                                                                                                         |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `verifyWebAuthnConnectAndMintBearer({ blockhash, response, origin, ttlMs })`    | WebAuthn-over-blockhash proof                                                                                                                                            | verify sig → `isBlockhashValid` (RPC) → consume `webauthn` counter (`signCount`) → mint bearer (`iss` = a random held verifier) — one critical section per token |
+| `verifyDynamicConnectAndMintBearer({ pk, s, c, n, origin, ttlMs })`             | dynamic NFC proof                                                                                                                                                        | verify P-256 → resolve token from `pk` and assert it equals this DO's token → consume `tap` counter → mint bearer                                                |
+| `signTransactions(wires, { challengeId?, assertion?, origin? })`                | every tx's decoded co-signer must be a key we hold (`canSign`); config + Config default verifier: owner WebAuthn (`cosignConfig`); custom token verifier / execute: none | per-tx: `canSign(decoded.verifier)` → (config: fee → optional assertion) → (execute: fee → authorize) → `backend.sign`                                           |
+| `previewAuthorize({ instructions })`                                            | none                                                                                                                                                                     | wallet PDA → authorize(`preview`) → fee                                                                                                                          |
+| `getPolicy` / `getFeeBalance` / `hasOwner` / `isOwner` / `getOwnerCredentialId` | none                                                                                                                                                                     | reads                                                                                                                                                            |
+| `createMutationChallenge`                                                       | none (api gates session)                                                                                                                                                 | mint short-TTL challenge bound to write intent; returns `challengeId` + options                                                                                  |
+| `addOwner`                                                                      | **WebAuthn**                                                                                                                                                             | sole owner; binding `{ kind: "addOwner", credentialId }`; fails `linked_elsewhere` if claimed                                                                    |
+| `setPolicy` / `clearPolicy` / `createGrant` / `removeOwnerAndClear`             | **challengeId + assertion**                                                                                                                                              | binding (policy / intent / kind) must match mint; consume + verify sig                                                                                           |
+| `removeOwnerAndClear`                                                           | **WebAuthn**                                                                                                                                                             | on-chain: token verifier + recovery wallet PDAs must be closed; then wipe owner + policies/grants                                                                |
+| `applyFeeEvents`                                                                | webhook auth on api                                                                                                                                                      | idempotent credit/debit                                                                                                                                          |
 
 ## Session-signing key vs. on-chain co-signer (two independent roles)
 
@@ -60,10 +60,10 @@ Neither rotation can break the other.
 
 ## Signing backends
 
-| `VERIFIER_SIGNER_BACKEND` | Status |
-|---------------------------|--------|
-| `secrets` (default) | `VERIFIER_SECRET_KEYS` JSON map pubkey → seed/keypair (max 8) |
-| `kms` | Reserved |
+| `VERIFIER_SIGNER_BACKEND` | Status                                                        |
+| ------------------------- | ------------------------------------------------------------- |
+| `secrets` (default)       | `VERIFIER_SECRET_KEYS` JSON map pubkey → seed/keypair (max 8) |
+| `kms`                     | Reserved                                                      |
 
 ## Secrets
 

@@ -7,7 +7,11 @@ import {
   parseDeviceSignInIntent,
   parseSafeTokenReturnPath,
 } from "./device-sign-in-href";
-import { parseTokenWalletPath, walletHref, walletSettingsHref } from "./token-routes";
+import {
+  parseTokenWalletPath,
+  walletHref,
+  walletSettingsHref,
+} from "./token-routes";
 
 /** Valid base58 pubkey for parser tests. */
 const TOKEN = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
@@ -47,7 +51,9 @@ describe("parseTokenWalletPath", () => {
   it("rejects open redirects and unknown segments", () => {
     expect(parseTokenWalletPath("https://evil.example/phish")).toBeNull();
     expect(parseTokenWalletPath("//evil.example/phish")).toBeNull();
-    expect(parseTokenWalletPath(`/token/${TOKEN}/wallet/../settings`)).toBeNull();
+    expect(
+      parseTokenWalletPath(`/token/${TOKEN}/wallet/../settings`),
+    ).toBeNull();
     expect(parseTokenWalletPath(`/token/${TOKEN}/wallet/claim`)).toBeNull();
     expect(parseTokenWalletPath(`/token/not-a-pubkey/wallet`)).toBeNull();
     expect(
@@ -105,18 +111,14 @@ describe("device sign-in intent", () => {
 
   it("parseDeviceSignInIntent requires setup=limits and a valid return", () => {
     const returnPath = walletSettingsHref(TOKEN, "spendingLimits");
-    expect(
-      parseDeviceSignInIntent({ setup: "limits", returnPath }),
-    ).toEqual({
+    expect(parseDeviceSignInIntent({ setup: "limits", returnPath })).toEqual({
       token: TOKEN,
       returnTo: returnPath,
     });
     expect(
       parseDeviceSignInIntent({ setup: "limits", returnPath: null }),
     ).toBeNull();
-    expect(
-      parseDeviceSignInIntent({ setup: null, returnPath }),
-    ).toBeNull();
+    expect(parseDeviceSignInIntent({ setup: null, returnPath })).toBeNull();
   });
 
   it("falls back to wallet home when returnTo is unsafe", () => {

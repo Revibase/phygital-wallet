@@ -71,8 +71,7 @@ export const galleryAnimate = {
   reveal:
     "motion-safe:animate-[luminous-reveal_0.42s_cubic-bezier(0.22,1,0.36,1)_both]",
   /** Authenticity seal tick. */
-  seal:
-    "motion-safe:animate-[luminous-seal_0.28s_cubic-bezier(0.34,1.4,0.64,1)_both]",
+  seal: "motion-safe:animate-[luminous-seal_0.28s_cubic-bezier(0.34,1.4,0.64,1)_both]",
   /** Soft aura breath on boot. */
   auraBreath:
     "motion-safe:animate-[luminous-aura-breath_4s_ease-in-out_infinite]",

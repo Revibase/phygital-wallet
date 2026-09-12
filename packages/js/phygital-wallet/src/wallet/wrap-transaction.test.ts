@@ -42,7 +42,10 @@ import {
 import { findConfigPda } from "../generated/pdas/config.js";
 import { findTokenVerifierPda } from "../generated/pdas/tokenVerifier.js";
 import { findWalletPda } from "../generated/pdas/wallet.js";
-import { createVerifierEndpointSigner, resolveVerifier } from "./resolve-verifier.js";
+import {
+  createVerifierEndpointSigner,
+  resolveVerifier,
+} from "./resolve-verifier.js";
 import { getPhygitalWalletSigner } from "./signer.js";
 
 type MockRpc = Rpc<GetAccountInfoApi & GetMultipleAccountsApi>;
@@ -98,7 +101,9 @@ async function createMockRpc(options: {
     });
     accounts.set(
       tokenVerifierPda,
-      createAccountInfo(getTokenVerifierEncoder().encode(options.tokenVerifier)),
+      createAccountInfo(
+        getTokenVerifierEncoder().encode(options.tokenVerifier),
+      ),
     );
   }
 
@@ -180,7 +185,9 @@ const RECIPIENT = address("So11111111111111111111111111111111111111112");
 const SYSTEM_PROGRAM = address("11111111111111111111111111111111");
 const PHYGITAL_TOKEN = address("DuPpckdjjgVAnYok2aTMAt264ZPBXqq3JSazJjCUzTJQ");
 const CONFIG_VERIFIER = address("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
-const OVERRIDE_VERIFIER = address("Fjbi9JrRAmSBdxQxbkcxYDp6JUwnLbFhU2GsieWQBLSg");
+const OVERRIDE_VERIFIER = address(
+  "Fjbi9JrRAmSBdxQxbkcxYDp6JUwnLbFhU2GsieWQBLSg",
+);
 const SECP256R1_PROGRAM = address(
   "Secp256r1SigVerify1111111111111111111111111",
 );
@@ -191,7 +198,9 @@ vi.mock("phygital-token-sdk", async (importOriginal) => {
   const actual = await importOriginal<typeof import("phygital-token-sdk")>();
   return {
     ...actual,
-    authenticatePasskeyForSecp256r1Verify: vi.fn(async () => ({ mocked: true })),
+    authenticatePasskeyForSecp256r1Verify: vi.fn(async () => ({
+      mocked: true,
+    })),
     buildSecp256r1VerifyInstruction: vi.fn(async () => ({
       secp256r1VerifyInstruction: {
         programAddress: SECP256R1_PROGRAM,
@@ -223,7 +232,10 @@ function compileUnsigned(
     pipe(
       createTransactionMessage({ version: 0 }),
       (message) =>
-        setTransactionMessageFeePayerSigner(createNoopSigner(feePayer), message),
+        setTransactionMessageFeePayerSigner(
+          createNoopSigner(feePayer),
+          message,
+        ),
       (message) =>
         setTransactionMessageLifetimeUsingBlockhash(
           {
@@ -325,7 +337,11 @@ describe("createVerifierEndpointSigner", () => {
 
     const unsigned = pipe(
       createTransactionMessage({ version: 0 }),
-      (message) => setTransactionMessageFeePayerSigner(createNoopSigner(FEE_PAYER), message),
+      (message) =>
+        setTransactionMessageFeePayerSigner(
+          createNoopSigner(FEE_PAYER),
+          message,
+        ),
       (message) =>
         setTransactionMessageLifetimeUsingBlockhash(
           {
@@ -370,7 +386,11 @@ describe("createVerifierEndpointSigner", () => {
     });
     const unsigned = pipe(
       createTransactionMessage({ version: 0 }),
-      (message) => setTransactionMessageFeePayerSigner(createNoopSigner(FEE_PAYER), message),
+      (message) =>
+        setTransactionMessageFeePayerSigner(
+          createNoopSigner(FEE_PAYER),
+          message,
+        ),
       (message) =>
         setTransactionMessageLifetimeUsingBlockhash(
           {
@@ -565,7 +585,9 @@ describe("getPhygitalWalletSigner modifyAndSignTransactions", () => {
 
     await expect(
       signer.modifyAndSignTransactions([
-        compileUnsigned([mockInstruction(MEMO_PROGRAM, [], new Uint8Array([1]))]),
+        compileUnsigned([
+          mockInstruction(MEMO_PROGRAM, [], new Uint8Array([1])),
+        ]),
       ]),
     ).rejects.toThrow(
       /no instructions to wrap \(only compute budget\/memo, or empty\)/,

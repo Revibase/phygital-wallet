@@ -125,10 +125,7 @@ export function logPaymentError(scope: string, error: unknown): void {
   }
 }
 
-function toFacing(
-  error: unknown,
-  fallback: UserFacingError,
-): UserFacingError {
+function toFacing(error: unknown, fallback: UserFacingError): UserFacingError {
   const raw = rawMessage(error).trim();
   if (!raw) return fallback;
 

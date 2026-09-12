@@ -57,7 +57,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${spaceGrotesk.variable} min-h-dvh antialiased`}>
+    <html
+      lang="en"
+      className={`${spaceGrotesk.variable} min-h-dvh antialiased`}
+    >
       <body className="flex min-h-dvh flex-col font-sans">
         <AppProviders>{children}</AppProviders>
       </body>

@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  resolveShortcutUri,
-  shortcutOpensExternally,
-} from "./shortcuts";
+import { resolveShortcutUri, shortcutOpensExternally } from "./shortcuts";
 
 describe("shortcutOpensExternally", () => {
   it("treats solana and prefersExternalTarget as external", () => {

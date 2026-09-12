@@ -43,12 +43,12 @@ export function RpcConnectionSheet({ onBack }: { onBack: () => void }) {
     return (
       <div className="flex flex-1 flex-col gap-4">
         <NavBar
-          leading={
-            <NavBarBack onClick={() => setView("menu")} />
-          }
+          leading={<NavBarBack onClick={() => setView("menu")} />}
           title={copy.wallet.rpcCustom}
         />
-        <p className="text-sm text-muted-foreground">{copy.wallet.rpcCustomHint}</p>
+        <p className="text-sm text-muted-foreground">
+          {copy.wallet.rpcCustomHint}
+        </p>
         <FieldLabel className="normal-case tracking-normal text-xs">
           {copy.wallet.rpcUrlLabel}
         </FieldLabel>
@@ -61,11 +61,7 @@ export function RpcConnectionSheet({ onBack }: { onBack: () => void }) {
           autoCorrect="off"
           spellCheck={false}
         />
-        <Button
-          type="button"
-          size="lg"
-          onClick={() => useCustom()}
-        >
+        <Button type="button" size="lg" onClick={() => useCustom()}>
           {copy.wallet.rpcSwitch}
         </Button>
       </div>

@@ -15,7 +15,11 @@ import type { PhygitalToken } from "@/lib/phygital/token";
 import { walletHref } from "@/lib/wallet/token-routes";
 
 /** Minted-token card gallery — Wallet control navigates to `/token/[address]/wallet`. */
-export function TokenMintedHome({ token: tokenProp }: { token: PhygitalToken }) {
+export function TokenMintedHome({
+  token: tokenProp,
+}: {
+  token: PhygitalToken;
+}) {
   const router = useRouter();
   const session = useTokenVerifySession(tokenProp);
   const tokenAddress = String(session.token.address);

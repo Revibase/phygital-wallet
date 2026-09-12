@@ -64,11 +64,17 @@ export function TokenDetails({
 
   return (
     <section className={cn("w-full text-left", className)}>
-      <h2 className="text-eyebrow mb-3 text-muted-foreground">{copy.token.details}</h2>
+      <h2 className="text-eyebrow mb-3 text-muted-foreground">
+        {copy.token.details}
+      </h2>
       <div className="divide-y divide-border/40">
         {mint ? (
           <CollectibleMetadataRow label={copy.token.mintAddress}>
-            <CopyableAddress address={mint} length={4} label={copy.address.mintAddress} />
+            <CopyableAddress
+              address={mint}
+              length={4}
+              label={copy.address.mintAddress}
+            />
           </CollectibleMetadataRow>
         ) : null}
 
@@ -84,7 +90,11 @@ export function TokenDetails({
 
         {cardId ? (
           <CollectibleMetadataRow label={<CardIdLabel />}>
-            <CopyableAddress address={cardId} length={4} label={copy.address.cardId} />
+            <CopyableAddress
+              address={cardId}
+              length={4}
+              label={copy.address.cardId}
+            />
           </CollectibleMetadataRow>
         ) : null}
       </div>

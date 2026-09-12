@@ -6,14 +6,14 @@ This package does **not** ship program parsers or product presets (payments, col
 
 ## When to use what
 
-| Goal | Use |
-|------|-----|
-| Wrap a Codama program client | `fromCodamaProgram({ programAddress, identify, parse })` |
-| Allow / deny one instruction branch | `allow(matcher, when?)` / `deny(matcher, when?)` |
-| Allow / deny entire program id | `allowProgram(id)` / `denyProgram(id)` |
-| Cap summed amounts across a tx | `aggregate(sources, { lte \| lt \| gte \| gt \| eq, onFail? })` |
-| Run the gate | `policy(rules).verify(instructions)` → `VerifyResult` |
-| Soft UX deny (custom code/details) | `allow(matcher, { when, onFail })` |
+| Goal                                | Use                                                             |
+| ----------------------------------- | --------------------------------------------------------------- |
+| Wrap a Codama program client        | `fromCodamaProgram({ programAddress, identify, parse })`        |
+| Allow / deny one instruction branch | `allow(matcher, when?)` / `deny(matcher, when?)`                |
+| Allow / deny entire program id      | `allowProgram(id)` / `denyProgram(id)`                          |
+| Cap summed amounts across a tx      | `aggregate(sources, { lte \| lt \| gte \| gt \| eq, onFail? })` |
+| Run the gate                        | `policy(rules).verify(instructions)` → `VerifyResult`           |
+| Soft UX deny (custom code/details)  | `allow(matcher, { when, onFail })`                              |
 
 Human docs (shipped in the tarball): `docs/getting-started.md`, `docs/custom-programs.md`, `docs/writing-policies.md`, `docs/verify-and-errors.md`.
 
@@ -49,7 +49,12 @@ const gate = policy([
     }),
   }),
   aggregate(
-    [{ matcher: token.instruction(TokenInstruction.TransferChecked), amount: (ix) => ix.data.amount }],
+    [
+      {
+        matcher: token.instruction(TokenInstruction.TransferChecked),
+        amount: (ix) => ix.data.amount,
+      },
+    ],
     { lte: MAX },
   ),
 ]);

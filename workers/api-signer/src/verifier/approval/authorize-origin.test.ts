@@ -68,7 +68,7 @@ function authorize(
     mode: "preview" | "sign";
     origin: string | null;
     instructions?: Instruction[];
-  }
+  },
 ) {
   return runWithRequestStore({ env: {} as Env, tokenStore: store }, () =>
     authorizeIntent({
@@ -76,7 +76,7 @@ function authorize(
       instructions: args.instructions ?? [],
       mode: args.mode,
       origin: args.origin,
-    })
+    }),
   );
 }
 

@@ -132,9 +132,7 @@ function HomePasskeyScreen({
     return (
       <CeremonyShell>
         <UsernameSetupForm
-          eyebrow={
-            setupMode && claimMode ? copy.wallet.setupStepPasskey : null
-          }
+          eyebrow={setupMode && claimMode ? copy.wallet.setupStepPasskey : null}
           title={copy.wallet.usernameTitle}
           body={copy.wallet.usernameBody}
           busy={registerMutation.isPending}
@@ -477,10 +475,7 @@ function HomeLinksScreen({ username }: { username: string }) {
       return pda;
     },
     onSuccess: (pda) => {
-      queryClient.setQueryData(
-        queryKeys.deviceAuth.browseUnlock(pda),
-        true,
-      );
+      queryClient.setQueryData(queryKeys.deviceAuth.browseUnlock(pda), true);
       setPendingPda(pda);
     },
   });
@@ -509,10 +504,7 @@ function HomeLinksScreen({ username }: { username: string }) {
           ];
         },
       );
-      void queryClient.setQueryData(
-        queryKeys.deviceAuth.claimed(pda),
-        true,
-      );
+      void queryClient.setQueryData(queryKeys.deviceAuth.claimed(pda), true);
       return pda;
     },
     onSuccess: (pda) => {
@@ -663,7 +655,10 @@ function HomeLinksScreen({ username }: { username: string }) {
           type="button"
           variant="outline"
           size="default"
-          className={cn(touchTargetClass, "shrink-0 rounded-full self-start sm:self-auto")}
+          className={cn(
+            touchTargetClass,
+            "shrink-0 rounded-full self-start sm:self-auto",
+          )}
           onClick={() => {
             link.reset();
             hold.mutate();
@@ -714,11 +709,7 @@ function FormFactorSection({
   return (
     <GroupedList label={label}>
       {items.map((item) => (
-        <HomeLinkRow
-          key={item.phygitalToken}
-          item={item}
-          onOpen={onOpen}
-        />
+        <HomeLinkRow key={item.phygitalToken} item={item} onOpen={onOpen} />
       ))}
     </GroupedList>
   );
@@ -755,9 +746,7 @@ function HomeLinkRow({
           </span>
         )
       }
-      subtitle={
-        walletAddress ? shortAddress(walletAddress, 4) : undefined
-      }
+      subtitle={walletAddress ? shortAddress(walletAddress, 4) : undefined}
     >
       {name}
     </GroupedRow>

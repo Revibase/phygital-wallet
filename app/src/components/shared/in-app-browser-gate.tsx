@@ -19,7 +19,8 @@ function safariOpenHref(href: string): string | null {
   try {
     const url = new URL(href);
     if (url.protocol !== "https:" && url.protocol !== "http:") return null;
-    const scheme = url.protocol === "https:" ? "x-safari-https" : "x-safari-http";
+    const scheme =
+      url.protocol === "https:" ? "x-safari-https" : "x-safari-http";
     return `${scheme}://${url.host}${url.pathname}${url.search}${url.hash}`;
   } catch {
     return null;

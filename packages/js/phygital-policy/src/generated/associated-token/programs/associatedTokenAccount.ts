@@ -25,7 +25,6 @@ import {
   type ParsedCreateInstruction,
 } from "../instructions/index.js";
 
-
 export const ASSOCIATED_TOKEN_ACCOUNT_PROGRAM_ADDRESS =
   "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL" as Address<"ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL">;
 
@@ -53,7 +52,7 @@ export function identifyAssociatedTokenAccountInstruction(
 export type ParsedAssociatedTokenAccountInstruction<
   TProgram extends string = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
 > =
-  ({
+  | ({
       instructionType: AssociatedTokenAccountInstruction.Create;
     } & ParsedCreateInstruction<TProgram>)
   | ({
@@ -80,8 +79,8 @@ export function parseAssociatedTokenAccountInstruction<TProgram extends string>(
         ...parseCreateIdempotentInstruction(instruction),
       };
     }
-            default:
-  throw new SolanaError(
+    default:
+      throw new SolanaError(
         SOLANA_ERROR__PROGRAM_CLIENTS__UNRECOGNIZED_INSTRUCTION_TYPE,
         {
           instructionType: instructionType as string,

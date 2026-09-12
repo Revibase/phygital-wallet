@@ -57,7 +57,7 @@ export type PhygitalWalletSignerConfig = PhygitalWalletSignerCallbacks & {
 export async function getPhygitalWalletSigner(
   rpc: Rpc<SolanaRpcApi>,
   phygitalTokenPda: Address,
-  config?: PhygitalWalletSignerConfig
+  config?: PhygitalWalletSignerConfig,
 ): Promise<TransactionModifyingSigner> {
   const [[walletPda], resolved] = await Promise.all([
     findWalletPda({ phygitalToken: phygitalTokenPda }),
@@ -88,19 +88,19 @@ export async function getPhygitalWalletSigner(
 
       if (transactions.length !== 1) {
         throw new Error(
-          "getPhygitalWalletSigner accepts exactly one transaction per sign"
+          "getPhygitalWalletSigner accepts exactly one transaction per sign",
         );
       }
 
       const [transaction] = transactions;
       if (!transaction) {
         throw new Error(
-          "getPhygitalWalletSigner accepts exactly one transaction per sign"
+          "getPhygitalWalletSigner accepts exactly one transaction per sign",
         );
       }
       if (!("lifetimeConstraint" in transaction)) {
         throw new Error(
-          "getPhygitalWalletSigner requires transactions with a lifetime constraint"
+          "getPhygitalWalletSigner requires transactions with a lifetime constraint",
         );
       }
 
@@ -136,7 +136,7 @@ export async function getPhygitalWalletSigner(
           config?.onPhaseChange?.("coSigning");
           const [verifierSignatures] = await verifier.signTransactions(
             [tx],
-            signConfig
+            signConfig,
           );
           if (!verifierSignatures) {
             throw new Error("Verifier returned no signature");

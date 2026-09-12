@@ -14,10 +14,7 @@ describe("mapGtfaTransaction", () => {
       transaction: {
         signatures: ["sigSend"],
         message: {
-          accountKeys: [
-            { pubkey: WALLET },
-            { pubkey: OTHER },
-          ],
+          accountKeys: [{ pubkey: WALLET }, { pubkey: OTHER }],
         },
       },
       meta: {
@@ -40,7 +37,10 @@ describe("mapGtfaTransaction", () => {
       transaction: {
         signatures: ["sigRecv"],
         message: {
-          accountKeys: [{ pubkey: OTHER }, { pubkey: "Ata111111111111111111111111111111111111111" }],
+          accountKeys: [
+            { pubkey: OTHER },
+            { pubkey: "Ata111111111111111111111111111111111111111" },
+          ],
         },
       },
       meta: {

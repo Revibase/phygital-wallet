@@ -141,9 +141,7 @@ export async function verifyVerifierBearer(
   return authorized ? payload : null;
 }
 
-export function decodeVerifierBearer(
-  token: string,
-): {
+export function decodeVerifierBearer(token: string): {
   payload: VerifierBearerPayload;
   payloadBytes: Uint8Array;
   signature: Uint8Array;

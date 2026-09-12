@@ -30,7 +30,6 @@ import {
   type ParsedTransferSolInstruction,
 } from "../instructions/index.js";
 
-
 export const SYSTEM_PROGRAM_ADDRESS =
   "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
 
@@ -66,7 +65,7 @@ export function identifySystemInstruction(
 export type ParsedSystemInstruction<
   TProgram extends string = "11111111111111111111111111111111",
 > =
-  ({
+  | ({
       instructionType: SystemInstruction.CreateAccount;
     } & ParsedCreateAccountInstruction<TProgram>)
   | ({
@@ -105,15 +104,15 @@ export function parseSystemInstruction<TProgram extends string>(
         ...parseTransferSolInstruction(instruction),
       };
     }
-                        case SystemInstruction.Allocate: {
+    case SystemInstruction.Allocate: {
       assertIsInstructionWithAccounts(instruction);
       return {
         instructionType: SystemInstruction.Allocate,
         ...parseAllocateInstruction(instruction),
       };
     }
-                        default:
-  throw new SolanaError(
+    default:
+      throw new SolanaError(
         SOLANA_ERROR__PROGRAM_CLIENTS__UNRECOGNIZED_INSTRUCTION_TYPE,
         { instructionType: instructionType as string, programName: "system" },
       );

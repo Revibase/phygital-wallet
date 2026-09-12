@@ -18,10 +18,8 @@ export function TokenIcon({
   size?: "xs" | "sm" | "md";
   className?: string;
 }) {
-  const dim =
-    size === "xs" ? "size-4" : size === "sm" ? "size-6" : "size-8";
-  const letter =
-    size === "xs" ? "text-[8px]" : "text-[10px]";
+  const dim = size === "xs" ? "size-4" : size === "sm" ? "size-6" : "size-8";
+  const letter = size === "xs" ? "text-[8px]" : "text-[10px]";
   const src = resolveTokenIconSrc(token.mint, token.icon);
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const failed = failedSrc === src;
@@ -34,7 +32,11 @@ export function TokenIcon({
         alt=""
         referrerPolicy="no-referrer"
         onError={() => setFailedSrc(src)}
-        className={cn(dim, "shrink-0 rounded-full bg-muted object-cover", className)}
+        className={cn(
+          dim,
+          "shrink-0 rounded-full bg-muted object-cover",
+          className,
+        )}
       />
     );
   }

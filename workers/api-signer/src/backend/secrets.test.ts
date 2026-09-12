@@ -20,16 +20,14 @@ describe("SecretsVerifierBackend", () => {
       JSON.stringify({ [pubkey]: seedB58 }),
     );
     expect(backend.canSign(pubkey)).toBe(true);
-    expect(backend.canSign("Other111111111111111111111111111111111111111")).toBe(
-      false,
-    );
+    expect(
+      backend.canSign("Other111111111111111111111111111111111111111"),
+    ).toBe(false);
 
     const msg = new Uint8Array([1, 2, 3, 4]);
     const sigB64 = await backend.sign(pubkey, msg);
     const sig = Uint8Array.from(atob(sigB64), (c) => c.charCodeAt(0));
-    expect(
-      ed25519.verify(sig, msg, ed25519.getPublicKey(seed)),
-    ).toBe(true);
+    expect(ed25519.verify(sig, msg, ed25519.getPublicKey(seed))).toBe(true);
   });
 
   it("rejects pubkey/seed mismatch at construct", () => {

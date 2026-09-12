@@ -40,10 +40,7 @@ export type AuditEvent =
  * fee event from the Helius webhook.
  */
 export type AuditActor =
-  | "accessory"
-  | "owner_device"
-  | "visitor_device"
-  | "system";
+  "accessory" | "owner_device" | "visitor_device" | "system";
 
 export type AuditEntry = {
   event: AuditEvent;
@@ -97,7 +94,7 @@ function bind(stmt: D1PreparedStatement, e: AuditEntry): D1PreparedStatement {
     ok,
     e.sessionId ?? null,
     e.intentHash ?? null,
-    buildDetail(e)
+    buildDetail(e),
   );
 }
 
@@ -139,7 +136,7 @@ export function recordAudit(input: AuditEntry | AuditEntry[]): void {
           error: err instanceof Error ? err.message : String(err),
         });
       }
-    })()
+    })(),
   );
 }
 

@@ -39,14 +39,8 @@ export function StageTransition({
     );
   }
 
-  const enter =
-    variant === "fade"
-      ? { opacity: 0 }
-      : { opacity: 0, y: 6 };
-  const animate =
-    variant === "fade"
-      ? { opacity: 1 }
-      : { opacity: 1, y: 0 };
+  const enter = variant === "fade" ? { opacity: 0 } : { opacity: 0, y: 6 };
+  const animate = variant === "fade" ? { opacity: 1 } : { opacity: 1, y: 0 };
 
   return (
     <LazyMotion features={domAnimation}>

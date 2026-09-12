@@ -92,7 +92,7 @@ export type TokenSignerRpc = {
     origin: string;
   }): Promise<{ ok: true; credentialId: string } | MutationFail>;
   applyFeeEvents(
-    events: { signature: string; kind: "credit" | "debit"; lamports: number }[]
+    events: { signature: string; kind: "credit" | "debit"; lamports: number }[],
   ): Promise<{ applied: number; appliedSignatures: string[] }>;
   previewAuthorize(input: {
     instructions: Instruction[];
@@ -119,7 +119,7 @@ export type TokenSignerRpc = {
        * standing policy's allowedOrigins inside authorizeIntent.
        */
       sessionOrigin?: string | null;
-    }
+    },
   ): Promise<
     | {
         ok: true;

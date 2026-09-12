@@ -143,10 +143,7 @@ export function ExceptionsPanel({
       {showBuiltIn ? (
         <ul className="flex max-h-48 flex-col gap-1 overflow-y-auto">
           {STANDARD_ALLOWED_PROGRAMS.map((p) => (
-            <li
-              key={p.programId}
-              className="rounded-xl bg-muted/25 px-3 py-2"
-            >
+            <li key={p.programId} className="rounded-xl bg-muted/25 px-3 py-2">
               <p className="truncate text-sm font-medium">{p.label}</p>
               <p className="text-xs text-muted-foreground">{p.blurb}</p>
             </li>

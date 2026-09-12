@@ -136,7 +136,11 @@ export function FeeBalanceSheet({
         (err) => {
           restoreFeeBalanceSnapshot(queryClient, phygitalTokenPda, feeBefore);
           if (walletAddress) {
-            restorePortfolioSnapshot(queryClient, walletAddress, portfolioBefore);
+            restorePortfolioSnapshot(
+              queryClient,
+              walletAddress,
+              portfolioBefore,
+            );
             restoreWalletActivitySnapshot(queryClient, activityBefore);
           }
           toast.error(toUserErrorMessage(err));
@@ -190,14 +194,10 @@ export function FeeBalanceSheet({
           tone={phase === "success" ? "success" : "default"}
           imageSrc={resolveTokenIconSrc(NATIVE_SOL_MINT, null)}
           title={
-            phase === "success"
-              ? copy.wallet.topUpSuccess
-              : holdingCopy.title
+            phase === "success" ? copy.wallet.topUpSuccess : holdingCopy.title
           }
           body={
-            phase === "success"
-              ? copy.wallet.topUpPending
-              : holdingCopy.body
+            phase === "success" ? copy.wallet.topUpPending : holdingCopy.body
           }
           action={
             phase === "success" ? (
@@ -256,11 +256,7 @@ export function FeeBalanceSheet({
         disabled={!canTopUp}
         onClick={() => void runTopUp()}
       >
-        {busy ? (
-          <Spinner className="size-4" />
-        ) : (
-          copy.wallet.holdToTopUp
-        )}
+        {busy ? <Spinner className="size-4" /> : copy.wallet.holdToTopUp}
       </Button>
     </div>
   );

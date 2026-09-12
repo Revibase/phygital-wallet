@@ -27,4 +27,3 @@ export function sumUsd(usdValues: Array<number | null | undefined>): number {
   }
   return sum;
 }
-

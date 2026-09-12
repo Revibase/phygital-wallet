@@ -6,7 +6,10 @@ import { GroupedRow } from "@/components/shared/grouped-list";
 import { TokenIcon } from "@/components/shared/token-chip";
 import type { PaymentTokenHolding } from "@/lib/tokens/payment-token";
 import { formatUsd } from "@/lib/currency/usd";
-import { holdingToSendAsset, type SendAssetRef } from "@/lib/wallet/send-asset-ref";
+import {
+  holdingToSendAsset,
+  type SendAssetRef,
+} from "@/lib/wallet/send-asset-ref";
 
 /** Shared token row for home preview and See All. */
 export const TokenHoldingRow = memo(function TokenHoldingRow({

@@ -6,7 +6,9 @@ export type FeeBalance = {
   low: boolean;
 };
 
-export async function fetchFeeBalance(phygitalToken: string): Promise<FeeBalance> {
+export async function fetchFeeBalance(
+  phygitalToken: string,
+): Promise<FeeBalance> {
   const res = await queryFetch(
     `/tokens/fee-balance?phygitalToken=${encodeURIComponent(phygitalToken)}`,
   );

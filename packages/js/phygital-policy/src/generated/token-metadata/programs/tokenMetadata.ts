@@ -20,10 +20,7 @@ import {
   type ReadonlyUint8Array,
 } from "@solana/kit";
 
-import {
-  type ParsedTransferInstruction,
-} from "../instructions/index.js";
-
+import { type ParsedTransferInstruction } from "../instructions/index.js";
 
 export const TOKEN_METADATA_PROGRAM_ADDRESS =
   "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s" as Address<"metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s">;
@@ -47,25 +44,24 @@ export function identifyTokenMetadataInstruction(
 
 export type ParsedTokenMetadataInstruction<
   TProgram extends string = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s",
-> =
-  ({
-      instructionType: TokenMetadataInstruction.Transfer;
-    } & ParsedTransferInstruction<TProgram>);
+> = {
+  instructionType: TokenMetadataInstruction.Transfer;
+} & ParsedTransferInstruction<TProgram>;
 
 export function parseTokenMetadataInstruction<TProgram extends string>(
   instruction: Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array>,
 ): ParsedTokenMetadataInstruction<TProgram> {
   const instructionType = identifyTokenMetadataInstruction(instruction);
   switch (instructionType) {
-                                                                                                                                                                                                        case TokenMetadataInstruction.Transfer: {
+    case TokenMetadataInstruction.Transfer: {
       assertIsInstructionWithAccounts(instruction);
       return {
         instructionType: TokenMetadataInstruction.Transfer,
         ...parseTransferInstruction(instruction),
       };
     }
-                                    default:
-  throw new SolanaError(
+    default:
+      throw new SolanaError(
         SOLANA_ERROR__PROGRAM_CLIENTS__UNRECOGNIZED_INSTRUCTION_TYPE,
         {
           instructionType: instructionType as string,

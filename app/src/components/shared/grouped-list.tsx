@@ -38,9 +38,7 @@ export function GroupedList({
 }) {
   return (
     <section className={cn("flex flex-col gap-1.5", className)}>
-      {label ? (
-        <h2 className="text-section-label px-4">{label}</h2>
-      ) : null}
+      {label ? <h2 className="text-section-label px-4">{label}</h2> : null}
       <ul className="overflow-hidden rounded-2xl border border-border/30 bg-grouped text-grouped-foreground shadow-[0_1px_0_rgba(255,255,255,0.4)_inset] backdrop-blur-md">
         {children}
       </ul>

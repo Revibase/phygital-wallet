@@ -15,14 +15,14 @@ describe("checkOriginAllowed", () => {
   it("allows any origin when the allowlist is absent or empty", () => {
     expect(checkOriginAllowed({ version: "3" }, "https://x.com").ok).toBe(true);
     expect(
-      checkOriginAllowed({ version: "3", allowedOrigins: [] }, null).ok
+      checkOriginAllowed({ version: "3", allowedOrigins: [] }, null).ok,
     ).toBe(true);
   });
 
   it("allows a listed origin (including non-default port)", () => {
     expect(checkOriginAllowed(ALLOW, "https://a.example.com").ok).toBe(true);
     expect(checkOriginAllowed(ALLOW, "https://shop.example.com:8443").ok).toBe(
-      true
+      true,
     );
   });
 
@@ -45,7 +45,7 @@ describe("checkOriginAllowed", () => {
   it("is exact — a port or scheme difference is not a match", () => {
     expect(checkOriginAllowed(ALLOW, "http://a.example.com").ok).toBe(false);
     expect(checkOriginAllowed(ALLOW, "https://a.example.com:8443").ok).toBe(
-      false
+      false,
     );
   });
 });

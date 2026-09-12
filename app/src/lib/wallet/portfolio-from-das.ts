@@ -57,7 +57,9 @@ function buildFungibleHoldings(assets: DasAsset[]): PaymentTokenHolding[] {
       pricePerTokenUsd,
       valueUsd:
         totalPriceUsd ??
-        (pricePerTokenUsd != null ? Number(balanceUi) * pricePerTokenUsd : null),
+        (pricePerTokenUsd != null
+          ? Number(balanceUi) * pricePerTokenUsd
+          : null),
     });
   }
 

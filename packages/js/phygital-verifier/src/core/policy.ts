@@ -67,13 +67,14 @@ export type DenyProgramRule = {
   readonly programAddress: string;
 };
 
-export type AggregateSource<TParsed extends ParsedProgramIx = ParsedProgramIx> = {
-  matcher: InstructionMatcher<TParsed>;
-  /** Extract a bigint contribution from a matched instruction. */
-  amount: (parsed: TParsed) => bigint;
-  /** Optional filter; false excludes this ix from the sum. */
-  when?: (parsed: TParsed) => boolean;
-};
+export type AggregateSource<TParsed extends ParsedProgramIx = ParsedProgramIx> =
+  {
+    matcher: InstructionMatcher<TParsed>;
+    /** Extract a bigint contribution from a matched instruction. */
+    amount: (parsed: TParsed) => bigint;
+    /** Optional filter; false excludes this ix from the sum. */
+    when?: (parsed: TParsed) => boolean;
+  };
 
 export type AggregateOpts = {
   lte?: bigint;
@@ -132,7 +133,10 @@ export function deny<TParsed extends ParsedProgramIx>(
 }
 
 export function allowProgram(programAddress: AddressLike): AllowProgramRule {
-  return { kind: "allowProgram", programAddress: addressString(programAddress) };
+  return {
+    kind: "allowProgram",
+    programAddress: addressString(programAddress),
+  };
 }
 
 export function denyProgram(programAddress: AddressLike): DenyProgramRule {
@@ -159,7 +163,11 @@ export type Policy = {
   verify(instructions: readonly Instruction[]): VerifyResult;
 };
 
-function compare(op: AggregateRule["op"], actual: bigint, limit: bigint): boolean {
+function compare(
+  op: AggregateRule["op"],
+  actual: bigint,
+  limit: bigint,
+): boolean {
   switch (op) {
     case "lte":
       return actual <= limit;
@@ -239,7 +247,9 @@ export function policy(rules: readonly Rule[]): Policy {
   const denyPrograms = rules.filter(
     (r): r is DenyProgramRule => r.kind === "denyProgram",
   );
-  const aggregates = rules.filter((r): r is AggregateRule => r.kind === "aggregate");
+  const aggregates = rules.filter(
+    (r): r is AggregateRule => r.kind === "aggregate",
+  );
 
   const allowedPrograms = new Set(allowPrograms.map((r) => r.programAddress));
   for (const r of allows) allowedPrograms.add(r.matcher.programAddress);
@@ -260,10 +270,7 @@ export function policy(rules: readonly Rule[]): Policy {
 
   function verify(instructions: readonly Instruction[]): VerifyResult {
     if (allows.length === 0 && allowPrograms.length === 0) {
-      return fail(
-        "invalid_policy",
-        "Policy has no allow / allowProgram rules",
-      );
+      return fail("invalid_policy", "Policy has no allow / allowProgram rules");
     }
 
     for (let i = 0; i < instructions.length; i++) {
@@ -358,7 +365,9 @@ export function policy(rules: readonly Rule[]): Policy {
           } catch (e) {
             return fail(
               "aggregate_failed",
-              e instanceof Error ? e.message : "Failed to read aggregate amount",
+              e instanceof Error
+                ? e.message
+                : "Failed to read aggregate amount",
               { programId: src.matcher.programAddress },
             );
           }

@@ -10,10 +10,7 @@ import { Button } from "@/components/ui/button";
 import { useHoldToCheck } from "@/hooks/token/use-hold-to-check";
 import { useResolvedDasCollectible } from "@/hooks/token/use-das-collectible";
 import { copy } from "@/lib/copy/phygital";
-import {
-  tokenHasLinkedMint,
-  type PhygitalToken,
-} from "@/lib/phygital/token";
+import { tokenHasLinkedMint, type PhygitalToken } from "@/lib/phygital/token";
 
 /** Verify session for minted/unminted homes — Hold to Check. */
 export function useTokenVerifySession(token: PhygitalToken) {

@@ -6,10 +6,7 @@ import { toast } from "sonner";
 import { PolicyDeniedError } from "phygital-wallet-sdk";
 
 import { ApprovalSheetBody } from "@/components/wallet/approval-sheet-body";
-import {
-  Sheet,
-  SheetContent,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useMintMeta } from "@/hooks/wallet/use-activity-mint-meta";
 import { copy } from "@/lib/copy/phygital";
 import { queryKeys } from "@/lib/queries";

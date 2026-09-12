@@ -76,7 +76,12 @@ export function CollectibleMetadataRow({
   }
 
   return (
-    <div className={cn("flex items-center justify-between gap-3 py-2 text-xs", className)}>
+    <div
+      className={cn(
+        "flex items-center justify-between gap-3 py-2 text-xs",
+        className,
+      )}
+    >
       {content}
     </div>
   );

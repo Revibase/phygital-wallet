@@ -58,9 +58,7 @@ export function ActivityAllSheet({
         hasMore={Boolean(activity.nextCursor)}
         loadingMore={activity.isFetching && cursor != null}
         onLoadMore={
-          activity.nextCursor
-            ? () => setCursor(activity.nextCursor)
-            : undefined
+          activity.nextCursor ? () => setCursor(activity.nextCursor) : undefined
         }
       />
     </div>

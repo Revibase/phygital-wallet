@@ -40,7 +40,9 @@ export function fallbackCollectible(mint: string): Collectible {
   };
 }
 
-function firstHttpsUrl(...candidates: Array<string | undefined>): string | null {
+function firstHttpsUrl(
+  ...candidates: Array<string | undefined>
+): string | null {
   for (const raw of candidates) {
     const url = raw?.trim();
     if (url?.startsWith("https://")) return url;

@@ -104,9 +104,7 @@ export function CollectibleOrb({
         >
           {busy && !progress ? (
             <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/40">
-              <Spinner
-                className={cn(icon, "animate-spin text-foreground")}
-              />
+              <Spinner className={cn(icon, "animate-spin text-foreground")} />
             </div>
           ) : null}
           {success && !showArt ? (

@@ -17,8 +17,7 @@ const gate = policy([
   denyProgram(COMPUTE_BUDGET_PROGRAM),
   deny(token.instruction(TokenInstruction.SetAuthority)),
   allow(token.instruction(TokenInstruction.TransferChecked), {
-    when: (ix) =>
-      ix.accounts.mint.address === USDC && ix.data.amount <= MAX,
+    when: (ix) => ix.accounts.mint.address === USDC && ix.data.amount <= MAX,
     onFail: (ix) => ({
       code: "spend_limit",
       message: "Over USDC cap",

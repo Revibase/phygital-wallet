@@ -117,7 +117,9 @@ export function RpcPreferenceProvider({ children }: { children: ReactNode }) {
 export function useRpcPreference(): RpcPreferenceContextValue {
   const ctx = useContext(RpcPreferenceContext);
   if (!ctx) {
-    throw new Error("useRpcPreference must be used within RpcPreferenceProvider");
+    throw new Error(
+      "useRpcPreference must be used within RpcPreferenceProvider",
+    );
   }
   return ctx;
 }

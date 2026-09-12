@@ -83,7 +83,9 @@ export function NfcHoldStatus({
       >
         <p className={titleClassName}>{title}</p>
         {body ? (
-          <p className="text-sm leading-relaxed text-muted-foreground">{body}</p>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            {body}
+          </p>
         ) : null}
       </div>
       {action ? (

@@ -60,7 +60,7 @@ function pendingSql() {
       const rows = tables.get("pending_approvals") ?? [];
       tables.set(
         "pending_approvals",
-        rows.filter((r) => (r.expires_at as number) >= now)
+        rows.filter((r) => (r.expires_at as number) >= now),
       );
       return { toArray: () => [] };
     }
@@ -74,7 +74,7 @@ function pendingSql() {
       const rows = tables.get("pending_approvals") ?? [];
       tables.set(
         "pending_approvals",
-        rows.filter((r) => r.id !== id)
+        rows.filter((r) => r.id !== id),
       );
       return { toArray: () => [] };
     }
@@ -92,7 +92,7 @@ function pendingSql() {
         (r) =>
           r.intent_hash === intent &&
           r.resolved_at == null &&
-          (r.expires_at as number) > now
+          (r.expires_at as number) > now,
       );
       return { toArray: () => (hit ? [{ id: hit.id }] : []) };
     }
@@ -173,7 +173,7 @@ function pendingSql() {
       const intent = params[0];
       const rows = tables.get("pending_approvals") ?? [];
       const hit = rows.find(
-        (r) => r.intent_hash === intent && r.resolved_at == null
+        (r) => r.intent_hash === intent && r.resolved_at == null,
       );
       return { toArray: () => (hit ? [{ id: hit.id }] : []) };
     }

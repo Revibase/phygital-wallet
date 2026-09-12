@@ -20,7 +20,10 @@ import {
   type LinkStatus,
   type TokenGate,
 } from "@/lib/wallet/device-auth-client";
-import { redirectToClaimSetup, clearClaimDismiss } from "@/lib/wallet/claim-setup-href";
+import {
+  redirectToClaimSetup,
+  clearClaimDismiss,
+} from "@/lib/wallet/claim-setup-href";
 import { redirectToDeviceSignIn } from "@/lib/wallet/device-sign-in-href";
 import { cn } from "@/lib/utils";
 import { walletSettingsHref } from "@/lib/wallet/token-routes";
@@ -55,20 +58,14 @@ export function AccessRecoverySheet({
   const verifier = useTokenVerifier(isOwner ? phygitalTokenPda : null);
   const linkedElsewhere = linkStatus === "linked_elsewhere";
   const claimedQuiet = claimed === true && !isOwner && !linkedElsewhere;
-  const teardownLoading =
-    isOwner && (recovery.isLoading || verifier.isLoading);
+  const teardownLoading = isOwner && (recovery.isLoading || verifier.isLoading);
   /** Only surface when set — must clear before unlink. Managed in Safety otherwise. */
   const needsRecoveryClear = Boolean(recovery.data?.configured);
   const needsSigningRestore = Boolean(verifier.data?.custom);
   const showUnlinkBlockers =
-    isOwner &&
-    !teardownLoading &&
-    (needsRecoveryClear || needsSigningRestore);
+    isOwner && !teardownLoading && (needsRecoveryClear || needsSigningRestore);
   const canUnlink =
-    isOwner &&
-    !teardownLoading &&
-    !needsRecoveryClear &&
-    !needsSigningRestore;
+    isOwner && !teardownLoading && !needsRecoveryClear && !needsSigningRestore;
   const accessReturnTo = walletSettingsHref(phygitalTokenPda, "access");
 
   async function unlink() {
@@ -165,9 +162,8 @@ export function AccessRecoverySheet({
     : claimedQuiet
       ? copy.wallet.claimSignInTitle
       : copy.wallet.claimTitle;
-  const visitorHint = linkedElsewhere || claimedQuiet
-    ? null
-    : copy.wallet.accessClaimHint;
+  const visitorHint =
+    linkedElsewhere || claimedQuiet ? null : copy.wallet.accessClaimHint;
   const visitorBody = linkedElsewhere
     ? copy.wallet.limitsLinkedElsewhereBody
     : claimedQuiet

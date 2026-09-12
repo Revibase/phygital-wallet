@@ -33,7 +33,6 @@ function loadDevVarsIntoProcessEnv() {
 
 loadDevVarsIntoProcessEnv();
 
-
 /** pnpm hoists `next` to the workspace root — Turbopack must resolve from there. */
 const workspaceRoot = path.join(__dirname, "..");
 

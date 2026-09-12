@@ -3,10 +3,7 @@ import { getBase58Decoder, getBase58Encoder } from "@solana/kit";
 
 import { bytesToBase64 } from "@/shared/crypto/base64";
 
-import {
-  MAX_VERIFIER_KEYS,
-  type VerifierSignerBackend,
-} from "./types.js";
+import { MAX_VERIFIER_KEYS, type VerifierSignerBackend } from "./types.js";
 
 const base58Encoder = getBase58Encoder();
 const base58Decoder = getBase58Decoder();
@@ -36,19 +33,17 @@ export function parseVerifierSecretKeyPubkeys(
   secretKeysJson: string | undefined,
 ): Set<string> {
   if (!secretKeysJson?.trim()) {
-    throw Object.assign(
-      new Error("VERIFIER_SECRET_KEYS is not configured"),
-      { code: "signer_misconfigured" },
-    );
+    throw Object.assign(new Error("VERIFIER_SECRET_KEYS is not configured"), {
+      code: "signer_misconfigured",
+    });
   }
   let parsed: unknown;
   try {
     parsed = JSON.parse(secretKeysJson);
   } catch {
-    throw Object.assign(
-      new Error("VERIFIER_SECRET_KEYS must be valid JSON"),
-      { code: "signer_misconfigured" },
-    );
+    throw Object.assign(new Error("VERIFIER_SECRET_KEYS must be valid JSON"), {
+      code: "signer_misconfigured",
+    });
   }
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
     throw Object.assign(
@@ -65,7 +60,9 @@ export function parseVerifierSecretKeyPubkeys(
   }
   if (keys.length > MAX_VERIFIER_KEYS) {
     throw Object.assign(
-      new Error(`VERIFIER_SECRET_KEYS supports at most ${MAX_VERIFIER_KEYS} keys`),
+      new Error(
+        `VERIFIER_SECRET_KEYS supports at most ${MAX_VERIFIER_KEYS} keys`,
+      ),
       { code: "signer_misconfigured" },
     );
   }
@@ -81,10 +78,9 @@ export class SecretsVerifierBackend implements VerifierSignerBackend {
 
   constructor(secretKeysJson: string | undefined) {
     if (!secretKeysJson?.trim()) {
-      throw Object.assign(
-        new Error("VERIFIER_SECRET_KEYS is not configured"),
-        { code: "signer_misconfigured" },
-      );
+      throw Object.assign(new Error("VERIFIER_SECRET_KEYS is not configured"), {
+        code: "signer_misconfigured",
+      });
     }
 
     let parsed: unknown;
@@ -113,7 +109,9 @@ export class SecretsVerifierBackend implements VerifierSignerBackend {
     }
     if (entries.length > MAX_VERIFIER_KEYS) {
       throw Object.assign(
-        new Error(`VERIFIER_SECRET_KEYS supports at most ${MAX_VERIFIER_KEYS} keys`),
+        new Error(
+          `VERIFIER_SECRET_KEYS supports at most ${MAX_VERIFIER_KEYS} keys`,
+        ),
         { code: "signer_misconfigured" },
       );
     }
@@ -122,7 +120,9 @@ export class SecretsVerifierBackend implements VerifierSignerBackend {
     for (const [pubkey, value] of entries) {
       if (typeof value !== "string" || !value.trim()) {
         throw Object.assign(
-          new Error(`VERIFIER_SECRET_KEYS entry for ${pubkey} must be a string`),
+          new Error(
+            `VERIFIER_SECRET_KEYS entry for ${pubkey} must be a string`,
+          ),
           { code: "signer_misconfigured" },
         );
       }
@@ -149,7 +149,10 @@ export class SecretsVerifierBackend implements VerifierSignerBackend {
     return this.byPubkey.has(verifierPubkey);
   }
 
-  async sign(verifierPubkey: string, messageBytes: Uint8Array): Promise<string> {
+  async sign(
+    verifierPubkey: string,
+    messageBytes: Uint8Array,
+  ): Promise<string> {
     const seed = this.byPubkey.get(verifierPubkey);
     if (!seed) {
       throw Object.assign(

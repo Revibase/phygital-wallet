@@ -8,10 +8,7 @@ export type RequestStore = {
 const als = new AsyncLocalStorage<RequestStore>();
 
 /** Run a Hono request with env / waitUntil available to deep libs. */
-export function runWithRequestStore<T>(
-  store: RequestStore,
-  fn: () => T,
-): T {
+export function runWithRequestStore<T>(store: RequestStore, fn: () => T): T {
   return als.run(store, fn);
 }
 

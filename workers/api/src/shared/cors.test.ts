@@ -23,12 +23,12 @@ describe("corsModeForRequest", () => {
   });
 
   it("uses open CORS for third-party origins on open paths", () => {
-    expect(
-      corsModeForRequest("POST", "/preview", "https://dapp.example"),
-    ).toBe("open");
-    expect(
-      corsModeForRequest("POST", "/sign", "https://dapp.example"),
-    ).toBe("open");
+    expect(corsModeForRequest("POST", "/preview", "https://dapp.example")).toBe(
+      "open",
+    );
+    expect(corsModeForRequest("POST", "/sign", "https://dapp.example")).toBe(
+      "open",
+    );
   });
 
   it("keeps credentialed CORS for protected app paths", () => {

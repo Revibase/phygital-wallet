@@ -1,11 +1,11 @@
 /** React Query ↔ localStorage persistence (browser only). */
 
-import { type Persister, type PersistedClient } from "@tanstack/react-query-persist-client";
-import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
 import {
-  defaultShouldDehydrateQuery,
-  type Query,
-} from "@tanstack/react-query";
+  type Persister,
+  type PersistedClient,
+} from "@tanstack/react-query-persist-client";
+import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
+import { defaultShouldDehydrateQuery, type Query } from "@tanstack/react-query";
 
 /** Keep persisted cache at least this long (must match QueryClient `gcTime`). */
 export const QUERY_CACHE_MAX_AGE_MS = 1000 * 60 * 60 * 24; // 24h
@@ -38,7 +38,10 @@ const PERSISTED_QUERY_ROOTS = new Set([
 ]);
 
 function isTaggedBigInt(value: object): value is TaggedBigInt {
-  return BIGINT_TAG in value && typeof (value as TaggedBigInt)[BIGINT_TAG] === "string";
+  return (
+    BIGINT_TAG in value &&
+    typeof (value as TaggedBigInt)[BIGINT_TAG] === "string"
+  );
 }
 
 function isTaggedMap(value: object): value is TaggedMap {
@@ -77,7 +80,9 @@ export function isPersistedQueryKey(queryKey: readonly unknown[]): boolean {
 }
 
 export function shouldDehydrateQuery(query: Query): boolean {
-  return defaultShouldDehydrateQuery(query) && isPersistedQueryKey(query.queryKey);
+  return (
+    defaultShouldDehydrateQuery(query) && isPersistedQueryKey(query.queryKey)
+  );
 }
 
 /**

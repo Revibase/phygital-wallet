@@ -28,7 +28,6 @@ import {
   type ParsedTransferInstruction,
 } from "../instructions/index.js";
 
-
 export const TOKEN_2022_PROGRAM_ADDRESS =
   "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb" as Address<"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb">;
 
@@ -36,9 +35,7 @@ export function identifyToken2022Account(
   account: { data: ReadonlyUint8Array } | ReadonlyUint8Array,
 ): Token2022Account {
   const data = "data" in account ? account.data : account;
-  
-  
-  
+
   throw new SolanaError(
     SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_ACCOUNT,
     { accountData: data, programName: "token-2022" },
@@ -73,7 +70,7 @@ export function identifyToken2022Instruction(
 export type ParsedToken2022Instruction<
   TProgram extends string = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
 > =
-  ({
+  | ({
       instructionType: Token2022Instruction.Transfer;
     } & ParsedTransferInstruction<TProgram>)
   | ({
@@ -88,29 +85,29 @@ export function parseToken2022Instruction<TProgram extends string>(
 ): ParsedToken2022Instruction<TProgram> {
   const instructionType = identifyToken2022Instruction(instruction);
   switch (instructionType) {
-                case Token2022Instruction.Transfer: {
+    case Token2022Instruction.Transfer: {
       assertIsInstructionWithAccounts(instruction);
       return {
         instructionType: Token2022Instruction.Transfer,
         ...parseTransferInstruction(instruction),
       };
     }
-                        case Token2022Instruction.CloseAccount: {
+    case Token2022Instruction.CloseAccount: {
       assertIsInstructionWithAccounts(instruction);
       return {
         instructionType: Token2022Instruction.CloseAccount,
         ...parseCloseAccountInstruction(instruction),
       };
     }
-            case Token2022Instruction.TransferChecked: {
+    case Token2022Instruction.TransferChecked: {
       assertIsInstructionWithAccounts(instruction);
       return {
         instructionType: Token2022Instruction.TransferChecked,
         ...parseTransferCheckedInstruction(instruction),
       };
     }
-                                                                                                                                                                                                                                                                                                                                                                default:
-  throw new SolanaError(
+    default:
+      throw new SolanaError(
         SOLANA_ERROR__PROGRAM_CLIENTS__UNRECOGNIZED_INSTRUCTION_TYPE,
         {
           instructionType: instructionType as string,

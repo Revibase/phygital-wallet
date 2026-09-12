@@ -20,9 +20,7 @@ export function CeremonyShell({
 }) {
   return (
     <div className={cn("flex min-h-0 flex-1 flex-col", className)}>
-      {leading ? (
-        <div className="relative z-20 shrink-0">{leading}</div>
-      ) : null}
+      {leading ? <div className="relative z-20 shrink-0">{leading}</div> : null}
       <div className="flex min-h-0 flex-1 flex-col">{children}</div>
     </div>
   );

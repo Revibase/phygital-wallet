@@ -40,7 +40,7 @@ const gate = policy([
   denyProgram("ComputeBudget111111111111111111111111111111"),
   allow(
     token.instruction(TokenInstruction.TransferChecked),
-    (ix) => ix.data.amount <= 50_000_000n
+    (ix) => ix.data.amount <= 50_000_000n,
   ),
   aggregate(
     [
@@ -49,7 +49,7 @@ const gate = policy([
         amount: (ix) => ix.data.amount,
       },
     ],
-    { lte: 50_000_000n }
+    { lte: 50_000_000n },
   ),
 ]);
 
@@ -78,12 +78,12 @@ Also exported: types (`InstructionMatcher`, `Policy`, `VerifyResult`, …), plus
 The connect API exposes protocol-level helpers for the verifier's `/connect` and
 `/connect/tap` endpoints:
 
-| Export                                        | Role                                                                                                     |
-| --------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `verifyConnectProof`                          | Verify a blockhash WebAuthn/NFC proof and enforce its blockhash freshness and replay callback.           |
+| Export                                        | Role                                                                                                                                                                   |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `verifyConnectProof`                          | Verify a blockhash WebAuthn/NFC proof and enforce its blockhash freshness and replay callback.                                                                         |
 | `verifyDynamicConnectProof`                   | Verify a dynamic NFC proof, resolve its token from the accessory identifier, assert it matches the caller's `expectedPhygitalToken`, and enforce its counter callback. |
-| `signVerifierBearer` / `verifyVerifierBearer` | Issue and validate token-bound verifier session bearers.                                                 |
-| `ConnectProofError`                           | Stable error type with a machine-readable code and HTTP status.                                          |
+| `signVerifierBearer` / `verifyVerifierBearer` | Issue and validate token-bound verifier session bearers.                                                                                                               |
+| `ConnectProofError`                           | Stable error type with a machine-readable code and HTTP status.                                                                                                        |
 
 The SDK keeps proof parsing details such as the WebAuthn sign-count parser and
 dynamic tap signature primitive internal to these workflows. Integrators only

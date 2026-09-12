@@ -47,7 +47,9 @@ export type TokenGate = {
  * Session + browse unlock + link status + claimed in one request.
  * Prefer this on the token address gate over parallel auth GETs.
  */
-export async function fetchTokenGate(phygitalToken: string): Promise<TokenGate> {
+export async function fetchTokenGate(
+  phygitalToken: string,
+): Promise<TokenGate> {
   const res = await queryFetch(
     `/auth/device/gate?phygitalToken=${encodeURIComponent(phygitalToken)}`,
   );
@@ -102,7 +104,9 @@ export async function refreshDeviceSession(): Promise<DeviceSessionInfo | null> 
   return readJson<DeviceSessionInfo>(res, "Couldn’t renew sign-in");
 }
 
-export async function registerDevice(username: string): Promise<DeviceSessionInfo> {
+export async function registerDevice(
+  username: string,
+): Promise<DeviceSessionInfo> {
   const optionsRes = await queryFetch(
     `/auth/device/register-options?username=${encodeURIComponent(username)}`,
   );
@@ -131,10 +135,7 @@ export async function registerDevice(username: string): Promise<DeviceSessionInf
     credentialId: string;
     username: string;
     links?: DeviceLink[];
-  }>(
-    res,
-    "Couldn’t register this phone",
-  );
+  }>(res, "Couldn’t register this phone");
   return {
     credentialId: body.credentialId,
     expiresAt: body.expiresAt,
@@ -166,8 +167,9 @@ async function assertPlatformPasskey(cancelMessage: string): Promise<{
 }
 
 export async function loginDevice(): Promise<DeviceSessionInfo> {
-  const { challengeId, credential } =
-    await assertPlatformPasskey("Sign-in was cancelled");
+  const { challengeId, credential } = await assertPlatformPasskey(
+    "Sign-in was cancelled",
+  );
   const res = await queryFetch("/auth/device-session", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -178,10 +180,7 @@ export async function loginDevice(): Promise<DeviceSessionInfo> {
     credentialId: string;
     username: string;
     links?: DeviceLink[];
-  }>(
-    res,
-    "Couldn’t sign in",
-  );
+  }>(res, "Couldn’t sign in");
   return {
     credentialId: body.credentialId,
     expiresAt: body.expiresAt,

@@ -4,14 +4,14 @@ Kit client for the **phygital-wallet** Solana program. Prefer public exports fro
 
 ## When to use what
 
-| Goal | Use |
-|------|-----|
-| Connect an accessory (tap → session bearer) | `startPhygitalConnect(rpc)` then `exchangeConnectProof({ endpoint, blockhash, response })` |
-| Sign a spend / CPI as the wallet PDA | `getPhygitalWalletSigner(rpc, phygitalTokenPda, { getAccessToken, … })` |
-| Discoverable browser wallet (`@solana/connectors`, adapters) | `registerPhygitalWallet({ rpc, … })` once at startup |
-| Resolve co-signer endpoint / paymaster flags | `resolveVerifier(rpc, phygitalTokenPda)` |
-| Build set/clear TokenVerifier or RecoveryWallet ixs | `buildSet*Challenge` / `buildClear*Challenge` |
-| PDAs, decode accounts, raw program ixs | Codama exports (`findWalletPda`, `fetchMaybeTokenVerifier`, `getExecuteInstruction`, …) |
+| Goal                                                         | Use                                                                                        |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
+| Connect an accessory (tap → session bearer)                  | `startPhygitalConnect(rpc)` then `exchangeConnectProof({ endpoint, blockhash, response })` |
+| Sign a spend / CPI as the wallet PDA                         | `getPhygitalWalletSigner(rpc, phygitalTokenPda, { getAccessToken, … })`                    |
+| Discoverable browser wallet (`@solana/connectors`, adapters) | `registerPhygitalWallet({ rpc, … })` once at startup                                       |
+| Resolve co-signer endpoint / paymaster flags                 | `resolveVerifier(rpc, phygitalTokenPda)`                                                   |
+| Build set/clear TokenVerifier or RecoveryWallet ixs          | `buildSet*Challenge` / `buildClear*Challenge`                                              |
+| PDAs, decode accounts, raw program ixs                       | Codama exports (`findWalletPda`, `fetchMaybeTokenVerifier`, `getExecuteInstruction`, …)    |
 
 Companion packages:
 
@@ -49,8 +49,8 @@ const session = await exchangeConnectProof({
 const source = await getPhygitalWalletSigner(rpc, proof.phygitalToken, {
   resolved: proof.resolved, // skip a redundant verifier re-resolve
   getAccessToken: () => session.accessToken,
-  fetch,           // optional
-  onPhaseChange,   // preparing | previewing | awaitingPasskey | building | coSigning | complete
+  fetch, // optional
+  onPhaseChange, // preparing | previewing | awaitingPasskey | building | coSigning | complete
 });
 
 // Build a normal Kit message with `source` as fee payer / transfer authority, then:

@@ -9,16 +9,7 @@
   "instructions": [
     {
       "name": "add_verifier",
-      "discriminator": [
-        165,
-        72,
-        135,
-        225,
-        67,
-        181,
-        255,
-        135
-      ],
+      "discriminator": [165, 72, 135, 225, 67, 181, 255, 135],
       "accounts": [
         {
           "name": "admin",
@@ -32,14 +23,7 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
+                "value": [99, 111, 110, 102, 105, 103]
               }
             ]
           }
@@ -54,16 +38,7 @@
     },
     {
       "name": "clear_recovery_wallet",
-      "discriminator": [
-        91,
-        208,
-        70,
-        146,
-        50,
-        221,
-        202,
-        245
-      ],
+      "discriminator": [91, 208, 70, 146, 50, 221, 202, 245],
       "accounts": [
         {
           "name": "verifier",
@@ -78,14 +53,7 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
+                "value": [99, 111, 110, 102, 105, 103]
               }
             ]
           }
@@ -93,9 +61,7 @@
         {
           "name": "phygital_token",
           "writable": true,
-          "relations": [
-            "recovery_wallet_account"
-          ]
+          "relations": ["recovery_wallet_account"]
         },
         {
           "name": "token_verifier",
@@ -107,20 +73,8 @@
               {
                 "kind": "const",
                 "value": [
-                  116,
-                  111,
-                  107,
-                  101,
-                  110,
-                  95,
-                  118,
-                  101,
-                  114,
-                  105,
-                  102,
-                  105,
-                  101,
-                  114
+                  116, 111, 107, 101, 110, 95, 118, 101, 114, 105, 102, 105,
+                  101, 114
                 ]
               },
               {
@@ -142,21 +96,8 @@
               {
                 "kind": "const",
                 "value": [
-                  114,
-                  101,
-                  99,
-                  111,
-                  118,
-                  101,
-                  114,
-                  121,
-                  95,
-                  119,
-                  97,
-                  108,
-                  108,
-                  101,
-                  116
+                  114, 101, 99, 111, 118, 101, 114, 121, 95, 119, 97, 108, 108,
+                  101, 116
                 ]
               },
               {
@@ -196,16 +137,7 @@
     },
     {
       "name": "clear_token_verifier",
-      "discriminator": [
-        83,
-        237,
-        126,
-        93,
-        140,
-        254,
-        231,
-        156
-      ],
+      "discriminator": [83, 237, 126, 93, 140, 254, 231, 156],
       "accounts": [
         {
           "name": "verifier",
@@ -220,14 +152,7 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
+                "value": [99, 111, 110, 102, 105, 103]
               }
             ]
           }
@@ -235,9 +160,7 @@
         {
           "name": "phygital_token",
           "writable": true,
-          "relations": [
-            "token_verifier"
-          ]
+          "relations": ["token_verifier"]
         },
         {
           "name": "rent_receiver",
@@ -251,20 +174,8 @@
               {
                 "kind": "const",
                 "value": [
-                  116,
-                  111,
-                  107,
-                  101,
-                  110,
-                  95,
-                  118,
-                  101,
-                  114,
-                  105,
-                  102,
-                  105,
-                  101,
-                  114
+                  116, 111, 107, 101, 110, 95, 118, 101, 114, 105, 102, 105,
+                  101, 114
                 ]
               },
               {
@@ -304,19 +215,8 @@
     },
     {
       "name": "execute",
-      "docs": [
-        "Passkey-gated execute of compact inner instructions."
-      ],
-      "discriminator": [
-        130,
-        221,
-        242,
-        154,
-        13,
-        193,
-        189,
-        29
-      ],
+      "docs": ["Passkey-gated execute of compact inner instructions."],
+      "discriminator": [130, 221, 242, 154, 13, 193, 189, 29],
       "accounts": [
         {
           "name": "verifier",
@@ -331,14 +231,7 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
+                "value": [99, 111, 110, 102, 105, 103]
               }
             ]
           }
@@ -359,20 +252,8 @@
               {
                 "kind": "const",
                 "value": [
-                  116,
-                  111,
-                  107,
-                  101,
-                  110,
-                  95,
-                  118,
-                  101,
-                  114,
-                  105,
-                  102,
-                  105,
-                  101,
-                  114
+                  116, 111, 107, 101, 110, 95, 118, 101, 114, 105, 102, 105,
+                  101, 114
                 ]
               },
               {
@@ -384,27 +265,13 @@
         },
         {
           "name": "wallet",
-          "docs": [
-            "`seeds`/`bump` lands in `ctx.bumps.wallet`."
-          ],
+          "docs": ["`seeds`/`bump` lands in `ctx.bumps.wallet`."],
           "pda": {
             "seeds": [
               {
                 "kind": "const",
                 "value": [
-                  112,
-                  114,
-                  111,
-                  103,
-                  114,
-                  97,
-                  109,
-                  95,
-                  119,
-                  97,
-                  108,
-                  108,
-                  101,
+                  112, 114, 111, 103, 114, 97, 109, 95, 119, 97, 108, 108, 101,
                   116
                 ]
               },
@@ -455,16 +322,7 @@
     },
     {
       "name": "initialize_config",
-      "discriminator": [
-        208,
-        127,
-        21,
-        1,
-        194,
-        190,
-        196,
-        70
-      ],
+      "discriminator": [208, 127, 21, 1, 194, 190, 196, 70],
       "accounts": [
         {
           "name": "admin",
@@ -479,14 +337,7 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
+                "value": [99, 111, 110, 102, 105, 103]
               }
             ]
           }
@@ -511,30 +362,17 @@
         "Ed25519 recovery-key execute (no accessory passkey). Requires a prior",
         "`set_recovery_wallet` and a matching recovery signer."
       ],
-      "discriminator": [
-        91,
-        171,
-        164,
-        84,
-        112,
-        80,
-        230,
-        134
-      ],
+      "discriminator": [91, 171, 164, 84, 112, 80, 230, 134],
       "accounts": [
         {
           "name": "recovery_wallet",
-          "docs": [
-            "Must match `recovery_wallet_account.recovery_wallet`."
-          ],
+          "docs": ["Must match `recovery_wallet_account.recovery_wallet`."],
           "signer": true
         },
         {
           "name": "phygital_token",
           "writable": true,
-          "relations": [
-            "recovery_wallet_account"
-          ]
+          "relations": ["recovery_wallet_account"]
         },
         {
           "name": "recovery_wallet_account",
@@ -543,21 +381,8 @@
               {
                 "kind": "const",
                 "value": [
-                  114,
-                  101,
-                  99,
-                  111,
-                  118,
-                  101,
-                  114,
-                  121,
-                  95,
-                  119,
-                  97,
-                  108,
-                  108,
-                  101,
-                  116
+                  114, 101, 99, 111, 118, 101, 114, 121, 95, 119, 97, 108, 108,
+                  101, 116
                 ]
               },
               {
@@ -574,19 +399,7 @@
               {
                 "kind": "const",
                 "value": [
-                  112,
-                  114,
-                  111,
-                  103,
-                  114,
-                  97,
-                  109,
-                  95,
-                  119,
-                  97,
-                  108,
-                  108,
-                  101,
+                  112, 114, 111, 103, 114, 97, 109, 95, 119, 97, 108, 108, 101,
                   116
                 ]
               },
@@ -613,16 +426,7 @@
     },
     {
       "name": "remove_verifier",
-      "discriminator": [
-        179,
-        9,
-        132,
-        183,
-        233,
-        23,
-        172,
-        111
-      ],
+      "discriminator": [179, 9, 132, 183, 233, 23, 172, 111],
       "accounts": [
         {
           "name": "admin",
@@ -636,14 +440,7 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
+                "value": [99, 111, 110, 102, 105, 103]
               }
             ]
           }
@@ -658,22 +455,11 @@
     },
     {
       "name": "set_recovery_wallet",
-      "discriminator": [
-        211,
-        147,
-        53,
-        173,
-        100,
-        180,
-        242,
-        49
-      ],
+      "discriminator": [211, 147, 53, 173, 100, 180, 242, 49],
       "accounts": [
         {
           "name": "payer",
-          "docs": [
-            "Fee payer for rent; not an authorization authority."
-          ],
+          "docs": ["Fee payer for rent; not an authorization authority."],
           "writable": true,
           "signer": true
         },
@@ -690,14 +476,7 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
+                "value": [99, 111, 110, 102, 105, 103]
               }
             ]
           }
@@ -716,20 +495,8 @@
               {
                 "kind": "const",
                 "value": [
-                  116,
-                  111,
-                  107,
-                  101,
-                  110,
-                  95,
-                  118,
-                  101,
-                  114,
-                  105,
-                  102,
-                  105,
-                  101,
-                  114
+                  116, 111, 107, 101, 110, 95, 118, 101, 114, 105, 102, 105,
+                  101, 114
                 ]
               },
               {
@@ -747,21 +514,8 @@
               {
                 "kind": "const",
                 "value": [
-                  114,
-                  101,
-                  99,
-                  111,
-                  118,
-                  101,
-                  114,
-                  121,
-                  95,
-                  119,
-                  97,
-                  108,
-                  108,
-                  101,
-                  116
+                  114, 101, 99, 111, 118, 101, 114, 121, 95, 119, 97, 108, 108,
+                  101, 116
                 ]
               },
               {
@@ -809,22 +563,11 @@
     },
     {
       "name": "set_token_verifier",
-      "discriminator": [
-        119,
-        217,
-        120,
-        253,
-        242,
-        171,
-        137,
-        184
-      ],
+      "discriminator": [119, 217, 120, 253, 242, 171, 137, 184],
       "accounts": [
         {
           "name": "payer",
-          "docs": [
-            "Fee payer for rent; not an authorization authority."
-          ],
+          "docs": ["Fee payer for rent; not an authorization authority."],
           "writable": true,
           "signer": true
         },
@@ -841,14 +584,7 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
+                "value": [99, 111, 110, 102, 105, 103]
               }
             ]
           }
@@ -865,20 +601,8 @@
               {
                 "kind": "const",
                 "value": [
-                  116,
-                  111,
-                  107,
-                  101,
-                  110,
-                  95,
-                  118,
-                  101,
-                  114,
-                  105,
-                  102,
-                  105,
-                  101,
-                  114
+                  116, 111, 107, 101, 110, 95, 118, 101, 114, 105, 102, 105,
+                  101, 114
                 ]
               },
               {
@@ -932,42 +656,15 @@
   "accounts": [
     {
       "name": "Config",
-      "discriminator": [
-        155,
-        12,
-        170,
-        224,
-        30,
-        250,
-        204,
-        130
-      ]
+      "discriminator": [155, 12, 170, 224, 30, 250, 204, 130]
     },
     {
       "name": "RecoveryWallet",
-      "discriminator": [
-        172,
-        239,
-        138,
-        56,
-        173,
-        41,
-        182,
-        161
-      ]
+      "discriminator": [172, 239, 138, 56, 173, 41, 182, 161]
     },
     {
       "name": "TokenVerifier",
-      "discriminator": [
-        52,
-        84,
-        111,
-        160,
-        81,
-        247,
-        144,
-        43
-      ]
+      "discriminator": [52, 84, 111, 160, 81, 247, 144, 43]
     }
   ],
   "errors": [
@@ -1105,9 +802,7 @@
   "types": [
     {
       "name": "CompactInstruction",
-      "docs": [
-        "Index-based inner instruction for execute."
-      ],
+      "docs": ["Index-based inner instruction for execute."],
       "type": {
         "kind": "struct",
         "fields": [
@@ -1154,10 +849,7 @@
           {
             "name": "verifiers",
             "type": {
-              "array": [
-                "pubkey",
-                8
-              ]
+              "array": ["pubkey", 8]
             }
           },
           {
@@ -1171,10 +863,7 @@
           {
             "name": "_padding",
             "type": {
-              "array": [
-                "u8",
-                6
-              ]
+              "array": ["u8", 6]
             }
           }
         ]
@@ -1196,16 +885,12 @@
           },
           {
             "name": "recovery_wallet",
-            "docs": [
-              "Ed25519 pubkey authorized to recover the wallet."
-            ],
+            "docs": ["Ed25519 pubkey authorized to recover the wallet."],
             "type": "pubkey"
           },
           {
             "name": "payer",
-            "docs": [
-              "Account that paid init rent; close refunds this pubkey."
-            ],
+            "docs": ["Account that paid init rent; close refunds this pubkey."],
             "type": "pubkey"
           },
           {
@@ -1269,9 +954,7 @@
           },
           {
             "name": "payer",
-            "docs": [
-              "Account that paid init rent; close refunds this pubkey."
-            ],
+            "docs": ["Account that paid init rent; close refunds this pubkey."],
             "type": "pubkey"
           },
           {

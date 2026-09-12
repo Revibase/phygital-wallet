@@ -71,7 +71,7 @@ previewRoutes.post("/preview", async (c) => {
           error: "instructions are required",
           soft: false,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -154,7 +154,7 @@ previewRoutes.post("/preview", async (c) => {
         intentHash: result.intentHash,
         details: result.details,
       },
-      { status: result.httpStatus ?? 200 }
+      { status: result.httpStatus ?? 200 },
     );
   } catch (err) {
     recordAudit({

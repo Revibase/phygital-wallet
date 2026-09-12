@@ -120,8 +120,7 @@ export function createLogger(
     info: (msg, fields) => emit("info", msg, fields),
     warn: (msg, fields) => emit("warn", msg, fields),
     error: (msg, fields) => emit("error", msg, fields),
-    child: (fields) =>
-      createLogger(service, env, { ...baseFields, ...fields }),
+    child: (fields) => createLogger(service, env, { ...baseFields, ...fields }),
   };
 }
 

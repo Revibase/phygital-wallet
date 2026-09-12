@@ -9,7 +9,8 @@ import { TokenStore } from "@/token-store";
  */
 function accessoryCounterSql() {
   const rows = new Map<string, { c: number; updated_at: number }>();
-  const key = (kind: unknown, id: unknown) => `${String(kind)}\u0000${String(id)}`;
+  const key = (kind: unknown, id: unknown) =>
+    `${String(kind)}\u0000${String(id)}`;
 
   const exec = (query: string, ...params: unknown[]) => {
     const q = query.replace(/\s+/g, " ").trim();
@@ -73,7 +74,6 @@ describe("TokenStore.consumeAccessoryCounter", () => {
     // A different chip starts fresh — its counter is unrelated.
     expect(s.consumeAccessoryCounter("tap", "chip-identifier-b", 2)).toBe(true);
   });
-
 });
 
 // The dynamic URL's `c` and the WebAuthn `signCount` are unrelated registers on

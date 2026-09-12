@@ -207,7 +207,12 @@ export function ClaimItemSheet({
           title={copy.wallet.claimSuccessTitle}
           body={copy.wallet.claimSuccessBody}
           action={
-            <Button type="button" size="lg" className="w-full" onClick={finishClaimed}>
+            <Button
+              type="button"
+              size="lg"
+              className="w-full"
+              onClick={finishClaimed}
+            >
               {copy.wallet.claimSuccessCta}
             </Button>
           }
@@ -224,9 +229,7 @@ export function ClaimItemSheet({
           title={copy.wallet.usernameTitle}
           body={copy.wallet.usernameBody}
           busy={register.isPending}
-          error={
-            register.error ? toUserErrorMessage(register.error) : null
-          }
+          error={register.error ? toUserErrorMessage(register.error) : null}
           onSubmit={(username) => {
             claim.reset();
             signIn.reset();
@@ -243,7 +246,10 @@ export function ClaimItemSheet({
 
   const signedIn = Boolean(session.data);
   const busy =
-    signIn.isPending || claim.isPending || session.isPending || register.isPending;
+    signIn.isPending ||
+    claim.isPending ||
+    session.isPending ||
+    register.isPending;
   const activeError = signedIn ? claim.error : signIn.error;
   const authError = activeError ? toUserErrorMessage(activeError) : null;
   const showRetry = Boolean(authError);

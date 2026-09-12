@@ -38,8 +38,7 @@ describe("buildPaymentsPolicy", () => {
     const gate = buildPaymentsPolicy({ version: "3" });
     const r = gate.verify([
       {
-        programAddress:
-          "ComputeBudget111111111111111111111111111111" as never,
+        programAddress: "ComputeBudget111111111111111111111111111111" as never,
         data: new Uint8Array([2]),
       },
     ]);

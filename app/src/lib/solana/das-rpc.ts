@@ -45,9 +45,9 @@ async function postDasRpc<T>(args: DasRpcCall): Promise<T | undefined> {
 }
 
 /** Multiple DAS methods in one HTTP round-trip. */
-export async function postDasRpcBatch<T extends unknown[]>(
-  calls: { [K in keyof T]: DasRpcCall },
-): Promise<{ [K in keyof T]: T[K] | undefined }> {
+export async function postDasRpcBatch<T extends unknown[]>(calls: {
+  [K in keyof T]: DasRpcCall;
+}): Promise<{ [K in keyof T]: T[K] | undefined }> {
   if (calls.length === 0) {
     return [] as { [K in keyof T]: T[K] | undefined };
   }

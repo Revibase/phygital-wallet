@@ -52,7 +52,9 @@ export type ConsumeSignCount = (args: {
  * the check (typically `rpc.isBlockhashValid`) where it scales best. Stateless,
  * so it can run in parallel with other connect work.
  */
-export type IsBlockhashValid = (blockhash: string) => Promise<boolean> | boolean;
+export type IsBlockhashValid = (
+  blockhash: string,
+) => Promise<boolean> | boolean;
 
 export type WebAuthnConnectProof = {
   /** Recent blockhash (base58) — also the signed WebAuthn challenge. */
@@ -123,9 +125,7 @@ export async function verifyConnectProof(
     );
   }
 
-  const phygitalToken = await findPhygitalTokenPda(
-    verified.secp256r1PublicKey,
-  );
+  const phygitalToken = await findPhygitalTokenPda(verified.secp256r1PublicKey);
 
   // Single use: a replayed proof carries a counter we have already accepted.
   const fresher = await opts.consumeSignCount({

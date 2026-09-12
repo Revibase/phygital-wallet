@@ -10,10 +10,7 @@ export const USDC_MINT_MAINNET =
 export const USDC_MINT_DEVNET =
   "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDnm3" as const;
 
-const KNOWN_USDC_MINTS = new Set<string>([
-  USDC_MINT_MAINNET,
-  USDC_MINT_DEVNET,
-]);
+const KNOWN_USDC_MINTS = new Set<string>([USDC_MINT_MAINNET, USDC_MINT_DEVNET]);
 
 export function formatUiAmount(raw: bigint, decimals: number): string {
   if (raw === 0n) return "0";

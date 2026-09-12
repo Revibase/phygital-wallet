@@ -28,10 +28,7 @@ export function RouteBoot({
         aria-live="polite"
         aria-label={message}
       >
-        <div
-          className={cn("relative z-10", galleryAnimate.rise)}
-          aria-hidden
-        >
+        <div className={cn("relative z-10", galleryAnimate.rise)} aria-hidden>
           <RevibaseMark variant="digital" className="size-10 opacity-90" />
         </div>
         <div

@@ -1,10 +1,7 @@
 import { AccountRole, address, type Instruction } from "@solana/kit";
 import { describe, expect, it } from "vitest";
 import { assertTopLevelInstructionAllowed } from "./decode-tx.js";
-import {
-  COMPUTE_BUDGET_PROGRAM,
-  SYSTEM_PROGRAM,
-} from "./constants.js";
+import { COMPUTE_BUDGET_PROGRAM, SYSTEM_PROGRAM } from "./constants.js";
 
 const RECENT_BLOCKHASHES = "SysvarRecentB1ockHashes11111111111111111111";
 
@@ -31,7 +28,9 @@ function advanceNonceIx(): Instruction {
 
 describe("assertTopLevelInstructionAllowed", () => {
   it("allows AdvanceNonceAccount for System Program", () => {
-    expect(() => assertTopLevelInstructionAllowed(advanceNonceIx())).not.toThrow();
+    expect(() =>
+      assertTopLevelInstructionAllowed(advanceNonceIx()),
+    ).not.toThrow();
   });
 
   it("rejects other System Program instructions at top level", () => {

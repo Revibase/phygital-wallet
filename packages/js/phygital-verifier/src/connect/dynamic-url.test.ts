@@ -49,12 +49,12 @@ describe("verifyDynamicTap", () => {
 
   it("rejects malformed parameters", () => {
     const params = tap(1);
-    expect(() => verifyDynamicTap({ ...params, pk: base64UrlEncode(new Uint8Array(10)) })).toThrow(
-      /33-byte/,
-    );
-    expect(() => verifyDynamicTap({ ...params, n: base64UrlEncode(new Uint8Array(4)) })).toThrow(
-      /8 bytes/,
-    );
+    expect(() =>
+      verifyDynamicTap({ ...params, pk: base64UrlEncode(new Uint8Array(10)) }),
+    ).toThrow(/33-byte/);
+    expect(() =>
+      verifyDynamicTap({ ...params, n: base64UrlEncode(new Uint8Array(4)) }),
+    ).toThrow(/8 bytes/);
     expect(() => verifyDynamicTap({ ...params, c: "-1" })).toThrow(/uint32/);
   });
 });

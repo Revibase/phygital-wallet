@@ -35,20 +35,13 @@ import {
   policy,
   type VerifierBearerPayload,
 } from "phygital-verifier-sdk";
-import {
-  createSolanaRpc,
-  getBase58Encoder,
-  type Address,
-} from "@solana/kit";
+import { createSolanaRpc, getBase58Encoder, type Address } from "@solana/kit";
 import {
   fetchPhygitalTokenByIdentifier,
   findPhygitalTokenPda,
 } from "phygital-token-sdk";
 // Read the token's on-chain TokenVerifier override (its configured verifier).
-import {
-  decodeTokenVerifier,
-  findTokenVerifierPda,
-} from "phygital-wallet-sdk";
+import { decodeTokenVerifier, findTokenVerifierPda } from "phygital-wallet-sdk";
 import { fetchEncodedAccounts } from "@solana/kit";
 
 const SESSION_TTL_MS = 15 * 60 * 1000;
@@ -75,7 +68,9 @@ declare const counters: {
 const rpc = createSolanaRpc(process.env.RPC_URL!);
 
 // 4. Policy — what this verifier is willing to co-sign.
-const txPolicy = policy([/* allow(...) / deny(...) rules — see writing-policies.md */]);
+const txPolicy = policy([
+  /* allow(...) / deny(...) rules — see writing-policies.md */
+]);
 
 // ── on-chain helpers ────────────────────────────────────────────────────────
 
@@ -103,7 +98,10 @@ async function canSignFor(token: Address): Promise<boolean> {
   return (await tokenVerifier(token)) === verifierKey.address;
 }
 
-function bearerResponse(minted: { accessToken: string; expiresAt: number }, token: Address) {
+function bearerResponse(
+  minted: { accessToken: string; expiresAt: number },
+  token: Address,
+) {
   return Response.json({
     accessToken: minted.accessToken,
     tokenType: "Bearer",
@@ -115,20 +113,34 @@ function bearerResponse(minted: { accessToken: string; expiresAt: number }, toke
 
 function proofErr(err: unknown) {
   if (err instanceof ConnectProofError) {
-    return Response.json({ error: err.message, code: err.code }, { status: err.status });
+    return Response.json(
+      { error: err.message, code: err.code },
+      { status: err.status },
+    );
   }
-  return Response.json({ error: "Connect failed", code: "invalid_proof" }, { status: 400 });
+  return Response.json(
+    { error: "Connect failed", code: "invalid_proof" },
+    { status: 400 },
+  );
 }
 
 async function mint(token: Address, origin: string | null) {
   if (!(await canSignFor(token))) {
     return Response.json(
-      { error: "This item uses a different verifier", code: "verifier_mismatch" },
+      {
+        error: "This item uses a different verifier",
+        code: "verifier_mismatch",
+      },
       { status: 403 },
     );
   }
   const minted = await signVerifierBearer(
-    { sub: String(token), iss: verifierKey.address, origin, ttlMs: SESSION_TTL_MS },
+    {
+      sub: String(token),
+      iss: verifierKey.address,
+      origin,
+      ttlMs: SESSION_TTL_MS,
+    },
     verifierKey.sign,
   );
   return bearerResponse(minted, token);
@@ -151,7 +163,9 @@ async function connect(req: Request) {
       {
         // Stateless freshness check — inject it so it runs where it scales best.
         isBlockhashValid: (bh) =>
-          rpc.isBlockhashValid(bh, { commitment: "confirmed" }).send()
+          rpc
+            .isBlockhashValid(bh, { commitment: "confirmed" })
+            .send()
             .then((r) => r.value),
         consumeSignCount: ({ identifier, signCount }) =>
           counters.consume("webauthn", identifier, signCount),
@@ -169,11 +183,29 @@ async function connectTap(req: Request) {
   // Browser-only flow: require a present, allowlisted app origin (reject a
   // missing Origin — a non-browser caller has no business here).
   if (!origin || !isAppOrigin(origin)) {
-    return Response.json({ error: "Forbidden", code: "origin_forbidden" }, { status: 403 });
+    return Response.json(
+      { error: "Forbidden", code: "origin_forbidden" },
+      { status: 403 },
+    );
   }
-  const body = (await req.json()) as { phygitalToken?: string; pk?: string; s?: string; c?: string; n?: string };
-  if (!body.phygitalToken || !body.pk || !body.s || body.c === undefined || !body.n) {
-    return Response.json({ error: "Missing tap params", code: "invalid_proof" }, { status: 400 });
+  const body = (await req.json()) as {
+    phygitalToken?: string;
+    pk?: string;
+    s?: string;
+    c?: string;
+    n?: string;
+  };
+  if (
+    !body.phygitalToken ||
+    !body.pk ||
+    !body.s ||
+    body.c === undefined ||
+    !body.n
+  ) {
+    return Response.json(
+      { error: "Missing tap params", code: "invalid_proof" },
+      { status: 400 },
+    );
   }
   try {
     const { phygitalToken } = await verifyDynamicConnectProof(
@@ -192,11 +224,18 @@ async function connectTap(req: Request) {
 }
 
 /** Shared bearer gate for /preview and /sign. */
-async function requireBearer(req: Request): Promise<VerifierBearerPayload | Response> {
-  const m = /^Bearer\s+(.+)$/i.exec(req.headers.get("Authorization")?.trim() ?? "");
+async function requireBearer(
+  req: Request,
+): Promise<VerifierBearerPayload | Response> {
+  const m = /^Bearer\s+(.+)$/i.exec(
+    req.headers.get("Authorization")?.trim() ?? "",
+  );
   const token = m?.[1]?.trim();
   if (!token) {
-    return Response.json({ error: "Connect this item", code: "connect_required" }, { status: 401 });
+    return Response.json(
+      { error: "Connect this item", code: "connect_required" },
+      { status: 401 },
+    );
   }
   const payload = await verifyVerifierBearer(token, {
     decodeVerifierKey: (iss) => {
@@ -217,11 +256,17 @@ async function requireBearer(req: Request): Promise<VerifierBearerPayload | Resp
     },
   });
   if (!payload) {
-    return Response.json({ error: "Session expired", code: "connect_invalid" }, { status: 401 });
+    return Response.json(
+      { error: "Session expired", code: "connect_invalid" },
+      { status: 401 },
+    );
   }
   // Bind the session to the origin that established it.
   if (payload.origin !== normalizeOrigin(req.headers.get("Origin"))) {
-    return Response.json({ error: "Wrong origin", code: "origin_mismatch" }, { status: 401 });
+    return Response.json(
+      { error: "Wrong origin", code: "origin_mismatch" },
+      { status: 401 },
+    );
   }
   return payload;
 }
@@ -234,14 +279,22 @@ async function preview(req: Request) {
   const { instructions } = (await req.json()) as { instructions?: unknown[] };
   if (!Array.isArray(instructions)) {
     return Response.json(
-      { ok: false, code: "invalid_transaction", error: "instructions required", soft: false },
+      {
+        ok: false,
+        code: "invalid_transaction",
+        error: "instructions required",
+        soft: false,
+      },
       { status: 400 },
     );
   }
   const result = txPolicy.verify(instructions as never);
   return result.ok
     ? Response.json({ ok: true, intentHash: /* hash(instructions) */ "…" })
-    : Response.json({ ok: false, code: result.code, error: result.message, soft: false }, { status: 200 });
+    : Response.json(
+        { ok: false, code: result.code, error: result.message, soft: false },
+        { status: 200 },
+      );
 }
 
 /** POST /sign — bearer required PLUS your operation/owner authorization. */
@@ -251,7 +304,10 @@ async function sign(req: Request) {
 
   const { transactions } = (await req.json()) as { transactions?: string[] };
   if (!transactions?.length) {
-    return Response.json({ error: "transactions required", code: "invalid_transaction" }, { status: 400 });
+    return Response.json(
+      { error: "transactions required", code: "invalid_transaction" },
+      { status: 400 },
+    );
   }
   // The bearer never authorizes a signature on its own. Enforce your per-tx
   // operation proof / policy / fee checks HERE for session.sub, then co-sign.
@@ -265,7 +321,8 @@ export async function handle(req: Request): Promise<Response> {
   const { pathname } = new URL(req.url);
   if (req.method === "GET" && pathname === "/health") return health();
   if (req.method === "POST" && pathname === "/connect") return connect(req);
-  if (req.method === "POST" && pathname === "/connect/tap") return connectTap(req);
+  if (req.method === "POST" && pathname === "/connect/tap")
+    return connectTap(req);
   if (req.method === "POST" && pathname === "/preview") return preview(req);
   if (req.method === "POST" && pathname === "/sign") return sign(req);
   return new Response("Not found", { status: 404 });
@@ -286,8 +343,8 @@ declare function coSign(token: string, txs: string[]): Promise<string[]>;
 
 ## What the SDK handles vs. what you own
 
-| SDK (`phygital-verifier-sdk`) | You implement |
-| --- | --- |
+| SDK (`phygital-verifier-sdk`)                                                                                                                                  | You implement                                                                                                                                                      |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Blockhash freshness, WebAuthn signature + `signCount` parse, tap P-256 verify, token-PDA derivation, bearer format (sign/verify), `ConnectProofError` → status | Ed25519 signing key, atomic monotonic counter store, Solana RPC, on-chain verifier resolution, transaction policy, per-tx operation/owner authorization in `/sign` |
 
 `/preview` and `/sign` take **no** `phygitalToken` in the body — it comes from

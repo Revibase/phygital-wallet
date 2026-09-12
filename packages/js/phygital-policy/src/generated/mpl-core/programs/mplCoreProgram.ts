@@ -20,10 +20,7 @@ import {
   type ReadonlyUint8Array,
 } from "@solana/kit";
 
-import {
-  type ParsedTransferV1Instruction,
-} from "../instructions/index.js";
-
+import { type ParsedTransferV1Instruction } from "../instructions/index.js";
 
 export const MPL_CORE_PROGRAM_PROGRAM_ADDRESS =
   "CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d" as Address<"CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d">;
@@ -47,25 +44,24 @@ export function identifyMplCoreProgramInstruction(
 
 export type ParsedMplCoreProgramInstruction<
   TProgram extends string = "CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d",
-> =
-  ({
-      instructionType: MplCoreProgramInstruction.TransferV1;
-    } & ParsedTransferV1Instruction<TProgram>);
+> = {
+  instructionType: MplCoreProgramInstruction.TransferV1;
+} & ParsedTransferV1Instruction<TProgram>;
 
 export function parseMplCoreProgramInstruction<TProgram extends string>(
   instruction: Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array>,
 ): ParsedMplCoreProgramInstruction<TProgram> {
   const instructionType = identifyMplCoreProgramInstruction(instruction);
   switch (instructionType) {
-                                                            case MplCoreProgramInstruction.TransferV1: {
+    case MplCoreProgramInstruction.TransferV1: {
       assertIsInstructionWithAccounts(instruction);
       return {
         instructionType: MplCoreProgramInstruction.TransferV1,
         ...parseTransferV1Instruction(instruction),
       };
     }
-                                                                                                                default:
-  throw new SolanaError(
+    default:
+      throw new SolanaError(
         SOLANA_ERROR__PROGRAM_CLIENTS__UNRECOGNIZED_INSTRUCTION_TYPE,
         {
           instructionType: instructionType as string,

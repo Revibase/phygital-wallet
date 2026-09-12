@@ -62,17 +62,13 @@ describe("claim setup intent", () => {
 
   it("parseClaimSetupIntent requires setup=claim and a valid return", () => {
     const returnPath = walletHref(TOKEN);
-    expect(
-      parseClaimSetupIntent({ setup: "claim", returnPath }),
-    ).toEqual({
+    expect(parseClaimSetupIntent({ setup: "claim", returnPath })).toEqual({
       token: TOKEN,
       returnTo: returnPath,
     });
     expect(
       parseClaimSetupIntent({ setup: "claim", returnPath: null }),
     ).toBeNull();
-    expect(
-      parseClaimSetupIntent({ setup: "limits", returnPath }),
-    ).toBeNull();
+    expect(parseClaimSetupIntent({ setup: "limits", returnPath })).toBeNull();
   });
 });

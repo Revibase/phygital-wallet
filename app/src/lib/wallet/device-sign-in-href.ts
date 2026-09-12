@@ -1,9 +1,6 @@
 /** Deep links for Home device sign-in / link → return to where the user started. */
 
-import {
-  getQueryErrorStatus,
-  QueryHttpError,
-} from "@/lib/queries/http";
+import { getQueryErrorStatus, QueryHttpError } from "@/lib/queries/http";
 import { PolicyDeniedError } from "phygital-wallet-sdk";
 import {
   isPolicySetupScreen,
@@ -90,7 +87,9 @@ export function handleOwnerAuthFailure(
   if (!isOwnerAuthFailure(e)) return false;
   const path =
     returnTo ??
-    (typeof window !== "undefined" ? window.location.pathname : walletHref(token));
+    (typeof window !== "undefined"
+      ? window.location.pathname
+      : walletHref(token));
   redirectToDeviceSignIn(token, path);
   return true;
 }

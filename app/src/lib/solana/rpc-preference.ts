@@ -6,8 +6,7 @@
 const STORAGE_KEY = "phygital-wallet.solana-rpc";
 
 export type RpcPreference =
-  | { mode: "default" }
-  | { mode: "custom"; url: string };
+  { mode: "default" } | { mode: "custom"; url: string };
 
 /** Stable default for SSR / useSyncExternalStore. */
 export const DEFAULT_RPC_PREFERENCE: RpcPreference = { mode: "default" };

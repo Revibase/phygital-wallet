@@ -25,7 +25,6 @@ import {
   type ParsedTransferV2Instruction,
 } from "../instructions/index.js";
 
-
 export const BUBBLEGUM_PROGRAM_ADDRESS =
   "BGUMAp9Gq7iTEuizy4pqaxsTyUCBK68MDfK752saRPUY" as Address<"BGUMAp9Gq7iTEuizy4pqaxsTyUCBK68MDfK752saRPUY">;
 
@@ -79,7 +78,7 @@ export function identifyBubblegumInstruction(
 export type ParsedBubblegumInstruction<
   TProgram extends string = "BGUMAp9Gq7iTEuizy4pqaxsTyUCBK68MDfK752saRPUY",
 > =
-  ({
+  | ({
       instructionType: BubblegumInstruction.Transfer;
     } & ParsedTransferInstruction<TProgram>)
   | ({
@@ -91,7 +90,7 @@ export function parseBubblegumInstruction<TProgram extends string>(
 ): ParsedBubblegumInstruction<TProgram> {
   const instructionType = identifyBubblegumInstruction(instruction);
   switch (instructionType) {
-                                                                                                        case BubblegumInstruction.Transfer: {
+    case BubblegumInstruction.Transfer: {
       assertIsInstructionWithAccounts(instruction);
       return {
         instructionType: BubblegumInstruction.Transfer,
@@ -105,8 +104,8 @@ export function parseBubblegumInstruction<TProgram extends string>(
         ...parseTransferV2Instruction(instruction),
       };
     }
-                                        default:
-  throw new SolanaError(
+    default:
+      throw new SolanaError(
         SOLANA_ERROR__PROGRAM_CLIENTS__UNRECOGNIZED_INSTRUCTION_TYPE,
         {
           instructionType: instructionType as string,

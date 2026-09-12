@@ -59,9 +59,7 @@ export function GateMessage({
       </div>
       <div className="w-full max-w-72 space-y-1.5">
         <p className="text-sm font-medium text-foreground">{title}</p>
-        {body ? (
-          <p className="text-sm text-muted-foreground">{body}</p>
-        ) : null}
+        {body ? <p className="text-sm text-muted-foreground">{body}</p> : null}
       </div>
       {action ? <div className="w-full max-w-72">{action}</div> : null}
     </div>

@@ -1,7 +1,4 @@
-import {
-  address,
-  type Address,
-} from "@solana/kit";
+import { address, type Address } from "@solana/kit";
 import { getTransferSolInstruction } from "@solana-program/system";
 import {
   getPhygitalWalletSigner,

@@ -2,7 +2,11 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
-import { useIsRestoring, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useIsRestoring,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 import { RevibaseMark } from "@/components/brand/revibase-mark";
 import { GateMessage } from "@/components/layout/gate-message";
@@ -122,9 +126,7 @@ export function TokenAddressRoute({
   const waitingToken =
     isRestoring ||
     (!token &&
-      (tokenQuery.isPending ||
-        tokenQuery.isLoading ||
-        tokenQuery.isFetching));
+      (tokenQuery.isPending || tokenQuery.isLoading || tokenQuery.isFetching));
   // Gate runs in parallel with token; only block unlock when we still need it.
   const waitingGate = gate.isPending && !unlocked;
   // Wait briefly for claimed so claim sheet doesn’t flash after wallet.
@@ -148,9 +150,7 @@ export function TokenAddressRoute({
   }, [waitingClaimed]);
 
   const waiting =
-    waitingToken ||
-    waitingGate ||
-    (waitingClaimed && !claimedWaitTimedOut);
+    waitingToken || waitingGate || (waitingClaimed && !claimedWaitTimedOut);
   const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
@@ -170,15 +170,7 @@ export function TokenAddressRoute({
       linkStatus: session ? (linkStatus ?? undefined) : undefined,
       claimed: gate.isError ? undefined : claimed,
     };
-  }, [
-    unlocked,
-    token,
-    role,
-    session,
-    linkStatus,
-    gate.isError,
-    claimed,
-  ]);
+  }, [unlocked, token, role, session, linkStatus, gate.isError, claimed]);
 
   return (
     <TokenRouteShell layout={layout}>
@@ -225,14 +217,13 @@ export function TokenAddressRoute({
       ) : (
         <GateMessage
           icon={<RevibaseMark className="size-5 text-muted-foreground" />}
-          title={timedOut ? copy.verify.loadTimedOut : copy.token.itemLoadFailed}
+          title={
+            timedOut ? copy.verify.loadTimedOut : copy.token.itemLoadFailed
+          }
           body={
             timedOut
               ? copy.verify.loadTimedOutBody
-              : toUserErrorMessage(
-                  tokenQuery.error,
-                  copy.token.itemNotOnChain,
-                )
+              : toUserErrorMessage(tokenQuery.error, copy.token.itemNotOnChain)
           }
           action={
             <Button

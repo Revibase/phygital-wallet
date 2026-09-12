@@ -61,7 +61,7 @@ describe("config intent hash", () => {
         recoveryWallet: RECOVERY_A,
         slotNumber: 123,
         clientDataJson: new Uint8Array([1, 2, 3]),
-      })
+      }),
     );
     expect(intent).toEqual({
       action: "set_recovery_wallet",
@@ -76,19 +76,19 @@ describe("config intent hash", () => {
         recoveryWallet: RECOVERY_A,
         slotNumber: 0,
         clientDataJson: new Uint8Array(),
-      })
+      }),
     );
     const signed = parseConfigIntent(
       setRecoveryWalletIx({
         recoveryWallet: RECOVERY_A,
         slotNumber: 987654,
         clientDataJson: new Uint8Array([9, 9, 9, 9]),
-      })
+      }),
     );
     expect(preview).not.toBeNull();
     expect(signed).not.toBeNull();
     expect(await hashConfigIntent(preview!)).toBe(
-      await hashConfigIntent(signed!)
+      await hashConfigIntent(signed!),
     );
   });
 
@@ -98,14 +98,14 @@ describe("config intent hash", () => {
         recoveryWallet: RECOVERY_A,
         slotNumber: 0,
         clientDataJson: new Uint8Array(),
-      })
+      }),
     );
     const b = parseConfigIntent(
       setRecoveryWalletIx({
         recoveryWallet: RECOVERY_B,
         slotNumber: 0,
         clientDataJson: new Uint8Array(),
-      })
+      }),
     );
     expect(await hashConfigIntent(a!)).not.toBe(await hashConfigIntent(b!));
   });
@@ -116,7 +116,7 @@ describe("config intent hash", () => {
         programAddress: FILLER as Instruction["programAddress"],
         data: new Uint8Array([1, 2, 3]),
         accounts: [],
-      })
+      }),
     ).toBeNull();
   });
 });

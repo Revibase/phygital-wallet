@@ -41,7 +41,11 @@ import {
   getAddressFromResolvedInstructionAccount,
   type ResolvedInstructionAccount,
 } from "@solana/kit/program-client-core";
-import { findConfigPda, findTokenVerifierPda, findWalletPda } from "../pdas/index.js";
+import {
+  findConfigPda,
+  findTokenVerifierPda,
+  findWalletPda,
+} from "../pdas/index.js";
 import { PHYGITAL_WALLET_PROGRAM_ADDRESS } from "../programs/index.js";
 import {
   getCompactInstructionDecoder,

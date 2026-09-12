@@ -28,9 +28,9 @@ const PROVISIONAL_BLOCKHASH = {
   lastValidBlockHeight: 0n,
 };
 
-let _sendWithoutConfirming:
-  | ReturnType<typeof sendTransactionWithoutConfirmingFactory>
-  | null = null;
+let _sendWithoutConfirming: ReturnType<
+  typeof sendTransactionWithoutConfirmingFactory
+> | null = null;
 
 function sendWithoutConfirming() {
   _sendWithoutConfirming ??= sendTransactionWithoutConfirmingFactory({
@@ -43,18 +43,19 @@ type ConfirmableTransaction = Parameters<
   typeof waitForRecentTransactionConfirmation
 >[0]["transaction"];
 
-let _confirmRecent: ((transaction: ConfirmableTransaction) => Promise<void>) | null =
-  null;
+let _confirmRecent:
+  ((transaction: ConfirmableTransaction) => Promise<void>) | null = null;
 
 function confirmRecentTransaction() {
   if (_confirmRecent) return _confirmRecent;
 
   const rpc = getSolanaRpc();
   const rpcSubscriptions = getSolanaRpcSubscriptions();
-  const getBlockHeightExceedencePromise = createBlockHeightExceedencePromiseFactory({
-    rpc,
-    rpcSubscriptions,
-  } as Parameters<typeof createBlockHeightExceedencePromiseFactory>[0]);
+  const getBlockHeightExceedencePromise =
+    createBlockHeightExceedencePromiseFactory({
+      rpc,
+      rpcSubscriptions,
+    } as Parameters<typeof createBlockHeightExceedencePromiseFactory>[0]);
   const getRecentSignatureConfirmationPromise =
     createRecentSignatureConfirmationPromiseFactory({
       rpc,

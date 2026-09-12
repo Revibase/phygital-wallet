@@ -22,7 +22,9 @@ export function CollectibleShortcuts({
 
   return (
     <section className={cn("w-full text-left", className)}>
-      <h2 className="text-eyebrow text-muted-foreground">{copy.shortcut.heading}</h2>
+      <h2 className="text-eyebrow text-muted-foreground">
+        {copy.shortcut.heading}
+      </h2>
       <ul className="mt-3 flex flex-wrap gap-2">
         {shortcuts.map((shortcut) => {
           const external = shortcutOpensExternally(shortcut);

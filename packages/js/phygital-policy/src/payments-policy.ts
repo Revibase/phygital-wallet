@@ -47,9 +47,9 @@ type AdvanceNonceParsed = ParsedProgramIx & {
   instructionType: "AdvanceNonceAccount";
 };
 
-function parseAdvanceNonce(ix: Parameters<
-  InstructionMatcher["tryMatch"]
->[0]): AdvanceNonceParsed | undefined {
+function parseAdvanceNonce(
+  ix: Parameters<InstructionMatcher["tryMatch"]>[0],
+): AdvanceNonceParsed | undefined {
   if (!isAdvanceNonceAccountInstruction(ix)) return undefined;
   return {
     programAddress: SYSTEM_PROGRAM_ADDRESS,
@@ -141,8 +141,7 @@ function pushTokenProgramRules(
           const decimals = ix.data.decimals;
           const symbol = isUsdcMint(mint) ? "USDC" : undefined;
           const ata = String(ix.accounts.destination.address);
-          const destination =
-            walletOwnerForAta(instructions, ata, mint) ?? ata;
+          const destination = walletOwnerForAta(instructions, ata, mint) ?? ata;
           return {
             code: "spend_limit",
             message: "This send is over your spending limit.",

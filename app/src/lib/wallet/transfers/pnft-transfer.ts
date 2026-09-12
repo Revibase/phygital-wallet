@@ -64,9 +64,7 @@ export async function buildPnftTransferInstructions(args: {
   if (typeof raw !== "string") {
     throw new Error("Unexpected metadata encoding");
   }
-  const metadata = getMetadataDecoder().decode(
-    getBase64Encoder().encode(raw),
-  );
+  const metadata = getMetadataDecoder().decode(getBase64Encoder().encode(raw));
 
   let authorizationRules: Address | undefined;
   const programmableConfig = metadata.programmableConfig;

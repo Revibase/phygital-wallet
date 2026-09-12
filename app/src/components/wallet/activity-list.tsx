@@ -1,7 +1,13 @@
 "use client";
 
 import { memo, useState } from "react";
-import { ArrowDownLeft, ArrowUpRight, BellRing, Clock3, RefreshCcw } from "lucide-react";
+import {
+  ArrowDownLeft,
+  ArrowUpRight,
+  BellRing,
+  Clock3,
+  RefreshCcw,
+} from "lucide-react";
 
 import { GroupedList, GroupedRow } from "@/components/shared/grouped-list";
 import { ActivityReceiptSheet } from "@/components/wallet/activity-receipt-sheet";
@@ -155,7 +161,12 @@ export function ActivityList({
 
   if (items.length === 0) {
     return (
-      <p className={cn("px-4 py-8 text-center text-sm text-muted-foreground", className)}>
+      <p
+        className={cn(
+          "px-4 py-8 text-center text-sm text-muted-foreground",
+          className,
+        )}
+      >
         {emptyLabel}
       </p>
     );
@@ -180,7 +191,9 @@ export function ActivityList({
           onClick={onLoadMore}
           className="mx-auto h-auto min-h-0 gap-2 px-0 text-xs font-medium"
         >
-          {loadingMore ? <RefreshCcw className="size-3.5 animate-spin" aria-hidden /> : null}
+          {loadingMore ? (
+            <RefreshCcw className="size-3.5 animate-spin" aria-hidden />
+          ) : null}
           See more
         </Button>
       ) : null}

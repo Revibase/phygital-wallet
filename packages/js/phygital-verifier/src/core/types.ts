@@ -40,7 +40,9 @@ export function fail(
   message: string,
   details?: VerifyFailDetails,
 ): VerifyFail {
-  return details ? { ok: false, code, message, details } : { ok: false, code, message };
+  return details
+    ? { ok: false, code, message, details }
+    : { ok: false, code, message };
 }
 
 export function ok(): VerifyOk {

@@ -28,7 +28,6 @@ import {
   type ParsedTransferInstruction,
 } from "../instructions/index.js";
 
-
 export const TOKEN_PROGRAM_ADDRESS =
   "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" as Address<"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA">;
 
@@ -36,9 +35,7 @@ export function identifyTokenAccount(
   account: { data: ReadonlyUint8Array } | ReadonlyUint8Array,
 ): TokenAccount {
   const data = "data" in account ? account.data : account;
-  
-  
-  
+
   throw new SolanaError(
     SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_ACCOUNT,
     { accountData: data, programName: "token" },
@@ -73,7 +70,7 @@ export function identifyTokenInstruction(
 export type ParsedTokenInstruction<
   TProgram extends string = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
 > =
-  ({
+  | ({
       instructionType: TokenInstruction.Transfer;
     } & ParsedTransferInstruction<TProgram>)
   | ({
@@ -88,29 +85,29 @@ export function parseTokenInstruction<TProgram extends string>(
 ): ParsedTokenInstruction<TProgram> {
   const instructionType = identifyTokenInstruction(instruction);
   switch (instructionType) {
-                case TokenInstruction.Transfer: {
+    case TokenInstruction.Transfer: {
       assertIsInstructionWithAccounts(instruction);
       return {
         instructionType: TokenInstruction.Transfer,
         ...parseTransferInstruction(instruction),
       };
     }
-                        case TokenInstruction.CloseAccount: {
+    case TokenInstruction.CloseAccount: {
       assertIsInstructionWithAccounts(instruction);
       return {
         instructionType: TokenInstruction.CloseAccount,
         ...parseCloseAccountInstruction(instruction),
       };
     }
-            case TokenInstruction.TransferChecked: {
+    case TokenInstruction.TransferChecked: {
       assertIsInstructionWithAccounts(instruction);
       return {
         instructionType: TokenInstruction.TransferChecked,
         ...parseTransferCheckedInstruction(instruction),
       };
     }
-                                                                default:
-  throw new SolanaError(
+    default:
+      throw new SolanaError(
         SOLANA_ERROR__PROGRAM_CLIENTS__UNRECOGNIZED_INSTRUCTION_TYPE,
         { instructionType: instructionType as string, programName: "token" },
       );

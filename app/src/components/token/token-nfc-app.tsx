@@ -101,9 +101,7 @@ export function TokenNfcApp({ nfcCopy }: { nfcCopy: TokenNfcCopy }) {
               ? copy.wallet.statusAuthentic
               : copy.wallet.confirmingAuthenticity
           }
-          body={
-            authentic ? undefined : copy.wallet.readingAccessory
-          }
+          body={authentic ? undefined : copy.wallet.readingAccessory}
           header={
             authentic ? (
               <div className="flex justify-center">

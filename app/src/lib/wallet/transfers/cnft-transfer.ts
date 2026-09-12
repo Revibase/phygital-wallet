@@ -26,9 +26,7 @@ export async function buildCnftTransferInstructions(args: {
   leafOwnerSigner: TransactionSigner;
   newLeafOwner: Address;
 }): Promise<Instruction[]> {
-  const { asset, proof: assetProof } = await dasGetAssetWithProof(
-    args.assetId,
-  );
+  const { asset, proof: assetProof } = await dasGetAssetWithProof(args.assetId);
   if (asset.compression?.compressed !== true) {
     throw new Error("Asset is not compressed");
   }

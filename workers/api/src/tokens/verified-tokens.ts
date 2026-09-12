@@ -30,7 +30,9 @@ function jupiterApiKey(): string | null {
 function mapToken(raw: JupiterToken): PaymentToken | null {
   const mint = raw.id?.trim();
   if (!mint) return null;
-  if (!isClassicTokenProgram(raw.tokenProgram ?? String(CLASSIC_TOKEN_PROGRAM))) {
+  if (
+    !isClassicTokenProgram(raw.tokenProgram ?? String(CLASSIC_TOKEN_PROGRAM))
+  ) {
     return null;
   }
   if (typeof raw.decimals !== "number" || raw.decimals < 0) return null;

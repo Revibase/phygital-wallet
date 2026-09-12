@@ -32,7 +32,10 @@ export async function identifyAccessory(args?: {
     throw new Error("Couldn’t read accessory — try again.");
   }
   const walletPda = await walletPdaForToken(token.address);
-  if (args?.expectedWallet && String(walletPda) !== String(args.expectedWallet)) {
+  if (
+    args?.expectedWallet &&
+    String(walletPda) !== String(args.expectedWallet)
+  ) {
     throw new Error("That isn’t the linked accessory");
   }
   return { token, walletPda: address(String(walletPda)) };

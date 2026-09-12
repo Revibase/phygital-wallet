@@ -1,11 +1,11 @@
 /** React Query key factories. Keep in sync with `persist.ts` root names. */
 
 export const queryKeys = {
-    dasCollectible: {
-      all: () => ["dasCollectible"] as const,
-      byMint: (mint: string | null) =>
-        [...queryKeys.dasCollectible.all(), mint] as const,
-    },
+  dasCollectible: {
+    all: () => ["dasCollectible"] as const,
+    byMint: (mint: string | null) =>
+      [...queryKeys.dasCollectible.all(), mint] as const,
+  },
 
   mintedCollectibleView: {
     all: () => ["mintedCollectibleView"] as const,
@@ -28,7 +28,12 @@ export const queryKeys = {
   walletActivity: {
     all: () => ["walletActivity"] as const,
     byOwner: (owner: string | null, limit = 20, cursor?: string | null) =>
-      [...queryKeys.walletActivity.all(), owner, limit, cursor ?? null] as const,
+      [
+        ...queryKeys.walletActivity.all(),
+        owner,
+        limit,
+        cursor ?? null,
+      ] as const,
   },
 
   activityMintMeta: {

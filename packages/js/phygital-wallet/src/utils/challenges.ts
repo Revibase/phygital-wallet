@@ -37,7 +37,6 @@ type SlotChallenge = {
   messageHash: Uint8Array;
 };
 
-
 export type SlotEntry = {
   slotNumber: bigint;
   slotHash: Uint8Array;

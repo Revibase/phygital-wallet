@@ -19,10 +19,7 @@ import { useMintedCollectibleView } from "@/hooks/token/use-minted-collectible-v
 import { useShortcutOpener } from "@/hooks/token/use-shortcut-opener";
 import { copy } from "@/lib/copy/phygital";
 import { detailSplitClass } from "@/lib/layout";
-import {
-  tokenHasLinkedMint,
-  type PhygitalToken,
-} from "@/lib/phygital/token";
+import { tokenHasLinkedMint, type PhygitalToken } from "@/lib/phygital/token";
 
 /**
  * Minted landing — art first, then verify / primary CTA; details collapsed.
@@ -133,9 +130,7 @@ export function TokenMintedPanel({
                   onClick={() => setDetailsOpen((o) => !o)}
                   className="h-auto min-h-11 w-full justify-between rounded-2xl bg-grouped px-4 py-3 text-sm font-medium hover:bg-muted/50"
                 >
-                  {detailsOpen
-                    ? copy.token.hideDetails
-                    : copy.token.provenance}
+                  {detailsOpen ? copy.token.hideDetails : copy.token.provenance}
                   {detailsOpen ? (
                     <ChevronUp className="size-4 text-muted-foreground" />
                   ) : (

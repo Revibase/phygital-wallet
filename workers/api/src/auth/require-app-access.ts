@@ -97,10 +97,7 @@ export function evaluateAppAccess(
   if (input.hasDeviceSession) return "allow";
   if (!input.browseToken) return "deny";
 
-  const token = extractPhygitalTokenFromRequest(
-    input.path,
-    input.queryToken,
-  );
+  const token = extractPhygitalTokenFromRequest(input.path, input.queryToken);
   if (token && input.browseToken !== token) return "deny_token_mismatch";
   return "allow";
 }

@@ -54,12 +54,7 @@ export function LimitsSetupSheet({
             : copy.wallet.claimBody}
       </p>
       {linkedElsewhere ? (
-        <Button
-          type="button"
-          size="lg"
-          variant="outline"
-          onClick={onBack}
-        >
+        <Button type="button" size="lg" variant="outline" onClick={onBack}>
           {copy.common.done}
         </Button>
       ) : needsSignIn ? (

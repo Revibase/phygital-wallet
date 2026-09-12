@@ -78,7 +78,9 @@ describe("compileWalletInstructions", () => {
 
     const recomputed = compileWalletInstructions(instructions, WALLET_PDA);
     expect(recomputed.remainingAccounts).toEqual(compiled.remainingAccounts);
-    expect(recomputed.compactInstructions).toEqual(compiled.compactInstructions);
+    expect(recomputed.compactInstructions).toEqual(
+      compiled.compactInstructions,
+    );
   });
 
   it("rejects denied inner programs", () => {
@@ -88,8 +90,8 @@ describe("compileWalletInstructions", () => {
         [],
       ),
     ];
-    expect(() =>
-      compileWalletInstructions(instructions, WALLET_PDA),
-    ).toThrow(/not allowed/);
+    expect(() => compileWalletInstructions(instructions, WALLET_PDA)).toThrow(
+      /not allowed/,
+    );
   });
 });

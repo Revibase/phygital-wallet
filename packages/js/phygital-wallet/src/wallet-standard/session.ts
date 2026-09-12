@@ -62,7 +62,7 @@ export function loadPhygitalWalletSession(): PhygitalWalletSession | null {
 }
 
 export function savePhygitalWalletSession(
-  session: PhygitalWalletSession
+  session: PhygitalWalletSession,
 ): void {
   const store = storage();
   if (!store) return;

@@ -16,12 +16,7 @@ export type WalletPortfolio = {
 };
 
 export type WalletActivityKind =
-  | "sent"
-  | "received"
-  | "approved"
-  | "topUp"
-  | "failed"
-  | "other";
+  "sent" | "received" | "approved" | "topUp" | "failed" | "other";
 
 export type WalletActivityDeltaDirection = "in" | "out";
 

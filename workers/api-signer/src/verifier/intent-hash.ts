@@ -16,7 +16,9 @@ export async function hashIntent(
     for (const a of ix.accounts ?? []) {
       parts.push(a.address);
     }
-    parts.push(bytesToHex(ix.data ? new Uint8Array(ix.data) : new Uint8Array()));
+    parts.push(
+      bytesToHex(ix.data ? new Uint8Array(ix.data) : new Uint8Array()),
+    );
   }
   const digest = await crypto.subtle.digest(
     "SHA-256",

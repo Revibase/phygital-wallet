@@ -113,7 +113,10 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
 function DialogFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
-      className={cn("flex flex-col-reverse sm:flex-row sm:justify-end gap-2", className)}
+      className={cn(
+        "flex flex-col-reverse sm:flex-row sm:justify-end gap-2",
+        className,
+      )}
       {...props}
     />
   );
@@ -125,7 +128,10 @@ function DialogTitle({
 }: React.ComponentProps<typeof DialogPrimitive.Title>) {
   return (
     <DialogPrimitive.Title
-      className={cn("text-base font-medium leading-none tracking-tight", className)}
+      className={cn(
+        "text-base font-medium leading-none tracking-tight",
+        className,
+      )}
       {...props}
     />
   );
@@ -155,4 +161,3 @@ export {
   DialogTitle,
   DialogDescription,
 };
-

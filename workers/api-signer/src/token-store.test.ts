@@ -216,7 +216,9 @@ function memorySql() {
     return { toArray: () => [] };
   };
 
-  return { exec: exec as DurableObjectStorage["sql"]["exec"] } as DurableObjectStorage["sql"];
+  return {
+    exec: exec as DurableObjectStorage["sql"]["exec"],
+  } as DurableObjectStorage["sql"];
 }
 
 describe("resolveWebAuthnRp", () => {
@@ -234,11 +236,17 @@ describe("hashMutationBinding", () => {
   it("is stable for the same policy regardless of key order", async () => {
     const a = await hashMutationBinding({
       kind: "setPolicy",
-      policy: { version: "3", mintLimits: [{ mint: "M", maxRaw: "1" }] } as never,
+      policy: {
+        version: "3",
+        mintLimits: [{ mint: "M", maxRaw: "1" }],
+      } as never,
     });
     const b = await hashMutationBinding({
       kind: "setPolicy",
-      policy: { mintLimits: [{ maxRaw: "1", mint: "M" }], version: "3" } as never,
+      policy: {
+        mintLimits: [{ maxRaw: "1", mint: "M" }],
+        version: "3",
+      } as never,
     });
     expect(a).toBe(b);
   });
@@ -289,11 +297,10 @@ describe("WebAuthn challenge encoding", () => {
     store.ensureToken("Token111");
 
     const credentialId = "dGVzdC1jcmVkLWlk"; // valid base64url
-    const result = await buildMutationOptions(
-      store,
-      "http://localhost:3000",
-      { kind: "addOwner", credentialId },
-    );
+    const result = await buildMutationOptions(store, "http://localhost:3000", {
+      kind: "addOwner",
+      credentialId,
+    });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -405,7 +412,12 @@ describe("TokenStore grants and fees", () => {
     });
     const ok = store.upsertPolicy({
       version: "3",
-      mintLimits: [{ mint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", maxRaw: "50000000" }],
+      mintLimits: [
+        {
+          mint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          maxRaw: "50000000",
+        },
+      ],
     });
     expect(ok.ok).toBe(true);
     expect(store.loadPolicyDocument()).not.toBeNull();

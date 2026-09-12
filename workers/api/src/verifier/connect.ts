@@ -40,7 +40,7 @@ export const connectRoutes = new Hono<{ Bindings: Env }>();
 
 function bearerResponse(
   minted: { accessToken: string; expiresAt: number },
-  phygitalToken: Address
+  phygitalToken: Address,
 ): Response {
   return json({
     accessToken: minted.accessToken,
@@ -55,12 +55,12 @@ function bearerResultResponse(
   minted: Awaited<
     ReturnType<TokenSignerRpc["verifyWebAuthnConnectAndMintBearer"]>
   >,
-  phygitalToken: Address
+  phygitalToken: Address,
 ): Response {
   if (!minted.ok) {
     return json(
       { error: minted.error, code: minted.code },
-      { status: minted.status }
+      { status: minted.status },
     );
   }
   return bearerResponse(minted, phygitalToken);
@@ -89,7 +89,7 @@ connectRoutes.post("/connect", async (c) => {
     phygitalToken = await findPhygitalTokenPda(response.id);
     const minted = await tokenSigner(
       c.env,
-      String(phygitalToken)
+      String(phygitalToken),
     ).verifyWebAuthnConnectAndMintBearer({
       blockhash,
       response: body.response,
@@ -151,7 +151,7 @@ connectRoutes.post("/connect/tap", async (c) => {
 
     const minted = await tokenSigner(
       c.env,
-      String(body.phygitalToken)
+      String(body.phygitalToken),
     ).verifyDynamicConnectAndMintBearer({
       pk: body.pk,
       s: body.s,

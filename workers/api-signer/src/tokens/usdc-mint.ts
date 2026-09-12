@@ -8,9 +8,7 @@ const USDC_MINT_MAINNET = address(
 );
 
 /** Common Circulating / faucet USDC on Solana Devnet. */
-const USDC_MINT_DEVNET = address(
-  "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDnm3",
-);
+const USDC_MINT_DEVNET = address("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDnm3");
 
 export const USDC_DECIMALS = 6;
 

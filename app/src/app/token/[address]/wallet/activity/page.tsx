@@ -9,7 +9,5 @@ import {
 export default function WalletActivityPage() {
   const { walletAddress } = useWalletSession();
   const { backHome } = useWalletNav();
-  return (
-    <ActivityAllSheet walletAddress={walletAddress} onBack={backHome} />
-  );
+  return <ActivityAllSheet walletAddress={walletAddress} onBack={backHome} />;
 }

@@ -19,12 +19,12 @@ Official references:
 
 For each program you gate, the generated Kit client must export:
 
-| Symbol | Role |
-|--------|------|
-| `*_PROGRAM_ADDRESS` | Program id constant |
-| `*Instruction` enum | Instruction discriminant (e.g. `TokenInstruction.TransferChecked`) |
-| `identify*Instruction` | Map wire `Instruction` → enum branch |
-| `parse*Instruction` | Typed `{ accounts, data, instructionType }` |
+| Symbol                 | Role                                                               |
+| ---------------------- | ------------------------------------------------------------------ |
+| `*_PROGRAM_ADDRESS`    | Program id constant                                                |
+| `*Instruction` enum    | Instruction discriminant (e.g. `TokenInstruction.TransferChecked`) |
+| `identify*Instruction` | Map wire `Instruction` → enum branch                               |
+| `parse*Instruction`    | Typed `{ accounts, data, instructionType }`                        |
 
 Builders (`get*Instruction`), account `fetch*` / `decode*`, PDAs, and errors are
 optional for policy. Prefer trimming unused instructions before render when you
@@ -37,11 +37,11 @@ care about bundle size.
 Codama accepts **Codama IDLs** and **Anchor IDLs** (via
 `@codama/nodes-from-anchor`).
 
-| Source | Typical path |
-|--------|----------------|
-| Anchor | `target/idl/<program_name>.json` after `anchor build` |
-| Shank / Codama macros | Your program’s published JSON IDL |
-| On-chain / vendor | Copy into the repo (record URL + version beside the file) |
+| Source                | Typical path                                              |
+| --------------------- | --------------------------------------------------------- |
+| Anchor                | `target/idl/<program_name>.json` after `anchor build`     |
+| Shank / Codama macros | Your program’s published JSON IDL                         |
+| On-chain / vendor     | Copy into the repo (record URL + version beside the file) |
 
 Example layout:
 
@@ -62,10 +62,10 @@ From the project root (pnpm shown; npm/yarn work the same):
 pnpm add -D codama @codama/renderers-js @codama/nodes-from-anchor
 ```
 
-| Package | Why |
-|---------|-----|
-| `codama` | CLI (`codama init`, `codama run`) + `createFromRoot` |
-| `@codama/renderers-js` | Emits Kit TypeScript clients |
+| Package                     | Why                                                                |
+| --------------------------- | ------------------------------------------------------------------ |
+| `codama`                    | CLI (`codama init`, `codama run`) + `createFromRoot`               |
+| `@codama/renderers-js`      | Emits Kit TypeScript clients                                       |
 | `@codama/nodes-from-anchor` | Converts Anchor IDL JSON → Codama root (CLI uses this when needed) |
 
 Optional (for trimming unused instructions before render):

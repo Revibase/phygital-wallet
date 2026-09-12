@@ -1,8 +1,5 @@
 import { dasGetAsset, dasGetAssetBatch } from "@/lib/solana/das-rpc";
-import {
-  collectibleFromDas,
-  type Collectible,
-} from "@/lib/tokens/collectible";
+import { collectibleFromDas, type Collectible } from "@/lib/tokens/collectible";
 
 const COLLECTIBLE_DISPLAY = { showCollectionMetadata: true } as const;
 

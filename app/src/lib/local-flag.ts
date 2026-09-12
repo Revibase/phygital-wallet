@@ -21,9 +21,7 @@ function writeFlag(key: string, value: boolean) {
   emit(key);
 }
 
-export function useLocalFlag(
-  key: string,
-): [boolean, (value: boolean) => void] {
+export function useLocalFlag(key: string): [boolean, (value: boolean) => void] {
   const subscribe = useCallback(
     (onStoreChange: () => void) => {
       let set = listeners.get(key);

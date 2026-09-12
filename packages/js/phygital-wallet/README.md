@@ -72,8 +72,8 @@ const message = pipe(
           amount: 1_000_000n,
         }),
       ],
-      m
-    )
+      m,
+    ),
 );
 
 const signed = await signTransactionMessageWithSigners(message);
@@ -81,7 +81,7 @@ const send = sendTransactionWithoutConfirmingFactory({ rpc });
 await send(signed);
 ```
 
-The accessory is *discovered*, not chosen: `proof.phygitalToken` is whatever was
+The accessory is _discovered_, not chosen: `proof.phygitalToken` is whatever was
 tapped — compare it if your flow expects a specific item. Signing runs policy
 checks and a body simulation before the passkey prompt, wraps (`secp256r1` +
 `execute`), co-signs, and submits.
@@ -100,7 +100,8 @@ import { SESSION_SKEW_MS } from "phygital-wallet-sdk";
 
 // reuse the `session` from exchangeConnectProof above
 const getAccessToken = () => {
-  if (session.expiresAt - SESSION_SKEW_MS > Date.now()) return session.accessToken;
+  if (session.expiresAt - SESSION_SKEW_MS > Date.now())
+    return session.accessToken;
   throw new Error("Session expired — reconnect");
 };
 ```
@@ -129,17 +130,17 @@ Kit-only apps can skip `registerPhygitalWallet` and compose the three primitives
 
 ## Public API (summary)
 
-| Export                                 | Role                                                            |
-| -------------------------------------- | --------------------------------------------------------------- |
+| Export                                 | Role                                                                    |
+| -------------------------------------- | ----------------------------------------------------------------------- |
 | `startPhygitalConnect`                 | Tap and produce a connect proof (counterpart to `startAuthentication`). |
-| `exchangeConnectProof`                 | POST a proof to a verifier `/connect` and return its session bearer. |
-| `getPhygitalWalletSigner`              | Build a bearer-backed Kit signer for a token.                   |
-| `registerPhygitalWallet`               | Register the bearer-backed wallet with Wallet Standard.         |
-| `PolicyDeniedError`                    | Policy denial from `/preview` or `/sign`.                       |
-| `resolveVerifier` / `ResolvedVerifier` | Resolve a token verifier or default verifier.                   |
-| `DEFAULT_VERIFIER_API_BASE`            | Default verifier origin.                                        |
-| `PHYGITAL_WALLET_CHAINS`               | Wallet Standard default chains.                                 |
-| Generated client                       | PDAs, instructions, accounts, and types.                        |
+| `exchangeConnectProof`                 | POST a proof to a verifier `/connect` and return its session bearer.    |
+| `getPhygitalWalletSigner`              | Build a bearer-backed Kit signer for a token.                           |
+| `registerPhygitalWallet`               | Register the bearer-backed wallet with Wallet Standard.                 |
+| `PolicyDeniedError`                    | Policy denial from `/preview` or `/sign`.                               |
+| `resolveVerifier` / `ResolvedVerifier` | Resolve a token verifier or default verifier.                           |
+| `DEFAULT_VERIFIER_API_BASE`            | Default verifier origin.                                                |
+| `PHYGITAL_WALLET_CHAINS`               | Wallet Standard default chains.                                         |
+| Generated client                       | PDAs, instructions, accounts, and types.                                |
 
 ## Default verifier
 

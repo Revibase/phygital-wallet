@@ -35,7 +35,9 @@ type RawShortcutsDoc = {
 const FETCH_TIMEOUT_MS = 4_000;
 
 /** `solana:` URIs always open externally; never iframe. */
-export function shortcutOpensExternally(shortcut: CollectibleShortcut): boolean {
+export function shortcutOpensExternally(
+  shortcut: CollectibleShortcut,
+): boolean {
   if (shortcut.uri.startsWith("solana:")) return true;
   return shortcut.prefersExternalTarget === true;
 }

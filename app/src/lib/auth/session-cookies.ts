@@ -41,7 +41,10 @@ function hmacKey(secret: string): Promise<CryptoKey> {
   return pending;
 }
 
-async function hmacSha256(secret: string, payload: string): Promise<Uint8Array> {
+async function hmacSha256(
+  secret: string,
+  payload: string,
+): Promise<Uint8Array> {
   const key = await hmacKey(secret);
   const sig = await crypto.subtle.sign(
     "HMAC",

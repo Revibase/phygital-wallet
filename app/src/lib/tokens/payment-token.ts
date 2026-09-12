@@ -71,7 +71,9 @@ export function isClassicTokenProgram(
   );
 }
 
-export function isToken2022Program(program: string | null | undefined): boolean {
+export function isToken2022Program(
+  program: string | null | undefined,
+): boolean {
   return (
     program === TOKEN_2022_PROGRAM || program === String(TOKEN_2022_PROGRAM)
   );

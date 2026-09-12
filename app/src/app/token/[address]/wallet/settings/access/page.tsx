@@ -18,9 +18,7 @@ export default function AccessPage() {
       linkStatus={linkStatus}
       claimed={claimed}
       onBack={backSettings}
-      onOpenRecovery={
-        isOwner ? () => goSettings("recoveryWallet") : undefined
-      }
+      onOpenRecovery={isOwner ? () => goSettings("recoveryWallet") : undefined}
       onOpenSigning={isOwner ? () => goSettings("signing") : undefined}
       onClaim={requestClaim}
     />

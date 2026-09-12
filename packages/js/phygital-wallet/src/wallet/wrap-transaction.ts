@@ -146,7 +146,9 @@ function withMargin(unitsConsumed: number): number {
 
 function roundUpLoadedAccountsDataSize(bytes: number): number {
   if (bytes <= 0) return LOADED_ACCOUNTS_PAGE_BYTES;
-  return Math.ceil(bytes / LOADED_ACCOUNTS_PAGE_BYTES) * LOADED_ACCOUNTS_PAGE_BYTES;
+  return (
+    Math.ceil(bytes / LOADED_ACCOUNTS_PAGE_BYTES) * LOADED_ACCOUNTS_PAGE_BYTES
+  );
 }
 
 /** micro-lamports/CU × CU limit → absolute lamports for v1 priority fee. */
@@ -200,8 +202,7 @@ function applyResourceLimits<T extends DecompiledMessage>(
       priorityFeeLamportsFromMicroLamports(unitPriceMicroLamports, unitLimit),
       next as never,
     ) as T;
-    const dataSize =
-      loadedAccountsDataSizeLimit ?? LOADED_ACCOUNTS_PAGE_BYTES;
+    const dataSize = loadedAccountsDataSizeLimit ?? LOADED_ACCOUNTS_PAGE_BYTES;
     return setTransactionMessageLoadedAccountsDataSizeLimit(
       roundUpLoadedAccountsDataSize(dataSize),
       next as never,
@@ -394,9 +395,12 @@ async function assertBodyInstructionsExecutable(input: {
     } as typeof input.prepared.decompiled,
   );
 
-  await estimateResourceLimitsFactory({ rpc: input.rpc })(withVerifierFeePayer, {
-    abortSignal: input.abortSignal,
-  });
+  await estimateResourceLimitsFactory({ rpc: input.rpc })(
+    withVerifierFeePayer,
+    {
+      abortSignal: input.abortSignal,
+    },
+  );
 }
 
 function applyVerifierCoSignature(
@@ -490,10 +494,7 @@ function buildPendingWalletWrap(
   prepared: PreparedWalletWrap,
   walletPda: Address,
   slot: SlotEntry,
-  compiled = compileWalletInstructions(
-    prepared.bodyInstructions,
-    walletPda,
-  ),
+  compiled = compileWalletInstructions(prepared.bodyInstructions, walletPda),
 ): PendingWalletWrap {
   const { slotNumber, messageHash } = buildExecuteChallengeFromSlot(
     slot,
@@ -590,7 +591,9 @@ export async function modifyAndWrapWalletTransaction(input: {
   preview: (bodyInstructions: readonly Instruction[]) => Promise<void>;
   authenticate: (
     messageHash: Uint8Array,
-  ) => Promise<Awaited<ReturnType<typeof authenticatePasskeyForSecp256r1Verify>>>;
+  ) => Promise<
+    Awaited<ReturnType<typeof authenticatePasskeyForSecp256r1Verify>>
+  >;
   coSign: (wrapped: SignedTransaction) => Promise<SignatureDictionary>;
 }): Promise<SignedTransaction> {
   const prepared = await prepareWrappedWalletTransaction({

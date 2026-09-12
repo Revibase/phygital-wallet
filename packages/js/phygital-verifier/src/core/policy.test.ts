@@ -49,7 +49,11 @@ const programA = fromCodamaProgram<FakeIx, FakeParsed>({
     if (b === 1) {
       return {
         instructionType: FakeIx.Transfer,
-        accounts: { destination: { address: "Dest111111111111111111111111111111111111111" } },
+        accounts: {
+          destination: {
+            address: "Dest111111111111111111111111111111111111111",
+          },
+        },
         data: { amount: 10n },
       };
     }
@@ -64,14 +68,20 @@ const programA = fromCodamaProgram<FakeIx, FakeParsed>({
 describe("policy.verify", () => {
   it("allows matching instruction with predicate", () => {
     const gate = policy([
-      allow(programA.instruction(FakeIx.Transfer), (ix) => ix.data.amount <= 100n),
+      allow(
+        programA.instruction(FakeIx.Transfer),
+        (ix) => ix.data.amount <= 100n,
+      ),
     ]);
     expect(gate.verify([makeIx(PROGRAM_A, 1)]).ok).toBe(true);
   });
 
   it("rejects when predicate fails and includes transfer fields", () => {
     const gate = policy([
-      allow(programA.instruction(FakeIx.Transfer), (ix) => ix.data.amount <= 5n),
+      allow(
+        programA.instruction(FakeIx.Transfer),
+        (ix) => ix.data.amount <= 5n,
+      ),
     ]);
     const r = gate.verify([makeIx(PROGRAM_A, 1)]);
     expect(r.ok).toBe(false);
@@ -121,7 +131,10 @@ describe("policy.verify", () => {
         when: () => false,
         onFail: () => undefined,
       }),
-      allow(programA.instruction(FakeIx.Transfer), (ix) => ix.data.amount <= 100n),
+      allow(
+        programA.instruction(FakeIx.Transfer),
+        (ix) => ix.data.amount <= 100n,
+      ),
     ]);
     expect(gate.verify([makeIx(PROGRAM_A, 1)]).ok).toBe(true);
   });
@@ -173,7 +186,9 @@ describe("policy.verify", () => {
         { lte: 20n },
       ),
     ]);
-    expect(gate.verify([makeIx(PROGRAM_A, 1), makeIx(PROGRAM_A, 1)]).ok).toBe(true);
+    expect(gate.verify([makeIx(PROGRAM_A, 1), makeIx(PROGRAM_A, 1)]).ok).toBe(
+      true,
+    );
     const over = gate.verify([
       makeIx(PROGRAM_A, 1),
       makeIx(PROGRAM_A, 1),
@@ -198,7 +213,11 @@ describe("policy.verify", () => {
           onFail: ({ limit, actual }) => ({
             code: "spend_limit",
             message: "aggregate over",
-            details: { symbol: "FAKE", limit: limit.toString(), actual: actual.toString() },
+            details: {
+              symbol: "FAKE",
+              limit: limit.toString(),
+              actual: actual.toString(),
+            },
           }),
         },
       ),
@@ -207,7 +226,11 @@ describe("policy.verify", () => {
     expect(r.ok).toBe(false);
     if (!r.ok) {
       expect(r.code).toBe("spend_limit");
-      expect(r.details).toMatchObject({ symbol: "FAKE", limit: "5", actual: "10" });
+      expect(r.details).toMatchObject({
+        symbol: "FAKE",
+        limit: "5",
+        actual: "10",
+      });
     }
   });
 });

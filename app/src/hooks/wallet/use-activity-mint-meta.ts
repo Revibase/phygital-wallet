@@ -51,8 +51,7 @@ function metaFromPortfolio(
 export function useMintMeta(mints: string[]): Record<string, MintMeta> {
   const queryClient = useQueryClient();
   const allMints = useMemo(
-    () =>
-      [...new Set(mints.filter((m) => m && m !== NATIVE_SOL_MINT))].sort(),
+    () => [...new Set(mints.filter((m) => m && m !== NATIVE_SOL_MINT))].sort(),
     [mints],
   );
 

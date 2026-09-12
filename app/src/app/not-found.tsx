@@ -5,7 +5,11 @@ import { RevibaseMark } from "@/components/brand/revibase-mark";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { brand, copy } from "@/lib/copy/phygital";
-import { centeredBlockClass, copyBlockClass, ctaBlockClass } from "@/lib/layout";
+import {
+  centeredBlockClass,
+  copyBlockClass,
+  ctaBlockClass,
+} from "@/lib/layout";
 import { galleryAnimate } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 

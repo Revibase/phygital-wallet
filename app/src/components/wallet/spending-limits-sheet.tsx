@@ -20,10 +20,7 @@ import { usePolicyEditor } from "@/hooks/wallet/use-wallet-policy";
 import { useVerifiedTokens } from "@/hooks/wallet/use-verified-tokens";
 import { copy } from "@/lib/copy/phygital";
 import { toUserErrorMessage } from "@/lib/user-errors";
-import {
-  NATIVE_SOL_MINT,
-  type PaymentToken,
-} from "@/lib/tokens/payment-token";
+import { NATIVE_SOL_MINT, type PaymentToken } from "@/lib/tokens/payment-token";
 import { getUsdcMint, USDC_DECIMALS } from "@/lib/tokens/usdc-mint";
 import { shortAddress } from "@/lib/utils";
 import { ALL_LIST_SEARCH_THRESHOLD } from "@/lib/wallet/portfolio-preview";
@@ -44,7 +41,9 @@ function mintLabel(cap: MintSpendCapSetting): string {
   return cap.symbol?.trim() || shortAddress(cap.mint, 4);
 }
 
-function cloneCaps(caps: readonly MintSpendCapSetting[]): MintSpendCapSetting[] {
+function cloneCaps(
+  caps: readonly MintSpendCapSetting[],
+): MintSpendCapSetting[] {
   return caps.map((c) => ({ ...c }));
 }
 

@@ -6,13 +6,7 @@ import { NATIVE_SOL_TOKEN_PROGRAM } from "@/lib/tokens/payment-token";
 import { DasInterface } from "@/lib/solana/das-schema";
 import type { WalletCollectible } from "@/lib/wallet/portfolio-types";
 
-type SendAssetKind =
-  | "native"
-  | "fungible"
-  | "nft"
-  | "pnft"
-  | "cnft"
-  | "core";
+type SendAssetKind = "native" | "fungible" | "nft" | "pnft" | "cnft" | "core";
 
 export type SendAssetRef = {
   kind: SendAssetKind;

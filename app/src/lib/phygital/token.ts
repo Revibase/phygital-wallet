@@ -1,4 +1,9 @@
-import { address, type Address, type Rpc, type SolanaRpcApi } from "@solana/kit";
+import {
+  address,
+  type Address,
+  type Rpc,
+  type SolanaRpcApi,
+} from "@solana/kit";
 import {
   fetchMaybePhygitalToken,
   fetchPhygitalToken as fetchPhygitalTokenAccount,
@@ -11,9 +16,7 @@ import {
 import { bytesToBase64Url } from "@/lib/crypto/base64";
 
 /** System program / default pubkey — token.owner before first claim. */
-export const DEFAULT_TOKEN_OWNER = address(
-  "11111111111111111111111111111111",
-);
+export const DEFAULT_TOKEN_OWNER = address("11111111111111111111111111111111");
 
 /** Lean view of an on-chain phygital token (ownership-only). */
 export type PhygitalToken = {

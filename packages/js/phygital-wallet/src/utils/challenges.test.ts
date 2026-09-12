@@ -61,9 +61,9 @@ describe("challenge hashes", () => {
 
   it("execute challenge is deterministic", () => {
     const slotHash = new Uint8Array(32).fill(7);
-    expect(
+    expect(hashExecuteChallenge(slotHash, emptyCompact, emptyKeys)).toEqual(
       hashExecuteChallenge(slotHash, emptyCompact, emptyKeys),
-    ).toEqual(hashExecuteChallenge(slotHash, emptyCompact, emptyKeys));
+    );
   });
 
   it("execute challenge changes with slot hash", () => {
@@ -107,9 +107,9 @@ describe("challenge hashes", () => {
         data: new Uint8Array([9]),
       },
     ];
-    expect(
-      hashReferencedAccounts([program, alice, bob], compact),
-    ).not.toEqual(hashReferencedAccounts([program, bob, alice], compact));
+    expect(hashReferencedAccounts([program, alice, bob], compact)).not.toEqual(
+      hashReferencedAccounts([program, bob, alice], compact),
+    );
   });
 
   it("pack compact matches expected layout", () => {

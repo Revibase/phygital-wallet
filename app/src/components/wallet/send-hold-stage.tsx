@@ -1,12 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  LazyMotion,
-  domAnimation,
-  m,
-  useReducedMotion,
-} from "framer-motion";
+import { LazyMotion, domAnimation, m, useReducedMotion } from "framer-motion";
 
 import { NavBar } from "@/components/shared/nav-bar";
 import { CeremonyShell } from "@/components/shared/ceremony-shell";
@@ -116,9 +111,7 @@ export function SendHoldStage({
             progress={phase === "holding"}
             tone={phase === "success" ? "success" : "default"}
             imageSrc={recap?.imageSrc ?? imageSrc}
-            title={
-              phase === "success" ? copy.wallet.sent : holdingCopy.title
-            }
+            title={phase === "success" ? copy.wallet.sent : holdingCopy.title}
             body={phase === "success" ? undefined : holdingCopy.body}
             action={
               <div className="flex w-full flex-col items-center gap-3">
