@@ -291,7 +291,6 @@ describe("resolveVerifier", () => {
     const verifier = await resolveVerifier(rpc, PHYGITAL_TOKEN);
     expect(verifier.verifier.address).toBe(OVERRIDE_VERIFIER);
     expect(verifier.usesDefaultPaymaster).toBe(false);
-    expect(verifier.requiresOwnerCosignAssertion).toBe(false);
   });
 
   it("falls back to config verifiers when no token override exists", async () => {

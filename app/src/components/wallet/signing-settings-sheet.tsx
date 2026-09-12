@@ -19,10 +19,13 @@ import {
   ConfigChangeHoldCeremony,
   type ConfigChangeCeremonyPhase,
 } from "@/components/wallet/config-change-hold-ceremony";
+import { ApprovalSheetBody } from "@/components/wallet/approval-sheet-body";
 import { NavBar, NavBarBack } from "@/components/shared/nav-bar";
 import { Button } from "@/components/ui/button";
 import { FieldLabel, Input } from "@/components/ui/input";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { copy } from "@/lib/copy/phygital";
+import { shortAddress } from "@/lib/utils";
 import {
   applyOptimisticTokenVerifier,
   restoreTokenVerifierSnapshot,
@@ -33,12 +36,18 @@ import { getSolanaRpc } from "@/lib/solana/rpc";
 import { tryParseAddress } from "@/lib/solana/address";
 import { toUserErrorMessage } from "@/lib/user-errors";
 import { handleOwnerAuthFailure } from "@/lib/wallet/device-sign-in-href";
+import { createOneTimeGrant } from "@/lib/wallet/policies-client";
+import {
+  previewClearTokenVerifierInstruction,
+  previewSetTokenVerifierInstruction,
+} from "@/lib/wallet/config-preview";
 import {
   getClearTokenVerifierInstructions,
   getSetTokenVerifierInstructions,
 } from "@/lib/wallet/token-verifier";
 import {
   createAppVerifierSigner,
+  previewConfigIntent,
   sendConfigTransaction,
   type AppVerifierSigner,
 } from "@/lib/wallet/verifier-fee-payer";
@@ -47,7 +56,12 @@ type View = "menu" | "warn" | "custom" | "ceremony";
 
 type PendingConfigTx = {
   signer: AppVerifierSigner;
-  instructions: Instruction[];
+  /** Canonical config intent hash the owner grants (from /preview). */
+  intentHash: string;
+  /** Details of the change, shown in the approval sheet. */
+  approvalRows: { label: string; value: string }[];
+  /** Tap the accessory + build the proof-carrying instructions (post-grant). */
+  buildInstructions: () => Promise<Instruction[]>;
   nextStatus: TokenVerifierCache;
   onSuccess: () => void;
   errorView: View;
@@ -68,56 +82,84 @@ export function SigningSettingsSheet({
   const [endpoint, setEndpoint] = useState("https://");
   const [verifier, setVerifier] = useState("");
   const [acked, setAcked] = useState(false);
-  const [needsPhoneConfirm, setNeedsPhoneConfirm] = useState(false);
-  const [confirmPending, setConfirmPending] = useState(false);
+  const [approvalOpen, setApprovalOpen] = useState(false);
+  const [approving, setApproving] = useState(false);
+  const [holdPending, setHoldPending] = useState(false);
   const pendingRef = useRef<PendingConfigTx | null>(null);
 
   const verifierStatus = useTokenVerifier(phygitalTokenPda);
   const isCustom = verifierStatus.data?.custom === true;
 
-  async function finishConfigTx(pending: PendingConfigTx) {
-    const { confirmed } = await sendConfigTransaction({
-      instructions: pending.instructions,
-      signer: pending.signer,
-    });
-    const before = applyOptimisticTokenVerifier(
-      queryClient,
-      phygitalTokenPda,
-      pending.nextStatus,
-    );
-    pending.onSuccess();
+  function runAfterPreview(pending: PendingConfigTx) {
+    pendingRef.current = pending;
+    // Config always requires owner approval — open the shared approval sheet
+    // (same as Send). The hold ceremony sits behind it, busy until approved.
+    setApprovalOpen(true);
+  }
+
+  function cancelApproval() {
+    if (approving) return;
+    const errorView = pendingRef.current?.errorView ?? "menu";
+    setApprovalOpen(false);
     pendingRef.current = null;
-    setConfirmPending(false);
-    setCeremonyPhase("success");
+    setHoldPending(false);
+    setView(errorView);
+  }
+
+  // Step 1: owner approves the change with their device passkey (creates the
+  // one-time grant). This consumes the WebAuthn user activation, so the
+  // accessory tap cannot follow in the same gesture — reveal the hold step.
+  async function onApproveGrant() {
+    const pending = pendingRef.current;
+    if (!pending) return;
+    setApproving(true);
     try {
-      await confirmed;
+      await createOneTimeGrant(phygitalTokenPda, pending.intentHash);
+      setApproving(false);
+      setApprovalOpen(false);
+      setHoldPending(false); // reveal the "Hold to save" CTA
     } catch (e) {
-      restoreTokenVerifierSnapshot(queryClient, phygitalTokenPda, before);
+      if (handleOwnerAuthFailure(phygitalTokenPda, e)) return;
+      setApproving(false);
+      setApprovalOpen(false);
+      pendingRef.current = null;
       setView(pending.errorView);
       toast.error(toUserErrorMessage(e));
     }
   }
 
-  async function runAfterNfc(pending: PendingConfigTx) {
-    pendingRef.current = pending;
-    setNeedsPhoneConfirm(pending.signer.requiresOwnerCosignAssertion);
-    if (pending.signer.requiresOwnerCosignAssertion) {
-      setCeremonyPhase("confirming");
-      return;
-    }
-    await finishConfigTx(pending);
-  }
-
-  async function onConfirmPhone() {
+  // Step 2: fresh gesture — tap the accessory to produce the Secp256r1 proof,
+  // then sign the granted change.
+  async function onHoldToSign() {
     const pending = pendingRef.current;
     if (!pending) return;
-    setConfirmPending(true);
+    setHoldPending(true);
     try {
-      await finishConfigTx(pending);
+      const instructions = await pending.buildInstructions();
+      const { confirmed } = await sendConfigTransaction({
+        instructions,
+        signer: pending.signer,
+      });
+      const before = applyOptimisticTokenVerifier(
+        queryClient,
+        phygitalTokenPda,
+        pending.nextStatus,
+      );
+      pending.onSuccess();
+      pendingRef.current = null;
+      setHoldPending(false);
+      setCeremonyPhase("success");
+      try {
+        await confirmed;
+      } catch (e) {
+        restoreTokenVerifierSnapshot(queryClient, phygitalTokenPda, before);
+        setView(pending.errorView);
+        toast.error(toUserErrorMessage(e));
+      }
     } catch (e) {
       if (handleOwnerAuthFailure(phygitalTokenPda, e)) return;
       pendingRef.current = null;
-      setConfirmPending(false);
+      setHoldPending(false);
       setView(pending.errorView);
       toast.error(toUserErrorMessage(e));
     }
@@ -148,40 +190,56 @@ export function SigningSettingsSheet({
     if (!acked) return;
     const normalizedEndpoint = normalizeVerifierApiBase(endpoint.trim());
     setCeremonyPhase("holding");
-    setConfirmPending(false);
+    setHoldPending(true); // busy behind the approval sheet until approved
+    setApprovalOpen(false);
     setView("ceremony");
     try {
       const rpc = getSolanaRpc();
       const tokenPda = address(phygitalTokenPda);
-      const [signer, { slotNumber, messageHash }] = await Promise.all([
-        createAppVerifierSigner(rpc, tokenPda),
-        buildSetTokenVerifierChallenge(
-          rpc,
-          tokenPda,
-          verifierAddr,
-          normalizedEndpoint,
-        ),
-      ]);
-      setNeedsPhoneConfirm(signer.requiresOwnerCosignAssertion);
-      const tap = await authenticatePasskeyForSecp256r1Verify({
-        rpc,
-        messageHash,
-      });
-      const verify = await buildSecp256r1VerifyInstruction(tap);
-      const instructions = await getSetTokenVerifierInstructions({
+      const signer = await createAppVerifierSigner(rpc, tokenPda);
+      // Preview first (no tap): get the canonical intent hash to grant.
+      const previewIx = await previewSetTokenVerifierInstruction({
         verifier: signer,
         overrideVerifier: verifierAddr,
         endpoint: normalizedEndpoint,
-        passkeyAuth: {
-          secp256r1VerifyInstruction: verify.secp256r1VerifyInstruction,
-          phygitalTokenPda: verify.phygitalTokenPda,
-          secp256r1VerifyArgs: verify.secp256r1VerifyArgs,
-          slotNumber,
-        },
+        phygitalTokenPda: tokenPda,
       });
-      await runAfterNfc({
+      const intentHash = await previewConfigIntent(signer, previewIx);
+      runAfterPreview({
         signer,
-        instructions,
+        intentHash,
+        approvalRows: [
+          {
+            label: copy.wallet.customVerifier,
+            value: shortAddress(String(verifierAddr), 6),
+          },
+          { label: copy.wallet.customEndpoint, value: normalizedEndpoint },
+        ],
+        buildInstructions: async () => {
+          const { slotNumber, messageHash } =
+            await buildSetTokenVerifierChallenge(
+              rpc,
+              tokenPda,
+              verifierAddr,
+              normalizedEndpoint,
+            );
+          const tap = await authenticatePasskeyForSecp256r1Verify({
+            rpc,
+            messageHash,
+          });
+          const verify = await buildSecp256r1VerifyInstruction(tap);
+          return getSetTokenVerifierInstructions({
+            verifier: signer,
+            overrideVerifier: verifierAddr,
+            endpoint: normalizedEndpoint,
+            passkeyAuth: {
+              secp256r1VerifyInstruction: verify.secp256r1VerifyInstruction,
+              phygitalTokenPda: verify.phygitalTokenPda,
+              secp256r1VerifyArgs: verify.secp256r1VerifyArgs,
+              slotNumber,
+            },
+          });
+        },
         errorView: "custom",
         nextStatus: {
           custom: true,
@@ -204,37 +262,47 @@ export function SigningSettingsSheet({
 
   async function restoreDefault() {
     setCeremonyPhase("holding");
-    setConfirmPending(false);
+    setHoldPending(true);
+    setApprovalOpen(false);
     setView("ceremony");
     try {
       const rpc = getSolanaRpc();
       const tokenPda = address(phygitalTokenPda);
-      const [signer, { slotNumber, messageHash }] = await Promise.all([
-        createAppVerifierSigner(rpc, tokenPda),
-        buildClearTokenVerifierChallenge(rpc, tokenPda),
-      ]);
-      setNeedsPhoneConfirm(signer.requiresOwnerCosignAssertion);
-      const tap = await authenticatePasskeyForSecp256r1Verify({
-        rpc,
-        messageHash,
-      });
-      const verify = await buildSecp256r1VerifyInstruction(tap);
-      const instructions = await getClearTokenVerifierInstructions({
+      const signer = await createAppVerifierSigner(rpc, tokenPda);
+      const rentReceiver = verifierStatus.data?.payer
+        ? address(verifierStatus.data.payer)
+        : undefined;
+      const previewIx = await previewClearTokenVerifierInstruction({
         rpc,
         verifier: signer,
-        rentReceiver: verifierStatus.data?.payer
-          ? address(verifierStatus.data.payer)
-          : undefined,
-        passkeyAuth: {
-          secp256r1VerifyInstruction: verify.secp256r1VerifyInstruction,
-          phygitalTokenPda: verify.phygitalTokenPda,
-          secp256r1VerifyArgs: verify.secp256r1VerifyArgs,
-          slotNumber,
-        },
+        phygitalTokenPda: tokenPda,
+        rentReceiver,
       });
-      await runAfterNfc({
+      const intentHash = await previewConfigIntent(signer, previewIx);
+      runAfterPreview({
         signer,
-        instructions,
+        intentHash,
+        approvalRows: [],
+        buildInstructions: async () => {
+          const { slotNumber, messageHash } =
+            await buildClearTokenVerifierChallenge(rpc, tokenPda);
+          const tap = await authenticatePasskeyForSecp256r1Verify({
+            rpc,
+            messageHash,
+          });
+          const verify = await buildSecp256r1VerifyInstruction(tap);
+          return getClearTokenVerifierInstructions({
+            rpc,
+            verifier: signer,
+            rentReceiver,
+            passkeyAuth: {
+              secp256r1VerifyInstruction: verify.secp256r1VerifyInstruction,
+              phygitalTokenPda: verify.phygitalTokenPda,
+              secp256r1VerifyArgs: verify.secp256r1VerifyArgs,
+              slotNumber,
+            },
+          });
+        },
         errorView: "menu",
         nextStatus: {
           custom: false,
@@ -257,19 +325,51 @@ export function SigningSettingsSheet({
 
   if (view === "ceremony") {
     return (
-      <ConfigChangeHoldCeremony
-        phase={ceremonyPhase}
-        needsPhoneConfirm={needsPhoneConfirm}
-        confirmPending={confirmPending}
-        onLeadingClick={onClose}
-        leadingLabel={copy.common.cancel}
-        onConfirmPhone={() => void onConfirmPhone()}
-        successAction={
-          <Button type="button" size="lg" className="w-full" onClick={onClose}>
-            {copy.common.done}
-          </Button>
-        }
-      />
+      <>
+        <ConfigChangeHoldCeremony
+          phase={ceremonyPhase}
+          holdPending={holdPending}
+          onLeadingClick={onClose}
+          leadingLabel={copy.common.cancel}
+          onHold={() => void onHoldToSign()}
+          successAction={
+            <Button
+              type="button"
+              size="lg"
+              className="w-full"
+              onClick={onClose}
+            >
+              {copy.common.done}
+            </Button>
+          }
+        />
+        <Sheet
+          open={approvalOpen}
+          onOpenChange={(open) => {
+            if (!open) cancelApproval();
+          }}
+        >
+          <SheetContent
+            side="bottom"
+            showCloseButton={false}
+            onInteractOutside={(e) => e.preventDefault()}
+            onEscapeKeyDown={(e) => {
+              if (approving) e.preventDefault();
+            }}
+            className="mx-auto max-h-[85vh] max-w-lg overflow-y-auto rounded-t-3xl p-0 md:rounded-3xl"
+          >
+            <ApprovalSheetBody
+              title={copy.wallet.configChangeConfirmTitle}
+              body={copy.wallet.configChangeConfirmBody}
+              detailRows={pendingRef.current?.approvalRows ?? []}
+              busy={approving}
+              mode="owner"
+              onApprove={() => void onApproveGrant()}
+              onClose={cancelApproval}
+            />
+          </SheetContent>
+        </Sheet>
+      </>
     );
   }
 

@@ -38,6 +38,13 @@ const TOP_LEVEL_OK = new Set<string>([
   MEMO_PROGRAM_ADDRESS,
 ]);
 
+/** Config txs are stricter than execute: no memo, no nonce, no siblings. */
+const CONFIG_TOP_LEVEL_OK = new Set<string>([
+  COMPUTE_BUDGET_PROGRAM,
+  SECP256R1_PROGRAM,
+  PHYGITAL_WALLET_PROGRAM_ADDRESS,
+]);
+
 function coded(message: string, code: string): Error {
   return Object.assign(new Error(message), { code });
 }
@@ -205,11 +212,13 @@ export function decodeWireTransaction(base64Tx: string): DecodedSignTx {
   let phygitalToken: string | null = null;
   let verifier: string | null = null;
   let inner: Instruction[] = [];
+  const topLevelPrograms: string[] = [];
 
   for (const ix of topLevel) {
     assertTopLevelInstructionAllowed(ix);
 
     const program = String(ix.programAddress);
+    topLevelPrograms.push(program);
     if (program !== PHYGITAL_WALLET_PROGRAM_ADDRESS) continue;
 
     const parsed = parseWalletTopLevel(ix);
@@ -231,6 +240,28 @@ export function decodeWireTransaction(base64Tx: string): DecodedSignTx {
       "Transaction missing phygital-wallet execute or config instruction",
       "unexpected_instruction"
     );
+  }
+
+  // Config is authorized by a grant over its canonical intent, which does not
+  // cover sibling instructions — so a config tx may contain ONLY the config ix,
+  // its owner Secp256r1 passkey proof, and Compute Budget. Anything else (memo,
+  // a durable nonce, a stray transfer) would be co-signed under that grant, so
+  // reject it. The proof must be present (the on-chain program requires it).
+  if (kind === "config") {
+    for (const program of topLevelPrograms) {
+      if (!CONFIG_TOP_LEVEL_OK.has(program)) {
+        throw coded(
+          `Config transaction has an unexpected instruction (${program})`,
+          "unexpected_instruction"
+        );
+      }
+    }
+    if (!topLevelPrograms.includes(SECP256R1_PROGRAM)) {
+      throw coded(
+        "Config transaction is missing the owner passkey proof",
+        "unexpected_instruction"
+      );
+    }
   }
 
   return {

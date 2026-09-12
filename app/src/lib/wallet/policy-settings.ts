@@ -7,6 +7,7 @@ import {
   uiAmountToRaw,
   type PaymentsPolicyConfig,
 } from "phygital-policy";
+import { normalizeOrigin } from "phygital-verifier-sdk";
 import {
   ASSOCIATED_TOKEN_PROGRAM,
   CLASSIC_TOKEN_PROGRAM,
@@ -16,8 +17,7 @@ import {
 import { getUsdcMint, USDC_DECIMALS } from "@/lib/tokens/usdc-mint";
 
 /** Built-in Metaplex / compression programs (not in @solana-program/*). */
-const TOKEN_METADATA_PROGRAM =
-  "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s";
+const TOKEN_METADATA_PROGRAM = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s";
 const BUBBLEGUM_PROGRAM = "BGUMAp9Gq7iTEuizy4pqaxsTyUCBK68MDfK752saRPUY";
 const MPL_CORE_PROGRAM = "CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d";
 const COLLECTIBLE_COMPANION_PROGRAMS = [
@@ -48,6 +48,8 @@ export type PolicySettings = {
   /** True when send protections should stay on (standing policy present). */
   programAllowlist: boolean;
   extraPrograms: string[];
+  /** Canonical website origins allowed to sign. Empty → any origin. */
+  allowedOrigins: string[];
 };
 
 export const EMPTY_POLICY_SETTINGS: PolicySettings = {
@@ -55,7 +57,24 @@ export const EMPTY_POLICY_SETTINGS: PolicySettings = {
   maxTransferSol: null,
   programAllowlist: false,
   extraPrograms: [],
+  allowedOrigins: [],
 };
+
+/**
+ * Canonicalize a user-entered origin (`https://example.com`), or null when it
+ * is not a parseable origin. Mirrors the signer-side normalization so what the
+ * owner saves matches the bearer origin checked at sign time.
+ */
+export function normalizeAllowedOrigin(input: string): string | null {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+  // Accept a bare host as a convenience, then defer to the SAME normalizer the
+  // signer + session bearer use, so all three canonicalize origins identically.
+  const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed)
+    ? trimmed
+    : `https://${trimmed}`;
+  return normalizeOrigin(withScheme);
+}
 
 function rawCapToUiAmount(raw: string, decimals: number): string {
   const n = Number(raw) / 10 ** decimals;
@@ -101,7 +120,8 @@ export function shouldPersistPolicy(settings: PolicySettings): boolean {
   return (
     settings.programAllowlist ||
     hasSpendCaps(settings) ||
-    settings.extraPrograms.length > 0
+    settings.extraPrograms.length > 0 ||
+    settings.allowedOrigins.length > 0
   );
 }
 
@@ -110,7 +130,8 @@ export function hasStandingPolicyContent(settings: PolicySettings): boolean {
   return (
     hasSpendCaps(settings) ||
     settings.programAllowlist ||
-    settings.extraPrograms.length > 0
+    settings.extraPrograms.length > 0 ||
+    settings.allowedOrigins.length > 0
   );
 }
 
@@ -220,15 +241,17 @@ export function isStandardAllowedProgram(programId: string): boolean {
 export function summarizePolicyDocument(policy: PaymentsPolicyConfig): {
   spendCaps: boolean;
   unrestrictedApps: number;
+  allowedOrigins: number;
 } {
   return {
     spendCaps: Boolean(
       (policy.mintLimits && policy.mintLimits.length > 0) ||
-        policy.maxSolLamports,
+      policy.maxSolLamports,
     ),
     unrestrictedApps: (policy.extraPrograms ?? []).filter(
       (id) => !BASE_PROGRAM_IDS.has(id),
     ).length,
+    allowedOrigins: (policy.allowedOrigins ?? []).length,
   };
 }
 
@@ -257,6 +280,7 @@ export async function derivePolicySettings(
     extraPrograms: (policy.extraPrograms ?? []).filter(
       (id) => !BASE_PROGRAM_IDS.has(id),
     ),
+    allowedOrigins: [...(policy.allowedOrigins ?? [])],
   };
 }
 
@@ -275,12 +299,20 @@ export async function compilePolicySettings(
   const extras = settings.extraPrograms.filter(
     (id) => !BASE_PROGRAM_IDS.has(id),
   );
+  const allowedOrigins = [
+    ...new Set(
+      settings.allowedOrigins
+        .map(normalizeAllowedOrigin)
+        .filter((o): o is string => o != null),
+    ),
+  ];
 
   const config: PaymentsPolicyConfig = {
     version: "3",
     ...(mintLimits.length > 0 ? { mintLimits } : {}),
     ...(maxSolLamports ? { maxSolLamports } : {}),
     ...(extras.length > 0 ? { extraPrograms: extras } : {}),
+    ...(allowedOrigins.length > 0 ? { allowedOrigins } : {}),
   };
 
   return config;
@@ -304,5 +336,9 @@ export async function applyPolicySettingsPatch(
       patch.extraPrograms !== undefined
         ? patch.extraPrograms
         : current.extraPrograms,
+    allowedOrigins:
+      patch.allowedOrigins !== undefined
+        ? patch.allowedOrigins
+        : current.allowedOrigins,
   });
 }

@@ -18,10 +18,13 @@ import {
   ConfigChangeHoldCeremony,
   type ConfigChangeCeremonyPhase,
 } from "@/components/wallet/config-change-hold-ceremony";
+import { ApprovalSheetBody } from "@/components/wallet/approval-sheet-body";
 import { NavBar, NavBarBack } from "@/components/shared/nav-bar";
 import { Button } from "@/components/ui/button";
 import { FieldLabel, Input } from "@/components/ui/input";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Spinner } from "@/components/ui/spinner";
+import { shortAddress } from "@/lib/utils";
 import { useRecoveryWallet } from "@/hooks/wallet/use-recovery-wallet";
 import { copy } from "@/lib/copy/phygital";
 import {
@@ -33,12 +36,18 @@ import { tryParseAddress } from "@/lib/solana/address";
 import { getSolanaRpc } from "@/lib/solana/rpc";
 import { toUserErrorMessage } from "@/lib/user-errors";
 import { handleOwnerAuthFailure } from "@/lib/wallet/device-sign-in-href";
+import { createOneTimeGrant } from "@/lib/wallet/policies-client";
+import {
+  previewClearRecoveryWalletInstruction,
+  previewSetRecoveryWalletInstruction,
+} from "@/lib/wallet/config-preview";
 import {
   getClearRecoveryWalletInstructions,
   getSetRecoveryWalletInstructions,
 } from "@/lib/wallet/recovery-wallet";
 import {
   createAppVerifierSigner,
+  previewConfigIntent,
   sendConfigTransaction,
   type AppVerifierSigner,
 } from "@/lib/wallet/verifier-fee-payer";
@@ -47,7 +56,12 @@ type View = "form" | "confirmClear" | "ceremony";
 
 type PendingConfigTx = {
   signer: AppVerifierSigner;
-  instructions: Instruction[];
+  /** Canonical config intent hash the owner grants (from /preview). */
+  intentHash: string;
+  /** Details of the change, shown in the approval sheet. */
+  approvalRows: { label: string; value: string }[];
+  /** Tap the accessory + build the proof-carrying instructions (post-grant). */
+  buildInstructions: () => Promise<Instruction[]>;
   nextStatus: RecoveryWalletCache;
   onSuccess: () => void;
 };
@@ -69,8 +83,9 @@ export function RecoveryWalletSheet({
     useState<ConfigChangeCeremonyPhase>("holding");
   const [pubkeyInput, setPubkeyInput] = useState("");
   const [acked, setAcked] = useState(false);
-  const [needsPhoneConfirm, setNeedsPhoneConfirm] = useState(false);
-  const [confirmPending, setConfirmPending] = useState(false);
+  const [approvalOpen, setApprovalOpen] = useState(false);
+  const [approving, setApproving] = useState(false);
+  const [holdPending, setHoldPending] = useState(false);
   const pendingRef = useRef<PendingConfigTx | null>(null);
 
   const configured = status.data?.configured ?? false;
@@ -86,49 +101,75 @@ export function RecoveryWalletSheet({
     inputValid && current != null && String(parsedInput) === current;
   const canSave = inputValid && !isSameAsCurrent && acked;
 
-  async function finishConfigTx(pending: PendingConfigTx) {
-    const { confirmed } = await sendConfigTransaction({
-      instructions: pending.instructions,
-      signer: pending.signer,
-    });
-    const before = applyOptimisticRecoveryWallet(
-      queryClient,
-      phygitalTokenPda,
-      pending.nextStatus,
-    );
-    pending.onSuccess();
+  function runAfterPreview(pending: PendingConfigTx) {
+    pendingRef.current = pending;
+    // Config always requires owner approval — open the shared approval sheet
+    // (same as Send). The hold ceremony sits behind it, busy until approved.
+    setApprovalOpen(true);
+  }
+
+  function cancelApproval() {
+    if (approving) return;
+    setApprovalOpen(false);
     pendingRef.current = null;
-    setConfirmPending(false);
-    setCeremonyPhase("success");
+    setHoldPending(false);
+    setView("form");
+  }
+
+  // Step 1: owner approves the change with their device passkey (creates the
+  // one-time grant). This consumes the WebAuthn user activation, so the
+  // accessory tap cannot follow in the same gesture — reveal the hold step.
+  async function onApproveGrant() {
+    const pending = pendingRef.current;
+    if (!pending) return;
+    setApproving(true);
     try {
-      await confirmed;
+      await createOneTimeGrant(phygitalTokenPda, pending.intentHash);
+      setApproving(false);
+      setApprovalOpen(false);
+      setHoldPending(false); // reveal the "Hold to save" CTA
     } catch (e) {
-      restoreRecoveryWalletSnapshot(queryClient, phygitalTokenPda, before);
+      if (handleOwnerAuthFailure(phygitalTokenPda, e)) return;
+      setApproving(false);
+      setApprovalOpen(false);
+      pendingRef.current = null;
       setView("form");
       toast.error(toUserErrorMessage(e));
     }
   }
 
-  async function runAfterNfc(pending: PendingConfigTx) {
-    pendingRef.current = pending;
-    setNeedsPhoneConfirm(pending.signer.requiresOwnerCosignAssertion);
-    if (pending.signer.requiresOwnerCosignAssertion) {
-      setCeremonyPhase("confirming");
-      return;
-    }
-    await finishConfigTx(pending);
-  }
-
-  async function onConfirmPhone() {
+  // Step 2: fresh gesture — tap the accessory to produce the Secp256r1 proof,
+  // then sign the granted change.
+  async function onHoldToSign() {
     const pending = pendingRef.current;
     if (!pending) return;
-    setConfirmPending(true);
+    setHoldPending(true);
     try {
-      await finishConfigTx(pending);
+      const instructions = await pending.buildInstructions();
+      const { confirmed } = await sendConfigTransaction({
+        instructions,
+        signer: pending.signer,
+      });
+      const before = applyOptimisticRecoveryWallet(
+        queryClient,
+        phygitalTokenPda,
+        pending.nextStatus,
+      );
+      pending.onSuccess();
+      pendingRef.current = null;
+      setHoldPending(false);
+      setCeremonyPhase("success");
+      try {
+        await confirmed;
+      } catch (e) {
+        restoreRecoveryWalletSnapshot(queryClient, phygitalTokenPda, before);
+        setView("form");
+        toast.error(toUserErrorMessage(e));
+      }
     } catch (e) {
       if (handleOwnerAuthFailure(phygitalTokenPda, e)) return;
       pendingRef.current = null;
-      setConfirmPending(false);
+      setHoldPending(false);
       setView("form");
       toast.error(toUserErrorMessage(e));
     }
@@ -145,34 +186,47 @@ export function RecoveryWalletSheet({
       return;
     }
     setCeremonyPhase("holding");
-    setConfirmPending(false);
+    setHoldPending(true);
+    setApprovalOpen(false);
     setView("ceremony");
     try {
       const rpc = getSolanaRpc();
       const tokenPda = address(phygitalTokenPda);
-      const [signer, { slotNumber, messageHash }] = await Promise.all([
-        createAppVerifierSigner(rpc, tokenPda),
-        buildSetRecoveryWalletChallenge(rpc, tokenPda, recoveryAddr),
-      ]);
-      setNeedsPhoneConfirm(signer.requiresOwnerCosignAssertion);
-      const tap = await authenticatePasskeyForSecp256r1Verify({
-        rpc,
-        messageHash,
-      });
-      const verify = await buildSecp256r1VerifyInstruction(tap);
-      const instructions = await getSetRecoveryWalletInstructions({
+      const signer = await createAppVerifierSigner(rpc, tokenPda);
+      const previewIx = await previewSetRecoveryWalletInstruction({
         verifier: signer,
         recoveryWallet: recoveryAddr,
-        passkeyAuth: {
-          secp256r1VerifyInstruction: verify.secp256r1VerifyInstruction,
-          phygitalTokenPda: verify.phygitalTokenPda,
-          secp256r1VerifyArgs: verify.secp256r1VerifyArgs,
-          slotNumber,
-        },
+        phygitalTokenPda: tokenPda,
       });
-      await runAfterNfc({
+      const intentHash = await previewConfigIntent(signer, previewIx);
+      runAfterPreview({
         signer,
-        instructions,
+        intentHash,
+        approvalRows: [
+          {
+            label: copy.wallet.recoveryWallet,
+            value: shortAddress(String(recoveryAddr), 6),
+          },
+        ],
+        buildInstructions: async () => {
+          const { slotNumber, messageHash } =
+            await buildSetRecoveryWalletChallenge(rpc, tokenPda, recoveryAddr);
+          const tap = await authenticatePasskeyForSecp256r1Verify({
+            rpc,
+            messageHash,
+          });
+          const verify = await buildSecp256r1VerifyInstruction(tap);
+          return getSetRecoveryWalletInstructions({
+            verifier: signer,
+            recoveryWallet: recoveryAddr,
+            passkeyAuth: {
+              secp256r1VerifyInstruction: verify.secp256r1VerifyInstruction,
+              phygitalTokenPda: verify.phygitalTokenPda,
+              secp256r1VerifyArgs: verify.secp256r1VerifyArgs,
+              slotNumber,
+            },
+          });
+        },
         nextStatus: {
           configured: true,
           recoveryWallet: String(recoveryAddr),
@@ -193,37 +247,47 @@ export function RecoveryWalletSheet({
 
   async function clearRecovery() {
     setCeremonyPhase("holding");
-    setConfirmPending(false);
+    setHoldPending(true);
+    setApprovalOpen(false);
     setView("ceremony");
     try {
       const rpc = getSolanaRpc();
       const tokenPda = address(phygitalTokenPda);
-      const [signer, { slotNumber, messageHash }] = await Promise.all([
-        createAppVerifierSigner(rpc, tokenPda),
-        buildClearRecoveryWalletChallenge(rpc, tokenPda),
-      ]);
-      setNeedsPhoneConfirm(signer.requiresOwnerCosignAssertion);
-      const tap = await authenticatePasskeyForSecp256r1Verify({
-        rpc,
-        messageHash,
-      });
-      const verify = await buildSecp256r1VerifyInstruction(tap);
-      const instructions = await getClearRecoveryWalletInstructions({
+      const signer = await createAppVerifierSigner(rpc, tokenPda);
+      const rentReceiver = status.data?.payer
+        ? address(status.data.payer)
+        : undefined;
+      const previewIx = await previewClearRecoveryWalletInstruction({
         rpc,
         verifier: signer,
-        rentReceiver: status.data?.payer
-          ? address(status.data.payer)
-          : undefined,
-        passkeyAuth: {
-          secp256r1VerifyInstruction: verify.secp256r1VerifyInstruction,
-          phygitalTokenPda: verify.phygitalTokenPda,
-          secp256r1VerifyArgs: verify.secp256r1VerifyArgs,
-          slotNumber,
-        },
+        phygitalTokenPda: tokenPda,
+        rentReceiver,
       });
-      await runAfterNfc({
+      const intentHash = await previewConfigIntent(signer, previewIx);
+      runAfterPreview({
         signer,
-        instructions,
+        intentHash,
+        approvalRows: [],
+        buildInstructions: async () => {
+          const { slotNumber, messageHash } =
+            await buildClearRecoveryWalletChallenge(rpc, tokenPda);
+          const tap = await authenticatePasskeyForSecp256r1Verify({
+            rpc,
+            messageHash,
+          });
+          const verify = await buildSecp256r1VerifyInstruction(tap);
+          return getClearRecoveryWalletInstructions({
+            rpc,
+            verifier: signer,
+            rentReceiver,
+            passkeyAuth: {
+              secp256r1VerifyInstruction: verify.secp256r1VerifyInstruction,
+              phygitalTokenPda: verify.phygitalTokenPda,
+              secp256r1VerifyArgs: verify.secp256r1VerifyArgs,
+              slotNumber,
+            },
+          });
+        },
         nextStatus: {
           configured: false,
           recoveryWallet: null,
@@ -244,24 +308,56 @@ export function RecoveryWalletSheet({
 
   if (view === "ceremony") {
     return (
-      <ConfigChangeHoldCeremony
-        phase={ceremonyPhase}
-        needsPhoneConfirm={needsPhoneConfirm}
-        confirmPending={confirmPending}
-        onLeadingClick={() =>
-          ceremonyPhase === "success" ? onClose() : setView("form")
-        }
-        leadingLabel={
-          ceremonyPhase === "success" ? copy.common.done : copy.common.cancel
-        }
-        onConfirmPhone={() => void onConfirmPhone()}
-        successBody={copy.wallet.recoveryWalletRecoverSiteNote}
-        successAction={
-          <Button type="button" size="lg" className="w-full" onClick={onClose}>
-            {copy.common.done}
-          </Button>
-        }
-      />
+      <>
+        <ConfigChangeHoldCeremony
+          phase={ceremonyPhase}
+          holdPending={holdPending}
+          onLeadingClick={() =>
+            ceremonyPhase === "success" ? onClose() : setView("form")
+          }
+          leadingLabel={
+            ceremonyPhase === "success" ? copy.common.done : copy.common.cancel
+          }
+          onHold={() => void onHoldToSign()}
+          successBody={copy.wallet.recoveryWalletRecoverSiteNote}
+          successAction={
+            <Button
+              type="button"
+              size="lg"
+              className="w-full"
+              onClick={onClose}
+            >
+              {copy.common.done}
+            </Button>
+          }
+        />
+        <Sheet
+          open={approvalOpen}
+          onOpenChange={(open) => {
+            if (!open) cancelApproval();
+          }}
+        >
+          <SheetContent
+            side="bottom"
+            showCloseButton={false}
+            onInteractOutside={(e) => e.preventDefault()}
+            onEscapeKeyDown={(e) => {
+              if (approving) e.preventDefault();
+            }}
+            className="mx-auto max-h-[85vh] max-w-lg overflow-y-auto rounded-t-3xl p-0 md:rounded-3xl"
+          >
+            <ApprovalSheetBody
+              title={copy.wallet.configChangeConfirmTitle}
+              body={copy.wallet.configChangeConfirmBody}
+              detailRows={pendingRef.current?.approvalRows ?? []}
+              busy={approving}
+              mode="owner"
+              onApprove={() => void onApproveGrant()}
+              onClose={cancelApproval}
+            />
+          </SheetContent>
+        </Sheet>
+      </>
     );
   }
 

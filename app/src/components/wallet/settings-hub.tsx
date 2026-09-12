@@ -18,6 +18,7 @@ export type SettingsTarget =
   | "sendProtections"
   | "spendingLimits"
   | "extraPrograms"
+  | "allowedOrigins"
   | "signing"
   | "recoveryWallet"
   | "rpcConnection"
@@ -84,11 +85,7 @@ export function SettingsHub({
         : copy.wallet.limitsStatusRequiresClaim;
 
   function withExceptionsHint(base: string): string {
-    if (
-      summary &&
-      summary !== "invalid" &&
-      summary.unrestrictedApps > 0
-    ) {
+    if (summary && summary !== "invalid" && summary.unrestrictedApps > 0) {
       return `${base} · ${copy.wallet.unrestrictedAppsHint}`;
     }
     return base;
@@ -131,6 +128,16 @@ export function SettingsHub({
                 summary.unrestrictedApps,
               )
             : copy.wallet.extraProgramsBuiltIn;
+
+  const allowedSitesSubtitle = !isOwner
+    ? undefined
+    : policy.isLoading
+      ? copy.common.loading
+      : summary === "invalid"
+        ? copy.wallet.limitsStatusInvalid
+        : summary && summary.allowedOrigins > 0
+          ? copy.wallet.allowedSitesStatusOn(summary.allowedOrigins)
+          : copy.wallet.allowedSitesStatusAny;
 
   function rowClass(target: SettingsTarget) {
     return cn(
@@ -205,6 +212,13 @@ export function SettingsHub({
 
       {isOwner ? (
         <GroupedList label={copy.wallet.settingsSafety}>
+          <GroupedRow
+            onClick={() => onOpen("allowedOrigins")}
+            subtitle={allowedSitesSubtitle}
+            className={rowClass("allowedOrigins")}
+          >
+            {copy.wallet.allowedSites}
+          </GroupedRow>
           <GroupedRow
             onClick={() => onOpen("signing")}
             subtitle={copy.wallet.signingDefault}

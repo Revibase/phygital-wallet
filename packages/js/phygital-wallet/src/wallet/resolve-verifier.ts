@@ -155,8 +155,6 @@ export type ResolvedVerifier = {
   endpoint: string;
   configPda: Address;
   tokenVerifierPda: Address;
-  /** True when the co-signer is a Config default verifier. */
-  requiresOwnerCosignAssertion: boolean;
   /** True when default-verifier fee balance / paymaster applies. */
   usesDefaultPaymaster: boolean;
   /** The signer for interacting with the resolved verifier. */
@@ -201,7 +199,6 @@ function resolvedFromAccounts(args: {
       endpoint: apiBase,
       configPda,
       tokenVerifierPda,
-      requiresOwnerCosignAssertion: isConfigDefault,
       usesDefaultPaymaster: isConfigDefault,
       verifier: createVerifierEndpointSigner(address(verifierAddress), {
         endpoint: verifierSignUrl(apiBase),
@@ -230,7 +227,6 @@ function resolvedFromAccounts(args: {
     endpoint: DEFAULT_VERIFIER_API_BASE,
     configPda,
     tokenVerifierPda,
-    requiresOwnerCosignAssertion: true,
     usesDefaultPaymaster: true,
     verifier: createVerifierEndpointSigner(address(selectedVerifier), {
       endpoint: verifierSignUrl(DEFAULT_VERIFIER_API_BASE),

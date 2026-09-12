@@ -1,23 +1,23 @@
 import {
-  compileTransaction,
   type Address,
   type Instruction,
   type Rpc,
   type SolanaRpcApi,
   type TransactionPartialSigner,
 } from "@solana/kit";
-import type { AuthenticationResponseJSON } from "@simplewebauthn/browser";
-import { resolveVerifier } from "phygital-wallet-sdk";
+import {
+  PolicyDeniedError,
+  previewWalletIntent,
+  resolveVerifier,
+} from "phygital-wallet-sdk";
 
 import { getApiBaseUrl } from "@/lib/api-base";
-import { bytesToBase64Url } from "@/lib/crypto/base64";
 import { queryFetch } from "@/lib/queries/http";
 import {
   buildUnsignedTransaction,
   signAndSendTransaction,
   type SentTransaction,
 } from "@/lib/solana/tx";
-import { assertPolicyMutation } from "@/lib/wallet/policies-client";
 import { accessTokenFor } from "@/lib/wallet/verifier-session";
 
 const DEFAULT_VERIFIER_API_ORIGIN = "https://api.revibase.com";
@@ -46,121 +46,80 @@ export function appVerifierFetch(
   return queryFetch(rewritten, init);
 }
 
-type OwnerCosignAuth = {
-  challengeId: string;
-  assertion: AuthenticationResponseJSON;
-};
-
-type AppVerifierSignerInternal = TransactionPartialSigner & {
-  requiresOwnerCosignAssertion: boolean;
-  phygitalToken: string;
-  setOwnerCosignAuth: (auth: OwnerCosignAuth) => void;
-};
-
 export type AppVerifierSigner = TransactionPartialSigner & {
-  /** True when `/sign` needs owner `cosignConfig` WebAuthn (Config default key). */
-  requiresOwnerCosignAssertion: boolean;
+  /** Token this signer co-signs for. */
+  phygitalToken: string;
+  /** Verifier API base for `/preview` + `/sign`. */
+  endpoint: string;
 };
-
-function isSignRequest(url: string, init?: RequestInit): boolean {
-  if ((init?.method ?? "GET").toUpperCase() !== "POST") return false;
-  try {
-    return new URL(url, "http://local").pathname.endsWith("/sign");
-  } catch {
-    return url.includes("/sign");
-  }
-}
 
 /**
  * Single HTTP verifier signer used as fee payer **and** instruction `payer` /
  * `verifier` for set/clear token verifier and recovery wallet.
- *
- * Does **not** auto-prompt WebAuthn. Use {@link sendConfigTransaction} from a
- * user-gesture handler when `requiresOwnerCosignAssertion` is true.
  */
 export async function createAppVerifierSigner(
   rpc: Rpc<SolanaRpcApi>,
   phygitalToken: Address,
 ): Promise<AppVerifierSigner> {
-  let ownerAuth: OwnerCosignAuth | null = null;
-  let requiresOwnerCosignAssertion = false;
-
   const resolved = await resolveVerifier(rpc, phygitalToken, {
     getAccessToken: accessTokenFor(String(phygitalToken)),
-    fetch: (input, init) => {
-      const raw =
-        typeof input === "string"
-          ? input
-          : input instanceof URL
-            ? input.toString()
-            : String(input);
-
-      let nextInit = init;
-      if (requiresOwnerCosignAssertion && isSignRequest(raw, init)) {
-        if (!ownerAuth) {
-          throw new Error("Confirm on this phone to continue");
-        }
-        const auth = ownerAuth;
-        ownerAuth = null;
-        const body = JSON.parse(String(init?.body ?? "{}")) as Record<
-          string,
-          unknown
-        >;
-        nextInit = {
-          ...init,
-          body: JSON.stringify({
-            ...body,
-            challengeId: auth.challengeId,
-            assertion: auth.assertion,
-          }),
-        };
-      }
-
-      return appVerifierFetch(input, nextInit);
-    },
+    fetch: appVerifierFetch,
   });
-  requiresOwnerCosignAssertion = resolved.requiresOwnerCosignAssertion;
 
-  const signer: AppVerifierSignerInternal = {
+  return {
     address: resolved.verifier.address,
-    requiresOwnerCosignAssertion,
     phygitalToken: String(phygitalToken),
-    setOwnerCosignAuth: (auth) => {
-      ownerAuth = auth;
-    },
+    endpoint: resolved.endpoint,
     signTransactions: (transactions, options) =>
       resolved.verifier.signTransactions(transactions, options),
   };
-
-  return signer;
 }
 
 /**
- * Broadcast a config tx. When the co-signer is a Config default verifier,
- * prompts platform WebAuthn — call only from a user-gesture handler (button).
+ * Preview a config change and return the intent hash the owner must grant.
+ *
+ * `previewInstruction` is a **proof-less** config instruction (placeholder
+ * Secp256r1 args / slot) — the server hashes only the canonical intent (action
+ * + new verifier / endpoint / recovery wallet), so this hash equals the one the
+ * real, signed instruction produces later. Config always soft-denies, so a soft
+ * `PolicyDeniedError` carrying `intentHash` is the success path; a hard denial
+ * (fee / origin / invalid) rethrows.
+ *
+ * This runs the execute order exactly: preview first, sign nothing yet.
+ */
+export async function previewConfigIntent(
+  signer: AppVerifierSigner,
+  previewInstruction: Instruction,
+): Promise<string> {
+  try {
+    await previewWalletIntent({
+      instructions: [previewInstruction],
+      endpoint: signer.endpoint,
+      fetch: appVerifierFetch,
+      getAccessToken: accessTokenFor(signer.phygitalToken),
+    });
+  } catch (e) {
+    if (e instanceof PolicyDeniedError && e.soft && e.intentHash) {
+      return e.intentHash;
+    }
+    throw e;
+  }
+  throw new Error("Settings change was not gated for approval");
+}
+
+/**
+ * Build and broadcast the final, proof-carrying config tx. Call this **after**
+ * the owner has granted the intent (see {@link previewConfigIntent} +
+ * `createOneTimeGrant`) and the accessory has been tapped to produce the
+ * Secp256r1 proof in `instructions`. `/sign` consumes the grant and co-signs.
  */
 export async function sendConfigTransaction(args: {
   instructions: Instruction[];
   signer: AppVerifierSigner;
 }): Promise<SentTransaction> {
-  const signer = args.signer as AppVerifierSignerInternal;
   const unsigned = await buildUnsignedTransaction({
     instructions: args.instructions,
-    feePayer: signer,
+    feePayer: args.signer,
   });
-
-  if (signer.requiresOwnerCosignAssertion) {
-    const compiled = compileTransaction(unsigned);
-    const ownerAuth = await assertPolicyMutation(
-      signer.phygitalToken,
-      {
-        kind: "cosignConfig",
-        messageHash: bytesToBase64Url(new Uint8Array(compiled.messageBytes)),
-      },
-      "Confirmation was cancelled",
-    );
-    signer.setOwnerCosignAuth(ownerAuth);
-  }
-
   return signAndSendTransaction(unsigned);
 }

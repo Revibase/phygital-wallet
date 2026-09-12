@@ -81,6 +81,9 @@ previewRoutes.post("/preview", async (c) => {
     const stub = tokenSigner(c.env, phygitalToken);
     const result = await stub.previewAuthorize({
       instructions,
+      // Bearer-bound origin — authorizeIntent checks it against allowedOrigins,
+      // so /preview surfaces an origin block before the user attempts /sign.
+      sessionOrigin: session.origin,
     });
 
     if (result.ok) {

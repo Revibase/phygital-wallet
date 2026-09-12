@@ -7,7 +7,6 @@
  * verifier.
  */
 import { Hono } from "hono";
-import type { AuthenticationResponseJSON } from "@simplewebauthn/server";
 
 import { auditMeta, recordAudit, type AuditEntry } from "@/audit/audit-log";
 import { json } from "@/shared/http";
@@ -42,8 +41,6 @@ signRoutes.post("/sign", async (c) => {
 
     const body = (await c.req.json()) as {
       transactions?: string[];
-      challengeId?: string;
-      assertion?: AuthenticationResponseJSON;
     };
     if (!Array.isArray(body.transactions) || body.transactions.length === 0) {
       return json(
@@ -55,9 +52,10 @@ signRoutes.post("/sign", async (c) => {
     const result = await tokenSigner(c.env, phygitalToken).signTransactions(
       body.transactions,
       {
-        challengeId: body.challengeId ?? null,
-        assertion: body.assertion ?? null,
-        origin: c.req.header("Origin") ?? null,
+        // Bearer-bound origin (require-bearer already verified it === request
+        // Origin). The single trusted origin, enforced against the standing
+        // policy's allowedOrigins inside authorizeIntent.
+        sessionOrigin: session.origin,
       }
     );
 

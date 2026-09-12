@@ -7,64 +7,45 @@ import { NfcHoldStatus } from "@/components/shared/nfc-hold-status";
 import { Button } from "@/components/ui/button";
 import { copy } from "@/lib/copy/phygital";
 
-export type ConfigChangeCeremonyPhase = "holding" | "confirming" | "success";
+export type ConfigChangeCeremonyPhase = "holding" | "success";
 
-/** Shared hold → optional phone confirm CTA → success for config changes. */
+/**
+ * Shared hold-to-authenticate → success ceremony for config changes. The owner
+ * has already approved the grant in the approval sheet; this covers only the
+ * accessory tap (Secp256r1) that produces the on-chain proof, then success.
+ */
 export function ConfigChangeHoldCeremony({
   phase,
-  needsPhoneConfirm,
-  confirmPending = false,
+  holdPending = false,
   onLeadingClick,
   leadingLabel,
-  onConfirmPhone,
+  onHold,
   successBody,
   successAction,
 }: {
   phase: ConfigChangeCeremonyPhase;
-  /** True when Config default verifier needs a manual phone passkey step. */
-  needsPhoneConfirm: boolean;
-  /** True while waiting for the platform WebAuthn prompt after CTA. */
-  confirmPending?: boolean;
+  /** True while the accessory tap (Secp256r1) is in progress. */
+  holdPending?: boolean;
   onLeadingClick: () => void;
   leadingLabel: string;
-  /** User-gesture handler — starts platform WebAuthn + send. */
-  onConfirmPhone?: () => void;
+  /** User-gesture handler for the accessory tap (Secp256r1). */
+  onHold?: () => void;
   successBody?: string;
   successAction?: ReactNode;
 }) {
-  const confirming = phase === "confirming";
+  const holding = phase === "holding";
   const success = phase === "success";
 
-  const title = success
-    ? copy.common.done
-    : confirming
-      ? copy.wallet.configChangeConfirmTitle
-      : copy.wallet.holdToSave;
+  const title = success ? copy.common.done : copy.wallet.holdToSave;
+  const body = success ? successBody : copy.wallet.configChangeHoldBody;
 
-  const body = success
-    ? successBody
-    : confirming
-      ? confirmPending
-        ? copy.wallet.configChangeConfirmPending
-        : copy.wallet.configChangeConfirmBody
-      : needsPhoneConfirm
-        ? copy.wallet.configChangeHoldBody
-        : copy.wallet.holdCeremonyBody;
-
-  const action = success
-    ? successAction
-    : confirming && onConfirmPhone && !confirmPending
-      ? (
-          <Button
-            type="button"
-            size="lg"
-            className="w-full"
-            onClick={onConfirmPhone}
-          >
-            {copy.wallet.configChangeConfirmCta}
-          </Button>
-        )
-      : undefined;
+  const action = success ? (
+    successAction
+  ) : holding && onHold && !holdPending ? (
+    <Button type="button" size="lg" className="w-full" onClick={onHold}>
+      {copy.wallet.holdToSave}
+    </Button>
+  ) : undefined;
 
   return (
     <CeremonyShell
@@ -82,8 +63,8 @@ export function ConfigChangeHoldCeremony({
     >
       <NfcHoldStatus
         size="lg"
-        pulsing={phase === "holding"}
-        busy={phase === "holding" || confirmPending}
+        pulsing={holding && holdPending}
+        busy={holdPending}
         tone={success ? "success" : "default"}
         title={title}
         body={body}

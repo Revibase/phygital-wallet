@@ -24,6 +24,14 @@ export type PaymentsPolicyConfig = {
   maxSolLamports?: string;
   /** Extra programs allowed without spend-cap checks. */
   extraPrograms?: readonly string[];
+  /**
+   * Website origins allowed to sign for this token, each a canonical origin
+   * (`https://example.com`). Absent/empty → any connected origin may sign.
+   * When set, the origin bound into the session bearer must be listed; a
+   * server caller (null bearer origin) is denied. Enforced at sign time in the
+   * signing service, not by the instruction verify graph.
+   */
+  allowedOrigins?: readonly string[];
 };
 
 export function uiAmountToRaw(ui: number, decimals: number): bigint {

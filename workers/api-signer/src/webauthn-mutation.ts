@@ -22,9 +22,7 @@ export type MutationBinding =
   | { kind: "setPolicy"; policy: PaymentsPolicyConfig }
   | { kind: "clearPolicy" }
   | { kind: "createGrant"; intentHash: string }
-  | { kind: "removeOwner" }
-  /** Owner step-up to co-sign a config tx (token verifier / recovery wallet). */
-  | { kind: "cosignConfig"; messageHash: string };
+  | { kind: "removeOwner" };
 
 export function resolveWebAuthnRp(originHeader: string | null): {
   rpId: string;
@@ -78,17 +76,14 @@ function normalizeBindingHashInput(binding: MutationBinding): MutationBinding {
   if (binding.kind === "addOwner") {
     return { kind: "addOwner", credentialId: binding.credentialId.trim() };
   }
-  if (binding.kind === "cosignConfig") {
-    return { kind: "cosignConfig", messageHash: binding.messageHash.trim() };
-  }
   return binding;
 }
 
 export async function hashMutationBinding(
-  binding: MutationBinding,
+  binding: MutationBinding
 ): Promise<string> {
   const bytes = new TextEncoder().encode(
-    canonicalJson(normalizeBindingHashInput(binding)),
+    canonicalJson(normalizeBindingHashInput(binding))
   );
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   return isoBase64URL.fromBuffer(new Uint8Array(digest));
@@ -101,7 +96,7 @@ type PublicKeyCredentialRequestOptionsJSON = Awaited<
 export async function buildMutationOptions(
   store: TokenStore,
   origin: string,
-  binding: MutationBinding,
+  binding: MutationBinding
 ): Promise<
   | {
       ok: true;
@@ -112,7 +107,11 @@ export async function buildMutationOptions(
 > {
   const rp = resolveWebAuthnRp(origin);
   if (!rp) {
-    return { ok: false, code: "invalid_transaction", error: "Unsupported origin" };
+    return {
+      ok: false,
+      code: "invalid_transaction",
+      error: "Unsupported origin",
+    };
   }
 
   let allowCredentialId: string;
@@ -149,7 +148,7 @@ export async function buildMutationOptions(
   const bindingHash = await hashMutationBinding(binding);
   const { id: challengeId, challenge } = await store.createChallenge(
     rp.expectedOrigin,
-    bindingHash,
+    bindingHash
   );
   // Pass raw challenge bytes. A string is UTF-8-encoded then base64url'd again
   // by @simplewebauthn/server, which breaks verifyAuthenticationResponse.
@@ -196,7 +195,11 @@ export async function verifyMutationAssertion(args: {
 > {
   const rp = resolveWebAuthnRp(args.origin);
   if (!rp) {
-    return { ok: false, code: "invalid_transaction", error: "Unsupported origin" };
+    return {
+      ok: false,
+      code: "invalid_transaction",
+      error: "Unsupported origin",
+    };
   }
 
   const challengeId = args.challengeId?.trim();
@@ -212,7 +215,7 @@ export async function verifyMutationAssertion(args: {
   const consumed = await args.store.consumeChallenge(
     challengeId,
     rp.expectedOrigin,
-    bindingHash,
+    bindingHash
   );
   if (!consumed) {
     return {

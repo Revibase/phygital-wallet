@@ -15,12 +15,9 @@ import {
 
 import { createVerifierSignerBackend } from "@/backend/create";
 import type { VerifierSignerBackend } from "@/backend/types";
-import {
-  getRandomVerifier,
-  isDefaultConfigVerifier,
-} from "@/fees/default-verifier";
+import { getRandomVerifier } from "@/fees/default-verifier";
 import { assertFeeBalance } from "@/fees/fee-balance-gate";
-import { base64ToBytes, bytesToBase64Url } from "@/shared/crypto/base64";
+import { base64ToBytes } from "@/shared/crypto/base64";
 import { createLogger, withLoggedRpc, type Logger } from "@/shared/log";
 import { runWithRequestStore } from "@/shared/request-context";
 import { authorizeIntent } from "@/verifier/approval";
@@ -610,6 +607,8 @@ export class TokenSigner extends DurableObject<Env> {
 
   async previewAuthorize(input: {
     instructions: Instruction[];
+    /** Bearer-bound origin (already === request Origin), or null for servers. */
+    sessionOrigin?: string | null;
   }): Promise<PreviewAuthorizeResult> {
     return this.#rpc(
       "previewAuthorize",
@@ -627,6 +626,7 @@ export class TokenSigner extends DurableObject<Env> {
               phygitalToken,
               instructions: input.instructions,
               mode: "preview",
+              origin: input.sessionOrigin ?? null,
             });
 
             if (!result.ok) {
@@ -672,9 +672,13 @@ export class TokenSigner extends DurableObject<Env> {
   async signTransactions(
     wires: string[],
     auth: {
-      challengeId?: string;
-      assertion?: AuthenticationResponseJSON;
-      origin?: string;
+      /**
+       * Canonical origin bound into the session bearer at connect. require-bearer
+       * already verified it equals the live request Origin, so it is the single
+       * origin the signer trusts: checked against the standing policy's
+       * `allowedOrigins` inside authorizeIntent. Null for server-to-server callers.
+       */
+      sessionOrigin?: string | null;
     } = {}
   ): Promise<SignTransactionsResult> {
     return this.#rpc(
@@ -682,7 +686,6 @@ export class TokenSigner extends DurableObject<Env> {
       {
         phygitalToken: this.#getToken(),
         transactions: Array.isArray(wires) ? wires.length : 0,
-        hasOwnerAssertion: Boolean(auth.challengeId?.trim() && auth.assertion),
       },
       () =>
         this.#withEnv(async () => {
@@ -743,124 +746,65 @@ export class TokenSigner extends DurableObject<Env> {
                 };
               }
 
-              // Config (token verifier / recovery wallet): fee first so a deny
-              // never consumes WebAuthn. Owner assertion only when co-signer is
-              // a Config default verifier. Standing spend policy does not apply.
-              if (decoded.kind === "config") {
-                if (wires.length !== 1) {
-                  return {
-                    ok: false as const,
-                    status: 400,
-                    body: {
-                      error: "Config co-sign accepts exactly one transaction",
-                      code: "invalid_transaction",
-                      soft: false,
+              // Config and execute share one path: fee gate, then authorizeIntent
+              // (standing policy + origin allowlist + soft-deny/grant). Config
+              // always soft-denies in evaluatePolicy, so it proceeds only once
+              // the owner has approved a one-time grant — the same override flow
+              // as an over-cap execute. A config change must be its own tx.
+              if (decoded.kind === "config" && wires.length !== 1) {
+                return {
+                  ok: false as const,
+                  status: 400,
+                  body: {
+                    error: "A settings change must be its own transaction",
+                    code: "invalid_transaction",
+                    soft: false,
+                  },
+                };
+              }
+
+              const fee = await assertFeeBalance({
+                instructions: decoded.instructions,
+              });
+              if (!fee.ok) {
+                return {
+                  ok: false as const,
+                  status: 403,
+                  body: {
+                    error: fee.error,
+                    code: fee.code,
+                    soft: fee.soft,
+                    details: {
+                      ...fee.details,
+                      phygitalToken: decoded.phygitalToken,
                     },
-                  };
-                }
+                  },
+                };
+              }
 
-                const fee = await assertFeeBalance({
-                  instructions: decoded.instructions,
-                });
-                if (!fee.ok) {
-                  return {
-                    ok: false as const,
-                    status: 403,
-                    body: {
-                      error: fee.error,
-                      code: fee.code,
-                      soft: fee.soft,
-                      details: {
-                        ...fee.details,
-                        phygitalToken: decoded.phygitalToken,
-                      },
+              const result = await authorizeIntent({
+                phygitalToken: decoded.phygitalToken,
+                instructions: decoded.instructions,
+                mode: "sign",
+                origin: auth.sessionOrigin ?? null,
+              });
+              intentHashSeen = result.intentHash;
+
+              if (!result.ok) {
+                return {
+                  ok: false as const,
+                  status: 403,
+                  body: {
+                    error: result.error,
+                    code: result.code,
+                    soft: result.soft,
+                    details: {
+                      ...result.details,
+                      phygitalToken: decoded.phygitalToken,
+                      intentHash: result.intentHash,
                     },
-                  };
-                }
-
-                if (await isDefaultConfigVerifier(decoded.verifier)) {
-                  const challengeId = auth.challengeId?.trim() ?? "";
-                  const origin = auth.origin?.trim() ?? "";
-                  if (!challengeId || !auth.assertion || !origin) {
-                    return {
-                      ok: false as const,
-                      status: 401,
-                      body: {
-                        error: "Confirm on this phone to continue.",
-                        code: "owner_assertion_required",
-                        soft: false,
-                      },
-                    };
-                  }
-
-                  const messageHash = bytesToBase64Url(decoded.messageBytes);
-                  const authResult = await verifyMutationAssertion({
-                    store: this.#getStore(),
-                    challengeId,
-                    binding: { kind: "cosignConfig", messageHash },
-                    assertion: auth.assertion,
-                    origin,
-                  });
-                  if (!authResult.ok) {
-                    return {
-                      ok: false as const,
-                      status:
-                        authResult.code === "not_owner"
-                          ? 403
-                          : authResult.code === "challenge_invalid"
-                          ? 401
-                          : 400,
-                      body: {
-                        error: authResult.error,
-                        code: authResult.code,
-                        soft: false,
-                      },
-                    };
-                  }
-                }
-              } else {
-                const fee = await assertFeeBalance({
-                  instructions: decoded.instructions,
-                });
-                if (!fee.ok) {
-                  return {
-                    ok: false as const,
-                    status: 403,
-                    body: {
-                      error: fee.error,
-                      code: fee.code,
-                      soft: fee.soft,
-                      details: {
-                        ...fee.details,
-                        phygitalToken: decoded.phygitalToken,
-                      },
-                    },
-                  };
-                }
-
-                const result = await authorizeIntent({
-                  phygitalToken: decoded.phygitalToken,
-                  instructions: decoded.instructions,
-                  mode: "sign",
-                });
-                intentHashSeen = result.intentHash;
-
-                if (!result.ok) {
-                  return {
-                    ok: false as const,
-                    status: 403,
-                    body: {
-                      error: result.error,
-                      code: result.code,
-                      soft: result.soft,
-                      details: {
-                        ...result.details,
-                        phygitalToken: decoded.phygitalToken,
-                        intentHash: result.intentHash,
-                      },
-                    },
-                  };
-                }
+                  },
+                };
               }
 
               signatures.push(

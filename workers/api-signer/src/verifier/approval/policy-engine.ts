@@ -4,9 +4,7 @@ import {
   type PaymentsPolicyConfig,
 } from "phygital-policy";
 import type { VerifyFailDetails } from "phygital-verifier-sdk";
-import {
-  PHYGITAL_WALLET_PROGRAM_ADDRESS,
-} from "phygital-wallet-sdk";
+import { PHYGITAL_WALLET_PROGRAM_ADDRESS } from "phygital-wallet-sdk";
 import { COMPUTE_BUDGET_PROGRAM } from "@/verifier/constants";
 import { PHYGITAL_TOKEN_PROGRAM_ADDRESS } from "phygital-token-sdk";
 
@@ -31,10 +29,10 @@ type PolicyVerdict =
  */
 export function evaluatePolicy(
   policy: PaymentsPolicyConfig | null,
-  instructions: readonly Instruction[],
+  instructions: readonly Instruction[]
 ): PolicyVerdict {
   const body = instructions.filter(
-    (ix) => String(ix.programAddress) !== COMPUTE_BUDGET_PROGRAM,
+    (ix) => String(ix.programAddress) !== COMPUTE_BUDGET_PROGRAM
   );
 
   if (body.length === 0) {
@@ -47,6 +45,10 @@ export function evaluatePolicy(
   }
 
   for (const ix of body) {
+    // Wallet/Token program instructions are never spend-policy-approvable. A
+    // wallet *config* change is detected upstream in authorizeIntent (soft,
+    // grant-gated); reaching here means it appeared alongside other
+    // instructions, which is not a valid config tx — hard-deny.
     if (HARD_DENIED_PROGRAMS.has(String(ix.programAddress))) {
       return {
         ok: false,

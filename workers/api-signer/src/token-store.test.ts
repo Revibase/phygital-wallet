@@ -254,11 +254,7 @@ describe("hashMutationBinding", () => {
       kind: "addOwner",
       credentialId: "cred-a",
     });
-    const cosign = await hashMutationBinding({
-      kind: "cosignConfig",
-      messageHash: "msg-hash",
-    });
-    expect(new Set([clear, unlink, grant, claim, cosign]).size).toBe(5);
+    expect(new Set([clear, unlink, grant, claim]).size).toBe(4);
   });
 });
 

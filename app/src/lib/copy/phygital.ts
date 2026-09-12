@@ -203,8 +203,7 @@ export const copy = {
     copied: "Copied",
     receiveAnything: "Receive SOL, tokens, and collectibles here",
     receiveNearby: "Receive from someone nearby",
-    receiveNearbyHint:
-      "Use NFC to receive",
+    receiveNearbyHint: "Use NFC to receive",
     refresh: "Refresh",
     refreshing: "Refreshing…",
     lastUpdated: (value: string) => `Updated ${value}`,
@@ -283,8 +282,7 @@ export const copy = {
     deviceUnlinkBefore: "Before you unlink",
     deviceUnlinkBlockersFooter:
       "Clear these while this phone is linked. Limits turn off when you unlink.",
-    deviceUnlinkNeedsRecovery:
-      "Clear the recovery address before unlinking.",
+    deviceUnlinkNeedsRecovery: "Clear the recovery address before unlinking.",
     deviceUnlinkNeedsSigning:
       "Switch back to the Revibase transaction verifier before unlinking.",
     deviceUnlinkClearRecoveryCta: "Clear",
@@ -343,7 +341,8 @@ export const copy = {
     signingCustomAck:
       "I understand I’m replacing the Revibase transaction verifier and its protections on every send.",
     signingCustomContinue: "Continue",
-    signingCustomSaved: "Custom transaction verifier on — Revibase protections off",
+    signingCustomSaved:
+      "Custom transaction verifier on — Revibase protections off",
     signingRestored: "Back to Revibase",
     signingInvalidCustom: "Enter a valid address and HTTPS URL",
     signingCurrent: "Current",
@@ -364,8 +363,7 @@ export const copy = {
     sendProtectionsHint:
       "When on, this wallet can only call built-in wallet and collectible programs — unless you add exceptions.",
     sendProtectionsOff: "Off",
-    sendProtectionsOffBody:
-      "Any program is allowed. No spend caps.",
+    sendProtectionsOffBody: "Any program is allowed. No spend caps.",
     sendProtectionsOn: "On",
     sendProtectionsOnBody:
       "Built-in wallet programs are allowed. Set spend caps and exceptions below.",
@@ -396,8 +394,7 @@ export const copy = {
     approveOnce: "Approve once",
     denyOnce: "Deny",
     changeLimits: "Change settings",
-    sendBlockedHard:
-      "This can’t be approved once — it would fail on-chain.",
+    sendBlockedHard: "This can’t be approved once — it would fail on-chain.",
     spendingLimits: "Spending limits",
     spendingLimitsHint:
       "Caps cover SOL and verified tokens you add on built-in wallet sends. Larger sends need a one-time approval. They do not apply to exceptions.",
@@ -451,9 +448,7 @@ export const copy = {
     extraProgramsBuiltInBody:
       "Standard wallet and collectible programs. Spend caps apply here.",
     extraProgramsWithUnrestricted: (count: number) =>
-      count === 1
-        ? "Built-in + 1 exception"
-        : `Built-in + ${count} exceptions`,
+      count === 1 ? "Built-in + 1 exception" : `Built-in + ${count} exceptions`,
     extraProgramsWithUnrestrictedBody:
       "Exception programs can move funds without your spend caps.",
     extraProgramsProtected: "Built-in",
@@ -471,6 +466,20 @@ export const copy = {
     extraProgramsHideBuiltIn: "Hide built-in programs",
     invalidProgramId: "Enter a valid program ID",
     programId: "Program ID",
+    allowedSites: "Allowed sites",
+    allowedSitesHint:
+      "Restrict signing to specific websites. When the list is empty, any site you tap into can request signatures.",
+    allowedSitesStatusAny: "Any site",
+    allowedSitesStatusOn: (count: number) =>
+      count === 1 ? "1 site" : `${count} sites`,
+    allowedSitesListLabel: "Allowed sites",
+    allowedSitesEmpty: "None — any site can sign",
+    allowedSitesLockedNote:
+      "Only these origins can sign. A site not on the list — and any server request with no site origin — is blocked.",
+    allowedSitesAddCta: "Add site",
+    allowedSitesAddPlaceholder: "https://example.com",
+    allowedSitesAddLabel: "Site URL",
+    invalidOrigin: "Enter a valid site URL, e.g. https://example.com",
     settingsSaved: "Saved",
     statusAuthentic: "Authentic",
     statusAuthenticLive: "Authentic · Live tap",

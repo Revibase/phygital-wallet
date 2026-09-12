@@ -94,7 +94,11 @@ export type TokenSignerRpc = {
   applyFeeEvents(
     events: { signature: string; kind: "credit" | "debit"; lamports: number }[]
   ): Promise<{ applied: number; appliedSignatures: string[] }>;
-  previewAuthorize(input: { instructions: Instruction[] }): Promise<
+  previewAuthorize(input: {
+    instructions: Instruction[];
+    /** Bearer-bound origin (already === request Origin), or null for servers. */
+    sessionOrigin?: string | null;
+  }): Promise<
     | { ok: true; intentHash: string }
     | {
         ok: false;
@@ -109,9 +113,12 @@ export type TokenSignerRpc = {
   signTransactions(
     wires: string[],
     auth?: {
-      challengeId?: string | null;
-      assertion?: unknown;
-      origin?: string | null;
+      /**
+       * Canonical origin bound into the session bearer (already verified to
+       * equal the request Origin), or null for servers. Enforced against the
+       * standing policy's allowedOrigins inside authorizeIntent.
+       */
+      sessionOrigin?: string | null;
     }
   ): Promise<
     | {

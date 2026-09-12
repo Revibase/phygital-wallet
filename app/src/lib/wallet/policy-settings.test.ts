@@ -39,7 +39,12 @@ describe("policy-settings compile/derive", () => {
     const next = await compilePolicySettings({
       ...EMPTY_POLICY_SETTINGS,
       mintLimits: [
-        { mint: String(getUsdcMint()), maxUi: "25.00", decimals: 6, symbol: "USDC" },
+        {
+          mint: String(getUsdcMint()),
+          maxUi: "25.00",
+          decimals: 6,
+          symbol: "USDC",
+        },
         { mint: other, maxUi: "10", decimals: 6, symbol: "OTHER" },
       ],
       maxTransferSol: "0.0500",
@@ -88,5 +93,41 @@ describe("policy-settings compile/derive", () => {
     expect(next).toEqual({ version: "3" });
     const settings = await derivePolicySettings(next);
     expect(settings.mintLimits).toEqual([]);
+  });
+
+  it("round-trips an allowed-origins allowlist, normalizing entries", async () => {
+    const next = await compilePolicySettings({
+      ...EMPTY_POLICY_SETTINGS,
+      allowedOrigins: [
+        "shop.example.com", // bare host → https://
+        "https://shop.example.com", // duplicate after normalization
+        "https://app.example.com/path",
+        "  ", // blank dropped
+      ],
+    });
+    expect(next.allowedOrigins).toEqual([
+      "https://shop.example.com",
+      "https://app.example.com",
+    ]);
+    // An allowlist alone is enough to persist a standing policy document.
+    expect(
+      hasStandingPolicyContent({
+        ...EMPTY_POLICY_SETTINGS,
+        allowedOrigins: ["https://shop.example.com"],
+      }),
+    ).toBe(true);
+    const settings = await derivePolicySettings(next);
+    expect(settings.allowedOrigins).toEqual([
+      "https://shop.example.com",
+      "https://app.example.com",
+    ]);
+  });
+
+  it("omits allowedOrigins when none are set", async () => {
+    const next = await compilePolicySettings({
+      ...EMPTY_POLICY_SETTINGS,
+      programAllowlist: true,
+    });
+    expect(next.allowedOrigins).toBeUndefined();
   });
 });

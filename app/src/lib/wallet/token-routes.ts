@@ -6,6 +6,7 @@ export const OWNER_ONLY_SETTINGS = new Set<SettingsTarget>([
   "sendProtections",
   "spendingLimits",
   "extraPrograms",
+  "allowedOrigins",
   "signing",
   "recoveryWallet",
 ]);
@@ -14,6 +15,7 @@ const SETTINGS_TO_SEGMENT: Record<SettingsTarget, string> = {
   sendProtections: "send-protections",
   spendingLimits: "spending-limits",
   extraPrograms: "exceptions",
+  allowedOrigins: "allowed-sites",
   signing: "signing",
   recoveryWallet: "recovery",
   rpcConnection: "rpc",
@@ -28,9 +30,7 @@ const SEGMENT_TO_SETTINGS = new Map<string, SettingsTarget>(
 /** Single-segment wallet leaves (not receive/collectibles/settings trees). */
 const WALLET_LEAF_SEGMENTS = new Set(["send", "tokens", "activity"]);
 
-export type PolicySetupScreen =
-  | "spendingLimits"
-  | "extraPrograms";
+export type PolicySetupScreen = "spendingLimits" | "extraPrograms";
 
 const POLICY_SETUP_SCREENS = new Set<string>([
   "spendingLimits",
@@ -94,6 +94,7 @@ export function settingsFromDenyCode(
   if (code === "program_not_allowed" || code === "instruction_not_allowed") {
     return "extraPrograms";
   }
+  if (code === "origin_not_allowed") return "allowedOrigins";
   if (code === "insufficient_fee_balance") return "feeBalance";
   return undefined;
 }

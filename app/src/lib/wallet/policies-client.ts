@@ -1,6 +1,4 @@
-import {
-  startAuthentication as startPlatformAuthentication,
-} from "@simplewebauthn/browser";
+import { startAuthentication as startPlatformAuthentication } from "@simplewebauthn/browser";
 import type {
   AuthenticationResponseJSON,
   PublicKeyCredentialRequestOptionsJSON,
@@ -28,8 +26,7 @@ export type MutationBinding =
   | { kind: "setPolicy"; policy: PaymentsPolicyConfig }
   | { kind: "clearPolicy" }
   | { kind: "createGrant"; intentHash: string }
-  | { kind: "removeOwner" }
-  | { kind: "cosignConfig"; messageHash: string };
+  | { kind: "removeOwner" };
 
 /** Fetch DO-minted WebAuthn options bound to this write and collect assertion. */
 export async function assertPolicyMutation(
@@ -50,7 +47,9 @@ export async function assertPolicyMutation(
     options: PublicKeyCredentialRequestOptionsJSON;
   }>(optionsRes, "Couldn’t start confirmation");
   try {
-    const assertion = await startPlatformAuthentication({ optionsJSON: options });
+    const assertion = await startPlatformAuthentication({
+      optionsJSON: options,
+    });
     return { challengeId, assertion };
   } catch (e) {
     if (e instanceof Error && e.name === "NotAllowedError") {
@@ -64,7 +63,9 @@ export async function assertPolicyMutation(
 export async function fetchEffectivePolicy(
   phygitalToken: string,
 ): Promise<EffectivePolicy> {
-  const res = await queryFetch(`/policies/${encodeURIComponent(phygitalToken)}`);
+  const res = await queryFetch(
+    `/policies/${encodeURIComponent(phygitalToken)}`,
+  );
   return readJson<EffectivePolicy>(res, "Couldn’t load settings");
 }
 

@@ -12,7 +12,7 @@ export {
   type PhygitalWalletSignerConfig,
 } from "./wallet/signer.js";
 
-export { PolicyDeniedError } from "./wallet/preview.js";
+export { PolicyDeniedError, previewWalletIntent } from "./wallet/preview.js";
 
 export {
   AccessoryMismatchError,

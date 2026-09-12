@@ -1,5 +1,6 @@
 import type { Instruction } from "@solana/kit";
 import { describe, expect, it } from "vitest";
+import { PHYGITAL_WALLET_PROGRAM_ADDRESS } from "phygital-wallet-sdk";
 import { evaluatePolicy } from "./policy-engine.js";
 
 const SYSTEM = "11111111111111111111111111111111";
@@ -58,8 +59,7 @@ describe("evaluatePolicy", () => {
   it("rejects compute-budget-only body", () => {
     const r = evaluatePolicy({ version: "3" }, [
       {
-        programAddress:
-          "ComputeBudget111111111111111111111111111111" as never,
+        programAddress: "ComputeBudget111111111111111111111111111111" as never,
         data: new Uint8Array([2]),
       },
     ]);
@@ -67,10 +67,9 @@ describe("evaluatePolicy", () => {
   });
 
   it("soft-denies over-cap SOL as spend_limit with onFail details", () => {
-    const r = evaluatePolicy(
-      { version: "3", maxSolLamports: "1000000000" },
-      [transferSolIx(2_000_000_000n)],
-    );
+    const r = evaluatePolicy({ version: "3", maxSolLamports: "1000000000" }, [
+      transferSolIx(2_000_000_000n),
+    ]);
 
     expect(r.ok).toBe(false);
     if (r.ok) return;
@@ -91,7 +90,7 @@ describe("evaluatePolicy", () => {
         version: "3",
         mintLimits: [{ mint: MINT, maxRaw: "1000000" }],
       },
-      [transferCheckedIx(2_500_000n, 6)],
+      [transferCheckedIx(2_500_000n, 6)]
     );
 
     expect(r.ok).toBe(false);
@@ -121,8 +120,22 @@ describe("evaluatePolicy", () => {
     expect(r.soft).toBe(true);
     expect(r.code).toBe("program_not_allowed");
     expect(r.details?.programId).toBe(
-      "FakeProgram1111111111111111111111111111111",
+      "FakeProgram1111111111111111111111111111111"
     );
+  });
+
+  it("hard-denies wallet-program instructions (config detection is upstream)", () => {
+    const r = evaluatePolicy(null, [
+      {
+        programAddress: PHYGITAL_WALLET_PROGRAM_ADDRESS as never,
+        data: new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]),
+        accounts: [],
+      },
+    ]);
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.soft).toBe(false);
+    expect(r.code).toBe("program_not_allowed");
   });
 
   it("allows AdvanceNonceAccount", () => {
