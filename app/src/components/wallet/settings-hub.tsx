@@ -203,6 +203,13 @@ export function SettingsHub({
               >
                 {copy.wallet.extraPrograms}
               </GroupedRow>
+              <GroupedRow
+                onClick={() => onOpen("allowedOrigins")}
+                subtitle={allowedSitesSubtitle}
+                className={rowClass("allowedOrigins")}
+              >
+                {copy.wallet.allowedSites}
+              </GroupedRow>
             </>
           ) : null}
         </GroupedList>
@@ -210,13 +217,6 @@ export function SettingsHub({
 
       {isOwner ? (
         <GroupedList label={copy.wallet.settingsSafety}>
-          <GroupedRow
-            onClick={() => onOpen("allowedOrigins")}
-            subtitle={allowedSitesSubtitle}
-            className={rowClass("allowedOrigins")}
-          >
-            {copy.wallet.allowedSites}
-          </GroupedRow>
           <GroupedRow
             onClick={() => onOpen("signing")}
             subtitle={copy.wallet.signingDefault}

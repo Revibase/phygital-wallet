@@ -18,7 +18,7 @@
     "SOLANA_CLUSTER": "mainnet",
     "SOLANA_RPC_URL": "https://rpc.revibase.com",
     "TOP_UP_ACCUMULATOR": "BExDpnx6E1LW3ofkCPxXvBRAmxqPVsmwnPb4oM5FUutv",
-    "DEFAULT_VERIFIER_PUBKEYS": "[2qLZosEYxN4Bp7dGySYgjWEmXR9jQ4za6hr2AFocUHxU]",
+    "DEFAULT_VERIFIER_PUBKEYS": "[\"2qLZosEYxN4Bp7dGySYgjWEmXR9jQ4za6hr2AFocUHxU\"]",
     "LOG_LEVEL": "info"
   },
   "kv_namespaces": [

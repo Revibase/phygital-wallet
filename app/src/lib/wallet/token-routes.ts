@@ -43,6 +43,21 @@ export function isPolicySetupScreen(
   return Boolean(value && POLICY_SETUP_SCREENS.has(value));
 }
 
+/**
+ * Owner settings that live under Send protections and only apply once it is on
+ * (see `SettingsHub`). Direct navigation to these is redirected to the hub when
+ * protections are off.
+ */
+const PROTECTIONS_ONLY_SETTINGS = new Set<SettingsTarget>([
+  "spendingLimits",
+  "extraPrograms",
+  "allowedOrigins",
+]);
+
+export function requiresSendProtections(target: SettingsTarget): boolean {
+  return PROTECTIONS_ONLY_SETTINGS.has(target);
+}
+
 export function settingsSegment(target: SettingsTarget): string {
   return SETTINGS_TO_SEGMENT[target];
 }
