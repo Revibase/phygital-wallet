@@ -5,7 +5,7 @@
  * `{ items, nextCursor }` shape the app already renders (`WalletActivityItem`),
  * so `GET /wallets/:address/activity` is a drop-in for the Helius activity API.
  */
-import { D1_BATCH_CHUNK, getD1 } from "@/shared/db";
+import { D1_BATCH_CHUNK } from "@/shared/db";
 
 import type {
   WalletActivityDelta,
@@ -41,12 +41,16 @@ const INSERT_SQL = `INSERT OR IGNORE INTO wallet_activity
 /**
  * Idempotently upsert activity rows. Duplicate (wallet, signature) pairs are
  * ignored, so redelivered queue messages and service retries are safe.
+ *
+ * Takes the D1 handle explicitly (rather than `getD1()`) so it works from the
+ * queue consumer, which runs in workerd's `queue()` entrypoint outside any
+ * request-scoped AsyncLocalStorage context.
  */
 export async function storeWalletActivities(
+  db: D1Database,
   rows: WalletActivityRow[]
 ): Promise<void> {
   if (rows.length === 0) return;
-  const db = getD1();
   const now = Date.now();
   const insert = db.prepare(INSERT_SQL);
   const statements = rows.map((r) =>
@@ -141,13 +145,15 @@ const SELECT_COLUMNS = `id, wallet_address, signature, block_time, kind, title,
  * Read a wallet's activity newest-first with keyset pagination.
  * Returns one extra row beyond `limit` internally to compute `nextCursor`.
  */
-export async function readWalletActivity(args: {
-  walletAddress: string;
-  limit: number;
-  cursor?: string | null;
-}): Promise<{ items: WalletActivityItem[]; nextCursor: string | null }> {
+export async function readWalletActivity(
+  db: D1Database,
+  args: {
+    walletAddress: string;
+    limit: number;
+    cursor?: string | null;
+  }
+): Promise<{ items: WalletActivityItem[]; nextCursor: string | null }> {
   const limit = Math.min(50, Math.max(1, args.limit));
-  const db = getD1();
   const after = decodeCursor(args.cursor);
 
   const stmt = after

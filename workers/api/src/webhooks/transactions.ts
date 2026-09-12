@@ -138,7 +138,7 @@ walletTxRoutes.get("/wallets/:address/activity", async (c) => {
   const limit = Number.isFinite(limitParam) && limitParam > 0 ? limitParam : 20;
   const cursor = c.req.query("cursor") ?? null;
 
-  const { items, nextCursor } = await readWalletActivity({
+  const { items, nextCursor } = await readWalletActivity(c.env.phygital_token, {
     walletAddress: String(address),
     limit,
     cursor,

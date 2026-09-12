@@ -8,7 +8,6 @@
  * whole batch, so indexing is at-least-once and idempotent on (wallet, sig).
  */
 import { createLogger } from "@/shared/log";
-import { runWithRequestStore } from "@/shared/request-context";
 import { activityRowsFromResult } from "@/webhooks/wallet-activity";
 import {
   storeWalletActivities,
@@ -45,61 +44,57 @@ function isWalletTxMessage(body: unknown): body is WalletTxMessage {
  */
 export async function handleWalletTxQueue(
   batch: MessageBatch<WalletTxMessage>,
-  env: Env,
-  ctx: ExecutionContext
+  env: Env
 ): Promise<void> {
-  await runWithRequestStore(
-    { env, waitUntil: (promise) => ctx.waitUntil(promise) },
-    async () => {
-      const log = createLogger("api", env);
-      const rows: WalletActivityRow[] = [];
+  const log = createLogger("api", env);
+  const rows: WalletActivityRow[] = [];
 
-      for (const message of batch.messages) {
-        try {
-          if (!isWalletTxMessage(message.body)) {
-            log.warn("wallet_tx.malformed", { id: message.id });
-            message.ack();
-            continue;
-          }
-          const receivedAt =
-            typeof message.body.receivedAt === "number"
-              ? message.body.receivedAt
-              : Date.now() / 1000;
-          rows.push(...activityRowsFromResult(message.body.result, receivedAt));
-        } catch (err) {
-          // A single unparseable payload must not wedge the batch — drop it.
-          log.warn("wallet_tx.parse_failed", {
-            id: message.id,
-            error: err instanceof Error ? err.message : String(err),
-          });
-          message.ack();
-        }
+  for (const message of batch.messages) {
+    try {
+      if (!isWalletTxMessage(message.body)) {
+        log.warn("wallet_tx.malformed", { id: message.id });
+        message.ack();
+        continue;
       }
-
-      if (rows.length === 0) {
-        batch.ackAll();
-        return;
-      }
-
-      try {
-        await storeWalletActivities(rows);
-      } catch (err) {
-        // Transient D1 failure — let the queue redeliver the whole batch.
-        log.error("wallet_tx.store_failed", {
-          rows: rows.length,
-          error: err instanceof Error ? err.message : String(err),
-        });
-        batch.retryAll();
-        return;
-      }
-
-      log.info("wallet_tx.indexed", {
-        messages: batch.messages.length,
-        rows: rows.length,
+      const receivedAt =
+        typeof message.body.receivedAt === "number"
+          ? message.body.receivedAt
+          : Date.now() / 1000;
+      rows.push(...activityRowsFromResult(message.body.result, receivedAt));
+    } catch (err) {
+      // A single unparseable payload must not wedge the batch — drop it.
+      log.warn("wallet_tx.parse_failed", {
+        id: message.id,
+        error: err instanceof Error ? err.message : String(err),
       });
-      batch.ackAll();
+      message.ack();
     }
-  );
+  }
+
+  if (rows.length === 0) {
+    batch.ackAll();
+    return;
+  }
+
+  try {
+    // Pass the D1 binding explicitly: the queue entrypoint has no request-scoped
+    // AsyncLocalStorage, so `getD1()` would throw "Request context is not configured".
+    await storeWalletActivities(env.phygital_token, rows);
+  } catch (err) {
+    // Transient D1 failure — let the queue redeliver the whole batch.
+    log.error("wallet_tx.store_failed", {
+      rows: rows.length,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    batch.retryAll();
+    return;
+  }
+
+  log.info("wallet_tx.indexed", {
+    messages: batch.messages.length,
+    rows: rows.length,
+  });
+  batch.ackAll();
 }
 
 export type { WalletActivityItem };
