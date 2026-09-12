@@ -217,6 +217,8 @@ export const copy = {
     receiptPending: "Pending",
     receiptDetails: "Receipt",
     receiptTime: "Time",
+    receiptType: "Type",
+    receiptFee: "Network fee",
     accessAndRecovery: "This phone",
     accessAndRecoveryHint: "Link",
     accessAndRecoveryBody:

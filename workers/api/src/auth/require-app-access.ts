@@ -27,6 +27,8 @@ const PUBLIC_ROUTES: ReadonlyArray<{ method: string; path: string }> = [
   { method: "GET", path: "/auth/device-session" },
   { method: "POST", path: "/auth/app-session" },
   { method: "POST", path: "/webhooks/helius" },
+  // Wallet tx ingest — authenticated by its own HMAC signature, not the cookie.
+  { method: "POST", path: "/webhooks/transactions" },
   // Token landing before tap/Hold — must work with zero cookies.
   { method: "GET", path: "/auth/device/gate" },
 ];

@@ -86,26 +86,3 @@ export function resolveSolanaRpcUrl(
   if (pref.mode === "custom") return pref.url.trim();
   return getDefaultRpcUrl();
 }
-
-/** True when the URL host looks like a Helius RPC endpoint. */
-export function isHeliusRpcUrl(url: string): boolean {
-  try {
-    const host = new URL(url.trim()).hostname.toLowerCase();
-    return host.includes("helius");
-  } catch {
-    return false;
-  }
-}
-
-/**
- * RPC for wallet activity (`getTransactionsForAddress`).
- * Uses the custom endpoint only when it looks like Helius; otherwise the app default.
- */
-export function resolveActivityRpcUrl(
-  pref: RpcPreference = readRpcPreference()
-): string {
-  if (pref.mode === "custom" && isHeliusRpcUrl(pref.url)) {
-    return pref.url.trim();
-  }
-  return getDefaultRpcUrl();
-}

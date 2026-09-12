@@ -27,6 +27,23 @@
       "id": "c3e243c181204c0c9604cecbc5fecfee"
     }
   ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "WALLET_TX_QUEUE",
+        "queue": "wallet-tx-ingest"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "wallet-tx-ingest",
+        "max_batch_size": 100,
+        "max_batch_timeout": 5,
+        "max_retries": 5,
+        "dead_letter_queue": "wallet-tx-dlq"
+      }
+    ]
+  },
   "durable_objects": {
     "bindings": [
       {

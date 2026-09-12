@@ -1,36 +1,18 @@
 "use client";
 
 import { toast } from "sonner";
-import {
-  ArrowDownLeft,
-  ArrowUpRight,
-  BellRing,
-  Clock3,
-  Copy,
-  ExternalLink,
-} from "lucide-react";
+import { Copy, ExternalLink } from "lucide-react";
 
 import { NavBar } from "@/components/shared/nav-bar";
+import { KindIcon } from "@/components/wallet/activity-kind-icon";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { copy } from "@/lib/copy/phygital";
 import { explorerTxUrl } from "@/lib/solana/cluster";
 import { NATIVE_SOL_MINT } from "@/lib/tokens/payment-token";
+import { activityTypeLabel, formatFeeSol } from "@/lib/wallet/activity-detail";
 import type { WalletActivityItem } from "@/lib/wallet/portfolio-types";
 import { cn, shortAddress } from "@/lib/utils";
-
-function iconForKind(kind: WalletActivityItem["kind"]) {
-  switch (kind) {
-    case "sent":
-      return ArrowUpRight;
-    case "received":
-      return ArrowDownLeft;
-    case "approved":
-      return BellRing;
-    default:
-      return Clock3;
-  }
-}
 
 function isNativeSolMint(mint: string): boolean {
   return (
@@ -70,9 +52,14 @@ export function ActivityReceiptSheet({
 }) {
   if (!item) return null;
 
-  const Icon = iconForKind(item.kind);
   const deltas = item.balanceDeltas ?? [];
   const signature = item.signature;
+
+  // Parsed detail from the indexer — each optional, render only when present.
+  const description = item.detail?.description?.trim() || null;
+  const typeLabel = activityTypeLabel(item.detail?.type);
+  const feeLabel = formatFeeSol(item.detail?.feeLamports);
+  const counterparty = item.detail?.counterparties?.[0] ?? item.subtitle;
 
   async function copySignature() {
     if (!signature) return;
@@ -107,10 +94,13 @@ export function ActivityReceiptSheet({
 
           <div className="flex flex-col items-center gap-3 text-center">
             <span className="flex size-12 items-center justify-center rounded-2xl bg-muted/30 text-muted-foreground">
-              <Icon className="size-5" aria-hidden />
+              <KindIcon kind={item.kind} className="size-5" />
             </span>
             <div className="space-y-1">
               <p className="text-lg font-medium">{item.title}</p>
+              {description ? (
+                <p className="text-sm text-muted-foreground">{description}</p>
+              ) : null}
               {item.pending ? (
                 <p className="text-xs font-medium text-muted-foreground">
                   {copy.wallet.receiptPending}
@@ -141,13 +131,21 @@ export function ActivityReceiptSheet({
           </div>
 
           <div className="overflow-hidden rounded-2xl bg-muted/20 text-sm">
-            {item.subtitle ? (
+            {typeLabel ? (
+              <div className="flex items-center justify-between gap-3 border-b border-border/40 px-4 py-3">
+                <span className="text-muted-foreground">
+                  {copy.wallet.receiptType}
+                </span>
+                <span>{typeLabel}</span>
+              </div>
+            ) : null}
+            {counterparty ? (
               <div className="flex items-center justify-between gap-3 border-b border-border/40 px-4 py-3">
                 <span className="text-muted-foreground">
                   {item.kind === "received" ? copy.wallet.from : copy.wallet.to}
                 </span>
                 <span className="font-mono tabular-nums">
-                  {shortAddress(item.subtitle, 6)}
+                  {shortAddress(counterparty, 6)}
                 </span>
               </div>
             ) : null}
@@ -157,6 +155,14 @@ export function ActivityReceiptSheet({
               </span>
               <span>{formatReceiptTime(item.timestamp)}</span>
             </div>
+            {feeLabel ? (
+              <div className="flex items-center justify-between gap-3 border-t border-border/40 px-4 py-3">
+                <span className="text-muted-foreground">
+                  {copy.wallet.receiptFee}
+                </span>
+                <span className="tabular-nums">{feeLabel}</span>
+              </div>
+            ) : null}
           </div>
 
           <div className="flex flex-col gap-2">

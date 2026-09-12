@@ -16,5 +16,9 @@ LOG_LEVEL=debug
 # TOP_UP_ACCUMULATOR=
 # HELIUS_WEBHOOK_AUTH=
 
+# HMAC secret for POST /webhooks/transactions — must equal the
+# helius-wallet-service WEBHOOK_SECRET. In prod set via `wrangler secret put`.
+# WALLET_WEBHOOK_SECRET=
+
 # JSON array of base58 pubkeys — must match the keys of api-signer VERIFIER_SECRET_KEYS
 # DEFAULT_VERIFIER_PUBKEYS=["YourVerifierPubkeyBase58"]

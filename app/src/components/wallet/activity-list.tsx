@@ -1,33 +1,16 @@
 "use client";
 
 import { memo, useState } from "react";
-import {
-  ArrowDownLeft,
-  ArrowUpRight,
-  BellRing,
-  Clock3,
-  RefreshCcw,
-} from "lucide-react";
+import { RefreshCcw } from "lucide-react";
 
 import { GroupedList, GroupedRow } from "@/components/shared/grouped-list";
 import { ActivityReceiptSheet } from "@/components/wallet/activity-receipt-sheet";
+import { KindIcon } from "@/components/wallet/activity-kind-icon";
 import { Button } from "@/components/ui/button";
 import { NATIVE_SOL_MINT } from "@/lib/tokens/payment-token";
+import { activityTypeLabel } from "@/lib/wallet/activity-detail";
 import type { WalletActivityItem } from "@/lib/wallet/portfolio-types";
 import { cn, shortAddress } from "@/lib/utils";
-
-function iconForKind(kind: WalletActivityItem["kind"]) {
-  switch (kind) {
-    case "sent":
-      return ArrowUpRight;
-    case "received":
-      return ArrowDownLeft;
-    case "approved":
-      return BellRing;
-    default:
-      return Clock3;
-  }
-}
 
 function isNativeSolMint(mint: string): boolean {
   return (
@@ -69,9 +52,14 @@ const ActivityRow = memo(function ActivityRow({
   assetMetaByMint?: Record<string, { symbol: string; name: string }>;
   onSelect: (item: WalletActivityItem) => void;
 }) {
-  const Icon = iconForKind(item.kind);
-  const subtitle = item.subtitle
-    ? shortAddress(item.subtitle, 4)
+  // Prefer the indexer's parsed detail; fall back to the raw counterparty/status.
+  const description = item.detail?.description?.trim();
+  const counterparty =
+    item.detail?.counterparties?.[0] ?? item.subtitle ?? null;
+  const subtitle = description
+    ? description
+    : counterparty
+    ? shortAddress(counterparty, 4)
     : item.statusLabel;
 
   const deltas = item.balanceDeltas ?? [];
@@ -117,12 +105,19 @@ const ActivityRow = memo(function ActivityRow({
     ? "Pending"
     : formatActivityTime(item.timestamp);
 
+  // A parsed category upgrades the generic fallback title (e.g. "Swap").
+  const typeLabel = activityTypeLabel(item.detail?.type);
+  const title =
+    item.title && item.title !== "Transaction"
+      ? item.title
+      : typeLabel ?? item.title;
+
   return (
     <GroupedRow
       onClick={() => onSelect(item)}
       leading={
         <span className="flex size-9 shrink-0 items-center justify-center rounded-2xl bg-muted/30 text-muted-foreground">
-          <Icon className="size-4" aria-hidden />
+          <KindIcon kind={item.kind} className="size-4" />
         </span>
       }
       subtitle={subtitle}
@@ -135,7 +130,7 @@ const ActivityRow = memo(function ActivityRow({
         </div>
       }
     >
-      {item.title}
+      {title}
     </GroupedRow>
   );
 });

@@ -1,26 +1,19 @@
-import {
-  getDefaultRpcUrl,
-  resolveActivityRpcUrl,
-} from "@/lib/solana/rpc-preference";
-import {
-  mapGtfaTransaction,
-  type GtfaFullTransaction,
-} from "@/lib/wallet/activity-from-rpc";
+import { queryFetch, readJson } from "@/lib/queries/http";
 import type { WalletActivityItem } from "@/lib/wallet/portfolio-types";
 
-type GtfaResult = {
-  data?: GtfaFullTransaction[];
-  paginationToken?: string | null;
-};
-
-type JsonRpcBody = {
-  result?: GtfaResult;
-  error?: { message?: string; code?: number };
+type ActivityResponse = {
+  items?: WalletActivityItem[];
+  nextCursor?: string | null;
 };
 
 /**
- * Load wallet activity via Helius `getTransactionsForAddress` (full txs).
- * Uses a Helius custom RPC when set; otherwise the app default RPC.
+ * Load wallet activity from the Revibase index (`GET /wallets/:address/activity`).
+ *
+ * The API worker ingests every transaction touching a watched wallet (streamed
+ * from the helius-wallet-service) into its own D1 table and serves the parsed
+ * `WalletActivityItem` rows directly — so the app no longer calls Helius
+ * `getTransactionsForAddress`. Rows carry `detail` (see `WalletActivityDetail`)
+ * as the indexer's parser enriches them.
  */
 export async function fetchWalletActivity(args: {
   walletAddress: string;
@@ -28,49 +21,25 @@ export async function fetchWalletActivity(args: {
   cursor?: string | null;
 }): Promise<{ items: WalletActivityItem[]; nextCursor: string | null }> {
   const limit = Math.min(50, Math.max(1, args.limit ?? 20));
-  const rpcUrl = resolveActivityRpcUrl() || getDefaultRpcUrl();
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (args.cursor) params.set("cursor", args.cursor);
 
-  const config: Record<string, unknown> = {
-    transactionDetails: "full",
-    sortOrder: "desc",
-    limit,
-    encoding: "jsonParsed",
-    maxSupportedTransactionVersion: 0,
-    filters: {
-      tokenAccounts: "balanceChanged",
-      status: "any",
-    },
-  };
-  if (args.cursor) config.paginationToken = args.cursor;
+  const res = await queryFetch(
+    `/wallets/${encodeURIComponent(args.walletAddress)}/activity?${params}`
+  );
+  const body = await readJson<ActivityResponse>(res, "Couldn’t load activity");
 
-  const res = await fetch(rpcUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      jsonrpc: "2.0",
-      id: "wallet-activity",
-      method: "getTransactionsForAddress",
-      params: [args.walletAddress, config],
-    }),
-  });
-  if (!res.ok) {
-    throw new Error(`Wallet activity RPC failed (${res.status})`);
-  }
-
-  const body = (await res.json()) as JsonRpcBody;
-  if (body.error?.message) {
-    throw new Error(body.error.message);
-  }
-
-  const result = body.result;
-  const items = (result?.data ?? [])
-    .map((tx) => mapGtfaTransaction(args.walletAddress, tx))
-    .filter((item): item is WalletActivityItem => item != null);
+  const items = (body.items ?? []).map((item) => ({
+    ...item,
+    // Defend against older rows / partial payloads.
+    balanceDeltas: item.balanceDeltas ?? [],
+    detail: item.detail ?? null,
+    source: "local" as const,
+  }));
 
   const nextCursor =
-    typeof result?.paginationToken === "string" &&
-    result.paginationToken.length > 0
-      ? result.paginationToken
+    typeof body.nextCursor === "string" && body.nextCursor.length > 0
+      ? body.nextCursor
       : null;
 
   return { items, nextCursor };

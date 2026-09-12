@@ -15,6 +15,11 @@ import { runWithRequestStore } from "@/shared/request-context";
 import { tokenRoutes } from "@/tokens/routes";
 import { verifierRoutes } from "@/verifier";
 import { heliusWebhookRoutes } from "@/webhooks/helius";
+import { walletTxRoutes } from "@/webhooks/transactions";
+import {
+  handleWalletTxQueue,
+  type WalletTxMessage,
+} from "@/webhooks/wallet-tx-queue";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -82,7 +87,11 @@ app.route("/", verifierRoutes);
 app.route("/", policyRoutes);
 app.route("/", deviceAuthRoutes);
 app.route("/", heliusWebhookRoutes);
+app.route("/", walletTxRoutes);
 
 app.notFound((c) => c.json({ error: "Not found" }, 404));
 
-export default app;
+export default {
+  fetch: app.fetch,
+  queue: handleWalletTxQueue,
+} satisfies ExportedHandler<Env, WalletTxMessage>;
