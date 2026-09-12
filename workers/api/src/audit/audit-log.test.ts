@@ -37,7 +37,7 @@ async function withStore(db: D1Database, fn: () => void): Promise<void> {
       env: { phygital_token: db, LOG_LEVEL: "error" } as unknown as Env,
       waitUntil: (p) => pending.push(p),
     },
-    fn,
+    fn
   );
   await Promise.all(pending);
 }
@@ -82,7 +82,7 @@ describe("recordAudit", () => {
         origin: "https://app",
         ms: 12,
         requestId: "ray-1",
-      }),
+      })
     );
 
     expect(batches).toHaveLength(0);
@@ -110,7 +110,7 @@ describe("recordAudit", () => {
   it("maps ok:false to 0 and folds code into detail_json", async () => {
     const { db, runs } = fakeD1();
     await withStore(db, () =>
-      recordAudit({ event: "connect", ok: false, code: "invalid_proof" }),
+      recordAudit({ event: "connect", ok: false, code: "invalid_proof" })
     );
     const r = row(runs[0]);
     expect(r.ok).toBe(0);
@@ -120,7 +120,7 @@ describe("recordAudit", () => {
   it("writes null detail_json when nothing event-specific is present", async () => {
     const { db, runs } = fakeD1();
     await withStore(db, () =>
-      recordAudit({ event: "owner_unlink", phygitalToken: "Tok", ok: true }),
+      recordAudit({ event: "owner_unlink", phygitalToken: "Tok", ok: true })
     );
     expect(row(runs[0]).detail_json).toBeNull();
   });
@@ -134,7 +134,7 @@ describe("recordAudit", () => {
         credentialId: "cred-visitor",
         intentHash: "h1",
         detail: { resolution: "created" },
-      }),
+      })
     );
     const r = row(runs[0]);
     expect(r.actor).toBe("visitor_device");
@@ -155,7 +155,7 @@ describe("recordAudit", () => {
           intentHash: "h1",
           detail: { resolution: "created" },
         },
-      ]),
+      ])
     );
     expect(runs).toHaveLength(0);
     expect(batches).toHaveLength(1);

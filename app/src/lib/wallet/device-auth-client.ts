@@ -48,10 +48,10 @@ export type TokenGate = {
  * Prefer this on the token address gate over parallel auth GETs.
  */
 export async function fetchTokenGate(
-  phygitalToken: string,
+  phygitalToken: string
 ): Promise<TokenGate> {
   const res = await queryFetch(
-    `/auth/device/gate?phygitalToken=${encodeURIComponent(phygitalToken)}`,
+    `/auth/device/gate?phygitalToken=${encodeURIComponent(phygitalToken)}`
   );
   const body = await readJson<{
     session: DeviceSessionInfo | null;
@@ -75,7 +75,7 @@ export async function fetchTokenGate(
  * on-chain verifier set. This is the only way the cookie is minted.
  */
 export async function exchangeAppSession(
-  accessToken: string,
+  accessToken: string
 ): Promise<{ phygitalToken: string; expiresAt: number }> {
   const res = await queryFetch("/auth/app-session", {
     method: "POST",
@@ -105,10 +105,10 @@ export async function refreshDeviceSession(): Promise<DeviceSessionInfo | null> 
 }
 
 export async function registerDevice(
-  username: string,
+  username: string
 ): Promise<DeviceSessionInfo> {
   const optionsRes = await queryFetch(
-    `/auth/device/register-options?username=${encodeURIComponent(username)}`,
+    `/auth/device/register-options?username=${encodeURIComponent(username)}`
   );
   const options = await readJson<
     PublicKeyCredentialCreationOptionsJSON & { userHandle: string }
@@ -168,7 +168,7 @@ async function assertPlatformPasskey(cancelMessage: string): Promise<{
 
 export async function loginDevice(): Promise<DeviceSessionInfo> {
   const { challengeId, credential } = await assertPlatformPasskey(
-    "Sign-in was cancelled",
+    "Sign-in was cancelled"
   );
   const res = await queryFetch("/auth/device-session", {
     method: "POST",
@@ -193,7 +193,7 @@ export async function fetchDeviceLinks(): Promise<DeviceLink[]> {
   const res = await queryFetch("/auth/device/links");
   const body = await readJson<{ links: DeviceLink[] }>(
     res,
-    "Couldn’t load linked accessories",
+    "Couldn’t load linked accessories"
   );
   return body.links;
 }
@@ -205,8 +205,10 @@ export async function linkToken(args: {
   mint?: string | null;
 }): Promise<LinkStatus> {
   const optionsRes = await queryFetch(
-    `/auth/device/links/${encodeURIComponent(args.phygitalToken)}/mutation-options`,
-    { method: "POST" },
+    `/auth/device/links/${encodeURIComponent(
+      args.phygitalToken
+    )}/mutation-options`,
+    { method: "POST" }
   );
   const { challengeId, options } = await readJson<{
     challengeId: string;
@@ -237,7 +239,7 @@ export async function linkToken(args: {
   });
   const body = await readJson<{ status: LinkStatus }>(
     res,
-    "Couldn’t link this accessory",
+    "Couldn’t link this accessory"
   );
   return body.status;
 }
@@ -246,7 +248,7 @@ export async function unlinkToken(phygitalToken: string): Promise<void> {
   const { challengeId, assertion } = await assertPolicyMutation(
     phygitalToken,
     { kind: "removeOwner" },
-    "Unlink was cancelled",
+    "Unlink was cancelled"
   );
 
   const res = await queryFetch(
@@ -255,7 +257,7 @@ export async function unlinkToken(phygitalToken: string): Promise<void> {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ challengeId, assertion }),
-    },
+    }
   );
   await readJson(res, "Couldn’t unlink");
 }

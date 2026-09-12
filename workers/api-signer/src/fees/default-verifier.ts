@@ -14,7 +14,7 @@ function getDefaultVerifierSet(): Set<string> {
 
 /** True when this pubkey is in the default verifier set (from secret keys). */
 export async function isDefaultConfigVerifier(
-  verifier: string,
+  verifier: string
 ): Promise<boolean> {
   return getDefaultVerifierSet().has(verifier);
 }

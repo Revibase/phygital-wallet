@@ -27,7 +27,7 @@ function CardIdLabel() {
             variant="ghost"
             size="icon-sm"
             className={cn(
-              "size-4 min-h-0 min-w-0 rounded-full text-muted-foreground hover:text-foreground",
+              "size-4 min-h-0 min-w-0 rounded-full text-muted-foreground hover:text-foreground"
             )}
             aria-label={copy.token.cardIdHint}
             onClick={(e) => {

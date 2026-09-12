@@ -21,7 +21,7 @@ const IAB_PATTERNS: RegExp[] = [
 export function isInAppBrowser(
   userAgent: string = typeof navigator !== "undefined"
     ? navigator.userAgent
-    : "",
+    : ""
 ): boolean {
   if (!userAgent) return false;
   if (typeof window !== "undefined") {

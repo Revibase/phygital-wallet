@@ -21,8 +21,8 @@ export function MotionSection({
     variant === "fade"
       ? galleryAnimate.fade
       : variant === "scaleIn"
-        ? galleryAnimate.scaleIn
-        : galleryAnimate.rise;
+      ? galleryAnimate.scaleIn
+      : galleryAnimate.rise;
 
   const style: CSSProperties | undefined =
     staggerIndex !== undefined ? staggerStyle(staggerIndex) : undefined;

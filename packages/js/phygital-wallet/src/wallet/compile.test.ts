@@ -16,7 +16,7 @@ const SYSTEM_PROGRAM = address("11111111111111111111111111111111");
 function mockInstruction(
   programAddress: typeof SYSTEM_PROGRAM,
   accounts: AccountMeta[],
-  data: Uint8Array = new Uint8Array([2, 0, 0, 0]),
+  data: Uint8Array = new Uint8Array([2, 0, 0, 0])
 ): Instruction {
   return {
     programAddress,
@@ -39,7 +39,7 @@ describe("compileWalletInstructions", () => {
     expect(compiled.compactInstructions).toHaveLength(1);
     expect(compiled.compactInstructions[0]?.programIdIndex).toBe(0);
     expect(compiled.compactInstructions[0]?.accountIndexes).toEqual(
-      Uint8Array.from([1, 2]),
+      Uint8Array.from([1, 2])
     );
 
     const walletMeta = compiled.remainingAccounts[1];
@@ -79,7 +79,7 @@ describe("compileWalletInstructions", () => {
     const recomputed = compileWalletInstructions(instructions, WALLET_PDA);
     expect(recomputed.remainingAccounts).toEqual(compiled.remainingAccounts);
     expect(recomputed.compactInstructions).toEqual(
-      compiled.compactInstructions,
+      compiled.compactInstructions
     );
   });
 
@@ -87,11 +87,11 @@ describe("compileWalletInstructions", () => {
     const instructions = [
       mockInstruction(
         address("Fjbi9JrRAmSBdxQxbkcxYDp6JUwnLbFhU2GsieWQBLSg"),
-        [],
+        []
       ),
     ];
     expect(() => compileWalletInstructions(instructions, WALLET_PDA)).toThrow(
-      /not allowed/,
+      /not allowed/
     );
   });
 });

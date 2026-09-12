@@ -9,10 +9,10 @@ export const HOME_COLLECTIBLE_PREVIEW = 4;
 export const ALL_LIST_SEARCH_THRESHOLD = 8;
 
 export function sortHoldings(
-  holdings: PaymentTokenHolding[],
+  holdings: PaymentTokenHolding[]
 ): PaymentTokenHolding[] {
   const hasUsd = holdings.some(
-    (h) => typeof h.valueUsd === "number" && Number.isFinite(h.valueUsd),
+    (h) => typeof h.valueUsd === "number" && Number.isFinite(h.valueUsd)
   );
 
   return [...holdings].sort((a, b) => {
@@ -37,7 +37,7 @@ export function sortHoldings(
 
 export function sortCollectibles(
   collectibles: WalletCollectible[],
-  linkedMint?: string | null,
+  linkedMint?: string | null
 ): WalletCollectible[] {
   return [...collectibles].sort((a, b) => {
     if (linkedMint) {
@@ -49,17 +49,17 @@ export function sortCollectibles(
 }
 
 export function previewHoldings(
-  holdings: PaymentTokenHolding[],
+  holdings: PaymentTokenHolding[]
 ): PaymentTokenHolding[] {
   return sortHoldings(holdings).slice(0, HOME_TOKEN_PREVIEW);
 }
 
 export function previewCollectibles(
   collectibles: WalletCollectible[],
-  linkedMint?: string | null,
+  linkedMint?: string | null
 ): WalletCollectible[] {
   return sortCollectibles(collectibles, linkedMint).slice(
     0,
-    HOME_COLLECTIBLE_PREVIEW,
+    HOME_COLLECTIBLE_PREVIEW
   );
 }

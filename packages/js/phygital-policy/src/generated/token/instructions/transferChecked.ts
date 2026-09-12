@@ -52,7 +52,7 @@ export type TransferCheckedInstruction<
   TAccountMint extends string | AccountMeta<string> = string,
   TAccountDestination extends string | AccountMeta<string> = string,
   TAccountAuthority extends string | AccountMeta<string> = string,
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+  TRemainingAccounts extends readonly AccountMeta<string>[] = []
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
   InstructionWithAccounts<
@@ -69,7 +69,7 @@ export type TransferCheckedInstruction<
       TAccountAuthority extends string
         ? ReadonlyAccount<TAccountAuthority>
         : TAccountAuthority,
-      ...TRemainingAccounts,
+      ...TRemainingAccounts
     ]
   >;
 
@@ -95,7 +95,7 @@ export function getTransferCheckedInstructionDataEncoder(): FixedSizeEncoder<Tra
       ["amount", getU64Encoder()],
       ["decimals", getU8Encoder()],
     ]),
-    (value) => ({ ...value, discriminator: TRANSFER_CHECKED_DISCRIMINATOR }),
+    (value) => ({ ...value, discriminator: TRANSFER_CHECKED_DISCRIMINATOR })
   );
 }
 
@@ -113,7 +113,7 @@ export function getTransferCheckedInstructionDataCodec(): FixedSizeCodec<
 > {
   return combineCodec(
     getTransferCheckedInstructionDataEncoder(),
-    getTransferCheckedInstructionDataDecoder(),
+    getTransferCheckedInstructionDataDecoder()
   );
 }
 
@@ -121,7 +121,7 @@ export type TransferCheckedInput<
   TAccountSource extends string = string,
   TAccountMint extends string = string,
   TAccountDestination extends string = string,
-  TAccountAuthority extends string = string,
+  TAccountAuthority extends string = string
 > = {
   /** The source account. */
   source: Address<TAccountSource>;
@@ -141,7 +141,7 @@ export function getTransferCheckedInstruction<
   TAccountMint extends string,
   TAccountDestination extends string,
   TAccountAuthority extends string,
-  TProgramAddress extends Address = typeof TOKEN_PROGRAM_ADDRESS,
+  TProgramAddress extends Address = typeof TOKEN_PROGRAM_ADDRESS
 >(
   input: TransferCheckedInput<
     TAccountSource,
@@ -149,7 +149,7 @@ export function getTransferCheckedInstruction<
     TAccountDestination,
     TAccountAuthority
   >,
-  config?: { programAddress?: TProgramAddress },
+  config?: { programAddress?: TProgramAddress }
 ): TransferCheckedInstruction<
   TProgramAddress,
   TAccountSource,
@@ -184,7 +184,7 @@ export function getTransferCheckedInstruction<
       address: signer.address,
       role: AccountRole.READONLY_SIGNER,
       signer,
-    }),
+    })
   );
 
   const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
@@ -197,24 +197,15 @@ export function getTransferCheckedInstruction<
       ...remainingAccounts,
     ],
     data: getTransferCheckedInstructionDataEncoder().encode(
-      args as TransferCheckedInstructionDataArgs,
+      args as TransferCheckedInstructionDataArgs
     ),
     programAddress,
-  } as TransferCheckedInstruction<
-    TProgramAddress,
-    TAccountSource,
-    TAccountMint,
-    TAccountDestination,
-    (typeof input)["authority"] extends TransactionSigner<TAccountAuthority>
-      ? ReadonlySignerAccount<TAccountAuthority> &
-          AccountSignerMeta<TAccountAuthority>
-      : TAccountAuthority
-  >);
+  } as TransferCheckedInstruction<TProgramAddress, TAccountSource, TAccountMint, TAccountDestination, (typeof input)["authority"] extends TransactionSigner<TAccountAuthority> ? ReadonlySignerAccount<TAccountAuthority> & AccountSignerMeta<TAccountAuthority> : TAccountAuthority>);
 }
 
 export type ParsedTransferCheckedInstruction<
   TProgram extends string = typeof TOKEN_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[]
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -232,11 +223,11 @@ export type ParsedTransferCheckedInstruction<
 
 export function parseTransferCheckedInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[]
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>,
+    InstructionWithData<ReadonlyUint8Array>
 ): ParsedTransferCheckedInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 4) {
     throw new SolanaError(
@@ -244,7 +235,7 @@ export function parseTransferCheckedInstruction<
       {
         actualAccountMetas: instruction.accounts.length,
         expectedAccountMetas: 4,
-      },
+      }
     );
   }
   let accountIndex = 0;

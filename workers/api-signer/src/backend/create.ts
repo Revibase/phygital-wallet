@@ -13,16 +13,16 @@ export type SignerBackendEnv = {
  * `kms` is reserved — wire KmsVerifierBackend here when ready.
  */
 export function createVerifierSignerBackend(
-  env: SignerBackendEnv,
+  env: SignerBackendEnv
 ): VerifierSignerBackend {
   const kind = (env.VERIFIER_SIGNER_BACKEND ?? "secrets").trim().toLowerCase();
 
   if (kind === "kms") {
     throw Object.assign(
       new Error(
-        "VERIFIER_SIGNER_BACKEND=kms is not implemented yet; use secrets",
+        "VERIFIER_SIGNER_BACKEND=kms is not implemented yet; use secrets"
       ),
-      { code: "signer_misconfigured" },
+      { code: "signer_misconfigured" }
     );
   }
 

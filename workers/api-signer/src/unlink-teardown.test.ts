@@ -8,7 +8,7 @@ describe("unlinkTeardownFromPresence", () => {
       unlinkTeardownFromPresence({
         recoveryWallet: false,
         tokenVerifier: false,
-      }),
+      })
     ).toEqual({ ok: true });
   });
 

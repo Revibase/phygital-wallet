@@ -33,7 +33,7 @@ export type DynamicTapConnection = {
 };
 
 export async function connectDynamicTap(
-  params: DynamicTapParams,
+  params: DynamicTapParams
 ): Promise<DynamicTapConnection> {
   const rpc = getSolanaRpc();
 

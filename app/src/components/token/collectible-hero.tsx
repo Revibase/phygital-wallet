@@ -31,14 +31,14 @@ export function CollectibleHero({
         "w-full overflow-hidden rounded-2xl border border-card-frame bg-muted/40",
         "aspect-square shadow-[0_12px_40px_-16px_var(--card-shadow)]",
         reveal && galleryAnimate.reveal,
-        className,
+        className
       )}
     >
       {loading ? (
         <div
           className={cn(
             "size-full bg-linear-to-r from-muted/30 via-muted/60 to-muted/30 bg-size-[200%_100%]",
-            galleryAnimate.shimmer,
+            galleryAnimate.shimmer
           )}
           aria-hidden
         />

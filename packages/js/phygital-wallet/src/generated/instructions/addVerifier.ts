@@ -46,16 +46,17 @@ export const ADD_VERIFIER_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array([
 
 export function getAddVerifierDiscriminatorBytes(): ReadonlyUint8Array {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    ADD_VERIFIER_DISCRIMINATOR,
+    ADD_VERIFIER_DISCRIMINATOR
   );
 }
 
 export type AddVerifierInstruction<
   TProgram extends string = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
-  TAccountAdmin extends string | AccountMeta<string> =
-    "G6kBnedts6uAivtY72ToaFHBs1UVbT9udiXmQZgMEjoF",
+  TAccountAdmin extends
+    | string
+    | AccountMeta<string> = "G6kBnedts6uAivtY72ToaFHBs1UVbT9udiXmQZgMEjoF",
   TAccountConfig extends string | AccountMeta<string> = string,
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+  TRemainingAccounts extends readonly AccountMeta<string>[] = []
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
   InstructionWithAccounts<
@@ -67,7 +68,7 @@ export type AddVerifierInstruction<
       TAccountConfig extends string
         ? WritableAccount<TAccountConfig>
         : TAccountConfig,
-      ...TRemainingAccounts,
+      ...TRemainingAccounts
     ]
   >;
 
@@ -84,7 +85,7 @@ export function getAddVerifierInstructionDataEncoder(): FixedSizeEncoder<AddVeri
       ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
       ["verifier", getAddressEncoder()],
     ]),
-    (value) => ({ ...value, discriminator: ADD_VERIFIER_DISCRIMINATOR }),
+    (value) => ({ ...value, discriminator: ADD_VERIFIER_DISCRIMINATOR })
   );
 }
 
@@ -101,13 +102,13 @@ export function getAddVerifierInstructionDataCodec(): FixedSizeCodec<
 > {
   return combineCodec(
     getAddVerifierInstructionDataEncoder(),
-    getAddVerifierInstructionDataDecoder(),
+    getAddVerifierInstructionDataDecoder()
   );
 }
 
 export type AddVerifierAsyncInput<
   TAccountAdmin extends string = string,
-  TAccountConfig extends string = string,
+  TAccountConfig extends string = string
 > = {
   admin?: TransactionSigner<TAccountAdmin>;
   config?: Address<TAccountConfig>;
@@ -117,10 +118,10 @@ export type AddVerifierAsyncInput<
 export async function getAddVerifierInstructionAsync<
   TAccountAdmin extends string,
   TAccountConfig extends string,
-  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
+  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS
 >(
   input: AddVerifierAsyncInput<TAccountAdmin, TAccountConfig>,
-  config?: { programAddress?: TProgramAddress },
+  config?: { programAddress?: TProgramAddress }
 ): Promise<
   AddVerifierInstruction<TProgramAddress, TAccountAdmin, TAccountConfig>
 > {
@@ -157,7 +158,7 @@ export async function getAddVerifierInstructionAsync<
       getAccountMeta("config", accounts.config),
     ],
     data: getAddVerifierInstructionDataEncoder().encode(
-      args as AddVerifierInstructionDataArgs,
+      args as AddVerifierInstructionDataArgs
     ),
     programAddress,
   } as AddVerifierInstruction<TProgramAddress, TAccountAdmin, TAccountConfig>);
@@ -165,7 +166,7 @@ export async function getAddVerifierInstructionAsync<
 
 export type AddVerifierInput<
   TAccountAdmin extends string = string,
-  TAccountConfig extends string = string,
+  TAccountConfig extends string = string
 > = {
   admin?: TransactionSigner<TAccountAdmin>;
   config: Address<TAccountConfig>;
@@ -175,10 +176,10 @@ export type AddVerifierInput<
 export function getAddVerifierInstruction<
   TAccountAdmin extends string,
   TAccountConfig extends string,
-  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
+  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS
 >(
   input: AddVerifierInput<TAccountAdmin, TAccountConfig>,
-  config?: { programAddress?: TProgramAddress },
+  config?: { programAddress?: TProgramAddress }
 ): AddVerifierInstruction<TProgramAddress, TAccountAdmin, TAccountConfig> {
   // Program address.
   const programAddress =
@@ -210,7 +211,7 @@ export function getAddVerifierInstruction<
       getAccountMeta("config", accounts.config),
     ],
     data: getAddVerifierInstructionDataEncoder().encode(
-      args as AddVerifierInstructionDataArgs,
+      args as AddVerifierInstructionDataArgs
     ),
     programAddress,
   } as AddVerifierInstruction<TProgramAddress, TAccountAdmin, TAccountConfig>);
@@ -218,7 +219,7 @@ export function getAddVerifierInstruction<
 
 export type ParsedAddVerifierInstruction<
   TProgram extends string = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[]
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -230,11 +231,11 @@ export type ParsedAddVerifierInstruction<
 
 export function parseAddVerifierInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[]
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>,
+    InstructionWithData<ReadonlyUint8Array>
 ): ParsedAddVerifierInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 2) {
     throw new SolanaError(
@@ -242,7 +243,7 @@ export function parseAddVerifierInstruction<
       {
         actualAccountMetas: instruction.accounts.length,
         expectedAccountMetas: 2,
-      },
+      }
     );
   }
   let accountIndex = 0;

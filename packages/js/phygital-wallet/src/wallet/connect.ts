@@ -66,7 +66,7 @@ export type PhygitalConnectProof = {
  */
 export async function startPhygitalConnect(
   rpc: Rpc<SolanaRpcApi>,
-  config: { fetch?: typeof fetch } = {},
+  config: { fetch?: typeof fetch } = {}
 ): Promise<PhygitalConnectProof> {
   const { value: latest } = await rpc.getLatestBlockhash().send();
   const blockhash = latest.blockhash;

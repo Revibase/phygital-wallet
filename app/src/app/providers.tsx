@@ -29,7 +29,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
             retry: shouldRetryQuery,
           },
         },
-      }),
+      })
   );
   const [persister] = useState(() => createQueryPersister());
 

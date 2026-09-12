@@ -32,7 +32,7 @@ export function useAuthenticateToken() {
         setPending(false);
       }
     },
-    [],
+    []
   );
 
   return { authenticate, pending };

@@ -5,7 +5,7 @@ const QUERY_NO_STORE = {
 
 export function json(
   body: unknown,
-  init?: { status?: number; headers?: Record<string, string> },
+  init?: { status?: number; headers?: Record<string, string> }
 ): Response {
   return Response.json(body, {
     status: init?.status ?? 200,

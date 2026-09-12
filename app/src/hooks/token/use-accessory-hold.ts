@@ -33,8 +33,8 @@ export function useAccessoryHold() {
           e instanceof AccessoryMismatchError
             ? new Error(copy.token.wrongItem)
             : e,
-          copy.verify.failedBody,
-        ),
+          copy.verify.failedBody
+        )
       );
       return null;
     } finally {

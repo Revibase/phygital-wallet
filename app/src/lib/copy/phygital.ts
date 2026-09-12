@@ -403,7 +403,7 @@ export const copy = {
     spendingLimitsOn: "On",
     spendingLimitsOnBody: (
       mints: readonly { label: string; amount: string }[],
-      sol: string,
+      sol: string
     ) => {
       const parts: string[] = [];
       for (const m of mints) {
@@ -415,7 +415,9 @@ export const copy = {
         return `Up to ${parts[0]} per built-in send without a one-time approval.`;
       }
       const last = parts.pop()!;
-      return `Up to ${parts.join(", ")} and ${last} per built-in send without a one-time approval.`;
+      return `Up to ${parts.join(
+        ", "
+      )} and ${last} per built-in send without a one-time approval.`;
     },
     spendingLimitsInvalid: "Needs fix",
     spendingLimitsInvalidBody:

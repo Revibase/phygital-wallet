@@ -78,7 +78,7 @@ export function ModalSheet({
         "fixed inset-0 z-50 flex justify-center",
         "p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]",
         "pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))]",
-        align === "bottom" ? "items-end lg:items-center" : "items-center",
+        align === "bottom" ? "items-end lg:items-center" : "items-center"
       )}
     >
       <Button
@@ -87,7 +87,7 @@ export function ModalSheet({
         aria-label={copy.common.close}
         className={cn(
           "absolute inset-0 h-auto min-h-0 rounded-none border-0 bg-background/80 p-0 backdrop-blur-sm hover:bg-background/80",
-          galleryAnimate.fade,
+          galleryAnimate.fade
         )}
         onClick={onClose}
       />
@@ -100,7 +100,7 @@ export function ModalSheet({
           "relative z-10 w-full",
           shellLayoutClass.compact,
           galleryAnimate.rise,
-          className,
+          className
         )}
       >
         {title ? (
@@ -111,6 +111,6 @@ export function ModalSheet({
         {children}
       </div>
     </div>,
-    document.body,
+    document.body
   );
 }

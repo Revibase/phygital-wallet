@@ -67,7 +67,7 @@ describe("claim setup intent", () => {
       returnTo: returnPath,
     });
     expect(
-      parseClaimSetupIntent({ setup: "claim", returnPath: null }),
+      parseClaimSetupIntent({ setup: "claim", returnPath: null })
     ).toBeNull();
     expect(parseClaimSetupIntent({ setup: "limits", returnPath })).toBeNull();
   });

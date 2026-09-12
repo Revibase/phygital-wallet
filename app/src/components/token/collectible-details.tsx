@@ -19,7 +19,7 @@ export function CollectibleDetails({
   const [imageFailed, setImageFailed] = useState(false);
   const showImage = Boolean(collectionImage) && !imageFailed;
   const hasCollection = Boolean(
-    collectionName || showImage || collectionDescription,
+    collectionName || showImage || collectionDescription
   );
 
   if (!hasCollection) return null;

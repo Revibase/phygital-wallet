@@ -78,7 +78,7 @@ export function getRuleSetCodec(): Codec<RuleSetArgs, RuleSet> {
 
 // Data Enum Helpers.
 export function ruleSet(
-  kind: "None",
+  kind: "None"
 ): GetDiscriminatedUnionVariant<RuleSetArgs, "__kind", "None">;
 export function ruleSet(
   kind: "ProgramAllowList",
@@ -86,7 +86,7 @@ export function ruleSet(
     RuleSetArgs,
     "__kind",
     "ProgramAllowList"
-  >["fields"],
+  >["fields"]
 ): GetDiscriminatedUnionVariant<RuleSetArgs, "__kind", "ProgramAllowList">;
 export function ruleSet(
   kind: "ProgramDenyList",
@@ -94,11 +94,11 @@ export function ruleSet(
     RuleSetArgs,
     "__kind",
     "ProgramDenyList"
-  >["fields"],
+  >["fields"]
 ): GetDiscriminatedUnionVariant<RuleSetArgs, "__kind", "ProgramDenyList">;
 export function ruleSet<K extends RuleSetArgs["__kind"], Data>(
   kind: K,
-  data?: Data,
+  data?: Data
 ) {
   return Array.isArray(data)
     ? { __kind: kind, fields: data }
@@ -107,7 +107,7 @@ export function ruleSet<K extends RuleSetArgs["__kind"], Data>(
 
 export function isRuleSet<K extends RuleSet["__kind"]>(
   kind: K,
-  value: RuleSet,
+  value: RuleSet
 ): value is RuleSet & { __kind: K } {
   return value.__kind === kind;
 }

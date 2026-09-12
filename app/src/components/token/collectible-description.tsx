@@ -23,7 +23,7 @@ export function CollectibleDescription({
       <p
         className={cn(
           "mt-2 text-sm leading-6 text-foreground/90 whitespace-pre-wrap",
-          !expanded && long && "line-clamp-4",
+          !expanded && long && "line-clamp-4"
         )}
       >
         {description}

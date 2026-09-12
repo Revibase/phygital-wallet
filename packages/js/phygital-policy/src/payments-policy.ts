@@ -48,7 +48,7 @@ type AdvanceNonceParsed = ParsedProgramIx & {
 };
 
 function parseAdvanceNonce(
-  ix: Parameters<InstructionMatcher["tryMatch"]>[0],
+  ix: Parameters<InstructionMatcher["tryMatch"]>[0]
 ): AdvanceNonceParsed | undefined {
   if (!isAdvanceNonceAccountInstruction(ix)) return undefined;
   return {
@@ -96,7 +96,7 @@ function hasCap(value: string | null | undefined): value is string {
 }
 
 function parseMintLimits(
-  limits: readonly MintSpendLimit[] | null | undefined,
+  limits: readonly MintSpendLimit[] | null | undefined
 ): Map<string, bigint> {
   const map = new Map<string, bigint>();
   if (!limits) return map;
@@ -119,7 +119,7 @@ function pushTokenProgramRules(
     transferChecked: InstructionMatcher<TransferCheckedIx>;
     transfer: InstructionMatcher<TransferIx>;
     mintLimits: Map<string, bigint>;
-  },
+  }
 ) {
   const { transferChecked, transfer, mintLimits } = opts;
 
@@ -158,7 +158,7 @@ function pushTokenProgramRules(
             },
           };
         },
-      }),
+      })
     );
     for (const [mint, maxRaw] of mintLimits) {
       rules.push(
@@ -182,8 +182,8 @@ function pushTokenProgramRules(
                 ...(isUsdcMint(mint) ? { symbol: "USDC" } : {}),
               },
             }),
-          },
-        ),
+          }
+        )
       );
     }
   }
@@ -199,7 +199,7 @@ function pushTokenProgramRules(
  * Spend caps declare their soft-deny via `onFail` (code `spend_limit` + details).
  */
 export function buildPaymentsPolicy(
-  opts: PaymentsPolicyConfig = { version: "3" },
+  opts: PaymentsPolicyConfig = { version: "3" }
 ): Policy {
   const mintLimits = parseMintLimits(opts.mintLimits);
   const maxSol = hasCap(opts.maxSolLamports)
@@ -210,17 +210,17 @@ export function buildPaymentsPolicy(
 
   rules.push(
     allow(
-      associatedToken.instruction(AssociatedTokenAccountInstruction.Create),
+      associatedToken.instruction(AssociatedTokenAccountInstruction.Create)
     ),
     allow(
       associatedToken.instruction(
-        AssociatedTokenAccountInstruction.CreateIdempotent,
-      ),
-    ),
+        AssociatedTokenAccountInstruction.CreateIdempotent
+      )
+    )
   );
 
   const transferSol = system.instruction(
-    SystemInstruction.TransferSol,
+    SystemInstruction.TransferSol
   ) as InstructionMatcher<TransferSolIx>;
   rules.push(
     maxSol != null
@@ -240,13 +240,13 @@ export function buildPaymentsPolicy(
             },
           }),
         })
-      : allow(transferSol),
+      : allow(transferSol)
   );
   rules.push(
     allow(advanceNonceAccount),
     allow(system.instruction(SystemInstruction.CreateAccount)),
     allow(system.instruction(SystemInstruction.Allocate)),
-    allow(system.instruction(SystemInstruction.Assign)),
+    allow(system.instruction(SystemInstruction.Assign))
   );
 
   pushTokenProgramRules(rules, {
@@ -257,7 +257,7 @@ export function buildPaymentsPolicy(
 
   pushTokenProgramRules(rules, {
     transferChecked: token2022.instruction(
-      Token2022Instruction.TransferChecked,
+      Token2022Instruction.TransferChecked
     ),
     transfer: token2022.instruction(Token2022Instruction.Transfer),
     mintLimits,
@@ -266,11 +266,11 @@ export function buildPaymentsPolicy(
   rules.push(
     allow(
       tokenMetadata.instruction(TokenMetadataInstruction.Transfer),
-      (ix) => ix.data.transferArgs.amount <= 1n,
+      (ix) => ix.data.transferArgs.amount <= 1n
     ),
     allow(bubblegum.instruction(BubblegumInstruction.Transfer)),
     allow(bubblegum.instruction(BubblegumInstruction.TransferV2)),
-    allow(mplCore.instruction(MplCoreProgramInstruction.TransferV1)),
+    allow(mplCore.instruction(MplCoreProgramInstruction.TransferV1))
   );
   for (const programId of COLLECTIBLE_COMPANION_PROGRAMS) {
     rules.push(allowProgram(programId));
@@ -300,8 +300,8 @@ export function buildPaymentsPolicy(
               actual: actual.toString(),
             },
           }),
-        },
-      ),
+        }
+      )
     );
   }
 

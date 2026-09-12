@@ -11,36 +11,36 @@
       "binding": "phygital_token",
       "database_name": "phygital-token",
       "database_id": "356d6b15-cd60-47b5-a014-648246bd27b5",
-      "migrations_dir": "d1/migrations",
-    },
+      "migrations_dir": "d1/migrations"
+    }
   ],
   "vars": {
     "SOLANA_CLUSTER": "mainnet",
     "SOLANA_RPC_URL": "https://rpc.revibase.com",
     "TOP_UP_ACCUMULATOR": "BExDpnx6E1LW3ofkCPxXvBRAmxqPVsmwnPb4oM5FUutv",
     "DEFAULT_VERIFIER_PUBKEYS": "[2qLZosEYxN4Bp7dGySYgjWEmXR9jQ4za6hr2AFocUHxU]",
-    "LOG_LEVEL": "info",
+    "LOG_LEVEL": "info"
   },
   "kv_namespaces": [
     {
       "binding": "revibase_auth_kv",
-      "id": "c3e243c181204c0c9604cecbc5fecfee",
-    },
+      "id": "c3e243c181204c0c9604cecbc5fecfee"
+    }
   ],
   "durable_objects": {
     "bindings": [
       {
         "name": "TOKEN_SIGNER",
         "class_name": "TokenSigner",
-        "script_name": "revibase-verifier-signer",
-      },
-    ],
+        "script_name": "revibase-verifier-signer"
+      }
+    ]
   },
   "observability": {
     "enabled": true,
     "logs": {
       "enabled": true,
-      "invocation_logs": true,
-    },
-  },
+      "invocation_logs": true
+    }
+  }
 }

@@ -29,10 +29,10 @@ type PolicyVerdict =
  */
 export function evaluatePolicy(
   policy: PaymentsPolicyConfig | null,
-  instructions: readonly Instruction[],
+  instructions: readonly Instruction[]
 ): PolicyVerdict {
   const body = instructions.filter(
-    (ix) => String(ix.programAddress) !== COMPUTE_BUDGET_PROGRAM,
+    (ix) => String(ix.programAddress) !== COMPUTE_BUDGET_PROGRAM
   );
 
   if (body.length === 0) {

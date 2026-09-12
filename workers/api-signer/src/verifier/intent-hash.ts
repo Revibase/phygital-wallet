@@ -7,7 +7,7 @@ export function bytesToHex(bytes: Uint8Array): string {
 /** Stable hash of phygitalToken + canonical instruction list. */
 export async function hashIntent(
   phygitalToken: string,
-  instructions: readonly Instruction[],
+  instructions: readonly Instruction[]
 ): Promise<string> {
   const parts: string[] = [phygitalToken];
   for (const ix of instructions) {
@@ -17,12 +17,12 @@ export async function hashIntent(
       parts.push(a.address);
     }
     parts.push(
-      bytesToHex(ix.data ? new Uint8Array(ix.data) : new Uint8Array()),
+      bytesToHex(ix.data ? new Uint8Array(ix.data) : new Uint8Array())
     );
   }
   const digest = await crypto.subtle.digest(
     "SHA-256",
-    new TextEncoder().encode(parts.join("|")),
+    new TextEncoder().encode(parts.join("|"))
   );
   return bytesToHex(new Uint8Array(digest));
 }

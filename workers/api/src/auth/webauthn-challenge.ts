@@ -10,7 +10,7 @@ function kv() {
 export async function storeWebAuthnChallenge(
   kind: "register" | "auth",
   phygitalToken: string,
-  challenge: string,
+  challenge: string
 ): Promise<void> {
   await kv().put(`${CHALLENGE_PREFIX}${kind}:${phygitalToken}`, challenge, {
     expirationTtl: CHALLENGE_TTL_SEC,
@@ -20,7 +20,7 @@ export async function storeWebAuthnChallenge(
 export async function consumeWebAuthnChallenge(
   kind: "register" | "auth",
   phygitalToken: string,
-  expected: string,
+  expected: string
 ): Promise<boolean> {
   const key = `${CHALLENGE_PREFIX}${kind}:${phygitalToken}`;
   const stored = await kv().get(key);

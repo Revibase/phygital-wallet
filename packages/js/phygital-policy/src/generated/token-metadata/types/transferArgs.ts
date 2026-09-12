@@ -75,11 +75,11 @@ export function getTransferArgsCodec(): Codec<TransferArgsArgs, TransferArgs> {
 // Data Enum Helpers.
 export function transferArgs(
   kind: "V1",
-  data: GetDiscriminatedUnionVariantContent<TransferArgsArgs, "__kind", "V1">,
+  data: GetDiscriminatedUnionVariantContent<TransferArgsArgs, "__kind", "V1">
 ): GetDiscriminatedUnionVariant<TransferArgsArgs, "__kind", "V1">;
 export function transferArgs<K extends TransferArgsArgs["__kind"], Data>(
   kind: K,
-  data?: Data,
+  data?: Data
 ) {
   return Array.isArray(data)
     ? { __kind: kind, fields: data }
@@ -88,7 +88,7 @@ export function transferArgs<K extends TransferArgsArgs["__kind"], Data>(
 
 export function isTransferArgs<K extends TransferArgs["__kind"]>(
   kind: K,
-  value: TransferArgs,
+  value: TransferArgs
 ): value is TransferArgs & { __kind: K } {
   return value.__kind === kind;
 }

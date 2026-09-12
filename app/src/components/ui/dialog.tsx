@@ -40,7 +40,7 @@ function DialogOverlay({
       className={cn(
         "fixed inset-0 z-50 bg-black/10 backdrop-blur-xs",
         "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-        className,
+        className
       )}
       {...props}
     />
@@ -72,7 +72,7 @@ function DialogContent({
           "p-4 sm:p-6",
           "md:inset-auto md:top-1/2 md:left-1/2 md:bottom-auto md:max-h-[min(85vh,40rem)] md:w-full md:-translate-x-1/2 md:-translate-y-1/2 md:overflow-y-auto md:rounded-3xl md:shadow-xl",
           "md:data-[state=open]:slide-in-from-bottom-0 md:data-[state=closed]:slide-out-to-bottom-0 md:data-[state=open]:zoom-in-95 md:data-[state=closed]:zoom-out-95",
-          className,
+          className
         )}
         onOpenAutoFocus={onOpenAutoFocus}
         {...props}
@@ -115,7 +115,7 @@ function DialogFooter({ className, ...props }: React.ComponentProps<"div">) {
     <div
       className={cn(
         "flex flex-col-reverse sm:flex-row sm:justify-end gap-2",
-        className,
+        className
       )}
       {...props}
     />
@@ -130,7 +130,7 @@ function DialogTitle({
     <DialogPrimitive.Title
       className={cn(
         "text-base font-medium leading-none tracking-tight",
-        className,
+        className
       )}
       {...props}
     />

@@ -49,7 +49,7 @@ export function CopyableAddress({
     () => () => {
       if (timer.current) clearTimeout(timer.current);
     },
-    [],
+    []
   );
 
   async function onCopy() {
@@ -76,7 +76,7 @@ export function CopyableAddress({
       }
       className={cn(
         "group/copy h-auto min-h-0 gap-1.5 rounded-md px-0 py-0.5 font-mono text-foreground hover:bg-transparent hover:text-foreground",
-        className,
+        className
       )}
     >
       <span className="tabular-nums">{shortAddress(address, length)}</span>
@@ -87,13 +87,13 @@ export function CopyableAddress({
         <Copy
           className={cn(
             "absolute size-3.5 text-muted-foreground/70 transition-all duration-200",
-            copied ? "opacity-0" : "opacity-100",
+            copied ? "opacity-0" : "opacity-100"
           )}
         />
         <Check
           className={cn(
             "absolute size-3.5 text-primary transition-all duration-200",
-            copied ? "scale-100 opacity-100" : "scale-75 opacity-0",
+            copied ? "scale-100 opacity-100" : "scale-75 opacity-0"
           )}
           strokeWidth={2.5}
         />

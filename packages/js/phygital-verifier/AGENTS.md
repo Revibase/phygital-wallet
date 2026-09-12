@@ -55,7 +55,7 @@ const gate = policy([
         amount: (ix) => ix.data.amount,
       },
     ],
-    { lte: MAX },
+    { lte: MAX }
   ),
 ]);
 

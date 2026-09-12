@@ -46,7 +46,7 @@ export function getAllocateDiscriminatorBytes(): ReadonlyUint8Array {
 export type AllocateInstruction<
   TProgram extends string = typeof SYSTEM_PROGRAM_ADDRESS,
   TAccountNewAccount extends string | AccountMeta<string> = string,
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+  TRemainingAccounts extends readonly AccountMeta<string>[] = []
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
   InstructionWithAccounts<
@@ -55,7 +55,7 @@ export type AllocateInstruction<
         ? WritableSignerAccount<TAccountNewAccount> &
             AccountSignerMeta<TAccountNewAccount>
         : TAccountNewAccount,
-      ...TRemainingAccounts,
+      ...TRemainingAccounts
     ]
   >;
 
@@ -69,7 +69,7 @@ export function getAllocateInstructionDataEncoder(): FixedSizeEncoder<AllocateIn
       ["discriminator", getU32Encoder()],
       ["space", getU64Encoder()],
     ]),
-    (value) => ({ ...value, discriminator: ALLOCATE_DISCRIMINATOR }),
+    (value) => ({ ...value, discriminator: ALLOCATE_DISCRIMINATOR })
   );
 }
 
@@ -86,7 +86,7 @@ export function getAllocateInstructionDataCodec(): FixedSizeCodec<
 > {
   return combineCodec(
     getAllocateInstructionDataEncoder(),
-    getAllocateInstructionDataDecoder(),
+    getAllocateInstructionDataDecoder()
   );
 }
 
@@ -97,10 +97,10 @@ export type AllocateInput<TAccountNewAccount extends string = string> = {
 
 export function getAllocateInstruction<
   TAccountNewAccount extends string,
-  TProgramAddress extends Address = typeof SYSTEM_PROGRAM_ADDRESS,
+  TProgramAddress extends Address = typeof SYSTEM_PROGRAM_ADDRESS
 >(
   input: AllocateInput<TAccountNewAccount>,
-  config?: { programAddress?: TProgramAddress },
+  config?: { programAddress?: TProgramAddress }
 ): AllocateInstruction<TProgramAddress, TAccountNewAccount> {
   // Program address.
   const programAddress = config?.programAddress ?? SYSTEM_PROGRAM_ADDRESS;
@@ -121,7 +121,7 @@ export function getAllocateInstruction<
   return Object.freeze({
     accounts: [getAccountMeta("newAccount", accounts.newAccount)],
     data: getAllocateInstructionDataEncoder().encode(
-      args as AllocateInstructionDataArgs,
+      args as AllocateInstructionDataArgs
     ),
     programAddress,
   } as AllocateInstruction<TProgramAddress, TAccountNewAccount>);
@@ -129,7 +129,7 @@ export function getAllocateInstruction<
 
 export type ParsedAllocateInstruction<
   TProgram extends string = typeof SYSTEM_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[]
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -140,11 +140,11 @@ export type ParsedAllocateInstruction<
 
 export function parseAllocateInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[]
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>,
+    InstructionWithData<ReadonlyUint8Array>
 ): ParsedAllocateInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 1) {
     throw new SolanaError(
@@ -152,7 +152,7 @@ export function parseAllocateInstruction<
       {
         actualAccountMetas: instruction.accounts.length,
         expectedAccountMetas: 1,
-      },
+      }
     );
   }
   let accountIndex = 0;

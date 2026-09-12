@@ -26,7 +26,7 @@ export function CollectiblesAllSheet({
 }) {
   const sorted = useMemo(
     () => sortCollectibles(collectibles, linkedMint),
-    [collectibles, linkedMint],
+    [collectibles, linkedMint]
   );
   const [query, setQuery] = useState("");
   const showSearch = sorted.length >= ALL_LIST_SEARCH_THRESHOLD;
@@ -38,7 +38,7 @@ export function CollectiblesAllSheet({
       (c) =>
         c.name.toLowerCase().includes(q) ||
         (c.collectionName?.toLowerCase().includes(q) ?? false) ||
-        c.mint.toLowerCase().includes(q),
+        c.mint.toLowerCase().includes(q)
     );
   }, [sorted, query]);
 

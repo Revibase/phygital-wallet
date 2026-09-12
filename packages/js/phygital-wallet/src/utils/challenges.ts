@@ -17,19 +17,19 @@ const u64Decoder = getU64Decoder();
 const slotHashesAddress = SLOT_HASHES_SYSVAR_ADDRESS as Address;
 
 const EXECUTE_CHALLENGE_PREFIX = new TextEncoder().encode(
-  "phygital_wallet:execute:v2",
+  "phygital_wallet:execute:v2"
 );
 const SET_TOKEN_VERIFIER_CHALLENGE_PREFIX = new TextEncoder().encode(
-  "phygital_wallet:set_tv:v1",
+  "phygital_wallet:set_tv:v1"
 );
 const CLEAR_TOKEN_VERIFIER_CHALLENGE_PREFIX = new TextEncoder().encode(
-  "phygital_wallet:clear_tv:v1",
+  "phygital_wallet:clear_tv:v1"
 );
 const SET_RECOVERY_WALLET_CHALLENGE_PREFIX = new TextEncoder().encode(
-  "phygital_wallet:set_rw:v1",
+  "phygital_wallet:set_rw:v1"
 );
 const CLEAR_RECOVERY_WALLET_CHALLENGE_PREFIX = new TextEncoder().encode(
-  "phygital_wallet:clear_rw:v1",
+  "phygital_wallet:clear_rw:v1"
 );
 
 type SlotChallenge = {
@@ -43,7 +43,7 @@ export type SlotEntry = {
 };
 
 export async function fetchLatestSlotHash(
-  rpc: Rpc<GetAccountInfoApi>,
+  rpc: Rpc<GetAccountInfoApi>
 ): Promise<SlotEntry> {
   const { value } = await rpc
     .getAccountInfo(slotHashesAddress, {
@@ -69,7 +69,7 @@ export async function fetchLatestSlotHash(
 
 async function withSlotChallenge(
   rpc: Rpc<GetAccountInfoApi>,
-  hashMessage: (slotHash: Uint8Array) => Uint8Array,
+  hashMessage: (slotHash: Uint8Array) => Uint8Array
 ): Promise<SlotChallenge> {
   const { slotNumber, slotHash } = await fetchLatestSlotHash(rpc);
   return { slotNumber, messageHash: hashMessage(slotHash) };
@@ -80,7 +80,7 @@ async function withSlotChallenge(
  * `[num][progIdx][nAcc][indexes...][dataLen LE u16][data...]...`
  */
 export function packCompactInstructions(
-  instructions: readonly CompactInstructionArgs[],
+  instructions: readonly CompactInstructionArgs[]
 ): Uint8Array {
   if (instructions.length > 255) {
     throw new Error("Too many compact instructions for u8 count");
@@ -115,7 +115,7 @@ export function packCompactInstructions(
 
 export function hashReferencedAccounts(
   remainingKeys: readonly Address[],
-  instructions: readonly CompactInstructionArgs[],
+  instructions: readonly CompactInstructionArgs[]
 ): Uint8Array {
   const encoded = new Map<Address, Uint8Array>();
   const encode = (key: Address) => {
@@ -162,15 +162,15 @@ export function hashReferencedAccounts(
 export function hashExecuteChallenge(
   slotHash: Uint8Array,
   compactInstructions: readonly CompactInstructionArgs[],
-  remainingKeys: readonly Address[],
+  remainingKeys: readonly Address[]
 ): Uint8Array {
   const instructionsHash = sha256(packCompactInstructions(compactInstructions));
   const accountsHash = hashReferencedAccounts(
     remainingKeys,
-    compactInstructions,
+    compactInstructions
   );
   const preimage = new Uint8Array(
-    EXECUTE_CHALLENGE_PREFIX.length + 32 + 32 + 32,
+    EXECUTE_CHALLENGE_PREFIX.length + 32 + 32 + 32
   );
   let offset = 0;
   preimage.set(EXECUTE_CHALLENGE_PREFIX, offset);
@@ -187,7 +187,7 @@ function hashSetTokenVerifierChallenge(
   slotHash: Uint8Array,
   phygitalToken: Address,
   verifier: Address,
-  endpoint: string,
+  endpoint: string
 ): Uint8Array {
   const tokenBytes = new Uint8Array(addressEncoder.encode(phygitalToken));
   const verifierBytes = new Uint8Array(addressEncoder.encode(verifier));
@@ -197,7 +197,7 @@ function hashSetTokenVerifierChallenge(
       32 +
       tokenBytes.length +
       verifierBytes.length +
-      endpointBytes.length,
+      endpointBytes.length
   );
   let offset = 0;
   preimage.set(SET_TOKEN_VERIFIER_CHALLENGE_PREFIX, offset);
@@ -214,11 +214,11 @@ function hashSetTokenVerifierChallenge(
 
 function hashClearTokenVerifierChallenge(
   slotHash: Uint8Array,
-  phygitalToken: Address,
+  phygitalToken: Address
 ): Uint8Array {
   const tokenBytes = new Uint8Array(addressEncoder.encode(phygitalToken));
   const preimage = new Uint8Array(
-    CLEAR_TOKEN_VERIFIER_CHALLENGE_PREFIX.length + 32 + tokenBytes.length,
+    CLEAR_TOKEN_VERIFIER_CHALLENGE_PREFIX.length + 32 + tokenBytes.length
   );
   let offset = 0;
   preimage.set(CLEAR_TOKEN_VERIFIER_CHALLENGE_PREFIX, offset);
@@ -233,14 +233,14 @@ function hashClearTokenVerifierChallenge(
 export function buildExecuteChallengeFromSlot(
   slot: SlotEntry,
   compactInstructions: readonly CompactInstructionArgs[],
-  remainingKeys: readonly Address[],
+  remainingKeys: readonly Address[]
 ): SlotChallenge {
   return {
     slotNumber: slot.slotNumber,
     messageHash: hashExecuteChallenge(
       slot.slotHash,
       compactInstructions,
-      remainingKeys,
+      remainingKeys
     ),
   };
 }
@@ -249,26 +249,26 @@ export async function buildSetTokenVerifierChallenge(
   rpc: Rpc<GetAccountInfoApi>,
   phygitalToken: Address,
   verifier: Address,
-  endpoint: string,
+  endpoint: string
 ): Promise<SlotChallenge> {
   return withSlotChallenge(rpc, (slotHash) =>
-    hashSetTokenVerifierChallenge(slotHash, phygitalToken, verifier, endpoint),
+    hashSetTokenVerifierChallenge(slotHash, phygitalToken, verifier, endpoint)
   );
 }
 
 export async function buildClearTokenVerifierChallenge(
   rpc: Rpc<GetAccountInfoApi>,
-  phygitalToken: Address,
+  phygitalToken: Address
 ): Promise<SlotChallenge> {
   return withSlotChallenge(rpc, (slotHash) =>
-    hashClearTokenVerifierChallenge(slotHash, phygitalToken),
+    hashClearTokenVerifierChallenge(slotHash, phygitalToken)
   );
 }
 
 function hashSetRecoveryWalletChallenge(
   slotHash: Uint8Array,
   phygitalToken: Address,
-  recoveryWallet: Address,
+  recoveryWallet: Address
 ): Uint8Array {
   const tokenBytes = new Uint8Array(addressEncoder.encode(phygitalToken));
   const recoveryBytes = new Uint8Array(addressEncoder.encode(recoveryWallet));
@@ -276,7 +276,7 @@ function hashSetRecoveryWalletChallenge(
     SET_RECOVERY_WALLET_CHALLENGE_PREFIX.length +
       32 +
       tokenBytes.length +
-      recoveryBytes.length,
+      recoveryBytes.length
   );
   let offset = 0;
   preimage.set(SET_RECOVERY_WALLET_CHALLENGE_PREFIX, offset);
@@ -291,11 +291,11 @@ function hashSetRecoveryWalletChallenge(
 
 function hashClearRecoveryWalletChallenge(
   slotHash: Uint8Array,
-  phygitalToken: Address,
+  phygitalToken: Address
 ): Uint8Array {
   const tokenBytes = new Uint8Array(addressEncoder.encode(phygitalToken));
   const preimage = new Uint8Array(
-    CLEAR_RECOVERY_WALLET_CHALLENGE_PREFIX.length + 32 + tokenBytes.length,
+    CLEAR_RECOVERY_WALLET_CHALLENGE_PREFIX.length + 32 + tokenBytes.length
   );
   let offset = 0;
   preimage.set(CLEAR_RECOVERY_WALLET_CHALLENGE_PREFIX, offset);
@@ -310,18 +310,18 @@ function hashClearRecoveryWalletChallenge(
 export async function buildSetRecoveryWalletChallenge(
   rpc: Rpc<GetAccountInfoApi>,
   phygitalToken: Address,
-  recoveryWallet: Address,
+  recoveryWallet: Address
 ): Promise<SlotChallenge> {
   return withSlotChallenge(rpc, (slotHash) =>
-    hashSetRecoveryWalletChallenge(slotHash, phygitalToken, recoveryWallet),
+    hashSetRecoveryWalletChallenge(slotHash, phygitalToken, recoveryWallet)
   );
 }
 
 export async function buildClearRecoveryWalletChallenge(
   rpc: Rpc<GetAccountInfoApi>,
-  phygitalToken: Address,
+  phygitalToken: Address
 ): Promise<SlotChallenge> {
   return withSlotChallenge(rpc, (slotHash) =>
-    hashClearRecoveryWalletChallenge(slotHash, phygitalToken),
+    hashClearRecoveryWalletChallenge(slotHash, phygitalToken)
   );
 }

@@ -19,15 +19,15 @@ export default function WalletCollectibleDetailPage() {
     typeof params.mint === "string"
       ? params.mint
       : Array.isArray(params.mint)
-        ? params.mint[0]
-        : "";
+      ? params.mint[0]
+      : "";
   const mintAddr = tryParseAddress(mintRaw);
   const { walletAddress, tokenAddress } = useWalletSession();
   const { backTo, goSend } = useWalletNav();
   const portfolio = useWalletPortfolio(walletAddress);
 
   const detail = portfolio.data?.collectibles.find(
-    (c) => c.mint === (mintAddr ? String(mintAddr) : mintRaw),
+    (c) => c.mint === (mintAddr ? String(mintAddr) : mintRaw)
   );
 
   if (!detail) {

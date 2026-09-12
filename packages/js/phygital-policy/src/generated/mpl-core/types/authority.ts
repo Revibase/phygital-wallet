@@ -57,21 +57,21 @@ export function getAuthorityCodec(): Codec<AuthorityArgs, Authority> {
 
 // Data Enum Helpers.
 export function authority(
-  kind: "None",
+  kind: "None"
 ): GetDiscriminatedUnionVariant<AuthorityArgs, "__kind", "None">;
 export function authority(
-  kind: "Owner",
+  kind: "Owner"
 ): GetDiscriminatedUnionVariant<AuthorityArgs, "__kind", "Owner">;
 export function authority(
-  kind: "UpdateAuthority",
+  kind: "UpdateAuthority"
 ): GetDiscriminatedUnionVariant<AuthorityArgs, "__kind", "UpdateAuthority">;
 export function authority(
   kind: "Address",
-  data: GetDiscriminatedUnionVariantContent<AuthorityArgs, "__kind", "Address">,
+  data: GetDiscriminatedUnionVariantContent<AuthorityArgs, "__kind", "Address">
 ): GetDiscriminatedUnionVariant<AuthorityArgs, "__kind", "Address">;
 export function authority<K extends AuthorityArgs["__kind"], Data>(
   kind: K,
-  data?: Data,
+  data?: Data
 ) {
   return Array.isArray(data)
     ? { __kind: kind, fields: data }
@@ -80,7 +80,7 @@ export function authority<K extends AuthorityArgs["__kind"], Data>(
 
 export function isAuthority<K extends Authority["__kind"]>(
   kind: K,
-  value: Authority,
+  value: Authority
 ): value is Authority & { __kind: K } {
   return value.__kind === kind;
 }

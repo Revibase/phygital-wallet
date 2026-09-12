@@ -22,8 +22,8 @@ describe("decodeMemoText", () => {
   it("decodes the on-chain memo data from a wrapped top-up", () => {
     expect(
       decodeMemoText(
-        "7N9Q1HcLHdHhqkW49kM14no6buwY5Uv6friZQdTAhjRkFxEfTPZRYG1FDLD",
-      ),
+        "7N9Q1HcLHdHhqkW49kM14no6buwY5Uv6friZQdTAhjRkFxEfTPZRYG1FDLD"
+      )
     ).toBe(TOP_UP_TOKEN);
   });
 
@@ -44,7 +44,7 @@ describe("findExecuteAccounts", () => {
           clientDataJson: new Uint8Array(),
         },
         slotNumber: 0n,
-      }),
+      })
     );
 
     expect(
@@ -69,7 +69,7 @@ describe("findExecuteAccounts", () => {
             data: "7N9Q1HcLHdHhqkW49kM14no6buwY5Uv6friZQdTAhjRkFxEfTPZRYG1FDLD",
           },
         ],
-      }),
+      })
     ).toEqual({ verifier: VERIFIER, phygitalToken: TOP_UP_TOKEN });
   });
 
@@ -91,11 +91,11 @@ describe("findExecuteAccounts", () => {
             ],
             // initialize_config discriminator
             data: b58.decode(
-              new Uint8Array([208, 127, 21, 1, 194, 190, 196, 70]),
+              new Uint8Array([208, 127, 21, 1, 194, 190, 196, 70])
             ),
           },
         ],
-      }),
+      })
     ).toBeNull();
   });
 });

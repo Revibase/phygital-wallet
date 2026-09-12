@@ -50,7 +50,7 @@ export function SettingsHub({
   const rpc = useRpcPreference();
   const isOwner = role === "owner";
   const policy = useWalletPolicy(
-    isOwner && phygitalTokenPda ? phygitalTokenPda : null,
+    isOwner && phygitalTokenPda ? phygitalTokenPda : null
   );
   const feeSubtitle = fee.data
     ? `${fee.data.balanceUi} SOL`
@@ -63,10 +63,10 @@ export function SettingsHub({
     linkStatus === "linked_here"
       ? copy.wallet.setupDeviceLinkedHere
       : linkStatus === "linked_elsewhere"
-        ? copy.wallet.setupDeviceLinkedElsewhere
-        : claimed === true
-          ? copy.wallet.setupDeviceSignIn
-          : copy.wallet.setupDeviceNotLinked;
+      ? copy.wallet.setupDeviceLinkedElsewhere
+      : claimed === true
+      ? copy.wallet.setupDeviceSignIn
+      : copy.wallet.setupDeviceNotLinked;
 
   const summary = useMemo(() => {
     if (!isOwner || policy.isLoading) return null;
@@ -81,8 +81,8 @@ export function SettingsHub({
     linkStatus === "linked_elsewhere"
       ? copy.wallet.setupDeviceLinkedElsewhere
       : claimed === true
-        ? copy.wallet.setupDeviceSignIn
-        : copy.wallet.limitsStatusRequiresClaim;
+      ? copy.wallet.setupDeviceSignIn
+      : copy.wallet.limitsStatusRequiresClaim;
 
   function withExceptionsHint(base: string): string {
     if (summary && summary !== "invalid" && summary.unrestrictedApps > 0) {
@@ -94,55 +94,53 @@ export function SettingsHub({
   const masterSubtitle = !isOwner
     ? undefined
     : policy.isLoading
-      ? copy.common.loading
-      : summary === "invalid"
-        ? copy.wallet.limitsStatusInvalid
-        : protectionsOn
-          ? withExceptionsHint(copy.wallet.sendProtectionsOn)
-          : copy.wallet.sendProtectionsOff;
+    ? copy.common.loading
+    : summary === "invalid"
+    ? copy.wallet.limitsStatusInvalid
+    : protectionsOn
+    ? withExceptionsHint(copy.wallet.sendProtectionsOn)
+    : copy.wallet.sendProtectionsOff;
 
   const spendSubtitle = !isOwner
     ? visitorLimitsSubtitle
     : policy.isLoading
-      ? copy.common.loading
-      : summary === "invalid"
-        ? copy.wallet.limitsStatusInvalid
-        : !protectionsOn
-          ? copy.wallet.sendProtectionsOff
-          : withExceptionsHint(
-              summary.spendCaps
-                ? copy.wallet.limitsStatusOn
-                : copy.wallet.limitsStatusOff,
-            );
+    ? copy.common.loading
+    : summary === "invalid"
+    ? copy.wallet.limitsStatusInvalid
+    : !protectionsOn
+    ? copy.wallet.sendProtectionsOff
+    : withExceptionsHint(
+        summary.spendCaps
+          ? copy.wallet.limitsStatusOn
+          : copy.wallet.limitsStatusOff
+      );
 
   const exceptionsSubtitle = !isOwner
     ? undefined
     : policy.isLoading
-      ? copy.common.loading
-      : summary === "invalid"
-        ? copy.wallet.limitsStatusInvalid
-        : !protectionsOn
-          ? copy.wallet.extraProgramsAllAllowed
-          : summary.unrestrictedApps > 0
-            ? copy.wallet.extraProgramsWithUnrestricted(
-                summary.unrestrictedApps,
-              )
-            : copy.wallet.extraProgramsBuiltIn;
+    ? copy.common.loading
+    : summary === "invalid"
+    ? copy.wallet.limitsStatusInvalid
+    : !protectionsOn
+    ? copy.wallet.extraProgramsAllAllowed
+    : summary.unrestrictedApps > 0
+    ? copy.wallet.extraProgramsWithUnrestricted(summary.unrestrictedApps)
+    : copy.wallet.extraProgramsBuiltIn;
 
   const allowedSitesSubtitle = !isOwner
     ? undefined
     : policy.isLoading
-      ? copy.common.loading
-      : summary === "invalid"
-        ? copy.wallet.limitsStatusInvalid
-        : summary && summary.allowedOrigins > 0
-          ? copy.wallet.allowedSitesStatusOn(summary.allowedOrigins)
-          : copy.wallet.allowedSitesStatusAny;
+    ? copy.common.loading
+    : summary === "invalid"
+    ? copy.wallet.limitsStatusInvalid
+    : summary && summary.allowedOrigins > 0
+    ? copy.wallet.allowedSitesStatusOn(summary.allowedOrigins)
+    : copy.wallet.allowedSitesStatusAny;
 
   function rowClass(target: SettingsTarget) {
     return cn(
       activeTarget === target &&
-        "bg-muted/60 font-medium text-foreground hover:bg-muted/70",
+        "bg-muted/60 font-medium text-foreground hover:bg-muted/70"
     );
   }
 

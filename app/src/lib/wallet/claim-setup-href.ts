@@ -5,7 +5,7 @@ import { walletHref } from "@/lib/wallet/token-routes";
 
 /** Allowlisted `/token/…` return path after claim. */
 export function parseClaimReturnPath(
-  raw: string | null | undefined,
+  raw: string | null | undefined
 ): { token: string; path: string } | null {
   const parsed = parseSafeTokenReturnPath(raw);
   if (!parsed) return null;

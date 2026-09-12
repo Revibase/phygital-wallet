@@ -56,7 +56,7 @@ function encodeAccountData(data: Uint8Array): string {
 
 function createAccountInfo(
   data: Uint8Array,
-  owner: Address = PHYGITAL_WALLET_PROGRAM_ADDRESS,
+  owner: Address = PHYGITAL_WALLET_PROGRAM_ADDRESS
 ) {
   return {
     data: [encodeAccountData(data), "base64"] as const,
@@ -71,7 +71,7 @@ function createAccountInfo(
 /** SlotHashes entry layout after the vec-len header: [slot u64 LE][hash 32]. */
 function createSlotHashesAccountInfo(
   slotNumber = 100n,
-  slotHash = new Uint8Array(32).fill(7),
+  slotHash = new Uint8Array(32).fill(7)
 ) {
   const entry = new Uint8Array(40);
   entry.set(new Uint8Array(getU64Encoder().encode(slotNumber)), 0);
@@ -91,7 +91,7 @@ async function createMockRpc(options: {
   if (options.config) {
     accounts.set(
       configPda,
-      createAccountInfo(getConfigEncoder().encode(options.config)),
+      createAccountInfo(getConfigEncoder().encode(options.config))
     );
   }
 
@@ -101,9 +101,7 @@ async function createMockRpc(options: {
     });
     accounts.set(
       tokenVerifierPda,
-      createAccountInfo(
-        getTokenVerifierEncoder().encode(options.tokenVerifier),
-      ),
+      createAccountInfo(getTokenVerifierEncoder().encode(options.tokenVerifier))
     );
   }
 
@@ -118,7 +116,7 @@ async function createMockRpc(options: {
       send: async () => ({
         context: { slot: 1n },
         value: addresses.map(
-          (accountAddress) => accounts.get(accountAddress) ?? null,
+          (accountAddress) => accounts.get(accountAddress) ?? null
         ),
       }),
     }),
@@ -135,7 +133,7 @@ async function createMockRpc(options: {
       }),
     }),
     getRecentPrioritizationFees: (
-      _lockedWritableAccounts?: readonly Address[],
+      _lockedWritableAccounts?: readonly Address[]
     ) => ({
       send: async () => [
         { slot: 1n, prioritizationFee: 2_000n },
@@ -186,10 +184,10 @@ const SYSTEM_PROGRAM = address("11111111111111111111111111111111");
 const PHYGITAL_TOKEN = address("DuPpckdjjgVAnYok2aTMAt264ZPBXqq3JSazJjCUzTJQ");
 const CONFIG_VERIFIER = address("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 const OVERRIDE_VERIFIER = address(
-  "Fjbi9JrRAmSBdxQxbkcxYDp6JUwnLbFhU2GsieWQBLSg",
+  "Fjbi9JrRAmSBdxQxbkcxYDp6JUwnLbFhU2GsieWQBLSg"
 );
 const SECP256R1_PROGRAM = address(
-  "Secp256r1SigVerify1111111111111111111111111",
+  "Secp256r1SigVerify1111111111111111111111111"
 );
 const FEE_PAYER = address("11111111111111111111111111111113");
 const MEMO_PROGRAM = address("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr");
@@ -219,14 +217,14 @@ vi.mock("phygital-token-sdk", async (importOriginal) => {
 function mockInstruction(
   programAddress: Address,
   accounts: AccountMeta[] = [],
-  data: Uint8Array = new Uint8Array([2, 0, 0, 0]),
+  data: Uint8Array = new Uint8Array([2, 0, 0, 0])
 ): Instruction {
   return { programAddress, accounts, data };
 }
 
 function compileUnsigned(
   instructions: readonly Instruction[],
-  feePayer: Address = FEE_PAYER,
+  feePayer: Address = FEE_PAYER
 ) {
   return compileTransaction(
     pipe(
@@ -234,7 +232,7 @@ function compileUnsigned(
       (message) =>
         setTransactionMessageFeePayerSigner(
           createNoopSigner(feePayer),
-          message,
+          message
         ),
       (message) =>
         setTransactionMessageLifetimeUsingBlockhash(
@@ -242,20 +240,20 @@ function compileUnsigned(
             blockhash: "11111111111111111111111111111111",
             lastValidBlockHeight: 999n,
           },
-          message,
+          message
         ),
       (message) =>
-        appendTransactionMessageInstructions([...instructions], message),
-    ),
+        appendTransactionMessageInstructions([...instructions], message)
+    )
   );
 }
 
 function getTransactionProgramAddresses(transaction: Transaction): Address[] {
   const compiledMessage = getCompiledTransactionMessageDecoder().decode(
-    transaction.messageBytes,
+    transaction.messageBytes
   );
   return getInstructionsFromCompiledTransactionMessage(compiledMessage).map(
-    (instruction) => instruction.programAddress,
+    (instruction) => instruction.programAddress
   );
 }
 
@@ -264,7 +262,7 @@ function readComputeBudget(transaction: Transaction): {
   unitPrice?: bigint;
 } {
   const compiledMessage = getCompiledTransactionMessageDecoder().decode(
-    transaction.messageBytes,
+    transaction.messageBytes
   );
   const instructions =
     getInstructionsFromCompiledTransactionMessage(compiledMessage);
@@ -340,7 +338,7 @@ describe("createVerifierEndpointSigner", () => {
       (message) =>
         setTransactionMessageFeePayerSigner(
           createNoopSigner(FEE_PAYER),
-          message,
+          message
         ),
       (message) =>
         setTransactionMessageLifetimeUsingBlockhash(
@@ -348,13 +346,13 @@ describe("createVerifierEndpointSigner", () => {
             blockhash: "11111111111111111111111111111111",
             lastValidBlockHeight: 999n,
           },
-          message,
+          message
         ),
       (message) =>
         appendTransactionMessageInstructions(
           [mockInstruction(SYSTEM_PROGRAM)],
-          message,
-        ),
+          message
+        )
     );
 
     const [signatures] = await signer.signTransactions([
@@ -364,7 +362,7 @@ describe("createVerifierEndpointSigner", () => {
     expect(signatures[CONFIG_VERIFIER]).toHaveLength(64);
     expect(mockFetch).toHaveBeenCalledWith(
       "https://example.com/sign",
-      expect.objectContaining({ method: "POST" }),
+      expect.objectContaining({ method: "POST" })
     );
   });
 
@@ -389,7 +387,7 @@ describe("createVerifierEndpointSigner", () => {
       (message) =>
         setTransactionMessageFeePayerSigner(
           createNoopSigner(FEE_PAYER),
-          message,
+          message
         ),
       (message) =>
         setTransactionMessageLifetimeUsingBlockhash(
@@ -397,13 +395,13 @@ describe("createVerifierEndpointSigner", () => {
             blockhash: "11111111111111111111111111111111",
             lastValidBlockHeight: 999n,
           },
-          message,
+          message
         ),
       (message) =>
         appendTransactionMessageInstructions(
           [mockInstruction(SYSTEM_PROGRAM)],
-          message,
-        ),
+          message
+        )
     );
 
     await verifier.signTransactions([compileTransaction(unsigned)]);
@@ -411,7 +409,7 @@ describe("createVerifierEndpointSigner", () => {
       `${DEFAULT_VERIFIER_API_BASE}/sign`,
       expect.objectContaining({
         method: "POST",
-      }),
+      })
     );
     const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
     expect(String(init.body)).not.toContain("usesDefaultPaymaster");
@@ -435,7 +433,7 @@ describe("getPhygitalWalletSigner modifyAndSignTransactions", () => {
           ok: true,
           json: async () => ({ signatures: [signatureBase64] }),
         };
-      }),
+      })
     );
   });
 
@@ -517,7 +515,7 @@ describe("getPhygitalWalletSigner modifyAndSignTransactions", () => {
     ]);
 
     const compiledMessage = getCompiledTransactionMessageDecoder().decode(
-      wrapped.messageBytes,
+      wrapped.messageBytes
     );
     expect(compiledMessage.staticAccounts[0]).toBe(CONFIG_VERIFIER);
     expect(wrapped.signatures?.[walletPda]).toBeUndefined();
@@ -571,9 +569,9 @@ describe("getPhygitalWalletSigner modifyAndSignTransactions", () => {
           getSetComputeUnitPriceInstruction({ microLamports: 1_000n }),
           getSetComputeUnitLimitInstruction({ units: 200_000 }),
         ]),
-      ]),
+      ])
     ).rejects.toThrow(
-      /no instructions to wrap \(only compute budget\/memo, or empty\)/,
+      /no instructions to wrap \(only compute budget\/memo, or empty\)/
     );
   });
 
@@ -588,9 +586,9 @@ describe("getPhygitalWalletSigner modifyAndSignTransactions", () => {
         compileUnsigned([
           mockInstruction(MEMO_PROGRAM, [], new Uint8Array([1])),
         ]),
-      ]),
+      ])
     ).rejects.toThrow(
-      /no instructions to wrap \(only compute budget\/memo, or empty\)/,
+      /no instructions to wrap \(only compute budget\/memo, or empty\)/
     );
   });
 
@@ -618,7 +616,7 @@ describe("getPhygitalWalletSigner modifyAndSignTransactions", () => {
     const [walletPda] = await findWalletPda({ phygitalToken: PHYGITAL_TOKEN });
     const signer = await getPhygitalWalletSigner(
       rpcWithStaleHeight as never,
-      PHYGITAL_TOKEN,
+      PHYGITAL_TOKEN
     );
 
     const transfer = mockInstruction(SYSTEM_PROGRAM, [
@@ -685,7 +683,7 @@ describe("getPhygitalWalletSigner modifyAndSignTransactions", () => {
           ok: true,
           json: async () => ({ signatures: [] }),
         };
-      }),
+      })
     );
 
     const rpc = await createMockRpc({
@@ -700,7 +698,7 @@ describe("getPhygitalWalletSigner modifyAndSignTransactions", () => {
     ]);
 
     await expect(
-      signer.modifyAndSignTransactions([compileUnsigned([transfer])]),
+      signer.modifyAndSignTransactions([compileUnsigned([transfer])])
     ).rejects.toMatchObject({
       name: "PolicyDeniedError",
       soft: true,

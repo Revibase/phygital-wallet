@@ -105,7 +105,7 @@ export const PROTECTIONS_ON_SETTINGS: PolicySettings = {
 
 export function hasMintSpendCaps(settings: PolicySettings): boolean {
   return settings.mintLimits.some(
-    (l) => l.maxUi != null && String(l.maxUi).trim() !== "",
+    (l) => l.maxUi != null && String(l.maxUi).trim() !== ""
   );
 }
 
@@ -145,7 +145,7 @@ function uiCapToRaw(ui: string | null, decimals: number): string | null {
 /** Resolve decimals for a mint when rehydrating from policy JSON. */
 export function resolveMintDecimals(
   mint: string,
-  meta?: ReadonlyMap<string, MintCapMeta>,
+  meta?: ReadonlyMap<string, MintCapMeta>
 ): number {
   const hint = meta?.get(mint);
   if (hint && Number.isInteger(hint.decimals) && hint.decimals >= 0) {
@@ -157,7 +157,7 @@ export function resolveMintDecimals(
 
 export function resolveMintSymbol(
   mint: string,
-  meta?: ReadonlyMap<string, MintCapMeta>,
+  meta?: ReadonlyMap<string, MintCapMeta>
 ): string | undefined {
   const hint = meta?.get(mint)?.symbol?.trim();
   if (hint) return hint;
@@ -246,10 +246,10 @@ export function summarizePolicyDocument(policy: PaymentsPolicyConfig): {
   return {
     spendCaps: Boolean(
       (policy.mintLimits && policy.mintLimits.length > 0) ||
-      policy.maxSolLamports,
+        policy.maxSolLamports
     ),
     unrestrictedApps: (policy.extraPrograms ?? []).filter(
-      (id) => !BASE_PROGRAM_IDS.has(id),
+      (id) => !BASE_PROGRAM_IDS.has(id)
     ).length,
     allowedOrigins: (policy.allowedOrigins ?? []).length,
   };
@@ -257,7 +257,7 @@ export function summarizePolicyDocument(policy: PaymentsPolicyConfig): {
 
 export async function derivePolicySettings(
   policy: PaymentsPolicyConfig | null,
-  mintMeta?: ReadonlyMap<string, MintCapMeta>,
+  mintMeta?: ReadonlyMap<string, MintCapMeta>
 ): Promise<PolicySettings> {
   if (!policy) return { ...EMPTY_POLICY_SETTINGS };
   const mintLimits: MintSpendCapSetting[] = (policy.mintLimits ?? []).map(
@@ -269,7 +269,7 @@ export async function derivePolicySettings(
         decimals,
         symbol: resolveMintSymbol(l.mint, mintMeta),
       };
-    },
+    }
   );
   return {
     mintLimits,
@@ -278,14 +278,14 @@ export async function derivePolicySettings(
       : null,
     programAllowlist: true,
     extraPrograms: (policy.extraPrograms ?? []).filter(
-      (id) => !BASE_PROGRAM_IDS.has(id),
+      (id) => !BASE_PROGRAM_IDS.has(id)
     ),
     allowedOrigins: [...(policy.allowedOrigins ?? [])],
   };
 }
 
 export async function compilePolicySettings(
-  settings: PolicySettings,
+  settings: PolicySettings
 ): Promise<PaymentsPolicyConfig> {
   const mintLimits = [];
   for (const cap of settings.mintLimits) {
@@ -297,13 +297,13 @@ export async function compilePolicySettings(
   }
   const maxSolLamports = uiCapToRaw(settings.maxTransferSol, 9);
   const extras = settings.extraPrograms.filter(
-    (id) => !BASE_PROGRAM_IDS.has(id),
+    (id) => !BASE_PROGRAM_IDS.has(id)
   );
   const allowedOrigins = [
     ...new Set(
       settings.allowedOrigins
         .map(normalizeAllowedOrigin)
-        .filter((o): o is string => o != null),
+        .filter((o): o is string => o != null)
     ),
   ];
 
@@ -321,7 +321,7 @@ export async function compilePolicySettings(
 export async function applyPolicySettingsPatch(
   base: PaymentsPolicyConfig,
   patch: Partial<PolicySettings>,
-  mintMeta?: ReadonlyMap<string, MintCapMeta>,
+  mintMeta?: ReadonlyMap<string, MintCapMeta>
 ): Promise<PaymentsPolicyConfig> {
   const current = await derivePolicySettings(base, mintMeta);
   return compilePolicySettings({

@@ -34,6 +34,6 @@ export function getTransferDelegateCodec(): FixedSizeCodec<
 > {
   return combineCodec(
     getTransferDelegateEncoder(),
-    getTransferDelegateDecoder(),
+    getTransferDelegateDecoder()
   );
 }

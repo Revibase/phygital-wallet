@@ -35,7 +35,7 @@ export function StickyActions({
         "border-t border-border/40 bg-background/95 pt-3 backdrop-blur-sm",
         "pb-[max(0.75rem,env(safe-area-inset-bottom))]",
         animate && galleryAnimate.slideUp,
-        className,
+        className
       )}
       style={style}
     >

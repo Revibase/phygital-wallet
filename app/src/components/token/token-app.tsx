@@ -13,9 +13,9 @@ import { tokenHref } from "@/lib/wallet/token-routes";
 const TokenRouteShell = dynamic(
   () =>
     import("@/components/token/token-route-shell").then(
-      (m) => m.TokenRouteShell,
+      (m) => m.TokenRouteShell
     ),
-  { ssr: false, loading: () => <RouteBoot /> },
+  { ssr: false, loading: () => <RouteBoot /> }
 );
 
 const TOKEN_NFC_COPY = {

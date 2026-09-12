@@ -83,7 +83,7 @@ type SendHardError = { message: string; code: string | null };
 function defaultAsset(
   portfolio: WalletPortfolio | undefined,
   initial: SendAssetRef | null | undefined,
-  tokensOnly: boolean,
+  tokensOnly: boolean
 ): SendAssetRef | null {
   if (initial) return initial;
   const holdings = portfolio?.holdings ?? [];
@@ -117,7 +117,7 @@ export function SendDialog({
   onClose: () => void;
   onHoldPhaseChange: (
     phase: "holding" | "success" | null,
-    recap?: SendHoldRecap,
+    recap?: SendHoldRecap
   ) => void;
   onSignPhaseChange?: (phase: PhygitalWalletSignPhase | null) => void;
   onSent: () => void;
@@ -126,11 +126,11 @@ export function SendDialog({
 }) {
   const queryClient = useQueryClient();
   const [asset, setAsset] = useState<SendAssetRef | null>(() =>
-    defaultAsset(portfolio, initialAsset, tokensOnly),
+    defaultAsset(portfolio, initialAsset, tokensOnly)
   );
   const [pickerOpen, setPickerOpen] = useState(false);
   const [amount, setAmount] = useState(() =>
-    initialAsset && isCollectibleSendKind(initialAsset.kind) ? "1" : "",
+    initialAsset && isCollectibleSendKind(initialAsset.kind) ? "1" : ""
   );
   const [recipient, setRecipient] = useState("");
   const [phase, setPhase] = useState<Phase>("form");
@@ -176,7 +176,7 @@ export function SendDialog({
   useEffect(() => {
     if (initialAsset && isCollectibleSendKind(initialAsset.kind)) return;
     const id = window.requestAnimationFrame(() =>
-      amountInputRef.current?.focus(),
+      amountInputRef.current?.focus()
     );
     return () => window.cancelAnimationFrame(id);
   }, [initialAsset]);
@@ -195,7 +195,7 @@ export function SendDialog({
   const invalidRecipient =
     trimmedRecipient.length > 0 && parsedRecipient == null;
   const selfSend = Boolean(
-    parsedRecipient && String(parsedRecipient) === walletAddress,
+    parsedRecipient && String(parsedRecipient) === walletAddress
   );
   const amountNum = Number(amount);
   const overBalance =
@@ -218,11 +218,11 @@ export function SendDialog({
 
   const canSend = Boolean(
     asset &&
-    parsedRecipient &&
-    amountOk &&
-    !selfSend &&
-    !busy &&
-    !feeInsufficient,
+      parsedRecipient &&
+      amountOk &&
+      !selfSend &&
+      !busy &&
+      !feeInsufficient
   );
 
   function recapForSend(signature?: string | null): SendHoldRecap {
@@ -231,16 +231,16 @@ export function SendDialog({
       : trimmedRecipient;
     return {
       amountLabel: nft
-        ? (asset?.name ?? copy.wallet.sendCollectible)
+        ? asset?.name ?? copy.wallet.sendCollectible
         : `${amount} ${asset?.symbol ?? ""}`.trim(),
       recipientLabel,
       feeLabel: !usesFeeBalance
         ? null
         : feeInsufficient
-          ? copy.wallet.feeBalanceInsufficient
-          : feeLow
-            ? copy.wallet.feeBalanceLow
-            : copy.wallet.networkFeeFromBalanceShort,
+        ? copy.wallet.feeBalanceInsufficient
+        : feeLow
+        ? copy.wallet.feeBalanceLow
+        : copy.wallet.networkFeeFromBalanceShort,
       signature: signature ?? null,
       recipientAddress: parsedRecipient ? String(parsedRecipient) : null,
       mint: asset?.mint ?? null,
@@ -365,7 +365,7 @@ export function SendDialog({
           restorePortfolioSnapshot(queryClient, walletAddress, portfolioBefore);
           restoreWalletActivitySnapshot(queryClient, activityBefore);
           toast.error(toUserErrorMessage(err));
-        },
+        }
       );
     } catch (e) {
       if (submittedSignature) {
@@ -437,7 +437,7 @@ export function SendDialog({
   }
 
   const holdings = portfolio?.holdings ?? [];
-  const collectibles = tokensOnly ? [] : (portfolio?.collectibles ?? []);
+  const collectibles = tokensOnly ? [] : portfolio?.collectibles ?? [];
 
   if (phase === "holding") {
     // Parent swaps to SendHoldStage for the NFC ceremony.
@@ -539,7 +539,7 @@ export function SendDialog({
                 aria-label={copy.wallet.send}
                 className={cn(
                   "max-w-full",
-                  amount ? "text-foreground" : "text-muted-foreground/50",
+                  amount ? "text-foreground" : "text-muted-foreground/50"
                 )}
               />
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -818,15 +818,15 @@ export function SendDialog({
                   role === "owner"
                     ? copy.wallet.approveSendTitle
                     : visitorPhase === "denied"
-                      ? copy.wallet.visitorDeniedTitle
-                      : copy.wallet.nearbyPolicyTitle
+                    ? copy.wallet.visitorDeniedTitle
+                    : copy.wallet.nearbyPolicyTitle
                 }
                 body={
                   role === "owner"
                     ? policySoftDenyBody(softDeny)
                     : visitorPhase === "denied"
-                      ? copy.wallet.visitorDeniedBody
-                      : copy.wallet.visitorNeedsApprovalBody
+                    ? copy.wallet.visitorDeniedBody
+                    : copy.wallet.visitorNeedsApprovalBody
                 }
                 hint={
                   role === "owner" || visitorPhase === "denied"
@@ -835,13 +835,13 @@ export function SendDialog({
                 }
                 amountLabel={
                   nft
-                    ? (asset?.name ?? "1")
-                    : (policyAmountLabel(softDeny.details, asset?.symbol) ??
-                      `${amount} ${asset?.symbol ?? ""}`.trim())
+                    ? asset?.name ?? "1"
+                    : policyAmountLabel(softDeny.details, asset?.symbol) ??
+                      `${amount} ${asset?.symbol ?? ""}`.trim()
                 }
                 recipientLabel={shortAddress(
                   String(parsedRecipient ?? recipient),
-                  6,
+                  6
                 )}
                 detailRows={policyApprovalDetailRows(softDeny.details, {
                   omitAmount: true,

@@ -29,7 +29,7 @@ async function requireOwnerSession(c: Context<{ Bindings: Env }>): Promise<
   if (!phygitalToken) {
     return json(
       { error: "Missing phygitalToken", code: "invalid_transaction" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -37,7 +37,7 @@ async function requireOwnerSession(c: Context<{ Bindings: Env }>): Promise<
   if (!(await stub.isOwner(session.credentialId))) {
     return json(
       { error: "Only the owner phone can do this.", code: "not_owner" },
-      { status: 403 },
+      { status: 403 }
     );
   }
 
@@ -58,7 +58,7 @@ policyRoutes.post("/policies/:phygitalToken/mutation-options", async (c) => {
   if (!origin) {
     return json(
       { error: "Unsupported origin", code: "invalid_transaction" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -69,7 +69,7 @@ policyRoutes.post("/policies/:phygitalToken/mutation-options", async (c) => {
         error: "Valid owner mutation binding required",
         code: "invalid_transaction",
       },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -77,7 +77,7 @@ policyRoutes.post("/policies/:phygitalToken/mutation-options", async (c) => {
   if (!result.ok) {
     return json(
       { error: result.error, code: result.code },
-      { status: result.code === "not_owner" ? 403 : 400 },
+      { status: result.code === "not_owner" ? 403 : 400 }
     );
   }
   return json({ challengeId: result.challengeId, options: result.options });
@@ -91,7 +91,7 @@ policyRoutes.put("/policies/:phygitalToken", async (c) => {
   if (!origin) {
     return json(
       { error: "Unsupported origin", code: "invalid_transaction" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -107,7 +107,7 @@ policyRoutes.put("/policies/:phygitalToken", async (c) => {
         error: "policy, challengeId and assertion required",
         code: "invalid_transaction",
       },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -124,7 +124,7 @@ policyRoutes.put("/policies/:phygitalToken", async (c) => {
         : 400;
     return json(
       { error: result.error, code: result.code, details: result.details },
-      { status },
+      { status }
     );
   }
   recordAudit({
@@ -146,7 +146,7 @@ policyRoutes.delete("/policies/:phygitalToken", async (c) => {
   if (!origin) {
     return json(
       { error: "Unsupported origin", code: "invalid_transaction" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -160,7 +160,7 @@ policyRoutes.delete("/policies/:phygitalToken", async (c) => {
         error: "challengeId and assertion required",
         code: "invalid_transaction",
       },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -192,7 +192,7 @@ policyRoutes.post("/policies/:phygitalToken/grants", async (c) => {
   if (!origin) {
     return json(
       { error: "Unsupported origin", code: "invalid_transaction" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -209,7 +209,7 @@ policyRoutes.post("/policies/:phygitalToken/grants", async (c) => {
         error: "intentHash, challengeId and assertion required",
         code: "invalid_transaction",
       },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -280,7 +280,7 @@ policyRoutes.post("/policies/:phygitalToken/approvals/deny", async (c) => {
   if (!intentHash) {
     return json(
       { error: "intentHash required", code: "invalid_transaction" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 

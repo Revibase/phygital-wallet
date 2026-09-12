@@ -71,7 +71,7 @@ export function getUpdateAuthorityCodec(): Codec<
 
 // Data Enum Helpers.
 export function updateAuthority(
-  kind: "None",
+  kind: "None"
 ): GetDiscriminatedUnionVariant<UpdateAuthorityArgs, "__kind", "None">;
 export function updateAuthority(
   kind: "Address",
@@ -79,7 +79,7 @@ export function updateAuthority(
     UpdateAuthorityArgs,
     "__kind",
     "Address"
-  >["fields"],
+  >["fields"]
 ): GetDiscriminatedUnionVariant<UpdateAuthorityArgs, "__kind", "Address">;
 export function updateAuthority(
   kind: "Collection",
@@ -87,11 +87,11 @@ export function updateAuthority(
     UpdateAuthorityArgs,
     "__kind",
     "Collection"
-  >["fields"],
+  >["fields"]
 ): GetDiscriminatedUnionVariant<UpdateAuthorityArgs, "__kind", "Collection">;
 export function updateAuthority<K extends UpdateAuthorityArgs["__kind"], Data>(
   kind: K,
-  data?: Data,
+  data?: Data
 ) {
   return Array.isArray(data)
     ? { __kind: kind, fields: data }
@@ -100,7 +100,7 @@ export function updateAuthority<K extends UpdateAuthorityArgs["__kind"], Data>(
 
 export function isUpdateAuthority<K extends UpdateAuthority["__kind"]>(
   kind: K,
-  value: UpdateAuthority,
+  value: UpdateAuthority
 ): value is UpdateAuthority & { __kind: K } {
   return value.__kind === kind;
 }

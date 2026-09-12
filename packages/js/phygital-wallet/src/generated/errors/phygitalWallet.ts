@@ -96,7 +96,8 @@ export type PhygitalWalletError =
   | typeof PHYGITAL_WALLET_ERROR__WALLET_OWNER_MISMATCH;
 
 let phygitalWalletErrorMessages:
-  Record<PhygitalWalletError, string> | undefined;
+  | Record<PhygitalWalletError, string>
+  | undefined;
 if (process.env["NODE_ENV"] !== "production") {
   phygitalWalletErrorMessages = {
     [PHYGITAL_WALLET_ERROR__ENDPOINT_TOO_LONG]: `Verifier endpoint URL exceeds max length`,
@@ -129,7 +130,7 @@ if (process.env["NODE_ENV"] !== "production") {
 }
 
 export function getPhygitalWalletErrorMessage(
-  code: PhygitalWalletError,
+  code: PhygitalWalletError
 ): string {
   if (process.env["NODE_ENV"] !== "production") {
     return (phygitalWalletErrorMessages as Record<PhygitalWalletError, string>)[
@@ -141,19 +142,19 @@ export function getPhygitalWalletErrorMessage(
 }
 
 export function isPhygitalWalletError<
-  TProgramErrorCode extends PhygitalWalletError,
+  TProgramErrorCode extends PhygitalWalletError
 >(
   error: unknown,
   transactionMessage: {
     instructions: Record<number, { programAddress: Address }>;
   },
-  code?: TProgramErrorCode,
+  code?: TProgramErrorCode
 ): error is SolanaError<typeof SOLANA_ERROR__INSTRUCTION_ERROR__CUSTOM> &
   Readonly<{ context: Readonly<{ code: TProgramErrorCode }> }> {
   return isProgramError<TProgramErrorCode>(
     error,
     transactionMessage,
     PHYGITAL_WALLET_PROGRAM_ADDRESS,
-    code,
+    code
   );
 }

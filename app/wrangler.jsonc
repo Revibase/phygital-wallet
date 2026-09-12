@@ -7,13 +7,13 @@
   "minify": true,
   "assets": {
     "directory": ".open-next/assets",
-    "binding": "ASSETS",
+    "binding": "ASSETS"
   },
   "services": [
     {
       "binding": "WORKER_SELF_REFERENCE",
-      "service": "revibase-app",
-    },
+      "service": "revibase-app"
+    }
   ],
   "migrations": [],
   "vars": {
@@ -21,7 +21,7 @@
     "NEXT_PUBLIC_SOLANA_CLUSTER": "mainnet",
     "NEXT_PUBLIC_API_BASE_URL": "https://api.revibase.com",
     "NEXT_PUBLIC_APP_URL": "https://app.revibase.com",
-    "NEXT_PUBLIC_TOP_UP_ACCUMULATOR": "BExDpnx6E1LW3ofkCPxXvBRAmxqPVsmwnPb4oM5FUutv",
+    "NEXT_PUBLIC_TOP_UP_ACCUMULATOR": "BExDpnx6E1LW3ofkCPxXvBRAmxqPVsmwnPb4oM5FUutv"
   },
   "observability": {
     "enabled": false,
@@ -30,12 +30,12 @@
       "enabled": true,
       "head_sampling_rate": 1,
       "persist": true,
-      "invocation_logs": true,
+      "invocation_logs": true
     },
     "traces": {
       "enabled": false,
       "persist": true,
-      "head_sampling_rate": 1,
-    },
-  },
+      "head_sampling_rate": 1
+    }
+  }
 }

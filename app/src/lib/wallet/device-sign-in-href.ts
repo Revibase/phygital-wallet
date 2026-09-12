@@ -14,7 +14,7 @@ export { isPolicySetupScreen };
 
 /** Allowlisted `/token/…` return path after Home passkey + link. */
 export function parseSafeTokenReturnPath(
-  raw: string | null | undefined,
+  raw: string | null | undefined
 ): { token: string; returnTo: string } | null {
   const parsed = parseTokenWalletPath(raw);
   if (!parsed) return null;
@@ -58,8 +58,8 @@ export function isOwnerAuthFailure(e: unknown): boolean {
     e instanceof QueryHttpError
       ? e.code
       : e instanceof PolicyDeniedError
-        ? e.code
-        : null;
+      ? e.code
+      : null;
   return (
     status === 401 ||
     status === 403 ||
@@ -82,7 +82,7 @@ export function redirectToDeviceSignIn(token: string, returnTo: string): void {
 export function handleOwnerAuthFailure(
   token: string,
   e: unknown,
-  returnTo?: string,
+  returnTo?: string
 ): boolean {
   if (!isOwnerAuthFailure(e)) return false;
   const path =

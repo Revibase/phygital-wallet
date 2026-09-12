@@ -44,8 +44,8 @@ export default function WalletHomePage() {
   const status = portfolio.isError
     ? "error"
     : portfolio.isLoading
-      ? "refreshing"
-      : "live";
+    ? "refreshing"
+    : "live";
 
   return (
     <div className="flex flex-1 flex-col">
@@ -115,8 +115,8 @@ export default function WalletHomePage() {
           isOwner || linkedElsewhere
             ? null
             : unclaimed || claimed === undefined
-              ? copy.wallet.claimBannerTitle
-              : null
+            ? copy.wallet.claimBannerTitle
+            : null
         }
         visitorNoticeAction={
           !isOwner &&
@@ -143,7 +143,7 @@ export default function WalletHomePage() {
         lastUpdatedLabel={
           portfolio.dataUpdatedAt
             ? copy.wallet.lastUpdated(
-                timeFormatter.format(portfolio.dataUpdatedAt),
+                timeFormatter.format(portfolio.dataUpdatedAt)
               )
             : null
         }

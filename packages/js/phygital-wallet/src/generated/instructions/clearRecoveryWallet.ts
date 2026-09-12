@@ -57,7 +57,7 @@ export const CLEAR_RECOVERY_WALLET_DISCRIMINATOR: ReadonlyUint8Array =
 
 export function getClearRecoveryWalletDiscriminatorBytes(): ReadonlyUint8Array {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    CLEAR_RECOVERY_WALLET_DISCRIMINATOR,
+    CLEAR_RECOVERY_WALLET_DISCRIMINATOR
   );
 }
 
@@ -69,13 +69,16 @@ export type ClearRecoveryWalletInstruction<
   TAccountTokenVerifier extends string | AccountMeta<string> = string,
   TAccountRentReceiver extends string | AccountMeta<string> = string,
   TAccountRecoveryWalletAccount extends string | AccountMeta<string> = string,
-  TAccountSlotHashes extends string | AccountMeta<string> =
-    "SysvarS1otHashes111111111111111111111111111",
-  TAccountInstructionsSysvar extends string | AccountMeta<string> =
-    "Sysvar1nstructions1111111111111111111111111",
-  TAccountPhygitalTokenProgram extends string | AccountMeta<string> =
-    "DuPpckdjjgVAnYok2aTMAt264ZPBXqq3JSazJjCUzTJQ",
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+  TAccountSlotHashes extends
+    | string
+    | AccountMeta<string> = "SysvarS1otHashes111111111111111111111111111",
+  TAccountInstructionsSysvar extends
+    | string
+    | AccountMeta<string> = "Sysvar1nstructions1111111111111111111111111",
+  TAccountPhygitalTokenProgram extends
+    | string
+    | AccountMeta<string> = "DuPpckdjjgVAnYok2aTMAt264ZPBXqq3JSazJjCUzTJQ",
+  TRemainingAccounts extends readonly AccountMeta<string>[] = []
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
   InstructionWithAccounts<
@@ -108,7 +111,7 @@ export type ClearRecoveryWalletInstruction<
       TAccountPhygitalTokenProgram extends string
         ? ReadonlyAccount<TAccountPhygitalTokenProgram>
         : TAccountPhygitalTokenProgram,
-      ...TRemainingAccounts,
+      ...TRemainingAccounts
     ]
   >;
 
@@ -133,7 +136,7 @@ export function getClearRecoveryWalletInstructionDataEncoder(): Encoder<ClearRec
     (value) => ({
       ...value,
       discriminator: CLEAR_RECOVERY_WALLET_DISCRIMINATOR,
-    }),
+    })
   );
 }
 
@@ -151,7 +154,7 @@ export function getClearRecoveryWalletInstructionDataCodec(): Codec<
 > {
   return combineCodec(
     getClearRecoveryWalletInstructionDataEncoder(),
-    getClearRecoveryWalletInstructionDataDecoder(),
+    getClearRecoveryWalletInstructionDataDecoder()
   );
 }
 
@@ -164,7 +167,7 @@ export type ClearRecoveryWalletAsyncInput<
   TAccountRecoveryWalletAccount extends string = string,
   TAccountSlotHashes extends string = string,
   TAccountInstructionsSysvar extends string = string,
-  TAccountPhygitalTokenProgram extends string = string,
+  TAccountPhygitalTokenProgram extends string = string
 > = {
   /** Verifier co-signer. Token override (exclusive) or config default set. */
   verifier: TransactionSigner<TAccountVerifier>;
@@ -191,7 +194,7 @@ export async function getClearRecoveryWalletInstructionAsync<
   TAccountSlotHashes extends string,
   TAccountInstructionsSysvar extends string,
   TAccountPhygitalTokenProgram extends string,
-  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
+  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS
 >(
   input: ClearRecoveryWalletAsyncInput<
     TAccountVerifier,
@@ -204,7 +207,7 @@ export async function getClearRecoveryWalletInstructionAsync<
     TAccountInstructionsSysvar,
     TAccountPhygitalTokenProgram
   >,
-  config?: { programAddress?: TProgramAddress },
+  config?: { programAddress?: TProgramAddress }
 ): Promise<
   ClearRecoveryWalletInstruction<
     TProgramAddress,
@@ -260,7 +263,7 @@ export async function getClearRecoveryWalletInstructionAsync<
     accounts.tokenVerifier.value = await findTokenVerifierPda({
       phygitalToken: getAddressFromResolvedInstructionAccount(
         "phygitalToken",
-        accounts.phygitalToken.value,
+        accounts.phygitalToken.value
       ),
     });
   }
@@ -268,7 +271,7 @@ export async function getClearRecoveryWalletInstructionAsync<
     accounts.recoveryWalletAccount.value = await findRecoveryWalletAccountPda({
       phygitalToken: getAddressFromResolvedInstructionAccount(
         "phygitalToken",
-        accounts.phygitalToken.value,
+        accounts.phygitalToken.value
       ),
     });
   }
@@ -299,21 +302,10 @@ export async function getClearRecoveryWalletInstructionAsync<
       getAccountMeta("phygitalTokenProgram", accounts.phygitalTokenProgram),
     ],
     data: getClearRecoveryWalletInstructionDataEncoder().encode(
-      args as ClearRecoveryWalletInstructionDataArgs,
+      args as ClearRecoveryWalletInstructionDataArgs
     ),
     programAddress,
-  } as ClearRecoveryWalletInstruction<
-    TProgramAddress,
-    TAccountVerifier,
-    TAccountConfig,
-    TAccountPhygitalToken,
-    TAccountTokenVerifier,
-    TAccountRentReceiver,
-    TAccountRecoveryWalletAccount,
-    TAccountSlotHashes,
-    TAccountInstructionsSysvar,
-    TAccountPhygitalTokenProgram
-  >);
+  } as ClearRecoveryWalletInstruction<TProgramAddress, TAccountVerifier, TAccountConfig, TAccountPhygitalToken, TAccountTokenVerifier, TAccountRentReceiver, TAccountRecoveryWalletAccount, TAccountSlotHashes, TAccountInstructionsSysvar, TAccountPhygitalTokenProgram>);
 }
 
 export type ClearRecoveryWalletInput<
@@ -325,7 +317,7 @@ export type ClearRecoveryWalletInput<
   TAccountRecoveryWalletAccount extends string = string,
   TAccountSlotHashes extends string = string,
   TAccountInstructionsSysvar extends string = string,
-  TAccountPhygitalTokenProgram extends string = string,
+  TAccountPhygitalTokenProgram extends string = string
 > = {
   /** Verifier co-signer. Token override (exclusive) or config default set. */
   verifier: TransactionSigner<TAccountVerifier>;
@@ -352,7 +344,7 @@ export function getClearRecoveryWalletInstruction<
   TAccountSlotHashes extends string,
   TAccountInstructionsSysvar extends string,
   TAccountPhygitalTokenProgram extends string,
-  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
+  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS
 >(
   input: ClearRecoveryWalletInput<
     TAccountVerifier,
@@ -365,7 +357,7 @@ export function getClearRecoveryWalletInstruction<
     TAccountInstructionsSysvar,
     TAccountPhygitalTokenProgram
   >,
-  config?: { programAddress?: TProgramAddress },
+  config?: { programAddress?: TProgramAddress }
 ): ClearRecoveryWalletInstruction<
   TProgramAddress,
   TAccountVerifier,
@@ -439,26 +431,15 @@ export function getClearRecoveryWalletInstruction<
       getAccountMeta("phygitalTokenProgram", accounts.phygitalTokenProgram),
     ],
     data: getClearRecoveryWalletInstructionDataEncoder().encode(
-      args as ClearRecoveryWalletInstructionDataArgs,
+      args as ClearRecoveryWalletInstructionDataArgs
     ),
     programAddress,
-  } as ClearRecoveryWalletInstruction<
-    TProgramAddress,
-    TAccountVerifier,
-    TAccountConfig,
-    TAccountPhygitalToken,
-    TAccountTokenVerifier,
-    TAccountRentReceiver,
-    TAccountRecoveryWalletAccount,
-    TAccountSlotHashes,
-    TAccountInstructionsSysvar,
-    TAccountPhygitalTokenProgram
-  >);
+  } as ClearRecoveryWalletInstruction<TProgramAddress, TAccountVerifier, TAccountConfig, TAccountPhygitalToken, TAccountTokenVerifier, TAccountRentReceiver, TAccountRecoveryWalletAccount, TAccountSlotHashes, TAccountInstructionsSysvar, TAccountPhygitalTokenProgram>);
 }
 
 export type ParsedClearRecoveryWalletInstruction<
   TProgram extends string = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[]
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -479,11 +460,11 @@ export type ParsedClearRecoveryWalletInstruction<
 
 export function parseClearRecoveryWalletInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[]
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>,
+    InstructionWithData<ReadonlyUint8Array>
 ): ParsedClearRecoveryWalletInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 9) {
     throw new SolanaError(
@@ -491,7 +472,7 @@ export function parseClearRecoveryWalletInstruction<
       {
         actualAccountMetas: instruction.accounts.length,
         expectedAccountMetas: 9,
-      },
+      }
     );
   }
   let accountIndex = 0;
@@ -514,7 +495,7 @@ export function parseClearRecoveryWalletInstruction<
       phygitalTokenProgram: getNextAccount(),
     },
     data: getClearRecoveryWalletInstructionDataDecoder().decode(
-      instruction.data,
+      instruction.data
     ),
   };
 }

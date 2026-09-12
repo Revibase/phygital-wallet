@@ -20,7 +20,7 @@ export type WalletSeeds = {
 
 export async function findWalletPda(
   seeds: WalletSeeds,
-  config: { programAddress?: Address | undefined } = {},
+  config: { programAddress?: Address | undefined } = {}
 ): Promise<ProgramDerivedAddress> {
   const {
     programAddress = "Fjbi9JrRAmSBdxQxbkcxYDp6JUwnLbFhU2GsieWQBLSg" as Address<"Fjbi9JrRAmSBdxQxbkcxYDp6JUwnLbFhU2GsieWQBLSg">,
@@ -31,7 +31,7 @@ export async function findWalletPda(
       getBytesEncoder().encode(
         new Uint8Array([
           112, 114, 111, 103, 114, 97, 109, 95, 119, 97, 108, 108, 101, 116,
-        ]),
+        ])
       ),
       getAddressEncoder().encode(seeds.phygitalToken),
     ],

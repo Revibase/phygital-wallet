@@ -30,7 +30,7 @@ export function useShortcutOpener() {
         },
       });
     },
-    [],
+    []
   );
 
   const iframeSheet = iframe ? (

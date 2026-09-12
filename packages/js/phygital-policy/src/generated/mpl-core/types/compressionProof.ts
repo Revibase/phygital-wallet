@@ -85,6 +85,6 @@ export function getCompressionProofCodec(): Codec<
 > {
   return combineCodec(
     getCompressionProofEncoder(),
-    getCompressionProofDecoder(),
+    getCompressionProofDecoder()
   );
 }

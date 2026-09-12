@@ -32,13 +32,13 @@ export const TOKEN_2022_PROGRAM_ADDRESS =
   "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb" as Address<"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb">;
 
 export function identifyToken2022Account(
-  account: { data: ReadonlyUint8Array } | ReadonlyUint8Array,
+  account: { data: ReadonlyUint8Array } | ReadonlyUint8Array
 ): Token2022Account {
   const data = "data" in account ? account.data : account;
 
   throw new SolanaError(
     SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_ACCOUNT,
-    { accountData: data, programName: "token-2022" },
+    { accountData: data, programName: "token-2022" }
   );
 }
 
@@ -49,7 +49,7 @@ export enum Token2022Instruction {
 }
 
 export function identifyToken2022Instruction(
-  instruction: { data: ReadonlyUint8Array } | ReadonlyUint8Array,
+  instruction: { data: ReadonlyUint8Array } | ReadonlyUint8Array
 ): Token2022Instruction {
   const data = "data" in instruction ? instruction.data : instruction;
   if (containsBytes(data, getU8Encoder().encode(3), 0)) {
@@ -63,12 +63,12 @@ export function identifyToken2022Instruction(
   }
   throw new SolanaError(
     SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_INSTRUCTION,
-    { instructionData: data, programName: "token-2022" },
+    { instructionData: data, programName: "token-2022" }
   );
 }
 
 export type ParsedToken2022Instruction<
-  TProgram extends string = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+  TProgram extends string = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
 > =
   | ({
       instructionType: Token2022Instruction.Transfer;
@@ -81,7 +81,7 @@ export type ParsedToken2022Instruction<
     } & ParsedTransferCheckedInstruction<TProgram>);
 
 export function parseToken2022Instruction<TProgram extends string>(
-  instruction: Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array>,
+  instruction: Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array>
 ): ParsedToken2022Instruction<TProgram> {
   const instructionType = identifyToken2022Instruction(instruction);
   switch (instructionType) {
@@ -112,7 +112,7 @@ export function parseToken2022Instruction<TProgram extends string>(
         {
           instructionType: instructionType as string,
           programName: "token-2022",
-        },
+        }
       );
   }
 }

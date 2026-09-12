@@ -69,7 +69,7 @@ function cachedTokenAddress(data: unknown): string | null {
 function adjustHolding(
   holding: PaymentTokenHolding,
   amountUi: string,
-  direction: "in" | "out",
+  direction: "in" | "out"
 ): PaymentTokenHolding {
   try {
     const delta = uiAmountToRaw(amountUi, holding.decimals);
@@ -109,7 +109,7 @@ export function applyOptimisticPortfolioDelta(
     direction: "in" | "out";
     /** Remove collectible from cache instead of adjusting a fungible holding. */
     removeCollectible?: boolean;
-  },
+  }
 ): WalletPortfolio | undefined {
   const key = queryKeys.walletPortfolio.byOwner(args.owner);
   const previous = queryClient.getQueryData<WalletPortfolio>(key);
@@ -126,7 +126,7 @@ export function applyOptimisticPortfolioDelta(
       holdings: prev.holdings.map((h) =>
         h.mint === args.mint
           ? adjustHolding(h, args.amountUi, args.direction)
-          : h,
+          : h
       ),
     };
   });
@@ -137,7 +137,7 @@ export function applyOptimisticPortfolioDelta(
 export function restorePortfolioSnapshot(
   queryClient: QueryClient,
   owner: string,
-  previous: WalletPortfolio | undefined,
+  previous: WalletPortfolio | undefined
 ): void {
   const key = queryKeys.walletPortfolio.byOwner(owner);
   if (previous === undefined) {
@@ -159,7 +159,7 @@ export function applyOptimisticFeeBalance(
     token: string;
     amountUi: string;
     direction: "in" | "out";
-  },
+  }
 ): FeeBalance | undefined {
   const key = queryKeys.feeBalance.byToken(args.token);
   const previous = queryClient.getQueryData<FeeBalance>(key);
@@ -188,7 +188,7 @@ export function applyOptimisticFeeBalance(
 export function restoreFeeBalanceSnapshot(
   queryClient: QueryClient,
   token: string,
-  previous: FeeBalance | undefined,
+  previous: FeeBalance | undefined
 ): void {
   const key = queryKeys.feeBalance.byToken(token);
   if (previous === undefined) {
@@ -200,7 +200,7 @@ export function restoreFeeBalanceSnapshot(
 
 function isOwnerActivityFirstPage(
   queryKey: readonly unknown[],
-  owner: string,
+  owner: string
 ): boolean {
   return (
     queryKey[0] === "walletActivity" &&
@@ -211,7 +211,7 @@ function isOwnerActivityFirstPage(
 
 function prependActivityItem(
   page: WalletActivityPage | undefined,
-  item: WalletActivityItem,
+  item: WalletActivityItem
 ): WalletActivityPage {
   return {
     items: [item, ...(page?.items ?? []).filter((row) => row.id !== item.id)],
@@ -225,7 +225,7 @@ function prependActivityItem(
  */
 export function applyOptimisticWalletActivity(
   queryClient: QueryClient,
-  item: WalletActivityItem,
+  item: WalletActivityItem
 ): WalletActivitySnapshot {
   const keys = new Map<string, QueryKey>();
   const addKey = (queryKey: QueryKey) => {
@@ -250,7 +250,7 @@ export function applyOptimisticWalletActivity(
       previous: queryClient.getQueryData<WalletActivityPage>(queryKey),
     });
     queryClient.setQueryData<WalletActivityPage>(queryKey, (prev) =>
-      prependActivityItem(prev, item),
+      prependActivityItem(prev, item)
     );
   }
   return snapshot;
@@ -263,7 +263,7 @@ export function patchOptimisticWalletActivity(
     owner: string;
     id: string;
     patch: Partial<WalletActivityItem>;
-  },
+  }
 ): void {
   queryClient.setQueriesData<WalletActivityPage>(
     {
@@ -276,17 +276,17 @@ export function patchOptimisticWalletActivity(
       return {
         ...prev,
         items: prev.items.map((item) =>
-          item.id === args.id ? { ...item, ...args.patch } : item,
+          item.id === args.id ? { ...item, ...args.patch } : item
         ),
       };
-    },
+    }
   );
 }
 
 /** Undo applyOptimisticWalletActivity after a failed confirmation. */
 export function restoreWalletActivitySnapshot(
   queryClient: QueryClient,
-  snapshot: WalletActivitySnapshot | undefined,
+  snapshot: WalletActivitySnapshot | undefined
 ): void {
   if (!snapshot) return;
   for (const { queryKey, previous } of snapshot) {
@@ -307,7 +307,7 @@ export function invalidateWalletBalances(
   args: {
     wallets?: Array<string | null | undefined>;
     tokens?: Array<string | null | undefined>;
-  },
+  }
 ): void {
   for (const owner of uniq(args.wallets ?? [])) {
     void queryClient.invalidateQueries({
@@ -324,7 +324,7 @@ export function invalidateWalletBalances(
 /** On-chain token account changed (signing settings, ownership, etc.). */
 export function invalidatePhygitalToken(
   queryClient: QueryClient,
-  tokenAddress?: string | null,
+  tokenAddress?: string | null
 ): void {
   if (!tokenAddress) {
     void queryClient.invalidateQueries({
@@ -348,11 +348,11 @@ export function invalidatePhygitalToken(
 export function applyWalletPolicy(
   queryClient: QueryClient,
   phygitalToken: string,
-  effective: EffectivePolicy,
+  effective: EffectivePolicy
 ): void {
   queryClient.setQueryData(
     queryKeys.walletPolicy.byToken(phygitalToken),
-    effective,
+    effective
   );
 }
 
@@ -362,7 +362,7 @@ export function applyWalletPolicy(
 export function applyOptimisticRecoveryWallet(
   queryClient: QueryClient,
   token: string,
-  next: RecoveryWalletCache,
+  next: RecoveryWalletCache
 ): RecoveryWalletCache | undefined {
   const key = queryKeys.recoveryWallet.byToken(token);
   const previous = queryClient.getQueryData<RecoveryWalletCache>(key);
@@ -373,7 +373,7 @@ export function applyOptimisticRecoveryWallet(
 export function restoreRecoveryWalletSnapshot(
   queryClient: QueryClient,
   token: string,
-  previous: RecoveryWalletCache | undefined,
+  previous: RecoveryWalletCache | undefined
 ): void {
   const key = queryKeys.recoveryWallet.byToken(token);
   if (previous === undefined) {
@@ -389,7 +389,7 @@ export function restoreRecoveryWalletSnapshot(
 export function applyOptimisticTokenVerifier(
   queryClient: QueryClient,
   token: string,
-  next: TokenVerifierCache,
+  next: TokenVerifierCache
 ): TokenVerifierCache | undefined {
   const key = queryKeys.tokenVerifier.byToken(token);
   const previous = queryClient.getQueryData<TokenVerifierCache>(key);
@@ -400,7 +400,7 @@ export function applyOptimisticTokenVerifier(
 export function restoreTokenVerifierSnapshot(
   queryClient: QueryClient,
   token: string,
-  previous: TokenVerifierCache | undefined,
+  previous: TokenVerifierCache | undefined
 ): void {
   const key = queryKeys.tokenVerifier.byToken(token);
   if (previous === undefined) {

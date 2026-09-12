@@ -102,7 +102,7 @@ export function payloadType(
     PayloadTypeArgs,
     "__kind",
     "Pubkey"
-  >["fields"],
+  >["fields"]
 ): GetDiscriminatedUnionVariant<PayloadTypeArgs, "__kind", "Pubkey">;
 export function payloadType(
   kind: "Seeds",
@@ -110,7 +110,7 @@ export function payloadType(
     PayloadTypeArgs,
     "__kind",
     "Seeds"
-  >["fields"],
+  >["fields"]
 ): GetDiscriminatedUnionVariant<PayloadTypeArgs, "__kind", "Seeds">;
 export function payloadType(
   kind: "MerkleProof",
@@ -118,7 +118,7 @@ export function payloadType(
     PayloadTypeArgs,
     "__kind",
     "MerkleProof"
-  >["fields"],
+  >["fields"]
 ): GetDiscriminatedUnionVariant<PayloadTypeArgs, "__kind", "MerkleProof">;
 export function payloadType(
   kind: "Number",
@@ -126,11 +126,11 @@ export function payloadType(
     PayloadTypeArgs,
     "__kind",
     "Number"
-  >["fields"],
+  >["fields"]
 ): GetDiscriminatedUnionVariant<PayloadTypeArgs, "__kind", "Number">;
 export function payloadType<K extends PayloadTypeArgs["__kind"], Data>(
   kind: K,
-  data?: Data,
+  data?: Data
 ) {
   return Array.isArray(data)
     ? { __kind: kind, fields: data }
@@ -139,7 +139,7 @@ export function payloadType<K extends PayloadTypeArgs["__kind"], Data>(
 
 export function isPayloadType<K extends PayloadType["__kind"]>(
   kind: K,
-  value: PayloadType,
+  value: PayloadType
 ): value is PayloadType & { __kind: K } {
   return value.__kind === kind;
 }

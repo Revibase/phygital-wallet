@@ -12,7 +12,7 @@ import { parseConfigIntent } from "@/verifier/config-intent";
  */
 export async function assertPreviewWalletSigner(
   phygitalToken: string,
-  instructions: readonly Instruction[],
+  instructions: readonly Instruction[]
 ): Promise<void> {
   let configChange: ReturnType<typeof parseConfigIntent> = null;
   for (const ix of instructions) {
@@ -26,7 +26,7 @@ export async function assertPreviewWalletSigner(
         {
           code: "invalid_transaction",
           details: { phygitalToken, configToken: configChange.phygitalToken },
-        },
+        }
       );
     }
     return;
@@ -48,7 +48,7 @@ export async function assertPreviewWalletSigner(
     (ix.accounts ?? []).some((a) => {
       if (String(a.address) !== walletPda) return false;
       return isSignerRole(a.role);
-    }),
+    })
   );
 
   if (!isSigner) {
@@ -57,7 +57,7 @@ export async function assertPreviewWalletSigner(
       {
         code: "invalid_transaction",
         details: { phygitalToken, walletPda },
-      },
+      }
     );
   }
 }

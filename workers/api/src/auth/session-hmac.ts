@@ -23,7 +23,7 @@ function hmacKey(secret: string): Promise<CryptoKey> {
       new TextEncoder().encode(secret),
       { name: "HMAC", hash: "SHA-256" },
       false,
-      ["sign", "verify"],
+      ["sign", "verify"]
     );
     hmacKeyBySecret.set(secret, pending);
   }
@@ -32,13 +32,13 @@ function hmacKey(secret: string): Promise<CryptoKey> {
 
 export async function hmacSha256(
   secret: string,
-  payload: string,
+  payload: string
 ): Promise<Uint8Array> {
   const key = await hmacKey(secret);
   const sig = await crypto.subtle.sign(
     "HMAC",
     key,
-    new TextEncoder().encode(payload),
+    new TextEncoder().encode(payload)
   );
   return new Uint8Array(sig);
 }
@@ -54,20 +54,22 @@ export function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
 export async function mintSignedSessionToken(
   payloadHead: string,
   ttlMs: number,
-  now = Date.now(),
+  now = Date.now()
 ): Promise<{ token: string; expiresAt: number }> {
   const exp = now + ttlMs;
   const jti = crypto.randomUUID();
   const payload = `${payloadHead}|${exp}|${jti}`;
   const mac = await hmacSha256(requireSessionSecret(), payload);
-  const token = `${bytesToBase64Url(new TextEncoder().encode(payload))}.${bytesToBase64Url(mac)}`;
+  const token = `${bytesToBase64Url(
+    new TextEncoder().encode(payload)
+  )}.${bytesToBase64Url(mac)}`;
   return { token, expiresAt: exp };
 }
 
 /** Parse signed session token into payload parts (before `|exp|jti` split). */
 export async function parseSignedSessionToken(
   token: string | undefined,
-  now = Date.now(),
+  now = Date.now()
 ): Promise<{ head: string; exp: number; jti: string } | null> {
   if (!token) return null;
   const [payloadB64, macB64] = token.split(".");

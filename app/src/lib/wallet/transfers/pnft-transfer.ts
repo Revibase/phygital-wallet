@@ -22,7 +22,7 @@ import {
 import { getSolanaRpc } from "@/lib/solana/rpc";
 
 const AUTH_RULES_PROGRAM = address(
-  "auth9SigNpDKz4sJJ1DfCTuZrZNSAgh9sFD3rboVmgg",
+  "auth9SigNpDKz4sJJ1DfCTuZrZNSAgh9sFD3rboVmgg"
 );
 
 /**

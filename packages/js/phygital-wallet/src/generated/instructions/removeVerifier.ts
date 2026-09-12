@@ -41,21 +41,22 @@ import { findConfigPda } from "../pdas/index.js";
 import { PHYGITAL_WALLET_PROGRAM_ADDRESS } from "../programs/index.js";
 
 export const REMOVE_VERIFIER_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array(
-  [179, 9, 132, 183, 233, 23, 172, 111],
+  [179, 9, 132, 183, 233, 23, 172, 111]
 );
 
 export function getRemoveVerifierDiscriminatorBytes(): ReadonlyUint8Array {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    REMOVE_VERIFIER_DISCRIMINATOR,
+    REMOVE_VERIFIER_DISCRIMINATOR
   );
 }
 
 export type RemoveVerifierInstruction<
   TProgram extends string = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
-  TAccountAdmin extends string | AccountMeta<string> =
-    "G6kBnedts6uAivtY72ToaFHBs1UVbT9udiXmQZgMEjoF",
+  TAccountAdmin extends
+    | string
+    | AccountMeta<string> = "G6kBnedts6uAivtY72ToaFHBs1UVbT9udiXmQZgMEjoF",
   TAccountConfig extends string | AccountMeta<string> = string,
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+  TRemainingAccounts extends readonly AccountMeta<string>[] = []
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
   InstructionWithAccounts<
@@ -67,7 +68,7 @@ export type RemoveVerifierInstruction<
       TAccountConfig extends string
         ? WritableAccount<TAccountConfig>
         : TAccountConfig,
-      ...TRemainingAccounts,
+      ...TRemainingAccounts
     ]
   >;
 
@@ -84,7 +85,7 @@ export function getRemoveVerifierInstructionDataEncoder(): FixedSizeEncoder<Remo
       ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
       ["verifier", getAddressEncoder()],
     ]),
-    (value) => ({ ...value, discriminator: REMOVE_VERIFIER_DISCRIMINATOR }),
+    (value) => ({ ...value, discriminator: REMOVE_VERIFIER_DISCRIMINATOR })
   );
 }
 
@@ -101,13 +102,13 @@ export function getRemoveVerifierInstructionDataCodec(): FixedSizeCodec<
 > {
   return combineCodec(
     getRemoveVerifierInstructionDataEncoder(),
-    getRemoveVerifierInstructionDataDecoder(),
+    getRemoveVerifierInstructionDataDecoder()
   );
 }
 
 export type RemoveVerifierAsyncInput<
   TAccountAdmin extends string = string,
-  TAccountConfig extends string = string,
+  TAccountConfig extends string = string
 > = {
   admin?: TransactionSigner<TAccountAdmin>;
   config?: Address<TAccountConfig>;
@@ -117,10 +118,10 @@ export type RemoveVerifierAsyncInput<
 export async function getRemoveVerifierInstructionAsync<
   TAccountAdmin extends string,
   TAccountConfig extends string,
-  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
+  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS
 >(
   input: RemoveVerifierAsyncInput<TAccountAdmin, TAccountConfig>,
-  config?: { programAddress?: TProgramAddress },
+  config?: { programAddress?: TProgramAddress }
 ): Promise<
   RemoveVerifierInstruction<TProgramAddress, TAccountAdmin, TAccountConfig>
 > {
@@ -157,19 +158,15 @@ export async function getRemoveVerifierInstructionAsync<
       getAccountMeta("config", accounts.config),
     ],
     data: getRemoveVerifierInstructionDataEncoder().encode(
-      args as RemoveVerifierInstructionDataArgs,
+      args as RemoveVerifierInstructionDataArgs
     ),
     programAddress,
-  } as RemoveVerifierInstruction<
-    TProgramAddress,
-    TAccountAdmin,
-    TAccountConfig
-  >);
+  } as RemoveVerifierInstruction<TProgramAddress, TAccountAdmin, TAccountConfig>);
 }
 
 export type RemoveVerifierInput<
   TAccountAdmin extends string = string,
-  TAccountConfig extends string = string,
+  TAccountConfig extends string = string
 > = {
   admin?: TransactionSigner<TAccountAdmin>;
   config: Address<TAccountConfig>;
@@ -179,10 +176,10 @@ export type RemoveVerifierInput<
 export function getRemoveVerifierInstruction<
   TAccountAdmin extends string,
   TAccountConfig extends string,
-  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
+  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS
 >(
   input: RemoveVerifierInput<TAccountAdmin, TAccountConfig>,
-  config?: { programAddress?: TProgramAddress },
+  config?: { programAddress?: TProgramAddress }
 ): RemoveVerifierInstruction<TProgramAddress, TAccountAdmin, TAccountConfig> {
   // Program address.
   const programAddress =
@@ -214,19 +211,15 @@ export function getRemoveVerifierInstruction<
       getAccountMeta("config", accounts.config),
     ],
     data: getRemoveVerifierInstructionDataEncoder().encode(
-      args as RemoveVerifierInstructionDataArgs,
+      args as RemoveVerifierInstructionDataArgs
     ),
     programAddress,
-  } as RemoveVerifierInstruction<
-    TProgramAddress,
-    TAccountAdmin,
-    TAccountConfig
-  >);
+  } as RemoveVerifierInstruction<TProgramAddress, TAccountAdmin, TAccountConfig>);
 }
 
 export type ParsedRemoveVerifierInstruction<
   TProgram extends string = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[]
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -238,11 +231,11 @@ export type ParsedRemoveVerifierInstruction<
 
 export function parseRemoveVerifierInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[]
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>,
+    InstructionWithData<ReadonlyUint8Array>
 ): ParsedRemoveVerifierInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 2) {
     throw new SolanaError(
@@ -250,7 +243,7 @@ export function parseRemoveVerifierInstruction<
       {
         actualAccountMetas: instruction.accounts.length,
         expectedAccountMetas: 2,
-      },
+      }
     );
   }
   let accountIndex = 0;

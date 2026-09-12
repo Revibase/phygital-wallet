@@ -37,7 +37,7 @@ export function requireAppOrigin(c: {
       error: "Not available for this origin",
       code: "origin_forbidden",
     }),
-    { status: 403, headers: { "Content-Type": "application/json" } },
+    { status: 403, headers: { "Content-Type": "application/json" } }
   );
 }
 
@@ -52,7 +52,7 @@ export function requireRevibaseAppOrigin(c: {
         error: "Revibase app origin required",
         code: "origin_forbidden",
       }),
-      { status: 403, headers: { "Content-Type": "application/json" } },
+      { status: 403, headers: { "Content-Type": "application/json" } }
     );
   }
   try {
@@ -70,7 +70,7 @@ export function requireRevibaseAppOrigin(c: {
       error: "Not available for this origin",
       code: "origin_forbidden",
     }),
-    { status: 403, headers: { "Content-Type": "application/json" } },
+    { status: 403, headers: { "Content-Type": "application/json" } }
   );
 }
 
@@ -81,7 +81,7 @@ export function requireRevibaseAppOrigin(c: {
 export function corsModeForRequest(
   method: string,
   path: string,
-  origin: string | undefined,
+  origin: string | undefined
 ): "open" | "credentialed" {
   if (!isOpenCorsPath(method, normalizeApiPath(path))) return "credentialed";
   if (origin && !isAppBrowserOrigin(origin)) return "open";
@@ -113,12 +113,12 @@ const openPublicCors = cors({
 
 export async function appCors(
   c: Context<{ Bindings: Env }>,
-  next: Next,
+  next: Next
 ): Promise<Response | void> {
   const mode = corsModeForRequest(
     c.req.method,
     c.req.path,
-    c.req.header("Origin") ?? undefined,
+    c.req.header("Origin") ?? undefined
   );
   if (mode === "open") {
     return openPublicCors(c, next);

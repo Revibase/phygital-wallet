@@ -38,7 +38,7 @@ export function ActivityAllSheet({
       const byId = new Map(prev.map((item) => [item.id, item]));
       for (const item of activity.items) byId.set(item.id, item);
       return [...byId.values()].sort(
-        (a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0),
+        (a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0)
       );
     });
   }, [activity.items, activity.isFetching, cursor]);

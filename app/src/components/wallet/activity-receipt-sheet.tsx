@@ -42,7 +42,7 @@ function isNativeSolMint(mint: string): boolean {
 
 function symbolForMint(
   mint: string,
-  assetMetaByMint?: Record<string, { symbol: string; name: string }>,
+  assetMetaByMint?: Record<string, { symbol: string; name: string }>
 ) {
   if (assetMetaByMint?.[mint]?.symbol) return assetMetaByMint[mint]!.symbol;
   if (isNativeSolMint(mint)) return "SOL";
@@ -125,7 +125,7 @@ export function ActivityReceiptSheet({
                     key={`${item.id}:${d.mint}:${d.direction}`}
                     className={cn(
                       "font-(family-name:--font-display) text-2xl tabular-nums",
-                      d.direction === "in" ? "text-success" : "text-foreground",
+                      d.direction === "in" ? "text-success" : "text-foreground"
                     )}
                   >
                     {d.direction === "in" ? "+" : "−"}

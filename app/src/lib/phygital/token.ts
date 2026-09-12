@@ -33,7 +33,7 @@ export type PhygitalToken = {
 
 export function phygitalTokenFromAccount(
   tokenAddress: Address,
-  account: PhygitalTokenAccount,
+  account: PhygitalTokenAccount
 ): PhygitalToken {
   return {
     tokenType: account.tokenType as PhygitalTokenType,
@@ -50,7 +50,7 @@ export function phygitalTokenFromAccount(
 /** Load token by on-chain PDA. */
 export async function fetchPhygitalToken(
   rpc: Rpc<SolanaRpcApi>,
-  tokenAddress: Address,
+  tokenAddress: Address
 ): Promise<PhygitalToken> {
   const { data } = await fetchPhygitalTokenAccount(rpc, tokenAddress);
   return phygitalTokenFromAccount(tokenAddress, data);
@@ -63,7 +63,7 @@ export async function fetchPhygitalToken(
  */
 export async function fetchMaybePhygitalTokenByPasskey(
   rpc: Rpc<SolanaRpcApi>,
-  secp256r1PublicKey: string,
+  secp256r1PublicKey: string
 ): Promise<PhygitalToken | null> {
   const tokenAddress = await findPhygitalTokenPda(secp256r1PublicKey);
   const account = await fetchMaybePhygitalToken(rpc, tokenAddress);
@@ -77,7 +77,7 @@ export async function fetchMaybePhygitalTokenByPasskey(
  */
 export async function fetchPhygitalTokenByIdentifier(
   rpc: Rpc<SolanaRpcApi>,
-  identifier: string,
+  identifier: string
 ): Promise<PhygitalToken> {
   const account = await fetchPhygitalTokenAccountByIdentifier(rpc, identifier);
   if (!account) {
@@ -92,7 +92,7 @@ export async function fetchPhygitalTokenByIdentifier(
  * Unset mint is the same sentinel as unclaimed `owner`.
  */
 export function tokenHasLinkedMint(
-  token: Pick<PhygitalToken, "mint">,
+  token: Pick<PhygitalToken, "mint">
 ): boolean {
   return token.mint !== DEFAULT_TOKEN_OWNER;
 }

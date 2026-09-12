@@ -12,9 +12,9 @@ import { RouteBoot } from "@/components/layout/route-boot";
 const RecoveryWalletSheet = dynamic(
   () =>
     import("@/components/wallet/recovery-wallet-sheet").then(
-      (m) => m.RecoveryWalletSheet,
+      (m) => m.RecoveryWalletSheet
     ),
-  { ssr: false, loading: () => <RouteBoot /> },
+  { ssr: false, loading: () => <RouteBoot /> }
 );
 
 export default function RecoveryPage() {

@@ -35,7 +35,7 @@ export function TokenIcon({
         className={cn(
           dim,
           "shrink-0 rounded-full bg-muted object-cover",
-          className,
+          className
         )}
       />
     );
@@ -47,7 +47,7 @@ export function TokenIcon({
         dim,
         letter,
         "flex shrink-0 items-center justify-center rounded-full bg-muted font-semibold uppercase text-muted-foreground",
-        className,
+        className
       )}
       aria-hidden
     >

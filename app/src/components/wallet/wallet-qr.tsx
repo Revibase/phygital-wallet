@@ -25,7 +25,7 @@ export function WalletQrCode({
         errorCorrectionLevel: "M",
       }).then((url) => {
         if (!cancelled) setSrc(url);
-      }),
+      })
     );
     return () => {
       cancelled = true;

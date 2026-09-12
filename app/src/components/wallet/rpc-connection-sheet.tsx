@@ -20,7 +20,7 @@ export function RpcConnectionSheet({ onBack }: { onBack: () => void }) {
   const rpc = useRpcPreference();
   const [view, setView] = useState<View>("menu");
   const [draft, setDraft] = useState(
-    rpc.preference.mode === "custom" ? rpc.preference.url : "https://",
+    rpc.preference.mode === "custom" ? rpc.preference.url : "https://"
   );
 
   function useDefault() {
@@ -82,7 +82,7 @@ export function RpcConnectionSheet({ onBack }: { onBack: () => void }) {
         onClick={() => useDefault()}
         className={cn(
           "h-auto min-h-11 w-full justify-between rounded-2xl bg-muted/25 px-4 py-4 text-left font-normal hover:bg-muted/40",
-          !rpc.isCustom && "ring-1 ring-primary/40",
+          !rpc.isCustom && "ring-1 ring-primary/40"
         )}
       >
         <div className="min-w-0">
@@ -101,13 +101,13 @@ export function RpcConnectionSheet({ onBack }: { onBack: () => void }) {
         variant="ghost"
         onClick={() => {
           setDraft(
-            rpc.preference.mode === "custom" ? rpc.preference.url : "https://",
+            rpc.preference.mode === "custom" ? rpc.preference.url : "https://"
           );
           setView("custom");
         }}
         className={cn(
           "h-auto min-h-11 w-full justify-between rounded-2xl bg-muted/25 px-4 py-4 text-left font-normal hover:bg-muted/40",
-          rpc.isCustom && "ring-1 ring-primary/40",
+          rpc.isCustom && "ring-1 ring-primary/40"
         )}
       >
         <div className="min-w-0">

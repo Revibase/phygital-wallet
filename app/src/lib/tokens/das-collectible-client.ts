@@ -4,14 +4,14 @@ import { collectibleFromDas, type Collectible } from "@/lib/tokens/collectible";
 const COLLECTIBLE_DISPLAY = { showCollectionMetadata: true } as const;
 
 export async function fetchDasCollectibleClient(
-  mint: string,
+  mint: string
 ): Promise<Collectible | null> {
   const asset = await dasGetAsset(mint, COLLECTIBLE_DISPLAY);
   return collectibleFromDas(asset);
 }
 
 export async function fetchDasCollectiblesClient(
-  mints: string[],
+  mints: string[]
 ): Promise<Record<string, Collectible | null>> {
   const unique = [...new Set(mints.map((m) => m.trim()).filter(Boolean))];
   const out: Record<string, Collectible | null> = {};

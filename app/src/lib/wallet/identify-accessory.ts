@@ -26,7 +26,7 @@ export async function identifyAccessory(args?: {
   });
   const token = await fetchMaybePhygitalTokenByPasskey(
     getSolanaRpc(),
-    secp256r1PublicKey,
+    secp256r1PublicKey
   );
   if (!token) {
     throw new Error("Couldn’t read accessory — try again.");

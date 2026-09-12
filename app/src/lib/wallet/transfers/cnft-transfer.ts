@@ -37,7 +37,7 @@ export async function buildCnftTransferInstructions(args: {
   const ownerStr = String(args.owner);
   if (asset.ownership?.owner && asset.ownership.owner !== ownerStr) {
     throw new Error(
-      `Asset is not owned by this wallet (expected ${ownerStr}, got ${asset.ownership.owner})`,
+      `Asset is not owned by this wallet (expected ${ownerStr}, got ${asset.ownership.owner})`
     );
   }
 

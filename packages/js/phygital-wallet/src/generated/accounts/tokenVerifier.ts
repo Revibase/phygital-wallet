@@ -49,7 +49,7 @@ export const TOKEN_VERIFIER_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array([
 
 export function getTokenVerifierDiscriminatorBytes(): ReadonlyUint8Array {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    TOKEN_VERIFIER_DISCRIMINATOR,
+    TOKEN_VERIFIER_DISCRIMINATOR
   );
 }
 
@@ -83,7 +83,7 @@ export function getTokenVerifierEncoder(): Encoder<TokenVerifierArgs> {
       ["payer", getAddressEncoder()],
       ["bump", getU8Encoder()],
     ]),
-    (value) => ({ ...value, discriminator: TOKEN_VERIFIER_DISCRIMINATOR }),
+    (value) => ({ ...value, discriminator: TOKEN_VERIFIER_DISCRIMINATOR })
   );
 }
 
@@ -108,24 +108,24 @@ export function getTokenVerifierCodec(): Codec<
 }
 
 export function decodeTokenVerifier<TAddress extends string = string>(
-  encodedAccount: EncodedAccount<TAddress>,
+  encodedAccount: EncodedAccount<TAddress>
 ): Account<TokenVerifier, TAddress>;
 export function decodeTokenVerifier<TAddress extends string = string>(
-  encodedAccount: MaybeEncodedAccount<TAddress>,
+  encodedAccount: MaybeEncodedAccount<TAddress>
 ): MaybeAccount<TokenVerifier, TAddress>;
 export function decodeTokenVerifier<TAddress extends string = string>(
-  encodedAccount: EncodedAccount<TAddress> | MaybeEncodedAccount<TAddress>,
+  encodedAccount: EncodedAccount<TAddress> | MaybeEncodedAccount<TAddress>
 ): Account<TokenVerifier, TAddress> | MaybeAccount<TokenVerifier, TAddress> {
   return decodeAccount(
     encodedAccount as MaybeEncodedAccount<TAddress>,
-    getTokenVerifierDecoder(),
+    getTokenVerifierDecoder()
   );
 }
 
 export async function fetchTokenVerifier<TAddress extends string = string>(
   rpc: Parameters<typeof fetchEncodedAccount>[0],
   address: Address<TAddress>,
-  config?: FetchAccountConfig,
+  config?: FetchAccountConfig
 ): Promise<Account<TokenVerifier, TAddress>> {
   const maybeAccount = await fetchMaybeTokenVerifier(rpc, address, config);
   assertAccountExists(maybeAccount);
@@ -135,7 +135,7 @@ export async function fetchTokenVerifier<TAddress extends string = string>(
 export async function fetchMaybeTokenVerifier<TAddress extends string = string>(
   rpc: Parameters<typeof fetchEncodedAccount>[0],
   address: Address<TAddress>,
-  config?: FetchAccountConfig,
+  config?: FetchAccountConfig
 ): Promise<MaybeAccount<TokenVerifier, TAddress>> {
   const maybeAccount = await fetchEncodedAccount(rpc, address, config);
   return decodeTokenVerifier(maybeAccount);
@@ -144,12 +144,12 @@ export async function fetchMaybeTokenVerifier<TAddress extends string = string>(
 export async function fetchAllTokenVerifier(
   rpc: Parameters<typeof fetchEncodedAccounts>[0],
   addresses: Array<Address>,
-  config?: FetchAccountsConfig,
+  config?: FetchAccountsConfig
 ): Promise<Account<TokenVerifier>[]> {
   const maybeAccounts = await fetchAllMaybeTokenVerifier(
     rpc,
     addresses,
-    config,
+    config
   );
   assertAccountsExist(maybeAccounts);
   return maybeAccounts;
@@ -158,7 +158,7 @@ export async function fetchAllTokenVerifier(
 export async function fetchAllMaybeTokenVerifier(
   rpc: Parameters<typeof fetchEncodedAccounts>[0],
   addresses: Array<Address>,
-  config?: FetchAccountsConfig,
+  config?: FetchAccountsConfig
 ): Promise<MaybeAccount<TokenVerifier>[]> {
   const maybeAccounts = await fetchEncodedAccounts(rpc, addresses, config);
   return maybeAccounts.map((maybeAccount) => decodeTokenVerifier(maybeAccount));

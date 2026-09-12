@@ -90,7 +90,7 @@ describe("evaluatePolicy", () => {
         version: "3",
         mintLimits: [{ mint: MINT, maxRaw: "1000000" }],
       },
-      [transferCheckedIx(2_500_000n, 6)],
+      [transferCheckedIx(2_500_000n, 6)]
     );
 
     expect(r.ok).toBe(false);
@@ -120,7 +120,7 @@ describe("evaluatePolicy", () => {
     expect(r.soft).toBe(true);
     expect(r.code).toBe("program_not_allowed");
     expect(r.details?.programId).toBe(
-      "FakeProgram1111111111111111111111111111111",
+      "FakeProgram1111111111111111111111111111111"
     );
   });
 

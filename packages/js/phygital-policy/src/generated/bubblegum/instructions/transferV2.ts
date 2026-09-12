@@ -70,9 +70,10 @@ export type TransferV2Instruction<
   TAccountCoreCollection extends string | AccountMeta<string> = string,
   TAccountLogWrapper extends string | AccountMeta<string> = string,
   TAccountCompressionProgram extends string | AccountMeta<string> = string,
-  TAccountSystemProgram extends string | AccountMeta<string> =
-    "11111111111111111111111111111111",
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+  TAccountSystemProgram extends
+    | string
+    | AccountMeta<string> = "11111111111111111111111111111111",
+  TRemainingAccounts extends readonly AccountMeta<string>[] = []
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
   InstructionWithAccounts<
@@ -112,7 +113,7 @@ export type TransferV2Instruction<
       TAccountSystemProgram extends string
         ? ReadonlyAccount<TAccountSystemProgram>
         : TAccountSystemProgram,
-      ...TRemainingAccounts,
+      ...TRemainingAccounts
     ]
   >;
 
@@ -152,7 +153,7 @@ export function getTransferV2InstructionDataEncoder(): Encoder<TransferV2Instruc
       ["nonce", getU64Encoder()],
       ["index", getU32Encoder()],
     ]),
-    (value) => ({ ...value, discriminator: TRANSFER_V2_DISCRIMINATOR }),
+    (value) => ({ ...value, discriminator: TRANSFER_V2_DISCRIMINATOR })
   );
 }
 
@@ -175,7 +176,7 @@ export function getTransferV2InstructionDataCodec(): Codec<
 > {
   return combineCodec(
     getTransferV2InstructionDataEncoder(),
-    getTransferV2InstructionDataDecoder(),
+    getTransferV2InstructionDataDecoder()
   );
 }
 
@@ -190,7 +191,7 @@ export type TransferV2Input<
   TAccountCoreCollection extends string = string,
   TAccountLogWrapper extends string = string,
   TAccountCompressionProgram extends string = string,
-  TAccountSystemProgram extends string = string,
+  TAccountSystemProgram extends string = string
 > = {
   treeAuthority: Address<TAccountTreeAuthority>;
   payer: TransactionSigner<TAccountPayer>;
@@ -229,7 +230,7 @@ export function getTransferV2Instruction<
   TAccountLogWrapper extends string,
   TAccountCompressionProgram extends string,
   TAccountSystemProgram extends string,
-  TProgramAddress extends Address = typeof BUBBLEGUM_PROGRAM_ADDRESS,
+  TProgramAddress extends Address = typeof BUBBLEGUM_PROGRAM_ADDRESS
 >(
   input: TransferV2Input<
     TAccountTreeAuthority,
@@ -244,7 +245,7 @@ export function getTransferV2Instruction<
     TAccountCompressionProgram,
     TAccountSystemProgram
   >,
-  config?: { programAddress?: TProgramAddress },
+  config?: { programAddress?: TProgramAddress }
 ): TransferV2Instruction<
   TProgramAddress,
   TAccountTreeAuthority,
@@ -309,28 +310,15 @@ export function getTransferV2Instruction<
       getAccountMeta("systemProgram", accounts.systemProgram),
     ],
     data: getTransferV2InstructionDataEncoder().encode(
-      args as TransferV2InstructionDataArgs,
+      args as TransferV2InstructionDataArgs
     ),
     programAddress,
-  } as TransferV2Instruction<
-    TProgramAddress,
-    TAccountTreeAuthority,
-    TAccountPayer,
-    TAccountAuthority,
-    TAccountLeafOwner,
-    TAccountLeafDelegate,
-    TAccountNewLeafOwner,
-    TAccountMerkleTree,
-    TAccountCoreCollection,
-    TAccountLogWrapper,
-    TAccountCompressionProgram,
-    TAccountSystemProgram
-  >);
+  } as TransferV2Instruction<TProgramAddress, TAccountTreeAuthority, TAccountPayer, TAccountAuthority, TAccountLeafOwner, TAccountLeafDelegate, TAccountNewLeafOwner, TAccountMerkleTree, TAccountCoreCollection, TAccountLogWrapper, TAccountCompressionProgram, TAccountSystemProgram>);
 }
 
 export type ParsedTransferV2Instruction<
   TProgram extends string = typeof BUBBLEGUM_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[]
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -356,11 +344,11 @@ export type ParsedTransferV2Instruction<
 
 export function parseTransferV2Instruction<
   TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[]
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>,
+    InstructionWithData<ReadonlyUint8Array>
 ): ParsedTransferV2Instruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 11) {
     throw new SolanaError(
@@ -368,7 +356,7 @@ export function parseTransferV2Instruction<
       {
         actualAccountMetas: instruction.accounts.length,
         expectedAccountMetas: 11,
-      },
+      }
     );
   }
   let accountIndex = 0;

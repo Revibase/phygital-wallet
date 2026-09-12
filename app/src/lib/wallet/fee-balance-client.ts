@@ -7,10 +7,10 @@ export type FeeBalance = {
 };
 
 export async function fetchFeeBalance(
-  phygitalToken: string,
+  phygitalToken: string
 ): Promise<FeeBalance> {
   const res = await queryFetch(
-    `/tokens/fee-balance?phygitalToken=${encodeURIComponent(phygitalToken)}`,
+    `/tokens/fee-balance?phygitalToken=${encodeURIComponent(phygitalToken)}`
   );
   const data = await readJson<{
     balanceLamports?: string | number;

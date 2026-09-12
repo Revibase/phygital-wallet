@@ -40,6 +40,6 @@ export function getAuthorizationDataCodec(): Codec<
 > {
   return combineCodec(
     getAuthorizationDataEncoder(),
-    getAuthorizationDataDecoder(),
+    getAuthorizationDataDecoder()
   );
 }

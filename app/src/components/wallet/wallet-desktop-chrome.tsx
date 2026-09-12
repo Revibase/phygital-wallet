@@ -42,7 +42,7 @@ export function useWalletChrome() {
 
 function sectionFromPath(
   pathname: string,
-  tokenAddress: string,
+  tokenAddress: string
 ): WalletSection {
   const base = `/token/${encodeURIComponent(tokenAddress)}/wallet`;
   const normalized = pathname.replace(/\/$/, "") || pathname;
@@ -78,7 +78,7 @@ function RailNavItem({
         "h-10 w-full justify-start gap-3 rounded-xl px-3 text-sm font-medium",
         active
           ? "bg-muted/70 text-foreground"
-          : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
+          : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
       )}
     >
       <span className="flex size-5 items-center justify-center [&_svg]:size-4">

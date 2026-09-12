@@ -19,7 +19,7 @@ const ACCOUNT_FEATURES = [
 
 export function createPhygitalWalletAccount(
   walletPda: Address,
-  chains: IdentifierArray = PHYGITAL_WALLET_CHAINS,
+  chains: IdentifierArray = PHYGITAL_WALLET_CHAINS
 ): WalletAccount {
   const publicKey = new Uint8Array(addressEncoder.encode(walletPda));
   return Object.freeze({

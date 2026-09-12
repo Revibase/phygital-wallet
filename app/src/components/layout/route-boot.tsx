@@ -34,14 +34,14 @@ export function RouteBoot({
         <div
           className={cn(
             "relative z-10 h-1 w-24 overflow-hidden rounded-full bg-primary/15",
-            galleryAnimate.rise,
+            galleryAnimate.rise
           )}
           aria-hidden
         >
           <div
             className={cn(
               "h-full w-1/2 rounded-full bg-primary",
-              galleryAnimate.shimmer,
+              galleryAnimate.shimmer
             )}
           />
         </div>

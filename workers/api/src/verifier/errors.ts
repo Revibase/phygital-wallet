@@ -34,12 +34,12 @@ function mapCodedVerifierError(err: unknown): CodedVerifierError {
       (code === "signer_misconfigured"
         ? 500
         : code === "device_session_required" ||
-            code === "owner_assertion_required" ||
-            code === "challenge_invalid"
-          ? 401
-          : code === "verifier_mismatch" || code === "not_owner"
-            ? 403
-            : 400),
+          code === "owner_assertion_required" ||
+          code === "challenge_invalid"
+        ? 401
+        : code === "verifier_mismatch" || code === "not_owner"
+        ? 403
+        : 400),
   };
 }
 

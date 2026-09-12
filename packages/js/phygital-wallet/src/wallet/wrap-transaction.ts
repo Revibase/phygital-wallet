@@ -101,17 +101,17 @@ type BlockContext = {
 };
 
 function stripComputeBudgetInstructions(
-  instructions: readonly Instruction[],
+  instructions: readonly Instruction[]
 ): Instruction[] {
   return instructions.filter(
     (instruction) =>
-      instruction.programAddress !== COMPUTE_BUDGET_PROGRAM_ADDRESS,
+      instruction.programAddress !== COMPUTE_BUDGET_PROGRAM_ADDRESS
   );
 }
 
 function withRemainingAccounts(
   instruction: Instruction,
-  remainingAccounts: readonly AccountMeta[],
+  remainingAccounts: readonly AccountMeta[]
 ): Instruction {
   return {
     ...instruction,
@@ -120,7 +120,7 @@ function withRemainingAccounts(
 }
 
 function pickPriorityFeeMicroLamports(
-  fees: readonly { prioritizationFee: bigint | number }[],
+  fees: readonly { prioritizationFee: bigint | number }[]
 ): bigint {
   const sorted = fees
     .map((fee) => BigInt(fee.prioritizationFee))
@@ -140,7 +140,7 @@ function withMargin(unitsConsumed: number): number {
   const tenths = Math.round(COMPUTE_UNIT_ESTIMATE_MARGIN * 10);
   return Math.min(
     1_400_000,
-    Math.max(1, Math.ceil((unitsConsumed * tenths) / 10)),
+    Math.max(1, Math.ceil((unitsConsumed * tenths) / 10))
   );
 }
 
@@ -154,7 +154,7 @@ function roundUpLoadedAccountsDataSize(bytes: number): number {
 /** micro-lamports/CU × CU limit → absolute lamports for v1 priority fee. */
 function priorityFeeLamportsFromMicroLamports(
   microLamportsPerCu: bigint,
-  unitLimit: number,
+  unitLimit: number
 ): bigint {
   return (microLamportsPerCu * BigInt(unitLimit)) / 1_000_000n;
 }
@@ -186,7 +186,7 @@ function applyResourceLimits<T extends DecompiledMessage>(
   message: T,
   unitLimit: number,
   unitPriceMicroLamports: bigint,
-  loadedAccountsDataSizeLimit?: number,
+  loadedAccountsDataSizeLimit?: number
 ): T {
   const withoutBudget = {
     ...message,
@@ -196,16 +196,16 @@ function applyResourceLimits<T extends DecompiledMessage>(
   if (withoutBudget.version === 1) {
     let next = setTransactionMessageComputeUnitLimit(
       unitLimit,
-      withoutBudget as never,
+      withoutBudget as never
     ) as T;
     next = setTransactionMessagePriorityFeeLamports(
       priorityFeeLamportsFromMicroLamports(unitPriceMicroLamports, unitLimit),
-      next as never,
+      next as never
     ) as T;
     const dataSize = loadedAccountsDataSizeLimit ?? LOADED_ACCOUNTS_PAGE_BYTES;
     return setTransactionMessageLoadedAccountsDataSizeLimit(
       roundUpLoadedAccountsDataSize(dataSize),
-      next as never,
+      next as never
     ) as T;
   }
 
@@ -233,7 +233,7 @@ function applyResourceLimits<T extends DecompiledMessage>(
 
 function applyBlockhashIfNeeded<T extends DecompiledMessage>(
   message: T,
-  block: BlockContext,
+  block: BlockContext
 ): T {
   if (!isTransactionMessageWithBlockhashLifetime(message)) {
     return message;
@@ -252,7 +252,7 @@ function applyBlockhashIfNeeded<T extends DecompiledMessage>(
 
 function withLifetimeConstraint(
   transaction: Transaction,
-  message: DecompiledMessage,
+  message: DecompiledMessage
 ): SignedTransaction {
   if (!("lifetimeConstraint" in message)) {
     return transaction as SignedTransaction;
@@ -271,7 +271,7 @@ function withLifetimeConstraint(
 function withVerifierFeePayerIfWallet<T extends DecompiledMessage>(
   message: T,
   walletPda: Address,
-  verifier: TransactionSigner,
+  verifier: TransactionSigner
 ): T {
   if (message.feePayer?.address !== walletPda) {
     return message;
@@ -281,7 +281,7 @@ function withVerifierFeePayerIfWallet<T extends DecompiledMessage>(
 
 function assertDurableNonceAuthorityNotWallet(
   message: DecompiledMessage,
-  walletPda: Address,
+  walletPda: Address
 ): void {
   if (!isTransactionMessageWithDurableNonceLifetime(message)) return;
   const advanceNonce = message.instructions[0];
@@ -289,7 +289,7 @@ function assertDurableNonceAuthorityNotWallet(
   const authority = advanceNonce.accounts[2]?.address;
   if (authority === walletPda) {
     throw new Error(
-      "Durable nonce authority cannot be the phygital wallet PDA (PDA cannot outer-sign AdvanceNonceAccount); use the verifier or another ed25519 key as nonce authority",
+      "Durable nonce authority cannot be the phygital wallet PDA (PDA cannot outer-sign AdvanceNonceAccount); use the verifier or another ed25519 key as nonce authority"
     );
   }
 }
@@ -320,7 +320,7 @@ function buildWrappedBaseMessage(input: {
 
   const executeWithRemaining = withRemainingAccounts(
     executeIx,
-    pending.remainingAccounts,
+    pending.remainingAccounts
   );
   const instructions = [
     ...(pending.prepared.advanceNonceInstruction
@@ -341,7 +341,7 @@ function buildWrappedBaseMessage(input: {
   return withVerifierFeePayerIfWallet(
     baseMessage,
     executeAccounts.wallet,
-    verifier,
+    verifier
   );
 }
 
@@ -354,7 +354,7 @@ function fetchPriorityFeeMicroLamports(
     remainingAccounts: AccountMeta[];
     verifier: TransactionSigner;
     executeAccounts: WalletExecuteAccounts;
-  },
+  }
 ): Promise<bigint> {
   // Slot / messageHash unused for writable-account selection.
   const pending: PendingWalletWrap = {
@@ -371,8 +371,8 @@ function fetchPriorityFeeMicroLamports(
           pending,
           verifier: input.verifier,
           executeAccounts: input.executeAccounts,
-        }),
-      ),
+        })
+      )
     )
     .send()
     .then(pickPriorityFeeMicroLamports);
@@ -392,14 +392,14 @@ async function assertBodyInstructionsExecutable(input: {
     {
       ...input.prepared.decompiled,
       instructions: [...input.prepared.bodyInstructions],
-    } as typeof input.prepared.decompiled,
+    } as typeof input.prepared.decompiled
   );
 
   await estimateResourceLimitsFactory({ rpc: input.rpc })(
     withVerifierFeePayer,
     {
       abortSignal: input.abortSignal,
-    },
+    }
   );
 }
 
@@ -407,7 +407,7 @@ function applyVerifierCoSignature(
   transaction: SignedTransaction,
   walletPda: Address,
   priorSignatures: SignaturesMap | undefined,
-  verifierSignatures: SignatureDictionary,
+  verifierSignatures: SignatureDictionary
 ): SignedTransaction {
   const remainingSignatures = { ...(priorSignatures ?? {}) };
   delete remainingSignatures[walletPda];
@@ -427,7 +427,7 @@ async function prepareWrappedWalletTransaction(input: {
   walletPda: Address;
 }): Promise<PreparedWalletWrap> {
   const compiledMessage = getCompiledTransactionMessageDecoder().decode(
-    input.transaction.messageBytes,
+    input.transaction.messageBytes
   );
 
   const decompileConfig = isTransactionWithBlockhashLifetime(input.transaction)
@@ -440,7 +440,7 @@ async function prepareWrappedWalletTransaction(input: {
   const decompiled = await decompileTransactionMessageFetchingLookupTables(
     compiledMessage,
     input.rpc,
-    decompileConfig,
+    decompileConfig
   );
 
   assertDurableNonceAuthorityNotWallet(decompiled, input.walletPda);
@@ -454,7 +454,7 @@ async function prepareWrappedWalletTransaction(input: {
     const first = instructions[0];
     if (!first || !isAdvanceNonceAccountInstruction(first)) {
       throw new Error(
-        "Durable-nonce transaction is missing AdvanceNonceAccount as the first instruction",
+        "Durable-nonce transaction is missing AdvanceNonceAccount as the first instruction"
       );
     }
     advanceNonceInstruction = first;
@@ -476,7 +476,7 @@ async function prepareWrappedWalletTransaction(input: {
 
   if (bodyInstructions.length === 0) {
     throw new Error(
-      "Transaction has no instructions to wrap (only compute budget/memo, or empty)",
+      "Transaction has no instructions to wrap (only compute budget/memo, or empty)"
     );
   }
 
@@ -494,12 +494,12 @@ function buildPendingWalletWrap(
   prepared: PreparedWalletWrap,
   walletPda: Address,
   slot: SlotEntry,
-  compiled = compileWalletInstructions(prepared.bodyInstructions, walletPda),
+  compiled = compileWalletInstructions(prepared.bodyInstructions, walletPda)
 ): PendingWalletWrap {
   const { slotNumber, messageHash } = buildExecuteChallengeFromSlot(
     slot,
     compiled.compactInstructions,
-    compiled.remainingAccounts.map((account) => account.address),
+    compiled.remainingAccounts.map((account) => account.address)
   );
 
   return {
@@ -561,14 +561,14 @@ async function finalizeWrappedWalletTransaction(input: {
     baseMessage,
     withMargin(limits.computeUnitLimit),
     unitPrice,
-    limits.loadedAccountsDataSizeLimit,
+    limits.loadedAccountsDataSizeLimit
   );
   if (block) {
     message = applyBlockhashIfNeeded(message, block);
   }
 
   const compiledTx = compileTransaction(
-    message as Parameters<typeof compileTransaction>[0],
+    message as Parameters<typeof compileTransaction>[0]
   );
   return withLifetimeConstraint(compiledTx, message);
 }
@@ -590,7 +590,7 @@ export async function modifyAndWrapWalletTransaction(input: {
   abortSignal?: AbortSignal;
   preview: (bodyInstructions: readonly Instruction[]) => Promise<void>;
   authenticate: (
-    messageHash: Uint8Array,
+    messageHash: Uint8Array
   ) => Promise<
     Awaited<ReturnType<typeof authenticatePasskeyForSecp256r1Verify>>
   >;
@@ -604,7 +604,7 @@ export async function modifyAndWrapWalletTransaction(input: {
 
   const earlyCompiled = compileWalletInstructions(
     prepared.bodyInstructions,
-    input.walletPda,
+    input.walletPda
   );
   const unitPricePromise = fetchPriorityFeeMicroLamports(input.rpc, {
     prepared,
@@ -631,7 +631,7 @@ export async function modifyAndWrapWalletTransaction(input: {
     prepared,
     input.walletPda,
     slot,
-    earlyCompiled,
+    earlyCompiled
   );
 
   input.abortSignal?.throwIfAborted();
@@ -652,6 +652,6 @@ export async function modifyAndWrapWalletTransaction(input: {
     wrapped,
     input.walletPda,
     input.transaction.signatures,
-    verifierSignatures,
+    verifierSignatures
   );
 }

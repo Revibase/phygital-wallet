@@ -196,10 +196,10 @@ export class PhygitalWallet implements Wallet {
 
   #off<E extends StandardEventsNames>(
     event: E,
-    listener: StandardEventsListeners[E],
+    listener: StandardEventsListeners[E]
   ): void {
     this.#listeners[event] = (this.#listeners[event] ?? []).filter(
-      (existing) => listener !== existing,
+      (existing) => listener !== existing
     );
   }
 
@@ -261,7 +261,7 @@ export class PhygitalWallet implements Wallet {
     this.#session = session;
     this.#account = createPhygitalWalletAccount(
       session.walletPda,
-      this.#chains,
+      this.#chains
     );
   }
 
@@ -288,7 +288,7 @@ export class PhygitalWallet implements Wallet {
    */
   #buildSigner(
     session: PhygitalWalletSession,
-    resolved?: Awaited<ReturnType<typeof startPhygitalConnect>>["resolved"],
+    resolved?: Awaited<ReturnType<typeof startPhygitalConnect>>["resolved"]
   ): Promise<TransactionModifyingSigner> {
     const getAccessToken = (): string => {
       if (session.expiresAt - SESSION_SKEW_MS > Date.now()) {
@@ -305,7 +305,7 @@ export class PhygitalWallet implements Wallet {
   }
 
   async #loadSigner(
-    session: PhygitalWalletSession,
+    session: PhygitalWalletSession
   ): Promise<TransactionModifyingSigner> {
     try {
       await this.#assertSessionPda(session);
@@ -342,12 +342,12 @@ export class PhygitalWallet implements Wallet {
   }
 
   async #modifyAndSignWire(
-    transactionBytes: Uint8Array,
+    transactionBytes: Uint8Array
   ): Promise<Transaction & TransactionWithLifetime> {
     const decoded = transactionDecoder.decode(transactionBytes) as Transaction;
     if (!("lifetimeConstraint" in decoded)) {
       throw new Error(
-        "Revibase wallet requires transactions with a lifetime constraint (blockhash or durable nonce)",
+        "Revibase wallet requires transactions with a lifetime constraint (blockhash or durable nonce)"
       );
     }
 

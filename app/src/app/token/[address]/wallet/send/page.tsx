@@ -29,10 +29,10 @@ export default function WalletSendPage() {
   const portfolio = useWalletPortfolio(walletAddress);
   const searchParams = useSearchParams();
   const [holdPhase, setHoldPhase] = useState<"holding" | "success" | null>(
-    null,
+    null
   );
   const [signPhase, setSignPhase] = useState<PhygitalWalletSignPhase | null>(
-    null,
+    null
   );
   const [recap, setRecap] = useState<SendHoldRecap | null>(null);
 
@@ -41,7 +41,7 @@ export default function WalletSendPage() {
     const collectibleMint = searchParams.get("collectible");
     if (collectibleMint && tryParseAddress(collectibleMint)) {
       const c = portfolio.data?.collectibles.find(
-        (x) => x.mint === collectibleMint,
+        (x) => x.mint === collectibleMint
       );
       if (c) return collectibleToSendAsset(c);
     }

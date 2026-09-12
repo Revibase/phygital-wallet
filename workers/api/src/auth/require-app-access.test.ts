@@ -48,7 +48,7 @@ describe("isPublicApiPath", () => {
     expect(isPublicApiPath("POST", "/auth/device/links")).toBe(false);
     expect(isPublicApiPath("GET", "/approvals/live")).toBe(false);
     expect(isPublicApiPath("POST", "/policies/Tok/approvals/cancel")).toBe(
-      false,
+      false
     );
   });
 });
@@ -59,7 +59,7 @@ describe("isOpenCorsPath", () => {
     expect(isOpenCorsPath("POST", "/sign")).toBe(true);
     expect(isOpenCorsPath("GET", "/approvals/live")).toBe(false);
     expect(isOpenCorsPath("POST", "/policies/Tok/approvals/cancel")).toBe(
-      false,
+      false
     );
     expect(isOpenCorsPath("GET", "/health")).toBe(false);
     expect(isOpenCorsPath("GET", "/tokens/verified")).toBe(false);
@@ -69,28 +69,28 @@ describe("isOpenCorsPath", () => {
 describe("extractPhygitalTokenFromRequest", () => {
   it("prefers query param", () => {
     expect(
-      extractPhygitalTokenFromRequest("/tokens/fee-balance", "QueryTok"),
+      extractPhygitalTokenFromRequest("/tokens/fee-balance", "QueryTok")
     ).toBe("QueryTok");
   });
 
   it("parses policies and link mutation paths", () => {
     expect(
-      extractPhygitalTokenFromRequest("/policies/TokAbc/approvals", undefined),
+      extractPhygitalTokenFromRequest("/policies/TokAbc/approvals", undefined)
     ).toBe("TokAbc");
     expect(
       extractPhygitalTokenFromRequest(
         "/auth/device/links/TokAbc/mutation-options",
-        undefined,
-      ),
+        undefined
+      )
     ).toBe("TokAbc");
     expect(
-      extractPhygitalTokenFromRequest("/auth/device/links/TokAbc", undefined),
+      extractPhygitalTokenFromRequest("/auth/device/links/TokAbc", undefined)
     ).toBe("TokAbc");
   });
 
   it("does not treat status as a token", () => {
     expect(
-      extractPhygitalTokenFromRequest("/auth/device/links/status", undefined),
+      extractPhygitalTokenFromRequest("/auth/device/links/status", undefined)
     ).toBeNull();
   });
 });
@@ -103,7 +103,7 @@ describe("evaluateAppAccess", () => {
         path: "/preview",
         hasDeviceSession: false,
         browseToken: null,
-      }),
+      })
     ).toBe("allow");
   });
 
@@ -114,7 +114,7 @@ describe("evaluateAppAccess", () => {
         path: "/tokens/verified",
         hasDeviceSession: true,
         browseToken: null,
-      }),
+      })
     ).toBe("allow");
   });
 
@@ -126,7 +126,7 @@ describe("evaluateAppAccess", () => {
         queryToken: "TokA",
         hasDeviceSession: false,
         browseToken: "TokA",
-      }),
+      })
     ).toBe("allow");
   });
 
@@ -137,7 +137,7 @@ describe("evaluateAppAccess", () => {
         path: "/tokens/verified",
         hasDeviceSession: false,
         browseToken: null,
-      }),
+      })
     ).toBe("deny");
   });
 
@@ -148,7 +148,7 @@ describe("evaluateAppAccess", () => {
         path: "/policies/TokB/approvals",
         hasDeviceSession: false,
         browseToken: "TokA",
-      }),
+      })
     ).toBe("deny_token_mismatch");
   });
 
@@ -159,7 +159,7 @@ describe("evaluateAppAccess", () => {
         path: "/tokens/verified",
         hasDeviceSession: false,
         browseToken: "TokA",
-      }),
+      })
     ).toBe("allow");
   });
 });

@@ -39,7 +39,7 @@ function approvalBody(approval: OpenApproval): string {
 
 function removeApproval(
   prev: OpenApproval[] | undefined,
-  intentHash: string,
+  intentHash: string
 ): OpenApproval[] {
   return (prev ?? []).filter((a) => a.intentHash !== intentHash);
 }
@@ -53,7 +53,7 @@ function knownSymbolForMint(mint: string | null): string | null {
 
 function approvalSymbol(
   details: Record<string, unknown> | null | undefined,
-  mintMeta: Record<string, { symbol: string }>,
+  mintMeta: Record<string, { symbol: string }>
 ): string | null {
   if (typeof details?.symbol === "string" && details.symbol.trim()) {
     return details.symbol.trim();
@@ -89,7 +89,7 @@ export function OpenApprovalsSheet({
 
   function dropFromCache(intentHash: string) {
     queryClient.setQueryData(approvalsKey, (prev: OpenApproval[] | undefined) =>
-      removeApproval(prev, intentHash),
+      removeApproval(prev, intentHash)
     );
     void queryClient.invalidateQueries({ queryKey: approvalsKey });
   }
@@ -162,7 +162,7 @@ export function OpenApprovalsSheet({
               omitDestination: Boolean(recipientLabel),
               omitMint: Boolean(symbol),
               omitTechnical: Boolean(
-                policyAmountLabel(approval.details, symbol) && recipientLabel,
+                policyAmountLabel(approval.details, symbol) && recipientLabel
               ),
             })}
             busy={busy}

@@ -150,7 +150,7 @@ function findMemoPhygitalToken(tx: HeliusTxLike): string | null {
       }
     }
     const fallback = decodeMemoText(
-      typeof ix.parsed === "string" ? ix.parsed : ix.data,
+      typeof ix.parsed === "string" ? ix.parsed : ix.data
     );
     const addr = tryParseAddress(fallback);
     if (addr) return String(addr);
@@ -194,7 +194,7 @@ export function findExecuteAccounts(tx: HeliusTxLike): ExecuteAccounts | null {
  * Ledger lives on TokenSigner DO; idempotent by signature.
  */
 async function processHeliusFeeTx(
-  raw: HeliusTxLike,
+  raw: HeliusTxLike
 ): Promise<{ credited: boolean; debited: boolean }> {
   const tx = unwrapHeliusTx(raw);
   const signature = tx.signature?.trim();
@@ -256,7 +256,7 @@ async function processHeliusFeeTx(
   let debited = false;
   for (const [token, batch] of byToken) {
     const { appliedSignatures } = await tokenSigner(env, token).applyFeeEvents(
-      batch,
+      batch
     );
     if (appliedSignatures.length === 0) continue;
     const applied = new Set(appliedSignatures);
@@ -278,13 +278,13 @@ async function processHeliusFeeTx(
 }
 
 export async function processHeliusWebhookPayload(
-  body: unknown,
+  body: unknown
 ): Promise<{ processed: number; credited: number; debited: number }> {
   const list: HeliusTxLike[] = Array.isArray(body)
     ? (body as HeliusTxLike[])
     : body && typeof body === "object"
-      ? [body as HeliusTxLike]
-      : [];
+    ? [body as HeliusTxLike]
+    : [];
 
   let processed = 0;
   let credited = 0;

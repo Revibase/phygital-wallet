@@ -32,13 +32,13 @@ export const TOKEN_PROGRAM_ADDRESS =
   "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" as Address<"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA">;
 
 export function identifyTokenAccount(
-  account: { data: ReadonlyUint8Array } | ReadonlyUint8Array,
+  account: { data: ReadonlyUint8Array } | ReadonlyUint8Array
 ): TokenAccount {
   const data = "data" in account ? account.data : account;
 
   throw new SolanaError(
     SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_ACCOUNT,
-    { accountData: data, programName: "token" },
+    { accountData: data, programName: "token" }
   );
 }
 
@@ -49,7 +49,7 @@ export enum TokenInstruction {
 }
 
 export function identifyTokenInstruction(
-  instruction: { data: ReadonlyUint8Array } | ReadonlyUint8Array,
+  instruction: { data: ReadonlyUint8Array } | ReadonlyUint8Array
 ): TokenInstruction {
   const data = "data" in instruction ? instruction.data : instruction;
   if (containsBytes(data, getU8Encoder().encode(3), 0)) {
@@ -63,12 +63,12 @@ export function identifyTokenInstruction(
   }
   throw new SolanaError(
     SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_INSTRUCTION,
-    { instructionData: data, programName: "token" },
+    { instructionData: data, programName: "token" }
   );
 }
 
 export type ParsedTokenInstruction<
-  TProgram extends string = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+  TProgram extends string = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 > =
   | ({
       instructionType: TokenInstruction.Transfer;
@@ -81,7 +81,7 @@ export type ParsedTokenInstruction<
     } & ParsedTransferCheckedInstruction<TProgram>);
 
 export function parseTokenInstruction<TProgram extends string>(
-  instruction: Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array>,
+  instruction: Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array>
 ): ParsedTokenInstruction<TProgram> {
   const instructionType = identifyTokenInstruction(instruction);
   switch (instructionType) {
@@ -109,7 +109,7 @@ export function parseTokenInstruction<TProgram extends string>(
     default:
       throw new SolanaError(
         SOLANA_ERROR__PROGRAM_CLIENTS__UNRECOGNIZED_INSTRUCTION_TYPE,
-        { instructionType: instructionType as string, programName: "token" },
+        { instructionType: instructionType as string, programName: "token" }
       );
   }
 }

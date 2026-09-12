@@ -11,7 +11,10 @@ import { toUserErrorMessage } from "@/lib/user-errors";
 const RECHECK_SUCCESS_MS = 2800;
 
 export type HoldToCheckOverlay =
-  null | "pending" | "recheck-success" | "failed";
+  | null
+  | "pending"
+  | "recheck-success"
+  | "failed";
 
 /**
  * Hold-to-verify + Verified badge.

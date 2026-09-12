@@ -73,7 +73,7 @@ export function ShortcutIframeSheet({
       <div
         className={cn(
           "flex h-[min(92dvh,48rem)] w-full flex-col",
-          "rounded-t-2xl border border-border/60 bg-background shadow-xl sm:rounded-2xl",
+          "rounded-t-2xl border border-border/60 bg-background shadow-xl sm:rounded-2xl"
         )}
       >
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border/50 px-4 py-3">

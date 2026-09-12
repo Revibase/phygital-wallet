@@ -25,7 +25,7 @@ export function CollectiblesGrid({
       <ul
         className={cn(
           "flex gap-3 overflow-x-auto px-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-          className,
+          className
         )}
       >
         {collectibles.map((c) => (
@@ -43,7 +43,7 @@ export function CollectiblesGrid({
         className={cn(
           "flex gap-3 overflow-x-auto px-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
           "md:grid md:grid-cols-2 md:gap-3 md:overflow-visible md:px-0 md:pb-0 lg:grid-cols-3",
-          className,
+          className
         )}
       >
         {collectibles.map((c) => (
@@ -59,7 +59,7 @@ export function CollectiblesGrid({
     <ul
       className={cn(
         "grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5",
-        className,
+        className
       )}
     >
       {collectibles.map((c) => (

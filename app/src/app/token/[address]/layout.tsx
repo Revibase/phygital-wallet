@@ -9,9 +9,9 @@ import { RouteBoot } from "@/components/layout/route-boot";
 const TokenAddressLayout = dynamic(
   () =>
     import("@/components/token/token-address-layout").then(
-      (m) => m.TokenAddressLayout,
+      (m) => m.TokenAddressLayout
     ),
-  { ssr: false, loading: () => <RouteBoot /> },
+  { ssr: false, loading: () => <RouteBoot /> }
 );
 
 export default function AddressLayout({ children }: { children: ReactNode }) {

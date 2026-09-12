@@ -174,10 +174,10 @@ function HomePasskeyScreen({
             {authError
               ? toUserErrorMessage(authError)
               : setupMode
-                ? claimMode
-                  ? copy.wallet.homeSetupPasskeyBody
-                  : copy.wallet.claimSignInBody
-                : copy.wallet.deviceLoginBody}
+              ? claimMode
+                ? copy.wallet.homeSetupPasskeyBody
+                : copy.wallet.claimSignInBody
+              : copy.wallet.deviceLoginBody}
           </p>
         </div>
         <div className="relative z-10 flex w-full max-w-sm flex-col gap-2">
@@ -242,17 +242,17 @@ function HomeLinkSetup({
       queryClient.setQueryData(queryKeys.deviceAuth.session(), data.session);
       queryClient.setQueryData(
         queryKeys.deviceAuth.browseUnlock(tokenAddress),
-        data.browseUnlocked,
+        data.browseUnlocked
       );
       if (data.linkStatus) {
         queryClient.setQueryData(
           queryKeys.deviceAuth.linkStatus(tokenAddress),
-          data.linkStatus,
+          data.linkStatus
         );
       }
       queryClient.setQueryData(
         queryKeys.deviceAuth.claimed(tokenAddress),
-        data.claimed,
+        data.claimed
       );
       return data;
     },
@@ -281,7 +281,7 @@ function HomeLinkSetup({
     onSuccess: () => {
       queryClient.setQueryData(
         queryKeys.deviceAuth.browseUnlock(tokenAddress),
-        true,
+        true
       );
       setPhase("confirm");
     },
@@ -294,11 +294,11 @@ function HomeLinkSetup({
     onSuccess: async () => {
       queryClient.setQueryData(
         queryKeys.deviceAuth.linkStatus(tokenAddress),
-        "linked_here" as LinkStatus,
+        "linked_here" as LinkStatus
       );
       queryClient.setQueryData(
         queryKeys.deviceAuth.claimed(tokenAddress),
-        true,
+        true
       );
       queryClient.setQueryData(
         queryKeys.deviceAuth.gate(tokenAddress),
@@ -309,7 +309,7 @@ function HomeLinkSetup({
                 linkStatus: "linked_here",
                 claimed: true,
               }
-            : prev,
+            : prev
       );
       queryClient.setQueryData(
         queryKeys.deviceAuth.links(),
@@ -326,7 +326,7 @@ function HomeLinkSetup({
               linkedAt: Date.now(),
             },
           ];
-        },
+        }
       );
       router.replace(returnTo);
     },
@@ -358,8 +358,8 @@ function HomeLinkSetup({
               {linkError
                 ? linkError
                 : link.isPending
-                  ? copy.wallet.homeLinkConfirmPending
-                  : copy.wallet.homeLinkConfirmBody}
+                ? copy.wallet.homeLinkConfirmPending
+                : copy.wallet.homeLinkConfirmBody}
             </p>
           </div>
           <div className="flex w-full max-w-sm flex-col gap-2">
@@ -449,8 +449,8 @@ function HomeLinkSetup({
             {holdError
               ? copy.common.tryAgain
               : claimMode
-                ? copy.wallet.claimHoldToContinue
-                : copy.wallet.deviceLinkCta}
+              ? copy.wallet.claimHoldToContinue
+              : copy.wallet.deviceLinkCta}
           </Button>
         }
       />
@@ -485,7 +485,7 @@ function HomeLinksScreen({ username }: { username: string }) {
       await linkToken({ phygitalToken: pda });
       queryClient.setQueryData(
         queryKeys.deviceAuth.linkStatus(pda),
-        "linked_here" as const,
+        "linked_here" as const
       );
       queryClient.setQueryData(
         queryKeys.deviceAuth.links(),
@@ -502,7 +502,7 @@ function HomeLinksScreen({ username }: { username: string }) {
               linkedAt: Date.now(),
             },
           ];
-        },
+        }
       );
       void queryClient.setQueryData(queryKeys.deviceAuth.claimed(pda), true);
       return pda;
@@ -541,8 +541,8 @@ function HomeLinksScreen({ username }: { username: string }) {
               {linkError
                 ? linkError
                 : link.isPending
-                  ? copy.wallet.homeLinkConfirmPending
-                  : copy.wallet.homeLinkConfirmBody}
+                ? copy.wallet.homeLinkConfirmPending
+                : copy.wallet.homeLinkConfirmBody}
             </p>
           </div>
           <div className="flex w-full max-w-sm flex-col gap-2">
@@ -657,7 +657,7 @@ function HomeLinksScreen({ username }: { username: string }) {
           size="default"
           className={cn(
             touchTargetClass,
-            "shrink-0 rounded-full self-start sm:self-auto",
+            "shrink-0 rounded-full self-start sm:self-auto"
           )}
           onClick={() => {
             link.reset();
@@ -675,7 +675,7 @@ function HomeLinksScreen({ username }: { username: string }) {
       <div
         className={cn(
           galleryAnimate.rise,
-          bothKinds ? homeSectionsClass : "flex flex-col gap-6",
+          bothKinds ? homeSectionsClass : "flex flex-col gap-6"
         )}
       >
         {cards.length > 0 ? (

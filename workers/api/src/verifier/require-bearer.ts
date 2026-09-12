@@ -31,7 +31,7 @@ function unauthorized(code: string, error: string): Response {
  * verifier set. Returns the payload, or a 401 `Response` to return as-is.
  */
 export async function readVerifierBearer(
-  c: Context<{ Bindings: Env }>,
+  c: Context<{ Bindings: Env }>
 ): Promise<VerifierBearerPayload | Response> {
   const header = c.req.header("Authorization")?.trim();
   const token = header ? /^Bearer\s+(.+)$/i.exec(header)?.[1]?.trim() : null;
@@ -55,13 +55,13 @@ export async function readVerifierBearer(
   if (!payload) {
     return unauthorized(
       "connect_invalid",
-      "Session expired — tap your item again.",
+      "Session expired — tap your item again."
     );
   }
   if (payload.origin !== normalizeOrigin(c.req.header("Origin"))) {
     return unauthorized(
       "origin_mismatch",
-      "This bearer is bound to a different origin.",
+      "This bearer is bound to a different origin."
     );
   }
   return payload;

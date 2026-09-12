@@ -19,7 +19,7 @@ function parseSeed(raw: string): Uint8Array {
   if (seed.length !== 32) {
     throw Object.assign(
       new Error("Verifier secret must be 32-byte seed or 64-byte keypair"),
-      { code: "signer_misconfigured" },
+      { code: "signer_misconfigured" }
     );
   }
   return seed;
@@ -30,7 +30,7 @@ function parseSeed(raw: string): Uint8Array {
  * Used as the Config-equivalent default verifier / paymaster set.
  */
 export function parseVerifierSecretKeyPubkeys(
-  secretKeysJson: string | undefined,
+  secretKeysJson: string | undefined
 ): Set<string> {
   if (!secretKeysJson?.trim()) {
     throw Object.assign(new Error("VERIFIER_SECRET_KEYS is not configured"), {
@@ -48,22 +48,22 @@ export function parseVerifierSecretKeyPubkeys(
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
     throw Object.assign(
       new Error("VERIFIER_SECRET_KEYS must be a JSON object map"),
-      { code: "signer_misconfigured" },
+      { code: "signer_misconfigured" }
     );
   }
   const keys = Object.keys(parsed as Record<string, unknown>);
   if (keys.length === 0) {
     throw Object.assign(
       new Error("VERIFIER_SECRET_KEYS must include at least one key"),
-      { code: "signer_misconfigured" },
+      { code: "signer_misconfigured" }
     );
   }
   if (keys.length > MAX_VERIFIER_KEYS) {
     throw Object.assign(
       new Error(
-        `VERIFIER_SECRET_KEYS supports at most ${MAX_VERIFIER_KEYS} keys`,
+        `VERIFIER_SECRET_KEYS supports at most ${MAX_VERIFIER_KEYS} keys`
       ),
-      { code: "signer_misconfigured" },
+      { code: "signer_misconfigured" }
     );
   }
   return new Set(keys);
@@ -89,14 +89,14 @@ export class SecretsVerifierBackend implements VerifierSignerBackend {
     } catch {
       throw Object.assign(
         new Error("VERIFIER_SECRET_KEYS must be valid JSON"),
-        { code: "signer_misconfigured" },
+        { code: "signer_misconfigured" }
       );
     }
 
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
       throw Object.assign(
         new Error("VERIFIER_SECRET_KEYS must be a JSON object map"),
-        { code: "signer_misconfigured" },
+        { code: "signer_misconfigured" }
       );
     }
 
@@ -104,15 +104,15 @@ export class SecretsVerifierBackend implements VerifierSignerBackend {
     if (entries.length === 0) {
       throw Object.assign(
         new Error("VERIFIER_SECRET_KEYS must include at least one key"),
-        { code: "signer_misconfigured" },
+        { code: "signer_misconfigured" }
       );
     }
     if (entries.length > MAX_VERIFIER_KEYS) {
       throw Object.assign(
         new Error(
-          `VERIFIER_SECRET_KEYS supports at most ${MAX_VERIFIER_KEYS} keys`,
+          `VERIFIER_SECRET_KEYS supports at most ${MAX_VERIFIER_KEYS} keys`
         ),
-        { code: "signer_misconfigured" },
+        { code: "signer_misconfigured" }
       );
     }
 
@@ -121,9 +121,9 @@ export class SecretsVerifierBackend implements VerifierSignerBackend {
       if (typeof value !== "string" || !value.trim()) {
         throw Object.assign(
           new Error(
-            `VERIFIER_SECRET_KEYS entry for ${pubkey} must be a string`,
+            `VERIFIER_SECRET_KEYS entry for ${pubkey} must be a string`
           ),
-          { code: "signer_misconfigured" },
+          { code: "signer_misconfigured" }
         );
       }
       const seed = parseSeed(value);
@@ -131,9 +131,9 @@ export class SecretsVerifierBackend implements VerifierSignerBackend {
       if (derived !== pubkey) {
         throw Object.assign(
           new Error(
-            `VERIFIER_SECRET_KEYS pubkey mismatch: map key ${pubkey} != derived ${derived}`,
+            `VERIFIER_SECRET_KEYS pubkey mismatch: map key ${pubkey} != derived ${derived}`
           ),
-          { code: "signer_misconfigured" },
+          { code: "signer_misconfigured" }
         );
       }
       this.byPubkey.set(pubkey, seed);
@@ -151,7 +151,7 @@ export class SecretsVerifierBackend implements VerifierSignerBackend {
 
   async sign(
     verifierPubkey: string,
-    messageBytes: Uint8Array,
+    messageBytes: Uint8Array
   ): Promise<string> {
     const seed = this.byPubkey.get(verifierPubkey);
     if (!seed) {
@@ -163,7 +163,7 @@ export class SecretsVerifierBackend implements VerifierSignerBackend {
             expected: [...this.byPubkey.keys()],
             got: verifierPubkey,
           },
-        },
+        }
       );
     }
     const sig = ed25519.sign(messageBytes, seed);

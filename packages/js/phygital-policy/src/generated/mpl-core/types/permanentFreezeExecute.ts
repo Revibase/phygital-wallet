@@ -36,6 +36,6 @@ export function getPermanentFreezeExecuteCodec(): FixedSizeCodec<
 > {
   return combineCodec(
     getPermanentFreezeExecuteEncoder(),
-    getPermanentFreezeExecuteDecoder(),
+    getPermanentFreezeExecuteDecoder()
   );
 }

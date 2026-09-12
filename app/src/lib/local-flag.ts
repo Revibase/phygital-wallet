@@ -39,20 +39,20 @@ export function useLocalFlag(key: string): [boolean, (value: boolean) => void] {
         window.removeEventListener("storage", onStorage);
       };
     },
-    [key],
+    [key]
   );
 
   const value = useSyncExternalStore(
     subscribe,
     () => readFlag(key),
-    () => false,
+    () => false
   );
 
   const setValue = useCallback(
     (next: boolean) => {
       writeFlag(key, next);
     },
-    [key],
+    [key]
   );
 
   return [value, setValue];

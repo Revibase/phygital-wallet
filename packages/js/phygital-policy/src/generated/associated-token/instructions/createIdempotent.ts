@@ -49,10 +49,11 @@ export type CreateIdempotentInstruction<
   TAccountAssociatedTokenAccount extends string | AccountMeta<string> = string,
   TAccountWallet extends string | AccountMeta<string> = string,
   TAccountMint extends string | AccountMeta<string> = string,
-  TAccountSystemProgram extends string | AccountMeta<string> =
-    "11111111111111111111111111111111",
+  TAccountSystemProgram extends
+    | string
+    | AccountMeta<string> = "11111111111111111111111111111111",
   TAccountTokenProgram extends string | AccountMeta<string> = string,
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+  TRemainingAccounts extends readonly AccountMeta<string>[] = []
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
   InstructionWithAccounts<
@@ -76,7 +77,7 @@ export type CreateIdempotentInstruction<
       TAccountTokenProgram extends string
         ? ReadonlyAccount<TAccountTokenProgram>
         : TAccountTokenProgram,
-      ...TRemainingAccounts,
+      ...TRemainingAccounts
     ]
   >;
 
@@ -87,7 +88,7 @@ export type CreateIdempotentInstructionDataArgs = {};
 export function getCreateIdempotentInstructionDataEncoder(): FixedSizeEncoder<CreateIdempotentInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([["discriminator", getU8Encoder()]]),
-    (value) => ({ ...value, discriminator: CREATE_IDEMPOTENT_DISCRIMINATOR }),
+    (value) => ({ ...value, discriminator: CREATE_IDEMPOTENT_DISCRIMINATOR })
   );
 }
 
@@ -101,7 +102,7 @@ export function getCreateIdempotentInstructionDataCodec(): FixedSizeCodec<
 > {
   return combineCodec(
     getCreateIdempotentInstructionDataEncoder(),
-    getCreateIdempotentInstructionDataDecoder(),
+    getCreateIdempotentInstructionDataDecoder()
   );
 }
 
@@ -111,7 +112,7 @@ export type CreateIdempotentInput<
   TAccountWallet extends string = string,
   TAccountMint extends string = string,
   TAccountSystemProgram extends string = string,
-  TAccountTokenProgram extends string = string,
+  TAccountTokenProgram extends string = string
 > = {
   /** Funding account (must be a system account) */
   funder: TransactionSigner<TAccountFunder>;
@@ -134,8 +135,7 @@ export function getCreateIdempotentInstruction<
   TAccountMint extends string,
   TAccountSystemProgram extends string,
   TAccountTokenProgram extends string,
-  TProgramAddress extends Address =
-    typeof ASSOCIATED_TOKEN_ACCOUNT_PROGRAM_ADDRESS,
+  TProgramAddress extends Address = typeof ASSOCIATED_TOKEN_ACCOUNT_PROGRAM_ADDRESS
 >(
   input: CreateIdempotentInput<
     TAccountFunder,
@@ -145,7 +145,7 @@ export function getCreateIdempotentInstruction<
     TAccountSystemProgram,
     TAccountTokenProgram
   >,
-  config?: { programAddress?: TProgramAddress },
+  config?: { programAddress?: TProgramAddress }
 ): CreateIdempotentInstruction<
   TProgramAddress,
   TAccountFunder,
@@ -194,20 +194,12 @@ export function getCreateIdempotentInstruction<
     ],
     data: getCreateIdempotentInstructionDataEncoder().encode({}),
     programAddress,
-  } as CreateIdempotentInstruction<
-    TProgramAddress,
-    TAccountFunder,
-    TAccountAssociatedTokenAccount,
-    TAccountWallet,
-    TAccountMint,
-    TAccountSystemProgram,
-    TAccountTokenProgram
-  >);
+  } as CreateIdempotentInstruction<TProgramAddress, TAccountFunder, TAccountAssociatedTokenAccount, TAccountWallet, TAccountMint, TAccountSystemProgram, TAccountTokenProgram>);
 }
 
 export type ParsedCreateIdempotentInstruction<
   TProgram extends string = typeof ASSOCIATED_TOKEN_ACCOUNT_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[]
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -229,11 +221,11 @@ export type ParsedCreateIdempotentInstruction<
 
 export function parseCreateIdempotentInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[]
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>,
+    InstructionWithData<ReadonlyUint8Array>
 ): ParsedCreateIdempotentInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 6) {
     throw new SolanaError(
@@ -241,7 +233,7 @@ export function parseCreateIdempotentInstruction<
       {
         actualAccountMetas: instruction.accounts.length,
         expectedAccountMetas: 6,
-      },
+      }
     );
   }
   let accountIndex = 0;

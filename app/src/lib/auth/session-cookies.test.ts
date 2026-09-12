@@ -15,10 +15,10 @@ async function sign(payload: string): Promise<string> {
     new TextEncoder().encode(SECRET),
     { name: "HMAC", hash: "SHA-256" },
     false,
-    ["sign"],
+    ["sign"]
   );
   const mac = new Uint8Array(
-    await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload)),
+    await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload))
   );
   const payloadB64 = btoa(payload)
     .replace(/\+/g, "-")
@@ -71,7 +71,7 @@ describe("session-cookies", () => {
         phygitalToken: "TokenPda111",
         browseUnlockCookie: token,
         secret: SECRET,
-      }),
+      })
     ).resolves.toBe(true);
   });
 
@@ -83,7 +83,7 @@ describe("session-cookies", () => {
         phygitalToken: "TokenPda111",
         deviceSessionCookie: token,
         secret: SECRET,
-      }),
+      })
     ).resolves.toBe(true);
   });
 
@@ -95,7 +95,7 @@ describe("session-cookies", () => {
         phygitalToken: "TokenPda111",
         deviceRefreshCookie: token,
         secret: SECRET,
-      }),
+      })
     ).resolves.toBe(true);
   });
 
@@ -107,7 +107,7 @@ describe("session-cookies", () => {
         phygitalToken: "TokenPda111",
         browseUnlockCookie: token,
         secret: SECRET,
-      }),
+      })
     ).resolves.toBe(false);
   });
 });

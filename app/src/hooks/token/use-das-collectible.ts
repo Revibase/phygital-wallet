@@ -11,7 +11,7 @@ import {
 
 export function useDasCollectible(
   mint: string | null,
-  opts?: { enabled?: boolean },
+  opts?: { enabled?: boolean }
 ) {
   return useQuery<Collectible | null, Error>({
     queryKey: queryKeys.dasCollectible.byMint(mint),
@@ -27,7 +27,7 @@ export function useDasCollectible(
 /** DAS metadata with fallback placeholder once the query has settled. */
 export function useResolvedDasCollectible(
   mint: string | null,
-  opts?: { enabled?: boolean },
+  opts?: { enabled?: boolean }
 ) {
   const das = useDasCollectible(mint, opts);
   const collectible =

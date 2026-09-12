@@ -20,7 +20,7 @@ tokenRoutes.get("/tokens/fee-balance", async (c) => {
   if (!phygitalToken) {
     return json(
       { error: "Query param phygitalToken must be a valid Solana address" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -38,7 +38,7 @@ tokenRoutes.get("/tokens/fee-balance", async (c) => {
           error: "Sign in or unlock this item to continue.",
           code: "session_required",
         },
-        { status: 401 },
+        { status: 401 }
       );
     }
   }
@@ -56,7 +56,7 @@ tokenRoutes.get("/tokens/fee-balance", async (c) => {
         error:
           error instanceof Error ? error.message : "Failed to load fee balance",
       },
-      { status: 502 },
+      { status: 502 }
     );
   }
 });
@@ -73,7 +73,7 @@ tokenRoutes.get("/tokens/verified", async (c) => {
             ? error.message
             : "Failed to load verified tokens",
       },
-      { status: 502 },
+      { status: 502 }
     );
   }
 });

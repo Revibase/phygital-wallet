@@ -29,7 +29,7 @@ function advanceNonceIx(): Instruction {
 describe("assertTopLevelInstructionAllowed", () => {
   it("allows AdvanceNonceAccount for System Program", () => {
     expect(() =>
-      assertTopLevelInstructionAllowed(advanceNonceIx()),
+      assertTopLevelInstructionAllowed(advanceNonceIx())
     ).not.toThrow();
   });
 
@@ -49,7 +49,7 @@ describe("assertTopLevelInstructionAllowed", () => {
       ],
     };
     expect(() => assertTopLevelInstructionAllowed(transfer)).toThrow(
-      /Unexpected system program instruction/,
+      /Unexpected system program instruction/
     );
   });
 
@@ -58,7 +58,7 @@ describe("assertTopLevelInstructionAllowed", () => {
       assertTopLevelInstructionAllowed({
         programAddress: address(COMPUTE_BUDGET_PROGRAM),
         data: new Uint8Array([2, 0, 0, 0, 0]),
-      }),
+      })
     ).not.toThrow();
   });
 
@@ -67,7 +67,7 @@ describe("assertTopLevelInstructionAllowed", () => {
       assertTopLevelInstructionAllowed({
         programAddress: address("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
         data: new Uint8Array([3]),
-      }),
+      })
     ).toThrow(/Unexpected top-level program/);
   });
 });

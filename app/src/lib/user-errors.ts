@@ -145,7 +145,7 @@ function toFacing(error: unknown, fallback: UserFacingError): UserFacingError {
 /** Title + body for full-screen payment outcomes. */
 export function toUserFacingError(
   error: unknown,
-  fallback: UserFacingError | string = DEFAULT_ERROR_BODY,
+  fallback: UserFacingError | string = DEFAULT_ERROR_BODY
 ): UserFacingError {
   const fb =
     typeof fallback === "string"
@@ -157,7 +157,7 @@ export function toUserFacingError(
 /** Compact line for toasts and inline banners. */
 export function toUserErrorMessage(
   error: unknown,
-  fallback: string = DEFAULT_ERROR_BODY,
+  fallback: string = DEFAULT_ERROR_BODY
 ): string {
   if (error instanceof PolicyDeniedError) {
     if (error.code === "spend_limit") return error.message;

@@ -36,7 +36,7 @@ describe("serializeQueryCache / deserializeQueryCache", () => {
   it("does not throw on bigint the way JSON.stringify does", () => {
     expect(() => JSON.stringify({ n: 1n })).toThrow(TypeError);
     expect(() =>
-      serializeQueryCache({ n: 1n } as unknown as PersistedClient),
+      serializeQueryCache({ n: 1n } as unknown as PersistedClient)
     ).not.toThrow();
   });
 });
@@ -44,7 +44,7 @@ describe("serializeQueryCache / deserializeQueryCache", () => {
 describe("isPersistedQueryKey", () => {
   it("allows instant-paint roots", () => {
     expect(isPersistedQueryKey(["phygitalTokens", "address", "token"])).toBe(
-      true,
+      true
     );
     expect(isPersistedQueryKey(["dasCollectible", "mint"])).toBe(true);
     expect(isPersistedQueryKey(["mintedCollectibleView", "mint"])).toBe(true);

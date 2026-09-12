@@ -68,7 +68,12 @@ type LinkedPayer = {
 };
 
 type Phase =
-  "form" | "identifying" | "summary" | "holding" | "success" | "handoff";
+  | "form"
+  | "identifying"
+  | "summary"
+  | "holding"
+  | "success"
+  | "handoff";
 
 /**
  * Receive nearby — amount → Hold (identify) → summary → Hold (confirm pay).
@@ -94,16 +99,18 @@ export function ReceiveNearbySheet({
   const [from, setFrom] = useState<LinkedPayer | null>(null);
   const [phase, setPhase] = useState<Phase>("form");
   const [signPhase, setSignPhase] = useState<PhygitalWalletSignPhase | null>(
-    null,
+    null
   );
   const [busy, setBusy] = useState(false);
   const [hardError, setHardError] = useState<string | null>(null);
   const [handoffDeny, setHandoffDeny] = useState<PolicyDeniedError | null>(
-    null,
+    null
   );
 
   const payerPortfolio = useWalletPortfolio(from?.walletPda ?? null);
-  const payUrl = `solana:${recipientWallet.trim()}?label=${encodeURIComponent(brand.company)}`;
+  const payUrl = `solana:${recipientWallet.trim()}?label=${encodeURIComponent(
+    brand.company
+  )}`;
 
   useEffect(() => {
     if (verified.isError) toast.error(toUserErrorMessage(verified.error));
@@ -130,7 +137,7 @@ export function ReceiveNearbySheet({
       (t) =>
         t.symbol.toLowerCase().includes(q) ||
         t.name.toLowerCase().includes(q) ||
-        t.mint.toLowerCase().includes(q),
+        t.mint.toLowerCase().includes(q)
     );
   }, [catalog, search]);
 
@@ -267,14 +274,14 @@ export function ReceiveNearbySheet({
           restorePortfolioSnapshot(
             queryClient,
             recipientWallet,
-            recipientBefore,
+            recipientBefore
           );
           if (from) {
             restorePortfolioSnapshot(queryClient, from.walletPda, payerBefore);
           }
           restoreWalletActivitySnapshot(queryClient, activityBefore);
           toast.error(toUserErrorMessage(err));
-        },
+        }
       );
     } catch (e) {
       setSignPhase(null);
@@ -335,15 +342,15 @@ export function ReceiveNearbySheet({
             success
               ? copy.wallet.received
               : identifying
-                ? copy.wallet.tapTheirAccessory
-                : holdingCopy.title
+              ? copy.wallet.tapTheirAccessory
+              : holdingCopy.title
           }
           body={
             success
               ? undefined
               : identifying
-                ? copy.wallet.holdCeremonyBody
-                : holdingCopy.body
+              ? copy.wallet.holdCeremonyBody
+              : holdingCopy.body
           }
           action={
             success ? (
@@ -377,8 +384,8 @@ export function ReceiveNearbySheet({
     const reason = feeBlocked
       ? copy.wallet.nearbyPolicyFeeBody
       : handoffDeny?.soft
-        ? policySoftDenyBody(handoffDeny).replace(/\byour\b/gi, "their")
-        : copy.wallet.nearbyPolicyBody;
+      ? policySoftDenyBody(handoffDeny).replace(/\byour\b/gi, "their")
+      : copy.wallet.nearbyPolicyBody;
 
     return (
       <div className="flex min-h-0 flex-1 flex-col gap-6">

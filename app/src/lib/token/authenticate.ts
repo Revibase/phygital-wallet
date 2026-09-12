@@ -28,7 +28,7 @@ export async function authenticateToken(args?: {
 
   const secp256r1PublicKey = bindVerifiedPasskey(
     verifyResponse({ expectedMessage: challenge, response }),
-    args?.expectedPublicKey,
+    args?.expectedPublicKey
   );
 
   // Only signal success after crypto verify — not right after the OS prompt.

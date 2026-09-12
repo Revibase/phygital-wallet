@@ -33,7 +33,7 @@ export async function getSetTokenVerifierInstructions(input: {
   passkeyAuth: PasskeyAuth;
 }): Promise<Instruction[]> {
   const endpoint = normalizeVerifierApiBase(
-    assertHttpsEndpoint(input.endpoint, { maxLen: MAX_ENDPOINT_LEN }),
+    assertHttpsEndpoint(input.endpoint, { maxLen: MAX_ENDPOINT_LEN })
   );
   const phygitalToken = input.passkeyAuth.phygitalTokenPda;
   const [[configPda], [tokenVerifierPda]] = await Promise.all([
@@ -76,7 +76,7 @@ export async function getClearTokenVerifierInstructions(input: {
   if (!rentReceiver) {
     const tokenVerifierAccount = await fetchMaybeTokenVerifier(
       input.rpc,
-      tokenVerifierPda,
+      tokenVerifierPda
     );
     if (!tokenVerifierAccount.exists) {
       throw new Error("Token verifier override not found");

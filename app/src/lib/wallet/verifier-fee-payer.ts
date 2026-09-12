@@ -32,14 +32,14 @@ const DEFAULT_VERIFIER_API_ORIGIN = "https://api.revibase.com";
  */
 export function appVerifierFetch(
   input: RequestInfo | URL,
-  init?: RequestInit,
+  init?: RequestInit
 ): Promise<Response> {
   const raw =
     typeof input === "string"
       ? input
       : input instanceof URL
-        ? input.toString()
-        : String(input);
+      ? input.toString()
+      : String(input);
   const rewritten = raw.startsWith(DEFAULT_VERIFIER_API_ORIGIN)
     ? `${getApiBaseUrl()}${raw.slice(DEFAULT_VERIFIER_API_ORIGIN.length)}`
     : raw;
@@ -59,7 +59,7 @@ export type AppVerifierSigner = TransactionPartialSigner & {
  */
 export async function createAppVerifierSigner(
   rpc: Rpc<SolanaRpcApi>,
-  phygitalToken: Address,
+  phygitalToken: Address
 ): Promise<AppVerifierSigner> {
   const resolved = await resolveVerifier(rpc, phygitalToken, {
     getAccessToken: accessTokenFor(String(phygitalToken)),
@@ -89,7 +89,7 @@ export async function createAppVerifierSigner(
  */
 export async function previewConfigIntent(
   signer: AppVerifierSigner,
-  previewInstruction: Instruction,
+  previewInstruction: Instruction
 ): Promise<string> {
   try {
     await previewWalletIntent({

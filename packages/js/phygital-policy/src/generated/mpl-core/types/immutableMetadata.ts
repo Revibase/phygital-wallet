@@ -34,6 +34,6 @@ export function getImmutableMetadataCodec(): FixedSizeCodec<
 > {
   return combineCodec(
     getImmutableMetadataEncoder(),
-    getImmutableMetadataDecoder(),
+    getImmutableMetadataDecoder()
   );
 }

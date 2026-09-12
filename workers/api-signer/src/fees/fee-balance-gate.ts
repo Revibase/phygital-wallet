@@ -12,7 +12,7 @@ import type { Instruction } from "@solana/kit";
  */
 function isFeeBalanceTopUpIntent(
   instructions: readonly Instruction[],
-  accumulator: string,
+  accumulator: string
 ): boolean {
   if (!accumulator || instructions.length === 0) return false;
   let sawTransfer = false;

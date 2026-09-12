@@ -18,22 +18,22 @@ describe("isAppBrowserOrigin", () => {
 describe("corsModeForRequest", () => {
   it("uses credentialed CORS for app origins on open paths", () => {
     expect(
-      corsModeForRequest("POST", "/preview", "https://p.revibase.com"),
+      corsModeForRequest("POST", "/preview", "https://p.revibase.com")
     ).toBe("credentialed");
   });
 
   it("uses open CORS for third-party origins on open paths", () => {
     expect(corsModeForRequest("POST", "/preview", "https://dapp.example")).toBe(
-      "open",
+      "open"
     );
     expect(corsModeForRequest("POST", "/sign", "https://dapp.example")).toBe(
-      "open",
+      "open"
     );
   });
 
   it("keeps credentialed CORS for protected app paths", () => {
     expect(
-      corsModeForRequest("GET", "/tokens/verified", "https://p.revibase.com"),
+      corsModeForRequest("GET", "/tokens/verified", "https://p.revibase.com")
     ).toBe("credentialed");
   });
 
@@ -49,16 +49,16 @@ describe("requireRevibaseAppOrigin", () => {
 
   it("allows only the app origin and local development", () => {
     expect(requireRevibaseAppOrigin(request("https://app.revibase.com"))).toBe(
-      null,
+      null
     );
     expect(requireRevibaseAppOrigin(request("http://localhost:3000"))).toBe(
-      null,
+      null
     );
     expect(
-      requireRevibaseAppOrigin(request("https://p.revibase.com")),
+      requireRevibaseAppOrigin(request("https://p.revibase.com"))
     ).toBeInstanceOf(Response);
     expect(
-      requireRevibaseAppOrigin(request("http://app.revibase.com")),
+      requireRevibaseAppOrigin(request("http://app.revibase.com"))
     ).toBeInstanceOf(Response);
   });
 

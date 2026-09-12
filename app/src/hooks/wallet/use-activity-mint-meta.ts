@@ -27,7 +27,7 @@ function collectActivityMints(items: WalletActivityItem[]): string[] {
 }
 
 function metaFromPortfolio(
-  queryClient: ReturnType<typeof useQueryClient>,
+  queryClient: ReturnType<typeof useQueryClient>
 ): Record<string, MintMeta> {
   const map: Record<string, MintMeta> = {};
   for (const [, portfolio] of queryClient.getQueriesData<WalletPortfolio>({
@@ -52,7 +52,7 @@ export function useMintMeta(mints: string[]): Record<string, MintMeta> {
   const queryClient = useQueryClient();
   const allMints = useMemo(
     () => [...new Set(mints.filter((m) => m && m !== NATIVE_SOL_MINT))].sort(),
-    [mints],
+    [mints]
   );
 
   const seeded = useMemo(() => {
@@ -63,7 +63,7 @@ export function useMintMeta(mints: string[]): Record<string, MintMeta> {
     };
     for (const mint of allMints) {
       const cached = queryClient.getQueryData<MintMeta>(
-        queryKeys.activityMintMeta.byMint(mint),
+        queryKeys.activityMintMeta.byMint(mint)
       );
       if (cached) map[mint] = cached;
     }
@@ -72,7 +72,7 @@ export function useMintMeta(mints: string[]): Record<string, MintMeta> {
 
   const missingMints = useMemo(
     () => allMints.filter((mint) => !(mint in seeded)),
-    [allMints, seeded],
+    [allMints, seeded]
   );
 
   const batch = useQuery({
@@ -105,7 +105,7 @@ export function useMintMeta(mints: string[]): Record<string, MintMeta> {
       ...seeded,
       ...(batch.data ?? {}),
     }),
-    [seeded, batch.data],
+    [seeded, batch.data]
   );
 }
 
@@ -113,7 +113,7 @@ export function useMintMeta(mints: string[]): Record<string, MintMeta> {
  * Resolve activity mint symbol/name via {@link useMintMeta}.
  */
 export function useActivityMintMeta(
-  items: WalletActivityItem[],
+  items: WalletActivityItem[]
 ): Record<string, MintMeta> {
   const mints = useMemo(() => collectActivityMints(items), [items]);
   return useMintMeta(mints);

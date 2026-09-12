@@ -19,7 +19,7 @@ function holding(
   mint: string,
   symbol: string,
   balanceUi: string,
-  tokenProgram: string = String(CLASSIC_TOKEN_PROGRAM),
+  tokenProgram: string = String(CLASSIC_TOKEN_PROGRAM)
 ) {
   return {
     mint,
@@ -48,7 +48,7 @@ describe("sortHoldings", () => {
 describe("previewHoldings", () => {
   it("caps at HOME_TOKEN_PREVIEW", () => {
     const many = Array.from({ length: 10 }, (_, i) =>
-      holding(`mint-${i}`, `T${i}`, String(i)),
+      holding(`mint-${i}`, `T${i}`, String(i))
     );
     expect(previewHoldings(many)).toHaveLength(HOME_TOKEN_PREVIEW);
   });

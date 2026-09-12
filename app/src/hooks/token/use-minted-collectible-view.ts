@@ -23,7 +23,7 @@ export function useMintedCollectibleView(mint: string | null) {
       const view = await fetchMintedCollectibleViewClient(mint);
       queryClient.setQueryData(
         queryKeys.dasCollectible.byMint(mint),
-        view.collectible,
+        view.collectible
       );
       return view;
     },

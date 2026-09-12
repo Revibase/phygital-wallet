@@ -42,13 +42,13 @@ function mintLabel(cap: MintSpendCapSetting): string {
 }
 
 function cloneCaps(
-  caps: readonly MintSpendCapSetting[],
+  caps: readonly MintSpendCapSetting[]
 ): MintSpendCapSetting[] {
   return caps.map((c) => ({ ...c }));
 }
 
 function metaFromCatalog(
-  tokens: readonly PaymentToken[] | undefined,
+  tokens: readonly PaymentToken[] | undefined
 ): Map<string, { decimals: number; symbol?: string }> {
   const map = new Map<string, { decimals: number; symbol?: string }>();
   map.set(String(getUsdcMint()), { decimals: USDC_DECIMALS, symbol: "USDC" });
@@ -64,7 +64,7 @@ function metaFromCatalog(
 
 function enrichCaps(
   caps: readonly MintSpendCapSetting[],
-  meta: Map<string, { decimals: number; symbol?: string }>,
+  meta: Map<string, { decimals: number; symbol?: string }>
 ): MintSpendCapSetting[] {
   return caps.map((c) => {
     const hint = meta.get(c.mint);
@@ -89,7 +89,7 @@ export function SpendingLimitsSheet({
   const verified = useVerifiedTokens();
   const catalog = useMemo(
     () => (verified.data ?? []).filter((t) => t.mint !== NATIVE_SOL_MINT),
-    [verified.data],
+    [verified.data]
   );
   const catalogMeta = useMemo(() => metaFromCatalog(catalog), [catalog]);
 
@@ -107,15 +107,15 @@ export function SpendingLimitsSheet({
     if (!editor.settings) return;
     if (editor.spendCapsEnabled) {
       setMintLimits(
-        enrichCaps(cloneCaps(editor.settings.mintLimits), catalogMeta),
+        enrichCaps(cloneCaps(editor.settings.mintLimits), catalogMeta)
       );
       setMaxSol(editor.settings.maxTransferSol ?? "");
     } else {
       setMintLimits(
         enrichCaps(
           cloneCaps(FIRST_ENABLE_POLICY_SETTINGS.mintLimits),
-          catalogMeta,
-        ),
+          catalogMeta
+        )
       );
       setMaxSol(FIRST_ENABLE_POLICY_SETTINGS.maxTransferSol ?? "0.1");
     }
@@ -127,7 +127,7 @@ export function SpendingLimitsSheet({
   const extras = editor.settings?.extraPrograms.length ?? 0;
   const addedMints = useMemo(
     () => new Set(mintLimits.map((c) => c.mint)),
-    [mintLimits],
+    [mintLimits]
   );
 
   const filtered = useMemo(() => {
@@ -138,7 +138,7 @@ export function SpendingLimitsSheet({
       (t) =>
         t.symbol.toLowerCase().includes(q) ||
         t.name.toLowerCase().includes(q) ||
-        t.mint.toLowerCase().includes(q),
+        t.mint.toLowerCase().includes(q)
     );
   }, [catalog, search, addedMints]);
 
@@ -148,24 +148,24 @@ export function SpendingLimitsSheet({
   const statusTitle = !protectionsOn
     ? copy.wallet.sendProtectionsOff
     : invalid
-      ? copy.wallet.spendingLimitsInvalid
-      : enabled
-        ? copy.wallet.spendingLimitsOn
-        : copy.wallet.spendingLimitsOff;
+    ? copy.wallet.spendingLimitsInvalid
+    : enabled
+    ? copy.wallet.spendingLimitsOn
+    : copy.wallet.spendingLimitsOff;
 
   const statusBody = !protectionsOn
     ? copy.wallet.sendProtectionsRequired
     : invalid
-      ? copy.wallet.spendingLimitsInvalidBody
-      : enabled
-        ? copy.wallet.spendingLimitsOnBody(
-            (editor.settings?.mintLimits ?? []).map((c) => ({
-              label: mintLabel(c),
-              amount: formatCap(c.maxUi),
-            })),
-            formatCap(editor.settings?.maxTransferSol),
-          )
-        : copy.wallet.spendingLimitsOffBody;
+    ? copy.wallet.spendingLimitsInvalidBody
+    : enabled
+    ? copy.wallet.spendingLimitsOnBody(
+        (editor.settings?.mintLimits ?? []).map((c) => ({
+          label: mintLabel(c),
+          amount: formatCap(c.maxUi),
+        })),
+        formatCap(editor.settings?.maxTransferSol)
+      )
+    : copy.wallet.spendingLimitsOffBody;
 
   function addVerifiedToken(token: PaymentToken) {
     if (token.mint === NATIVE_SOL_MINT) {
@@ -192,8 +192,8 @@ export function SpendingLimitsSheet({
   function updateCapAmount(mint: string, maxUi: string) {
     setMintLimits((prev) =>
       prev.map((c) =>
-        c.mint === mint ? { ...c, maxUi: maxUi.replace(/[^0-9.]/g, "") } : c,
-      ),
+        c.mint === mint ? { ...c, maxUi: maxUi.replace(/[^0-9.]/g, "") } : c
+      )
     );
   }
 
@@ -220,7 +220,7 @@ export function SpendingLimitsSheet({
         mintLimits: cleaned,
         maxTransferSol: sol,
       },
-      onBack,
+      onBack
     );
   }
 
@@ -373,7 +373,7 @@ export function SpendingLimitsSheet({
                       className="w-full rounded-full"
                       onClick={() =>
                         setMintLimits(
-                          enrichCaps([defaultUsdcMintCap()], catalogMeta),
+                          enrichCaps([defaultUsdcMintCap()], catalogMeta)
                         )
                       }
                     >

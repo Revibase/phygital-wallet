@@ -61,7 +61,7 @@ type RpcPreferenceContextValue = {
 };
 
 const RpcPreferenceContext = createContext<RpcPreferenceContextValue | null>(
-  null,
+  null
 );
 
 export function RpcPreferenceProvider({ children }: { children: ReactNode }) {
@@ -69,7 +69,7 @@ export function RpcPreferenceProvider({ children }: { children: ReactNode }) {
   const preference = useSyncExternalStore(
     subscribeRpcPreference,
     getRpcPreferenceSnapshot,
-    getServerSnapshot,
+    getServerSnapshot
   );
 
   const setDefault = useCallback(() => {
@@ -90,7 +90,7 @@ export function RpcPreferenceProvider({ children }: { children: ReactNode }) {
       notifyRpcPreferenceChanged();
       invalidateRpcDependentQueries(queryClient);
     },
-    [queryClient],
+    [queryClient]
   );
 
   const value = useMemo((): RpcPreferenceContextValue => {
@@ -118,7 +118,7 @@ export function useRpcPreference(): RpcPreferenceContextValue {
   const ctx = useContext(RpcPreferenceContext);
   if (!ctx) {
     throw new Error(
-      "useRpcPreference must be used within RpcPreferenceProvider",
+      "useRpcPreference must be used within RpcPreferenceProvider"
     );
   }
   return ctx;

@@ -8,7 +8,7 @@ import { ASSOCIATED_TOKEN_ACCOUNT_PROGRAM_ADDRESS } from "./adapters.js";
 export function walletOwnerForAta(
   instructions: readonly Instruction[],
   ata: string,
-  mint?: string | null,
+  mint?: string | null
 ): string | null {
   const ataProgram = String(ASSOCIATED_TOKEN_ACCOUNT_PROGRAM_ADDRESS);
   for (const ix of instructions) {

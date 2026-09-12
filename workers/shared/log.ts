@@ -97,7 +97,7 @@ function summarizeResult(result: unknown): LogFields {
 export function createLogger(
   service: string,
   env?: { LOG_LEVEL?: string },
-  baseFields?: LogFields,
+  baseFields?: LogFields
 ): Logger {
   const min = RANK[parseLevel(env?.LOG_LEVEL)];
 
@@ -129,7 +129,7 @@ export async function withLoggedRpc<T>(
   log: Logger,
   method: string,
   fields: LogFields,
-  fn: () => Promise<T>,
+  fn: () => Promise<T>
 ): Promise<T> {
   const started = Date.now();
   log.debug("rpc.start", { method, ...fields });

@@ -35,7 +35,7 @@ export function TokensAllSheet({
       (h) =>
         h.symbol.toLowerCase().includes(q) ||
         h.name.toLowerCase().includes(q) ||
-        h.mint.toLowerCase().includes(q),
+        h.mint.toLowerCase().includes(q)
     );
   }, [sorted, query]);
 

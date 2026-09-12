@@ -29,7 +29,7 @@ function normalizeAllowedOrigins(values: readonly unknown[]): string[] {
 }
 
 export function validatePaymentsPolicyConfig(
-  raw: unknown,
+  raw: unknown
 ):
   | { ok: true; config: PaymentsPolicyConfig }
   | { ok: false; code: string; message: string } {
@@ -92,7 +92,7 @@ export function validatePaymentsPolicyConfig(
     ...(Array.isArray(obj.extraPrograms)
       ? {
           extraPrograms: obj.extraPrograms.filter(
-            (v): v is string => typeof v === "string",
+            (v): v is string => typeof v === "string"
           ),
         }
       : {}),

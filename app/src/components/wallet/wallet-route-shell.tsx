@@ -55,7 +55,7 @@ export type WalletGo =
         | "tokens"
         | "collectibles"
         | "activity"
-        | "settings",
+        | "settings"
     ]
   | [to: "receive", nested: "nearby"]
   | [to: "collectibles", mint: string];
@@ -171,14 +171,14 @@ export function WalletRouteShell({ children }: { children: ReactNode }) {
     (...args: WalletGo) => {
       router.push(walletHref(tokenAddress, ...args));
     },
-    [router, tokenAddress],
+    [router, tokenAddress]
   );
 
   const goSettings = useCallback(
     (target?: SettingsTarget) => {
       router.push(walletSettingsHref(tokenAddress, target));
     },
-    [router, tokenAddress],
+    [router, tokenAddress]
   );
 
   const goSend = useCallback(
@@ -191,11 +191,11 @@ export function WalletRouteShell({ children }: { children: ReactNode }) {
                 mint: asset.mint,
                 collectible: isCollectibleSendKind(asset.kind),
               }
-            : null,
-        ),
+            : null
+        )
       );
     },
-    [router, tokenAddress],
+    [router, tokenAddress]
   );
 
   const goHome = useCallback(() => {
@@ -206,7 +206,7 @@ export function WalletRouteShell({ children }: { children: ReactNode }) {
     (fallbackHref: string) => {
       navigateBack(router, fallbackHref);
     },
-    [router],
+    [router]
   );
 
   const backHome = useCallback(() => {
@@ -280,7 +280,7 @@ export function WalletRouteShell({ children }: { children: ReactNode }) {
       backSettings,
       backTo,
       refresh,
-    ],
+    ]
   );
 
   if (!sessionValue) {
@@ -373,13 +373,13 @@ function WalletRouteOverlays({
   }, []);
 
   const openApprovals = useOpenApprovals(
-    isOwner && isWalletHome && deferSecondary ? tokenAddress : null,
+    isOwner && isWalletHome && deferSecondary ? tokenAddress : null
   );
   const [dismissedApprovalHashes, setDismissedApprovalHashes] = useState(
-    () => new Set<string>(),
+    () => new Set<string>()
   );
   const [claimSessionDismissed, setClaimSessionDismissed] = useState(() =>
-    isClaimDismissed(tokenAddress),
+    isClaimDismissed(tokenAddress)
   );
   const [forceClaim, setForceClaim] = useState(false);
 
@@ -414,7 +414,7 @@ function WalletRouteOverlays({
     needsClaim || (forceClaim && !isOwner && !linkedElsewhere && !claimedQuiet);
 
   const visibleApprovals = openApprovals.approvals.filter(
-    (a) => !dismissedApprovalHashes.has(a.intentHash),
+    (a) => !dismissedApprovalHashes.has(a.intentHash)
   );
 
   const showOpenApprovals =

@@ -31,7 +31,7 @@ export async function mintDeviceSessionToken(args: {
   return mintSignedSessionToken(
     args.credentialId,
     DEVICE_ACCESS_TTL_MS,
-    args.now,
+    args.now
   );
 }
 
@@ -42,7 +42,7 @@ export async function mintDeviceRefreshToken(args: {
   return mintSignedSessionToken(
     `${REFRESH_HEAD_PREFIX}${args.credentialId}`,
     DEVICE_REFRESH_TTL_MS,
-    args.now,
+    args.now
   );
 }
 
@@ -50,7 +50,7 @@ function setSessionCookie(
   c: Context,
   name: string,
   token: string,
-  expiresAt: number,
+  expiresAt: number
 ): void {
   const maxAge = Math.max(1, Math.floor((expiresAt - Date.now()) / 1000));
   const { secure, sameSite, domain } = sessionCookieAttrsForRequest(c);
@@ -67,7 +67,7 @@ function setSessionCookie(
 export function setDeviceSessionCookie(
   c: Context,
   token: string,
-  expiresAt: number,
+  expiresAt: number
 ): void {
   setSessionCookie(c, DEVICE_SESSION_COOKIE, token, expiresAt);
 }
@@ -75,7 +75,7 @@ export function setDeviceSessionCookie(
 export function setDeviceRefreshCookie(
   c: Context,
   token: string,
-  expiresAt: number,
+  expiresAt: number
 ): void {
   setSessionCookie(c, DEVICE_REFRESH_COOKIE, token, expiresAt);
 }
@@ -84,7 +84,7 @@ export function setDeviceRefreshCookie(
 export async function issueDeviceSessionCookies(
   c: Context,
   credentialId: string,
-  now = Date.now(),
+  now = Date.now()
 ): Promise<{ credentialId: string; expiresAt: number }> {
   const access = await mintDeviceSessionToken({ credentialId, now });
   const refresh = await mintDeviceRefreshToken({ credentialId, now });
@@ -107,11 +107,11 @@ export function clearDeviceSessionCookies(c: Context): void {
 
 export async function readDeviceSession(
   c: Context,
-  now = Date.now(),
+  now = Date.now()
 ): Promise<DeviceSession | null> {
   const parsed = await parseSignedSessionToken(
     getCookie(c, DEVICE_SESSION_COOKIE),
-    now,
+    now
   );
   if (!parsed) return null;
   // Reject a refresh token placed in the access cookie slot.
@@ -125,11 +125,11 @@ export async function readDeviceSession(
 
 export async function readDeviceRefresh(
   c: Context,
-  now = Date.now(),
+  now = Date.now()
 ): Promise<DeviceSession | null> {
   const parsed = await parseSignedSessionToken(
     getCookie(c, DEVICE_REFRESH_COOKIE),
-    now,
+    now
   );
   if (!parsed?.head.startsWith(REFRESH_HEAD_PREFIX)) return null;
   const credentialId = parsed.head.slice(REFRESH_HEAD_PREFIX.length);
@@ -147,7 +147,7 @@ export async function readDeviceRefresh(
  */
 export async function ensureDeviceAccessSession(
   c: Context,
-  now = Date.now(),
+  now = Date.now()
 ): Promise<DeviceSession | null> {
   const access = await readDeviceSession(c, now);
   if (access) return access;
@@ -165,7 +165,7 @@ export async function ensureDeviceAccessSession(
 
 /** Require a valid device **access** cookie (credential-scoped). */
 export async function requireDeviceSession(
-  c: Context,
+  c: Context
 ): Promise<DeviceSession | Response> {
   const session = await readDeviceSession(c);
   if (!session) {
@@ -174,7 +174,7 @@ export async function requireDeviceSession(
         error: "Sign in with this phone to continue.",
         code: "device_session_required",
       },
-      401,
+      401
     );
   }
   return session;

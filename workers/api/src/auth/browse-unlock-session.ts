@@ -23,7 +23,7 @@ export type BrowseUnlock = {
 function setBrowseUnlockCookie(
   c: Context,
   token: string,
-  expiresAt: number,
+  expiresAt: number
 ): void {
   const maxAge = Math.max(1, Math.floor((expiresAt - Date.now()) / 1000));
   const { secure, sameSite, domain } = sessionCookieAttrsForRequest(c);
@@ -49,11 +49,11 @@ export function clearBrowseUnlockCookie(c: Context): void {
 
 export async function readBrowseUnlock(
   c: Context,
-  now = Date.now(),
+  now = Date.now()
 ): Promise<BrowseUnlock | null> {
   const parsed = await parseSignedSessionToken(
     getCookie(c, BROWSE_UNLOCK_COOKIE),
-    now,
+    now
   );
   if (!parsed) return null;
   return {
@@ -66,11 +66,11 @@ export async function readBrowseUnlock(
 /** Mint + Set-Cookie for a resolved phygital token PDA. */
 export async function issueBrowseUnlockCookie(
   c: Context,
-  phygitalToken: string,
+  phygitalToken: string
 ): Promise<{ expiresAt: number }> {
   const { token, expiresAt } = await mintSignedSessionToken(
     phygitalToken.trim(),
-    VERIFIER_SESSION_TTL_MS,
+    VERIFIER_SESSION_TTL_MS
   );
   setBrowseUnlockCookie(c, token, expiresAt);
   return { expiresAt };

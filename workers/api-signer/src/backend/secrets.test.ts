@@ -17,11 +17,11 @@ describe("SecretsVerifierBackend", () => {
   it("signs with the matching verifier pubkey", async () => {
     const { seed, pubkey, seedB58 } = keypair();
     const backend = new SecretsVerifierBackend(
-      JSON.stringify({ [pubkey]: seedB58 }),
+      JSON.stringify({ [pubkey]: seedB58 })
     );
     expect(backend.canSign(pubkey)).toBe(true);
     expect(
-      backend.canSign("Other111111111111111111111111111111111111111"),
+      backend.canSign("Other111111111111111111111111111111111111111")
     ).toBe(false);
 
     const msg = new Uint8Array([1, 2, 3, 4]);
@@ -34,7 +34,7 @@ describe("SecretsVerifierBackend", () => {
     const { seedB58 } = keypair();
     const { pubkey: other } = keypair();
     expect(
-      () => new SecretsVerifierBackend(JSON.stringify({ [other]: seedB58 })),
+      () => new SecretsVerifierBackend(JSON.stringify({ [other]: seedB58 }))
     ).toThrow(/pubkey mismatch/);
   });
 
@@ -45,7 +45,7 @@ describe("SecretsVerifierBackend", () => {
       map[pubkey] = seedB58;
     }
     expect(() => new SecretsVerifierBackend(JSON.stringify(map))).toThrow(
-      /at most 8/,
+      /at most 8/
     );
   });
 });
@@ -55,7 +55,7 @@ describe("createVerifierSignerBackend", () => {
     expect(() =>
       createVerifierSignerBackend({
         VERIFIER_SIGNER_BACKEND: "kms",
-      }),
+      })
     ).toThrow(/not implemented/);
   });
 });

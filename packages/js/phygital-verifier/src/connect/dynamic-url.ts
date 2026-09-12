@@ -49,7 +49,7 @@ function fromHex(hex: string): Uint8Array {
 function normalizeSignatureToLowS(signature: Uint8Array): Uint8Array {
   if (signature.length !== 64) {
     throw new Error(
-      `expected 64-byte raw r||s signature, got ${signature.length} bytes`,
+      `expected 64-byte raw r||s signature, got ${signature.length} bytes`
     );
   }
   const order = p256.Point.CURVE().n;
@@ -73,7 +73,7 @@ export function verifyDynamicTap(params: DynamicTapParams): DynamicTapResult {
   const compressedPk = base64UrlDecode(identifier);
   if (compressedPk.length !== 33) {
     throw new Error(
-      `pk must be 33-byte compressed P-256 key, got ${compressedPk.length} bytes`,
+      `pk must be 33-byte compressed P-256 key, got ${compressedPk.length} bytes`
     );
   }
   const randomBytes = base64UrlDecode(nonce);
@@ -83,7 +83,7 @@ export function verifyDynamicTap(params: DynamicTapParams): DynamicTapResult {
   const rawSig = base64UrlDecode(signature);
   if (rawSig.length !== 64) {
     throw new Error(
-      `s must be 64-byte raw ECDSA signature, got ${rawSig.length} bytes`,
+      `s must be 64-byte raw ECDSA signature, got ${rawSig.length} bytes`
     );
   }
   const currentCounter = typeof c === "number" ? c : Number.parseInt(c, 10);

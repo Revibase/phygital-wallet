@@ -72,8 +72,8 @@ const message = pipe(
           amount: 1_000_000n,
         }),
       ],
-      m,
-    ),
+      m
+    )
 );
 
 const signed = await signTransactionMessageWithSigners(message);

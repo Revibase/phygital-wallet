@@ -54,7 +54,7 @@ export function FeeBalanceSheet({
   const [amount, setAmount] = useState("0.01");
   const [phase, setPhase] = useState<Phase>("form");
   const [signPhase, setSignPhase] = useState<PhygitalWalletSignPhase | null>(
-    null,
+    null
   );
   const [busy, setBusy] = useState(false);
 
@@ -139,12 +139,12 @@ export function FeeBalanceSheet({
             restorePortfolioSnapshot(
               queryClient,
               walletAddress,
-              portfolioBefore,
+              portfolioBefore
             );
             restoreWalletActivitySnapshot(queryClient, activityBefore);
           }
           toast.error(toUserErrorMessage(err));
-        },
+        }
       );
     } catch (e) {
       setSignPhase(null);

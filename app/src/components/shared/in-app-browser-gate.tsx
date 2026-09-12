@@ -56,7 +56,7 @@ export function InAppBrowserGate({
             onClick={() => {
               void navigator.clipboard.writeText(href).then(
                 () => toast.success(copy.gate.linkCopied),
-                () => toast.error(copy.gate.linkCopyFailed),
+                () => toast.error(copy.gate.linkCopyFailed)
               );
             }}
           >

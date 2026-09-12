@@ -21,7 +21,7 @@ function groupedRowClass({
       : "flex min-h-11 w-full items-center gap-3 px-4 py-3 text-left",
     destructive && "text-destructive",
     interactive && destructive && "hover:text-destructive",
-    className,
+    className
   );
 }
 

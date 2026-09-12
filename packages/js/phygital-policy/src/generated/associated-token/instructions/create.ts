@@ -49,10 +49,11 @@ export type CreateInstruction<
   TAccountAssociatedTokenAccount extends string | AccountMeta<string> = string,
   TAccountWallet extends string | AccountMeta<string> = string,
   TAccountMint extends string | AccountMeta<string> = string,
-  TAccountSystemProgram extends string | AccountMeta<string> =
-    "11111111111111111111111111111111",
+  TAccountSystemProgram extends
+    | string
+    | AccountMeta<string> = "11111111111111111111111111111111",
   TAccountTokenProgram extends string | AccountMeta<string> = string,
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+  TRemainingAccounts extends readonly AccountMeta<string>[] = []
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
   InstructionWithAccounts<
@@ -76,7 +77,7 @@ export type CreateInstruction<
       TAccountTokenProgram extends string
         ? ReadonlyAccount<TAccountTokenProgram>
         : TAccountTokenProgram,
-      ...TRemainingAccounts,
+      ...TRemainingAccounts
     ]
   >;
 
@@ -87,7 +88,7 @@ export type CreateInstructionDataArgs = {};
 export function getCreateInstructionDataEncoder(): FixedSizeEncoder<CreateInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([["discriminator", getU8Encoder()]]),
-    (value) => ({ ...value, discriminator: CREATE_DISCRIMINATOR }),
+    (value) => ({ ...value, discriminator: CREATE_DISCRIMINATOR })
   );
 }
 
@@ -101,7 +102,7 @@ export function getCreateInstructionDataCodec(): FixedSizeCodec<
 > {
   return combineCodec(
     getCreateInstructionDataEncoder(),
-    getCreateInstructionDataDecoder(),
+    getCreateInstructionDataDecoder()
   );
 }
 
@@ -111,7 +112,7 @@ export type CreateInput<
   TAccountWallet extends string = string,
   TAccountMint extends string = string,
   TAccountSystemProgram extends string = string,
-  TAccountTokenProgram extends string = string,
+  TAccountTokenProgram extends string = string
 > = {
   /** Funding account (must be a system account) */
   funder: TransactionSigner<TAccountFunder>;
@@ -134,8 +135,7 @@ export function getCreateInstruction<
   TAccountMint extends string,
   TAccountSystemProgram extends string,
   TAccountTokenProgram extends string,
-  TProgramAddress extends Address =
-    typeof ASSOCIATED_TOKEN_ACCOUNT_PROGRAM_ADDRESS,
+  TProgramAddress extends Address = typeof ASSOCIATED_TOKEN_ACCOUNT_PROGRAM_ADDRESS
 >(
   input: CreateInput<
     TAccountFunder,
@@ -145,7 +145,7 @@ export function getCreateInstruction<
     TAccountSystemProgram,
     TAccountTokenProgram
   >,
-  config?: { programAddress?: TProgramAddress },
+  config?: { programAddress?: TProgramAddress }
 ): CreateInstruction<
   TProgramAddress,
   TAccountFunder,
@@ -194,20 +194,12 @@ export function getCreateInstruction<
     ],
     data: getCreateInstructionDataEncoder().encode({}),
     programAddress,
-  } as CreateInstruction<
-    TProgramAddress,
-    TAccountFunder,
-    TAccountAssociatedTokenAccount,
-    TAccountWallet,
-    TAccountMint,
-    TAccountSystemProgram,
-    TAccountTokenProgram
-  >);
+  } as CreateInstruction<TProgramAddress, TAccountFunder, TAccountAssociatedTokenAccount, TAccountWallet, TAccountMint, TAccountSystemProgram, TAccountTokenProgram>);
 }
 
 export type ParsedCreateInstruction<
   TProgram extends string = typeof ASSOCIATED_TOKEN_ACCOUNT_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[]
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -229,11 +221,11 @@ export type ParsedCreateInstruction<
 
 export function parseCreateInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[]
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>,
+    InstructionWithData<ReadonlyUint8Array>
 ): ParsedCreateInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 6) {
     throw new SolanaError(
@@ -241,7 +233,7 @@ export function parseCreateInstruction<
       {
         actualAccountMetas: instruction.accounts.length,
         expectedAccountMetas: 6,
-      },
+      }
     );
   }
   let accountIndex = 0;

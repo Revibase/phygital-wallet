@@ -18,7 +18,7 @@ export const signRoutes = new Hono<{ Bindings: Env }>();
 
 /** Map a config-change action to its dedicated audit event. */
 function configChangeEvent(
-  action: string,
+  action: string
 ): "token_verifier_change" | "recovery_wallet_set" | null {
   if (action === "set_token_verifier" || action === "clear_token_verifier") {
     return "token_verifier_change";
@@ -45,7 +45,7 @@ signRoutes.post("/sign", async (c) => {
     if (!Array.isArray(body.transactions) || body.transactions.length === 0) {
       return json(
         { error: "transactions required", code: "invalid_transaction" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -56,17 +56,17 @@ signRoutes.post("/sign", async (c) => {
         // Origin). The single trusted origin, enforced against the standing
         // policy's allowedOrigins inside authorizeIntent.
         sessionOrigin: session.origin,
-      },
+      }
     );
 
     const audit = result.ok ? result.audit : undefined;
     // Prefer the execute intent hash the DO surfaces on success; on failure it
     // rides along in the error details.
     const intentHash = result.ok
-      ? (audit?.intentHash ?? null)
+      ? audit?.intentHash ?? null
       : typeof result.body.details?.intentHash === "string"
-        ? result.body.details.intentHash
-        : null;
+      ? result.body.details.intentHash
+      : null;
 
     const events: AuditEntry[] = [
       {

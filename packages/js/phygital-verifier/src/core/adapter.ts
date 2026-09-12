@@ -30,7 +30,7 @@ export type ProgramAdapter<TParsed extends ParsedProgramIx = ParsedProgramIx> =
  * Matcher for a single Codama instruction branch.
  */
 export type InstructionMatcher<
-  TParsed extends ParsedProgramIx = ParsedProgramIx,
+  TParsed extends ParsedProgramIx = ParsedProgramIx
 > = {
   readonly kind: "instruction";
   readonly programAddress: string;
@@ -41,16 +41,16 @@ export type InstructionMatcher<
 
 export type CodamaProgram<
   TEnum extends string | number,
-  TParsed extends ParsedProgramIx<TEnum>,
+  TParsed extends ParsedProgramIx<TEnum>
 > = ProgramAdapter<TParsed> & {
   instruction<TType extends TEnum>(
-    type: TType,
+    type: TType
   ): InstructionMatcher<Extract<TParsed, { instructionType: TType }>>;
 };
 
 export type FromCodamaProgramOptions<
   TEnum extends string | number,
-  TParsed extends ParsedProgramIx<TEnum>,
+  TParsed extends ParsedProgramIx<TEnum>
 > = {
   programAddress: AddressLike;
   // Codama identify signatures vary slightly across Kit versions — keep loose.
@@ -65,9 +65,9 @@ export type FromCodamaProgramOptions<
  */
 export function fromCodamaProgram<
   TEnum extends string | number,
-  TParsed extends ParsedProgramIx<TEnum>,
+  TParsed extends ParsedProgramIx<TEnum>
 >(
-  options: FromCodamaProgramOptions<TEnum, TParsed>,
+  options: FromCodamaProgramOptions<TEnum, TParsed>
 ): CodamaProgram<TEnum, TParsed> {
   const programAddress = addressString(options.programAddress);
 
@@ -87,7 +87,7 @@ export function fromCodamaProgram<
 
   return Object.assign(adapter, {
     instruction<TType extends TEnum>(
-      type: TType,
+      type: TType
     ): InstructionMatcher<Extract<TParsed, { instructionType: TType }>> {
       type Matched = Extract<TParsed, { instructionType: TType }>;
       return {

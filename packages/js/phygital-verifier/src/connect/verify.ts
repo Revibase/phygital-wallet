@@ -53,7 +53,7 @@ export type ConsumeSignCount = (args: {
  * so it can run in parallel with other connect work.
  */
 export type IsBlockhashValid = (
-  blockhash: string,
+  blockhash: string
 ) => Promise<boolean> | boolean;
 
 export type WebAuthnConnectProof = {
@@ -72,7 +72,7 @@ export async function verifyConnectProof(
   opts: {
     isBlockhashValid: IsBlockhashValid;
     consumeSignCount: ConsumeSignCount;
-  },
+  }
 ): Promise<{
   phygitalToken: Address;
   secp256r1PublicKey: string;
@@ -82,7 +82,7 @@ export async function verifyConnectProof(
   if (!blockhash || !proof?.response) {
     throw new ConnectProofError(
       "invalid_proof",
-      "blockhash and response are required",
+      "blockhash and response are required"
     );
   }
 
@@ -97,13 +97,13 @@ export async function verifyConnectProof(
   } catch (err) {
     throw new ConnectProofError(
       "passkey_invalid",
-      err instanceof Error ? err.message : "Passkey verification failed",
+      err instanceof Error ? err.message : "Passkey verification failed"
     );
   }
   if (!verified.isVerified || !verified.secp256r1PublicKey) {
     throw new ConnectProofError(
       "passkey_invalid",
-      "Couldn’t verify this accessory",
+      "Couldn’t verify this accessory"
     );
   }
 
@@ -113,7 +113,7 @@ export async function verifyConnectProof(
   if (signCount === null) {
     throw new ConnectProofError(
       "invalid_proof",
-      "Assertion is missing a signature counter",
+      "Assertion is missing a signature counter"
     );
   }
 
@@ -121,7 +121,7 @@ export async function verifyConnectProof(
   if (!(await opts.isBlockhashValid(blockhash))) {
     throw new ConnectProofError(
       "stale_blockhash",
-      "This check expired — tap again",
+      "This check expired — tap again"
     );
   }
 
@@ -136,7 +136,7 @@ export async function verifyConnectProof(
   if (!fresher) {
     throw new ConnectProofError(
       "assertion_replay",
-      "This check was already used — tap again",
+      "This check was already used — tap again"
     );
   }
 

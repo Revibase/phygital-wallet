@@ -38,7 +38,7 @@ export type VerifyResult = VerifyOk | VerifyFail;
 export function fail(
   code: string,
   message: string,
-  details?: VerifyFailDetails,
+  details?: VerifyFailDetails
 ): VerifyFail {
   return details
     ? { ok: false, code, message, details }

@@ -143,7 +143,7 @@ export function SigningSettingsSheet({
       const before = applyOptimisticTokenVerifier(
         queryClient,
         phygitalTokenPda,
-        pending.nextStatus,
+        pending.nextStatus
       );
       pending.onSuccess();
       pendingRef.current = null;
@@ -171,7 +171,7 @@ export function SigningSettingsSheet({
     try {
       const response = await fetch(
         `${normalizeVerifierApiBase(trimmed)}/health`,
-        { signal: AbortSignal.timeout(5000) },
+        { signal: AbortSignal.timeout(5000) }
       );
       if (!response.ok) return false;
       const body = (await response.json()) as { ok?: boolean };
@@ -221,7 +221,7 @@ export function SigningSettingsSheet({
               rpc,
               tokenPda,
               verifierAddr,
-              normalizedEndpoint,
+              normalizedEndpoint
             );
           const tap = await authenticatePasskeyForSecp256r1Verify({
             rpc,

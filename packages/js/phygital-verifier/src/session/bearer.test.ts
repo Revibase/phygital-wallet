@@ -51,7 +51,7 @@ describe("verifier bearer", () => {
     const v = keypair();
     const { accessToken, expiresAt } = await signVerifierBearer(
       { sub: SUB, iss: v.address, origin: null, ttlMs: 900_000 },
-      v.sign,
+      v.sign
     );
     expect(expiresAt).toBeGreaterThan(Date.now());
 
@@ -72,7 +72,7 @@ describe("verifier bearer", () => {
     for (const signer of [a, b, c]) {
       const { accessToken } = await signVerifierBearer(
         { sub: SUB, iss: signer.address, origin: null, ttlMs: 900_000 },
-        signer.sign,
+        signer.sign
       );
       const payload = await verifyVerifierBearer(accessToken, {
         ...verifyOpts(a, b, c).opts,
@@ -86,7 +86,7 @@ describe("verifier bearer", () => {
     const attacker = keypair();
     const { accessToken } = await signVerifierBearer(
       { sub: SUB, iss: issuer.address, origin: null, ttlMs: 900_000 },
-      attacker.sign, // signed by someone other than iss
+      attacker.sign // signed by someone other than iss
     );
     const payload = await verifyVerifierBearer(accessToken, {
       ...verifyOpts(issuer).opts,
@@ -100,7 +100,7 @@ describe("verifier bearer", () => {
     const v = keypair();
     const { accessToken } = await signVerifierBearer(
       { sub: SUB, iss: v.address, origin: null, ttlMs: 900_000 },
-      v.sign,
+      v.sign
     );
     const other = keypair();
     const { state, opts } = verifyOpts(other);
@@ -116,22 +116,22 @@ describe("verifier bearer", () => {
 
     const forged = await signVerifierBearer(
       { sub: SUB, iss: v.address, origin: null, ttlMs: 900_000 },
-      attacker.sign,
+      attacker.sign
     );
     const forgedOpts = verifyOpts(v);
     expect(
-      await verifyVerifierBearer(forged.accessToken, forgedOpts.opts),
+      await verifyVerifierBearer(forged.accessToken, forgedOpts.opts)
     ).toBeNull();
     expect(forgedOpts.state.authorizeCalls).toBe(0);
 
     const stale = await signVerifierBearer(
       { sub: SUB, iss: v.address, origin: null, ttlMs: 1_000 },
       v.sign,
-      Date.now() - 10_000,
+      Date.now() - 10_000
     );
     const staleOpts = verifyOpts(v);
     expect(
-      await verifyVerifierBearer(stale.accessToken, staleOpts.opts),
+      await verifyVerifierBearer(stale.accessToken, staleOpts.opts)
     ).toBeNull();
     expect(staleOpts.state.authorizeCalls).toBe(0);
   });
@@ -140,7 +140,7 @@ describe("verifier bearer", () => {
     const v = keypair();
     const { accessToken } = await signVerifierBearer(
       { sub: SUB, iss: v.address, origin: null, ttlMs: 900_000 },
-      v.sign,
+      v.sign
     );
     const [, sig] = accessToken.split(".");
     const forgedPayload = Buffer.from(
@@ -149,7 +149,7 @@ describe("verifier bearer", () => {
         iss: v.address,
         exp: Date.now() + 1e6,
         jti: "x",
-      }),
+      })
     ).toString("base64url");
     const tampered = `${forgedPayload}.${sig}`;
     const payload = await verifyVerifierBearer(tampered, {
@@ -164,7 +164,7 @@ describe("verifier bearer", () => {
     const { accessToken } = await signVerifierBearer(
       { sub: SUB, iss: v.address, origin: null, ttlMs: 1_000 },
       v.sign,
-      past, // minted in the past so it is already expired
+      past // minted in the past so it is already expired
     );
     const payload = await verifyVerifierBearer(accessToken, {
       ...verifyOpts(v).opts,

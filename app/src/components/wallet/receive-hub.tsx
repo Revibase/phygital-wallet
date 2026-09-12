@@ -24,7 +24,9 @@ export function ReceiveHub({
   onReceiveNearby: () => void;
 }) {
   const queryClient = useQueryClient();
-  const payUrl = `solana:${walletAddress.trim()}?label=${encodeURIComponent(brand.company)}`;
+  const payUrl = `solana:${walletAddress.trim()}?label=${encodeURIComponent(
+    brand.company
+  )}`;
 
   useEffect(() => {
     void queryClient.prefetchQuery({

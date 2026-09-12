@@ -22,7 +22,7 @@ export type TapVerifyResult = {
  * for the app-session cookie.
  */
 async function fetchTapVerification(
-  params: URLSearchParams,
+  params: URLSearchParams
 ): Promise<TapVerifyResult> {
   const pk = params.get("pk");
   const s = params.get("s");
@@ -68,7 +68,7 @@ export function useTapVerify() {
         ...(c ? { c } : {}),
         ...(n ? { n } : {}),
       }).toString(),
-    [pk, s, c, n],
+    [pk, s, c, n]
   );
 
   const hasTapProof = Boolean(pk && s && c && n);
@@ -77,13 +77,13 @@ export function useTapVerify() {
     queryKey: queryKeys.tapVerify.byParams(tapParamsString),
     queryFn: async () => {
       const result = await fetchTapVerification(
-        new URLSearchParams(tapParamsString),
+        new URLSearchParams(tapParamsString)
       );
       // Cookie is set by the app-session exchange; seed RQ so the address page skips GET.
       if (result.phygitalToken) {
         queryClient.setQueryData(
           queryKeys.deviceAuth.browseUnlock(result.phygitalToken),
-          true,
+          true
         );
       }
       return result;
@@ -98,12 +98,12 @@ export function useTapVerify() {
   const verify: TapVerifyStatus = !hasTapProof
     ? "failed"
     : verifyQuery.data?.status === "verified"
-      ? "verified"
-      : verifyQuery.isPending
-        ? "pending"
-        : verifyQuery.isError
-          ? "failed"
-          : "pending";
+    ? "verified"
+    : verifyQuery.isPending
+    ? "pending"
+    : verifyQuery.isError
+    ? "failed"
+    : "pending";
 
   const verifyPending =
     hasTapProof && verify === "pending" && !verifyQuery.data;

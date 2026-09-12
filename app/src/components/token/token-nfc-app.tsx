@@ -41,12 +41,10 @@ export function TokenNfcApp({ nfcCopy }: { nfcCopy: TokenNfcCopy }) {
   // Prefer PDA resolved during the tap connect. Fall back to
   // identifier GPA only when the server could not resolve the account.
   const pdaFromTap =
-    hasTapProof && verify === "verified"
-      ? (result?.phygitalToken ?? null)
-      : null;
+    hasTapProof && verify === "verified" ? result?.phygitalToken ?? null : null;
   const identifier =
     hasTapProof && verify === "verified" && !pdaFromTap
-      ? (result?.identifier ?? null)
+      ? result?.identifier ?? null
       : null;
 
   const tokenByAddress = usePhygitalTokenByAddress(pdaFromTap);
@@ -60,7 +58,7 @@ export function TokenNfcApp({ nfcCopy }: { nfcCopy: TokenNfcCopy }) {
     clearClaimDismiss(pda);
     queryClient.setQueryData(queryKeys.deviceAuth.browseUnlock(pda), true);
     router.replace(
-      tokenHasLinkedMint(tokenQuery.data) ? tokenHref(pda) : walletHref(pda),
+      tokenHasLinkedMint(tokenQuery.data) ? tokenHref(pda) : walletHref(pda)
     );
   }, [tokenQuery.data, router, queryClient]);
 

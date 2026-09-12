@@ -9,7 +9,7 @@ export type { PhygitalWalletSignPhase };
  * hold UI.
  */
 export function isWalletSignCeremonyPhase(
-  phase: PhygitalWalletSignPhase,
+  phase: PhygitalWalletSignPhase
 ): boolean {
   return (
     phase === "awaitingPasskey" ||

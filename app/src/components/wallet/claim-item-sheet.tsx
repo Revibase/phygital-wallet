@@ -47,7 +47,7 @@ export function ClaimItemSheet({
   const [success, setSuccess] = useState(false);
   const [registering, setRegistering] = useState(false);
   const [enteredWithSession, setEnteredWithSession] = useState<boolean | null>(
-    null,
+    null
   );
   const canAuth = platformAuthAvailable();
   const onClaimedRef = useRef(onClaimed);
@@ -78,11 +78,11 @@ export function ClaimItemSheet({
     finishedRef.current = true;
     queryClient.setQueryData(
       queryKeys.deviceAuth.linkStatus(phygitalTokenPda),
-      "linked_elsewhere" as LinkStatus,
+      "linked_elsewhere" as LinkStatus
     );
     queryClient.setQueryData(
       queryKeys.deviceAuth.claimed(phygitalTokenPda),
-      true,
+      true
     );
     dismissClaim(phygitalTokenPda);
     onDismissRef.current();
@@ -95,25 +95,25 @@ export function ClaimItemSheet({
   }, [success]);
 
   async function afterSession(
-    sessionInfo: NonNullable<Awaited<ReturnType<typeof fetchDeviceSession>>>,
+    sessionInfo: NonNullable<Awaited<ReturnType<typeof fetchDeviceSession>>>
   ) {
     queryClient.setQueryData(queryKeys.deviceAuth.session(), sessionInfo);
     const data = await fetchTokenGate(phygitalTokenPda);
     queryClient.setQueryData(queryKeys.deviceAuth.session(), data.session);
     queryClient.setQueryData(
       queryKeys.deviceAuth.browseUnlock(phygitalTokenPda),
-      data.browseUnlocked,
+      data.browseUnlocked
     );
     queryClient.setQueryData(queryKeys.deviceAuth.gate(phygitalTokenPda), data);
     if (data.linkStatus) {
       queryClient.setQueryData(
         queryKeys.deviceAuth.linkStatus(phygitalTokenPda),
-        data.linkStatus,
+        data.linkStatus
       );
     }
     queryClient.setQueryData(
       queryKeys.deviceAuth.claimed(phygitalTokenPda),
-      data.claimed,
+      data.claimed
     );
     if (data.linkStatus === "linked_elsewhere") {
       exitLinkedElsewhere();
@@ -152,11 +152,11 @@ export function ClaimItemSheet({
       if (finishedRef.current) return;
       queryClient.setQueryData(
         queryKeys.deviceAuth.linkStatus(phygitalTokenPda),
-        "linked_here" as LinkStatus,
+        "linked_here" as LinkStatus
       );
       queryClient.setQueryData(
         queryKeys.deviceAuth.claimed(phygitalTokenPda),
-        true,
+        true
       );
       queryClient.setQueryData(
         queryKeys.deviceAuth.gate(phygitalTokenPda),
@@ -167,7 +167,7 @@ export function ClaimItemSheet({
                 linkStatus: "linked_here",
                 claimed: true,
               }
-            : prev,
+            : prev
       );
       queryClient.setQueryData(
         queryKeys.deviceAuth.links(),
@@ -186,7 +186,7 @@ export function ClaimItemSheet({
               linkedAt: Date.now(),
             },
           ];
-        },
+        }
       );
       setSuccess(true);
     },
@@ -256,25 +256,25 @@ export function ClaimItemSheet({
   const primaryLabel = showRetry
     ? copy.wallet.claimTryAgain
     : signedIn
-      ? copy.wallet.homeLinkConfirmCta
-      : copy.wallet.claimCta;
+    ? copy.wallet.homeLinkConfirmCta
+    : copy.wallet.claimCta;
   const title = signedIn
     ? copy.wallet.homeLinkConfirmTitle
     : copy.wallet.claimTitle;
   const body = authError
     ? authError
     : claim.isPending
-      ? copy.wallet.homeLinkConfirmPending
-      : !canAuth
-        ? copy.wallet.claimDesktopHint
-        : signedIn
-          ? copy.wallet.homeLinkConfirmBody
-          : copy.wallet.claimBody;
+    ? copy.wallet.homeLinkConfirmPending
+    : !canAuth
+    ? copy.wallet.claimDesktopHint
+    : signedIn
+    ? copy.wallet.homeLinkConfirmBody
+    : copy.wallet.claimBody;
   const stepLabel = !signedIn
     ? copy.wallet.setupStepPasskey
     : enteredWithSession === false
-      ? copy.wallet.setupStepConfirm
-      : null;
+    ? copy.wallet.setupStepConfirm
+    : null;
 
   return (
     <CeremonyShell>

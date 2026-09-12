@@ -16,7 +16,7 @@ export type MutationBinding =
 
 /** Owner-settings bindings only — claim uses `addOwner` via device routes. */
 export function parseMutationBinding(
-  body: unknown,
+  body: unknown
 ): Exclude<MutationBinding, { kind: "addOwner" }> | null {
   if (!body || typeof body !== "object") return null;
   const raw = body as Record<string, unknown>;

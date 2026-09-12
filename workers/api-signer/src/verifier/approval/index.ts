@@ -33,7 +33,7 @@ type AuthorizeResult =
     };
 
 export async function authorizeIntent(
-  req: AuthorizeRequest,
+  req: AuthorizeRequest
 ): Promise<AuthorizeResult> {
   const store = getTokenStore();
   // Config changes hash by their canonical intent (action + semantic params),
@@ -77,13 +77,13 @@ export async function authorizeIntent(
         details: { origin: originVerdict.origin },
       }
     : configIntent
-      ? {
-          ok: false as const,
-          soft: true,
-          code: "config_change",
-          error: "This change to your item’s settings needs your approval.",
-        }
-      : evaluatePolicy(loaded, req.instructions);
+    ? {
+        ok: false as const,
+        soft: true,
+        code: "config_change",
+        error: "This change to your item’s settings needs your approval.",
+      }
+    : evaluatePolicy(loaded, req.instructions);
 
   if (verdict.ok) {
     return { ok: true, intentHash };

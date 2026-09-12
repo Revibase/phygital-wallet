@@ -125,7 +125,7 @@ export function WalletHomePanel({
   const tokenPreview = useMemo(() => previewHoldings(holdings), [holdings]);
   const collectiblePreview = useMemo(
     () => previewCollectibles(collectibles, linkedMint),
-    [collectibles, linkedMint],
+    [collectibles, linkedMint]
   );
   const moreTokens = holdings.length > HOME_TOKEN_PREVIEW;
   const moreCollectibles = collectibles.length > HOME_COLLECTIBLE_PREVIEW;
@@ -134,27 +134,31 @@ export function WalletHomePanel({
   const usdcHolding = holdings.find((h) => isDefaultMint(h.mint));
 
   const hasUsd = holdings.some(
-    (h) => typeof h.valueUsd === "number" && Number.isFinite(h.valueUsd),
+    (h) => typeof h.valueUsd === "number" && Number.isFinite(h.valueUsd)
   );
   const totalUsd = hasUsd ? sumUsd(holdings.map((h) => h.valueUsd)) : 0;
 
   // Prices cover mainnet top volume only; fall back to the largest holding.
   const showUsdHero = hasUsd && totalUsd > 0;
   const primaryCryptoLine = primaryHolding
-    ? `${formatCompactTokenAmount(primaryHolding.balanceUi)} ${primaryHolding.symbol}`
+    ? `${formatCompactTokenAmount(primaryHolding.balanceUi)} ${
+        primaryHolding.symbol
+      }`
     : null;
   // Under a USD total, show spendable USDC — not whichever altcoin ranks #1 by $ value.
   const heroSubtitle =
     showUsdHero && usdcHolding
-      ? `${formatCompactTokenAmount(usdcHolding.balanceUi)} ${usdcHolding.symbol}`
+      ? `${formatCompactTokenAmount(usdcHolding.balanceUi)} ${
+          usdcHolding.symbol
+        }`
       : showUsdHero
-        ? null
-        : primaryCryptoLine;
+      ? null
+      : primaryCryptoLine;
   const heroValue = showUsdHero
     ? formatUsd(totalUsd)
     : primaryCryptoLine
-      ? primaryCryptoLine
-      : formatUsd(0);
+    ? primaryCryptoLine
+    : formatUsd(0);
   const refreshing = status === "refreshing";
 
   if (loading && !portfolio) {
@@ -269,7 +273,7 @@ export function WalletHomePanel({
                     <RefreshCcw
                       className={cn(
                         "size-3.5",
-                        refreshing ? "animate-spin" : "",
+                        refreshing ? "animate-spin" : ""
                       )}
                       aria-hidden
                     />
@@ -389,7 +393,7 @@ export function WalletHomePanel({
             className={cn(
               tokenPreview.length > 0 && collectiblePreview.length > 0
                 ? walletPortfolioSplitClass
-                : "flex flex-col gap-6",
+                : "flex flex-col gap-6"
             )}
             variants={sectionVariants}
             transition={sectionTransition}

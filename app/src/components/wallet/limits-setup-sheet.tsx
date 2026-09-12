@@ -42,16 +42,16 @@ export function LimitsSetupSheet({
           linkedElsewhere
             ? copy.wallet.limitsLinkedElsewhereTitle
             : needsSignIn
-              ? copy.wallet.claimSignInTitle
-              : copy.wallet.claimTitle
+            ? copy.wallet.claimSignInTitle
+            : copy.wallet.claimTitle
         }
       />
       <p className="text-sm text-muted-foreground">
         {linkedElsewhere
           ? copy.wallet.limitsLinkedElsewhereBody
           : needsSignIn
-            ? copy.wallet.claimSignInBody
-            : copy.wallet.claimBody}
+          ? copy.wallet.claimSignInBody
+          : copy.wallet.claimBody}
       </p>
       {linkedElsewhere ? (
         <Button type="button" size="lg" variant="outline" onClick={onBack}>

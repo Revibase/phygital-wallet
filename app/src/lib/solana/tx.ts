@@ -44,7 +44,8 @@ type ConfirmableTransaction = Parameters<
 >[0]["transaction"];
 
 let _confirmRecent:
-  ((transaction: ConfirmableTransaction) => Promise<void>) | null = null;
+  | ((transaction: ConfirmableTransaction) => Promise<void>)
+  | null = null;
 
 function confirmRecentTransaction() {
   if (_confirmRecent) return _confirmRecent;
@@ -102,18 +103,18 @@ export async function buildUnsignedTransaction(params: {
     createTransactionMessage({ version: 0 }),
     (m) => setTransactionMessageFeePayerSigner(params.feePayer, m),
     (m) => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
-    (m) => appendTransactionMessageInstructions(params.instructions, m),
+    (m) => appendTransactionMessageInstructions(params.instructions, m)
   );
 }
 
 /** Sign an unsigned message and broadcast. */
 export async function signAndSendTransaction(
   unsigned: UnsignedTransactionMessage,
-  config?: { abortSignal?: AbortSignal },
+  config?: { abortSignal?: AbortSignal }
 ): Promise<SentTransaction> {
   const signedTransaction = await signTransactionMessageWithSigners(
     unsigned,
-    config,
+    config
   );
   assertIsTransactionWithBlockhashLifetime(signedTransaction);
 

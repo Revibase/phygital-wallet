@@ -22,7 +22,7 @@ function remainingAccountKey(meta: AccountMeta): string {
 function getOrInsertRemainingAccount(
   remainingAccounts: AccountMeta[],
   indexByKey: Map<string, number>,
-  meta: AccountMeta,
+  meta: AccountMeta
 ): number {
   const key = remainingAccountKey(meta);
   const existing = indexByKey.get(key);
@@ -37,7 +37,7 @@ function getOrInsertRemainingAccount(
 
 function downgradeWalletSignerRole(
   meta: AccountMeta,
-  walletPda: Address,
+  walletPda: Address
 ): AccountMeta {
   if (meta.address !== walletPda || !isSignerRole(meta.role)) {
     return meta;
@@ -51,7 +51,7 @@ function downgradeWalletSignerRole(
 /** Kit instructions → compact execute format; downgrades wallet PDA signer roles. */
 export function compileWalletInstructions(
   instructions: readonly Instruction[],
-  walletPda: Address,
+  walletPda: Address
 ): {
   remainingAccounts: AccountMeta[];
   compactInstructions: CompactInstructionArgs[];
@@ -68,21 +68,21 @@ export function compileWalletInstructions(
     const programAddress = instruction.programAddress;
     if (DENIED_PROGRAMS.has(programAddress)) {
       throw new Error(
-        `Inner CPI to ${programAddress} is not allowed for wallet execute`,
+        `Inner CPI to ${programAddress} is not allowed for wallet execute`
       );
     }
 
     const programIndex = getOrInsertRemainingAccount(
       remainingAccounts,
       indexByKey,
-      { address: programAddress, role: AccountRole.READONLY },
+      { address: programAddress, role: AccountRole.READONLY }
     );
 
     const accountIndexes: number[] = [];
     for (const account of instruction.accounts ?? []) {
       const processed = downgradeWalletSignerRole(account, walletPda);
       accountIndexes.push(
-        getOrInsertRemainingAccount(remainingAccounts, indexByKey, processed),
+        getOrInsertRemainingAccount(remainingAccounts, indexByKey, processed)
       );
     }
 

@@ -14,7 +14,7 @@ import {
 } from "@solana/kit";
 
 export async function findConfigPda(
-  config: { programAddress?: Address | undefined } = {},
+  config: { programAddress?: Address | undefined } = {}
 ): Promise<ProgramDerivedAddress> {
   const {
     programAddress = "Fjbi9JrRAmSBdxQxbkcxYDp6JUwnLbFhU2GsieWQBLSg" as Address<"Fjbi9JrRAmSBdxQxbkcxYDp6JUwnLbFhU2GsieWQBLSg">,

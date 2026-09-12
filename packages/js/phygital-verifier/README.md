@@ -40,7 +40,7 @@ const gate = policy([
   denyProgram("ComputeBudget111111111111111111111111111111"),
   allow(
     token.instruction(TokenInstruction.TransferChecked),
-    (ix) => ix.data.amount <= 50_000_000n,
+    (ix) => ix.data.amount <= 50_000_000n
   ),
   aggregate(
     [
@@ -49,7 +49,7 @@ const gate = policy([
         amount: (ix) => ix.data.amount,
       },
     ],
-    { lte: 50_000_000n },
+    { lte: 50_000_000n }
   ),
 ]);
 

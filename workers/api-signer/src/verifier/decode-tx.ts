@@ -59,7 +59,7 @@ export function assertTopLevelInstructionAllowed(ix: Instruction): void {
     if (!isAdvanceNonceAccountInstruction(ix)) {
       throw coded(
         "Unexpected system program instruction at top level",
-        "unexpected_instruction",
+        "unexpected_instruction"
       );
     }
     return;
@@ -67,7 +67,7 @@ export function assertTopLevelInstructionAllowed(ix: Instruction): void {
   if (!TOP_LEVEL_OK.has(program)) {
     throw coded(
       `Unexpected top-level program ${program}`,
-      "unexpected_instruction",
+      "unexpected_instruction"
     );
   }
 }
@@ -80,13 +80,13 @@ function asWalletInstruction(ix: Instruction): WalletIx {
   if (!ix.data?.length) {
     throw coded(
       "Phygital-wallet instruction missing data",
-      "invalid_transaction",
+      "invalid_transaction"
     );
   }
   if (!ix.accounts) {
     throw coded(
       "Phygital-wallet instruction missing accounts",
-      "invalid_transaction",
+      "invalid_transaction"
     );
   }
   return ix as WalletIx;
@@ -94,7 +94,7 @@ function asWalletInstruction(ix: Instruction): WalletIx {
 
 function expandExecuteInner(
   ix: WalletIx,
-  parsed: ReturnType<typeof parsePhygitalWalletInstruction>,
+  parsed: ReturnType<typeof parsePhygitalWalletInstruction>
 ): Instruction[] {
   if (parsed.instructionType !== PhygitalWalletInstruction.Execute) {
     throw coded("Expected execute instruction", "invalid_transaction");
@@ -107,7 +107,7 @@ function expandExecuteInner(
     if (!programAddress) {
       throw coded(
         "Compact instruction program index out of range",
-        "invalid_transaction",
+        "invalid_transaction"
       );
     }
     return {
@@ -117,7 +117,7 @@ function expandExecuteInner(
         if (!address) {
           throw coded(
             "Compact instruction account index out of range",
-            "invalid_transaction",
+            "invalid_transaction"
           );
         }
         return { address, role: AccountRole.READONLY };
@@ -141,7 +141,7 @@ function parseWalletTopLevel(ix: Instruction): {
   } catch {
     throw coded(
       "Unexpected phygital-wallet instruction",
-      "unexpected_instruction",
+      "unexpected_instruction"
     );
   }
 
@@ -167,7 +167,7 @@ function parseWalletTopLevel(ix: Instruction): {
     default:
       throw coded(
         "Unexpected phygital-wallet instruction",
-        "unexpected_instruction",
+        "unexpected_instruction"
       );
   }
 }
@@ -225,7 +225,7 @@ export function decodeWireTransaction(base64Tx: string): DecodedSignTx {
     if (kind) {
       throw coded(
         "Transaction mixes multiple phygital-wallet instructions",
-        "unexpected_instruction",
+        "unexpected_instruction"
       );
     }
     kind = parsed.kind;
@@ -238,7 +238,7 @@ export function decodeWireTransaction(base64Tx: string): DecodedSignTx {
   if (!kind || !phygitalToken || !verifier) {
     throw coded(
       "Transaction missing phygital-wallet execute or config instruction",
-      "unexpected_instruction",
+      "unexpected_instruction"
     );
   }
 
@@ -252,14 +252,14 @@ export function decodeWireTransaction(base64Tx: string): DecodedSignTx {
       if (!CONFIG_TOP_LEVEL_OK.has(program)) {
         throw coded(
           `Config transaction has an unexpected instruction (${program})`,
-          "unexpected_instruction",
+          "unexpected_instruction"
         );
       }
     }
     if (!topLevelPrograms.includes(SECP256R1_PROGRAM)) {
       throw coded(
         "Config transaction is missing the owner passkey proof",
-        "unexpected_instruction",
+        "unexpected_instruction"
       );
     }
   }

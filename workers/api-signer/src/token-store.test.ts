@@ -92,7 +92,7 @@ function memorySql() {
         (r) =>
           r.intent_hash === params[0] &&
           r.consumed_at == null &&
-          (r.expires_at as number) > now,
+          (r.expires_at as number) > now
       );
       return { toArray: () => (hit ? [{ id: hit.id }] : []) };
     }
@@ -196,7 +196,7 @@ function memorySql() {
         const rows = tables.get("challenges") ?? [];
         tables.set(
           "challenges",
-          rows.filter((r) => r.id !== params[0]),
+          rows.filter((r) => r.id !== params[0])
         );
         return { toArray: () => [] };
       }
@@ -205,7 +205,7 @@ function memorySql() {
         const now = params[0] as number;
         tables.set(
           "challenges",
-          rows.filter((r) => (r.expires_at as number) >= now),
+          rows.filter((r) => (r.expires_at as number) >= now)
         );
         return { toArray: () => [] };
       }
@@ -278,7 +278,7 @@ describe("WebAuthn challenge encoding", () => {
     });
     expect(options.challenge).not.toBe(storedChallenge);
     expect(
-      new TextDecoder().decode(isoBase64URL.toBuffer(options.challenge)),
+      new TextDecoder().decode(isoBase64URL.toBuffer(options.challenge))
     ).toBe(storedChallenge);
   });
 
@@ -307,7 +307,7 @@ describe("WebAuthn challenge encoding", () => {
     const consumed = await store.consumeChallenge(
       result.challengeId,
       "http://localhost:3000",
-      await hashMutationBinding({ kind: "addOwner", credentialId }),
+      await hashMutationBinding({ kind: "addOwner", credentialId })
     );
     expect(consumed).not.toBeNull();
     expect(result.options.challenge).toBe(consumed!.challenge);
@@ -337,14 +337,14 @@ describe("TokenStore grants and fees", () => {
         signature: "sig:credit",
         kind: "credit",
         lamports: 1000,
-      }),
+      })
     ).toBe(true);
     expect(
       store.applyFeeEvent({
         signature: "sig:credit",
         kind: "credit",
         lamports: 1000,
-      }),
+      })
     ).toBe(false);
     expect(store.getFeeBalanceLamports()).toBe(1_001_000);
   });
@@ -369,13 +369,13 @@ describe("TokenStore grants and fees", () => {
       store.addOwner({
         credentialId: "cred-a",
         publicKey: "pk",
-      }).ok,
+      }).ok
     ).toBe(true);
     expect(
       store.addOwner({
         credentialId: "cred-b",
         publicKey: "pk2",
-      }),
+      })
     ).toEqual({ ok: false, code: "linked_elsewhere" });
   });
 
@@ -396,7 +396,7 @@ describe("TokenStore grants and fees", () => {
       store.addOwner({
         credentialId: "cred-b",
         publicKey: "pk2",
-      }).ok,
+      }).ok
     ).toBe(true);
   });
 

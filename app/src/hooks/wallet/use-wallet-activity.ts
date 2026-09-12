@@ -12,7 +12,7 @@ const EMPTY_ACTIVITY: WalletActivityItem[] = [];
 export function useWalletActivity(
   walletAddress: string | null,
   limit = 20,
-  cursor?: string | null,
+  cursor?: string | null
 ) {
   const remote = useQuery({
     queryKey: queryKeys.walletActivity.byOwner(walletAddress, limit, cursor),

@@ -31,7 +31,7 @@ function buildFungibleHoldings(assets: DasAsset[]): PaymentTokenHolding[] {
     const decimals =
       typeof tokenInfo?.decimals === "number" ? tokenInfo.decimals : 0;
     const balanceRaw = BigInt(
-      tokenInfo?.balance != null ? String(tokenInfo.balance) : "0",
+      tokenInfo?.balance != null ? String(tokenInfo.balance) : "0"
     );
     if (balanceRaw <= 0n) continue;
 
@@ -132,7 +132,7 @@ async function fetchOwnerAssets(owner: string): Promise<{
       : null;
   const pagesNeeded = Math.min(
     DAS_MAX_PAGES,
-    Math.max(1, Math.ceil(total / DAS_PAGE_SIZE)),
+    Math.max(1, Math.ceil(total / DAS_PAGE_SIZE))
   );
   if (items.length < DAS_PAGE_SIZE || pagesNeeded <= 1) {
     return {
@@ -156,7 +156,7 @@ async function fetchOwnerAssets(owner: string): Promise<{
           showCollectionMetadata: true,
         },
       },
-    })),
+    }))
   );
   for (const page of extra) {
     const pageItems = Array.isArray(page?.items) ? page.items : [];
@@ -190,8 +190,8 @@ export async function fetchWalletPortfolioFromDas(owner: string): Promise<{
         nativeBalanceLamports,
         formatTokenAmount(nativeBalanceLamports, 9),
         nativeBalancePricePerSolUsd,
-        nativeBalanceTotalPriceUsd,
-      ),
+        nativeBalanceTotalPriceUsd
+      )
     );
   }
 

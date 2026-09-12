@@ -180,7 +180,7 @@ export function ExceptionsPanel({
                   aria-label={copy.common.remove}
                   onClick={() =>
                     onCustomProgramsChange(
-                      customPrograms.filter((x) => x !== p),
+                      customPrograms.filter((x) => x !== p)
                     )
                   }
                 >

@@ -63,18 +63,23 @@ export type TransferInstruction<
   TAccountDestinationTokenRecord extends string | AccountMeta<string> = string,
   TAccountAuthority extends string | AccountMeta<string> = string,
   TAccountPayer extends string | AccountMeta<string> = string,
-  TAccountSystemProgram extends string | AccountMeta<string> =
-    "11111111111111111111111111111111",
-  TAccountSysvarInstructions extends string | AccountMeta<string> =
-    "Sysvar1nstructions1111111111111111111111111",
-  TAccountSplTokenProgram extends string | AccountMeta<string> =
-    "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-  TAccountSplAtaProgram extends string | AccountMeta<string> =
-    "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
-  TAccountAuthorizationRulesProgram extends string | AccountMeta<string> =
-    string,
+  TAccountSystemProgram extends
+    | string
+    | AccountMeta<string> = "11111111111111111111111111111111",
+  TAccountSysvarInstructions extends
+    | string
+    | AccountMeta<string> = "Sysvar1nstructions1111111111111111111111111",
+  TAccountSplTokenProgram extends
+    | string
+    | AccountMeta<string> = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+  TAccountSplAtaProgram extends
+    | string
+    | AccountMeta<string> = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
+  TAccountAuthorizationRulesProgram extends
+    | string
+    | AccountMeta<string> = string,
   TAccountAuthorizationRules extends string | AccountMeta<string> = string,
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+  TRemainingAccounts extends readonly AccountMeta<string>[] = []
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
   InstructionWithAccounts<
@@ -132,7 +137,7 @@ export type TransferInstruction<
       TAccountAuthorizationRules extends string
         ? ReadonlyAccount<TAccountAuthorizationRules>
         : TAccountAuthorizationRules,
-      ...TRemainingAccounts,
+      ...TRemainingAccounts
     ]
   >;
 
@@ -149,7 +154,7 @@ export function getTransferInstructionDataEncoder(): Encoder<TransferInstruction
       ["discriminator", getU8Encoder()],
       ["transferArgs", getTransferArgsEncoder()],
     ]),
-    (value) => ({ ...value, discriminator: TRANSFER_DISCRIMINATOR }),
+    (value) => ({ ...value, discriminator: TRANSFER_DISCRIMINATOR })
   );
 }
 
@@ -166,7 +171,7 @@ export function getTransferInstructionDataCodec(): Codec<
 > {
   return combineCodec(
     getTransferInstructionDataEncoder(),
-    getTransferInstructionDataDecoder(),
+    getTransferInstructionDataDecoder()
   );
 }
 
@@ -187,7 +192,7 @@ export type TransferInput<
   TAccountSplTokenProgram extends string = string,
   TAccountSplAtaProgram extends string = string,
   TAccountAuthorizationRulesProgram extends string = string,
-  TAccountAuthorizationRules extends string = string,
+  TAccountAuthorizationRules extends string = string
 > = {
   /** Token account */
   token: Address<TAccountToken>;
@@ -244,7 +249,7 @@ export function getTransferInstruction<
   TAccountSplAtaProgram extends string,
   TAccountAuthorizationRulesProgram extends string,
   TAccountAuthorizationRules extends string,
-  TProgramAddress extends Address = typeof TOKEN_METADATA_PROGRAM_ADDRESS,
+  TProgramAddress extends Address = typeof TOKEN_METADATA_PROGRAM_ADDRESS
 >(
   input: TransferInput<
     TAccountToken,
@@ -265,7 +270,7 @@ export function getTransferInstruction<
     TAccountAuthorizationRulesProgram,
     TAccountAuthorizationRules
   >,
-  config?: { programAddress?: TProgramAddress },
+  config?: { programAddress?: TProgramAddress }
 ): TransferInstruction<
   TProgramAddress,
   TAccountToken,
@@ -377,39 +382,20 @@ export function getTransferInstruction<
       getAccountMeta("splAtaProgram", accounts.splAtaProgram),
       getAccountMeta(
         "authorizationRulesProgram",
-        accounts.authorizationRulesProgram,
+        accounts.authorizationRulesProgram
       ),
       getAccountMeta("authorizationRules", accounts.authorizationRules),
     ],
     data: getTransferInstructionDataEncoder().encode(
-      args as TransferInstructionDataArgs,
+      args as TransferInstructionDataArgs
     ),
     programAddress,
-  } as TransferInstruction<
-    TProgramAddress,
-    TAccountToken,
-    TAccountTokenOwner,
-    TAccountDestination,
-    TAccountDestinationOwner,
-    TAccountMint,
-    TAccountMetadata,
-    TAccountEdition,
-    TAccountOwnerTokenRecord,
-    TAccountDestinationTokenRecord,
-    TAccountAuthority,
-    TAccountPayer,
-    TAccountSystemProgram,
-    TAccountSysvarInstructions,
-    TAccountSplTokenProgram,
-    TAccountSplAtaProgram,
-    TAccountAuthorizationRulesProgram,
-    TAccountAuthorizationRules
-  >);
+  } as TransferInstruction<TProgramAddress, TAccountToken, TAccountTokenOwner, TAccountDestination, TAccountDestinationOwner, TAccountMint, TAccountMetadata, TAccountEdition, TAccountOwnerTokenRecord, TAccountDestinationTokenRecord, TAccountAuthority, TAccountPayer, TAccountSystemProgram, TAccountSysvarInstructions, TAccountSplTokenProgram, TAccountSplAtaProgram, TAccountAuthorizationRulesProgram, TAccountAuthorizationRules>);
 }
 
 export type ParsedTransferInstruction<
   TProgram extends string = typeof TOKEN_METADATA_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[]
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -453,11 +439,11 @@ export type ParsedTransferInstruction<
 
 export function parseTransferInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[]
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>,
+    InstructionWithData<ReadonlyUint8Array>
 ): ParsedTransferInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 17) {
     throw new SolanaError(
@@ -465,7 +451,7 @@ export function parseTransferInstruction<
       {
         actualAccountMetas: instruction.accounts.length,
         expectedAccountMetas: 17,
-      },
+      }
     );
   }
   let accountIndex = 0;

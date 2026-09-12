@@ -21,8 +21,8 @@ export function LuminousAura({
     intensity === "strong"
       ? "opacity-100"
       : intensity === "soft"
-        ? "opacity-55"
-        : "opacity-75";
+      ? "opacity-55"
+      : "opacity-75";
 
   return (
     <div
@@ -33,7 +33,7 @@ export function LuminousAura({
         className={cn(
           "absolute inset-0",
           opacity,
-          breathing && galleryAnimate.auraBreath,
+          breathing && galleryAnimate.auraBreath
         )}
         style={{
           backgroundImage: [

@@ -51,7 +51,7 @@ export type TransferInstruction<
   TAccountSource extends string | AccountMeta<string> = string,
   TAccountDestination extends string | AccountMeta<string> = string,
   TAccountAuthority extends string | AccountMeta<string> = string,
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+  TRemainingAccounts extends readonly AccountMeta<string>[] = []
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
   InstructionWithAccounts<
@@ -65,7 +65,7 @@ export type TransferInstruction<
       TAccountAuthority extends string
         ? ReadonlyAccount<TAccountAuthority>
         : TAccountAuthority,
-      ...TRemainingAccounts,
+      ...TRemainingAccounts
     ]
   >;
 
@@ -86,7 +86,7 @@ export function getTransferInstructionDataEncoder(): FixedSizeEncoder<TransferIn
       ["discriminator", getU8Encoder()],
       ["amount", getU64Encoder()],
     ]),
-    (value) => ({ ...value, discriminator: TRANSFER_DISCRIMINATOR }),
+    (value) => ({ ...value, discriminator: TRANSFER_DISCRIMINATOR })
   );
 }
 
@@ -103,14 +103,14 @@ export function getTransferInstructionDataCodec(): FixedSizeCodec<
 > {
   return combineCodec(
     getTransferInstructionDataEncoder(),
-    getTransferInstructionDataDecoder(),
+    getTransferInstructionDataDecoder()
   );
 }
 
 export type TransferInput<
   TAccountSource extends string = string,
   TAccountDestination extends string = string,
-  TAccountAuthority extends string = string,
+  TAccountAuthority extends string = string
 > = {
   /** The source account. */
   source: Address<TAccountSource>;
@@ -126,10 +126,10 @@ export function getTransferInstruction<
   TAccountSource extends string,
   TAccountDestination extends string,
   TAccountAuthority extends string,
-  TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS,
+  TProgramAddress extends Address = typeof TOKEN_2022_PROGRAM_ADDRESS
 >(
   input: TransferInput<TAccountSource, TAccountDestination, TAccountAuthority>,
-  config?: { programAddress?: TProgramAddress },
+  config?: { programAddress?: TProgramAddress }
 ): TransferInstruction<
   TProgramAddress,
   TAccountSource,
@@ -162,7 +162,7 @@ export function getTransferInstruction<
       address: signer.address,
       role: AccountRole.READONLY_SIGNER,
       signer,
-    }),
+    })
   );
 
   const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
@@ -174,23 +174,15 @@ export function getTransferInstruction<
       ...remainingAccounts,
     ],
     data: getTransferInstructionDataEncoder().encode(
-      args as TransferInstructionDataArgs,
+      args as TransferInstructionDataArgs
     ),
     programAddress,
-  } as TransferInstruction<
-    TProgramAddress,
-    TAccountSource,
-    TAccountDestination,
-    (typeof input)["authority"] extends TransactionSigner<TAccountAuthority>
-      ? ReadonlySignerAccount<TAccountAuthority> &
-          AccountSignerMeta<TAccountAuthority>
-      : TAccountAuthority
-  >);
+  } as TransferInstruction<TProgramAddress, TAccountSource, TAccountDestination, (typeof input)["authority"] extends TransactionSigner<TAccountAuthority> ? ReadonlySignerAccount<TAccountAuthority> & AccountSignerMeta<TAccountAuthority> : TAccountAuthority>);
 }
 
 export type ParsedTransferInstruction<
   TProgram extends string = typeof TOKEN_2022_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[]
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -206,11 +198,11 @@ export type ParsedTransferInstruction<
 
 export function parseTransferInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[]
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>,
+    InstructionWithData<ReadonlyUint8Array>
 ): ParsedTransferInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 3) {
     throw new SolanaError(
@@ -218,7 +210,7 @@ export function parseTransferInstruction<
       {
         actualAccountMetas: instruction.accounts.length,
         expectedAccountMetas: 3,
-      },
+      }
     );
   }
   let accountIndex = 0;

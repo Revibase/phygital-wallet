@@ -60,7 +60,7 @@ declare const counters: {
   consume: (
     kind: "webauthn" | "tap",
     identifier: string,
-    counter: number,
+    counter: number
   ) => Promise<boolean>;
 };
 
@@ -87,7 +87,7 @@ async function tokenVerifier(token: Address): Promise<string> {
   if (!override.exists) {
     throw new ConnectProofError(
       "token_not_found",
-      "This token is not configured for this verifier",
+      "This token is not configured for this verifier"
     );
   }
   return String(override.data.verifier);
@@ -100,7 +100,7 @@ async function canSignFor(token: Address): Promise<boolean> {
 
 function bearerResponse(
   minted: { accessToken: string; expiresAt: number },
-  token: Address,
+  token: Address
 ) {
   return Response.json({
     accessToken: minted.accessToken,
@@ -115,12 +115,12 @@ function proofErr(err: unknown) {
   if (err instanceof ConnectProofError) {
     return Response.json(
       { error: err.message, code: err.code },
-      { status: err.status },
+      { status: err.status }
     );
   }
   return Response.json(
     { error: "Connect failed", code: "invalid_proof" },
-    { status: 400 },
+    { status: 400 }
   );
 }
 
@@ -131,7 +131,7 @@ async function mint(token: Address, origin: string | null) {
         error: "This item uses a different verifier",
         code: "verifier_mismatch",
       },
-      { status: 403 },
+      { status: 403 }
     );
   }
   const minted = await signVerifierBearer(
@@ -141,7 +141,7 @@ async function mint(token: Address, origin: string | null) {
       origin,
       ttlMs: SESSION_TTL_MS,
     },
-    verifierKey.sign,
+    verifierKey.sign
   );
   return bearerResponse(minted, token);
 }
@@ -169,7 +169,7 @@ async function connect(req: Request) {
             .then((r) => r.value),
         consumeSignCount: ({ identifier, signCount }) =>
           counters.consume("webauthn", identifier, signCount),
-      },
+      }
     );
     return mint(phygitalToken, origin);
   } catch (err) {
@@ -185,7 +185,7 @@ async function connectTap(req: Request) {
   if (!origin || !isAppOrigin(origin)) {
     return Response.json(
       { error: "Forbidden", code: "origin_forbidden" },
-      { status: 403 },
+      { status: 403 }
     );
   }
   const body = (await req.json()) as {
@@ -204,7 +204,7 @@ async function connectTap(req: Request) {
   ) {
     return Response.json(
       { error: "Missing tap params", code: "invalid_proof" },
-      { status: 400 },
+      { status: 400 }
     );
   }
   try {
@@ -215,7 +215,7 @@ async function connectTap(req: Request) {
         expectedPhygitalToken: body.phygitalToken,
         consumeCounter: ({ identifier, counter }) =>
           counters.consume("tap", identifier, counter),
-      },
+      }
     );
     return mint(phygitalToken, origin);
   } catch (err) {
@@ -225,16 +225,16 @@ async function connectTap(req: Request) {
 
 /** Shared bearer gate for /preview and /sign. */
 async function requireBearer(
-  req: Request,
+  req: Request
 ): Promise<VerifierBearerPayload | Response> {
   const m = /^Bearer\s+(.+)$/i.exec(
-    req.headers.get("Authorization")?.trim() ?? "",
+    req.headers.get("Authorization")?.trim() ?? ""
   );
   const token = m?.[1]?.trim();
   if (!token) {
     return Response.json(
       { error: "Connect this item", code: "connect_required" },
-      { status: 401 },
+      { status: 401 }
     );
   }
   const payload = await verifyVerifierBearer(token, {
@@ -258,14 +258,14 @@ async function requireBearer(
   if (!payload) {
     return Response.json(
       { error: "Session expired", code: "connect_invalid" },
-      { status: 401 },
+      { status: 401 }
     );
   }
   // Bind the session to the origin that established it.
   if (payload.origin !== normalizeOrigin(req.headers.get("Origin"))) {
     return Response.json(
       { error: "Wrong origin", code: "origin_mismatch" },
-      { status: 401 },
+      { status: 401 }
     );
   }
   return payload;
@@ -285,7 +285,7 @@ async function preview(req: Request) {
         error: "instructions required",
         soft: false,
       },
-      { status: 400 },
+      { status: 400 }
     );
   }
   const result = txPolicy.verify(instructions as never);
@@ -293,7 +293,7 @@ async function preview(req: Request) {
     ? Response.json({ ok: true, intentHash: /* hash(instructions) */ "…" })
     : Response.json(
         { ok: false, code: result.code, error: result.message, soft: false },
-        { status: 200 },
+        { status: 200 }
       );
 }
 
@@ -306,7 +306,7 @@ async function sign(req: Request) {
   if (!transactions?.length) {
     return Response.json(
       { error: "transactions required", code: "invalid_transaction" },
-      { status: 400 },
+      { status: 400 }
     );
   }
   // The bearer never authorizes a signature on its own. Enforce your per-tx

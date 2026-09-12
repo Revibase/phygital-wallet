@@ -60,7 +60,7 @@ export function dasAssetImage(asset: DasAsset): string | null {
 }
 
 export function mapAttributesFromDasContent(
-  raw: DasContent | undefined,
+  raw: DasContent | undefined
 ): CollectibleAttribute[] {
   const list = raw?.metadata?.attributes;
   if (!Array.isArray(list) || list.length === 0) return [];
@@ -80,7 +80,7 @@ export function mapAttributesFromDasContent(
 
 /** Map DAS `getAsset` → collectible, or null when neither name nor image. */
 export function collectibleFromDas(
-  asset: DasAsset | null | undefined,
+  asset: DasAsset | null | undefined
 ): Collectible | null {
   if (!asset) return null;
   const mint = asset.id?.trim();

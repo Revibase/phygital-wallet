@@ -41,7 +41,7 @@ export enum SystemInstruction {
 }
 
 export function identifySystemInstruction(
-  instruction: { data: ReadonlyUint8Array } | ReadonlyUint8Array,
+  instruction: { data: ReadonlyUint8Array } | ReadonlyUint8Array
 ): SystemInstruction {
   const data = "data" in instruction ? instruction.data : instruction;
   if (containsBytes(data, getU32Encoder().encode(0), 0)) {
@@ -58,12 +58,12 @@ export function identifySystemInstruction(
   }
   throw new SolanaError(
     SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_INSTRUCTION,
-    { instructionData: data, programName: "system" },
+    { instructionData: data, programName: "system" }
   );
 }
 
 export type ParsedSystemInstruction<
-  TProgram extends string = "11111111111111111111111111111111",
+  TProgram extends string = "11111111111111111111111111111111"
 > =
   | ({
       instructionType: SystemInstruction.CreateAccount;
@@ -79,7 +79,7 @@ export type ParsedSystemInstruction<
     } & ParsedAllocateInstruction<TProgram>);
 
 export function parseSystemInstruction<TProgram extends string>(
-  instruction: Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array>,
+  instruction: Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array>
 ): ParsedSystemInstruction<TProgram> {
   const instructionType = identifySystemInstruction(instruction);
   switch (instructionType) {
@@ -114,7 +114,7 @@ export function parseSystemInstruction<TProgram extends string>(
     default:
       throw new SolanaError(
         SOLANA_ERROR__PROGRAM_CLIENTS__UNRECOGNIZED_INSTRUCTION_TYPE,
-        { instructionType: instructionType as string, programName: "system" },
+        { instructionType: instructionType as string, programName: "system" }
       );
   }
 }

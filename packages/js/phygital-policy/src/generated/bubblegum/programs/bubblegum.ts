@@ -29,12 +29,12 @@ export const BUBBLEGUM_PROGRAM_ADDRESS =
   "BGUMAp9Gq7iTEuizy4pqaxsTyUCBK68MDfK752saRPUY" as Address<"BGUMAp9Gq7iTEuizy4pqaxsTyUCBK68MDfK752saRPUY">;
 
 export function identifyBubblegumAccount(
-  account: { data: ReadonlyUint8Array } | ReadonlyUint8Array,
+  account: { data: ReadonlyUint8Array } | ReadonlyUint8Array
 ): BubblegumAccount {
   const data = "data" in account ? account.data : account;
   throw new SolanaError(
     SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_ACCOUNT,
-    { accountData: data, programName: "bubblegum" },
+    { accountData: data, programName: "bubblegum" }
   );
 }
 
@@ -44,16 +44,16 @@ export enum BubblegumInstruction {
 }
 
 export function identifyBubblegumInstruction(
-  instruction: { data: ReadonlyUint8Array } | ReadonlyUint8Array,
+  instruction: { data: ReadonlyUint8Array } | ReadonlyUint8Array
 ): BubblegumInstruction {
   const data = "data" in instruction ? instruction.data : instruction;
   if (
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([163, 52, 200, 231, 140, 3, 69, 186]),
+        new Uint8Array([163, 52, 200, 231, 140, 3, 69, 186])
       ),
-      0,
+      0
     )
   ) {
     return BubblegumInstruction.Transfer;
@@ -62,21 +62,21 @@ export function identifyBubblegumInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([119, 40, 6, 235, 234, 221, 248, 49]),
+        new Uint8Array([119, 40, 6, 235, 234, 221, 248, 49])
       ),
-      0,
+      0
     )
   ) {
     return BubblegumInstruction.TransferV2;
   }
   throw new SolanaError(
     SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_INSTRUCTION,
-    { instructionData: data, programName: "bubblegum" },
+    { instructionData: data, programName: "bubblegum" }
   );
 }
 
 export type ParsedBubblegumInstruction<
-  TProgram extends string = "BGUMAp9Gq7iTEuizy4pqaxsTyUCBK68MDfK752saRPUY",
+  TProgram extends string = "BGUMAp9Gq7iTEuizy4pqaxsTyUCBK68MDfK752saRPUY"
 > =
   | ({
       instructionType: BubblegumInstruction.Transfer;
@@ -86,7 +86,7 @@ export type ParsedBubblegumInstruction<
     } & ParsedTransferV2Instruction<TProgram>);
 
 export function parseBubblegumInstruction<TProgram extends string>(
-  instruction: Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array>,
+  instruction: Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array>
 ): ParsedBubblegumInstruction<TProgram> {
   const instructionType = identifyBubblegumInstruction(instruction);
   switch (instructionType) {
@@ -110,7 +110,7 @@ export function parseBubblegumInstruction<TProgram extends string>(
         {
           instructionType: instructionType as string,
           programName: "bubblegum",
-        },
+        }
       );
   }
 }

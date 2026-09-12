@@ -23,7 +23,7 @@ const inputVariants = cva(
       variant: "default",
       size: "default",
     },
-  },
+  }
 );
 
 const Input = React.forwardRef<
@@ -43,7 +43,7 @@ const Input = React.forwardRef<
         }),
         className,
         // Keep computed size ≥ 16px so iOS does not zoom on focus (callers may pass text-xs).
-        variant !== "hero" && "text-[max(1rem,16px)]",
+        variant !== "hero" && "text-[max(1rem,16px)]"
       )}
       ref={ref}
       {...props}
@@ -60,7 +60,7 @@ function FieldLabel({
     <Label
       className={cn(
         "text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground",
-        className,
+        className
       )}
       {...props}
     />

@@ -56,7 +56,7 @@ export function useTokenVerifier(phygitalToken: string | null) {
         payer: String(account.data.payer),
         usesDefaultPaymaster: isConfigDefaultVerifier(
           config.exists ? config.data : null,
-          verifier,
+          verifier
         ),
       };
     },

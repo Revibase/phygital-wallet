@@ -36,7 +36,7 @@ export type RuleFailContext = {
  */
 export type RuleOnFail<TParsed extends ParsedProgramIx = ParsedProgramIx> = (
   parsed: TParsed,
-  ctx: RuleFailContext,
+  ctx: RuleFailContext
 ) => RuleFail | null | undefined;
 
 export type AllowOptions<TParsed extends ParsedProgramIx = ParsedProgramIx> = {
@@ -112,7 +112,7 @@ export type Rule =
 
 export function allow<TParsed extends ParsedProgramIx>(
   matcher: InstructionMatcher<TParsed>,
-  predicateOrOpts?: ((parsed: TParsed) => boolean) | AllowOptions<TParsed>,
+  predicateOrOpts?: ((parsed: TParsed) => boolean) | AllowOptions<TParsed>
 ): AllowRule<TParsed> {
   if (typeof predicateOrOpts === "function") {
     return { kind: "allow", matcher, predicate: predicateOrOpts };
@@ -127,7 +127,7 @@ export function allow<TParsed extends ParsedProgramIx>(
 
 export function deny<TParsed extends ParsedProgramIx>(
   matcher: InstructionMatcher<TParsed>,
-  predicate?: (parsed: TParsed) => boolean,
+  predicate?: (parsed: TParsed) => boolean
 ): DenyRule<TParsed> {
   return { kind: "deny", matcher, predicate };
 }
@@ -145,7 +145,7 @@ export function denyProgram(programAddress: AddressLike): DenyProgramRule {
 
 export function aggregate<TParsed extends ParsedProgramIx>(
   sources: readonly AggregateSource<TParsed>[],
-  opts: AggregateOpts,
+  opts: AggregateOpts
 ): AggregateRule {
   const cmpKeys = ["lte", "lt", "gte", "gt", "eq"] as const;
   const entries = cmpKeys
@@ -166,7 +166,7 @@ export type Policy = {
 function compare(
   op: AggregateRule["op"],
   actual: bigint,
-  limit: bigint,
+  limit: bigint
 ): boolean {
   switch (op) {
     case "lte":
@@ -192,7 +192,7 @@ function instructionNameOf(parsed: ParsedProgramIx | undefined): string | null {
 /** Pull transfer-shaped fields off a Codama parse for soft-deny UX. */
 function detailsFromParsed(
   base: VerifyFailDetails,
-  parsed: ParsedProgramIx | undefined,
+  parsed: ParsedProgramIx | undefined
 ): VerifyFailDetails {
   const instructionName = instructionNameOf(parsed);
   if (!parsed) {
@@ -226,7 +226,7 @@ function detailsFromParsed(
 function failFromRule(
   base: VerifyFailDetails,
   parsed: ParsedProgramIx | undefined,
-  custom: RuleFail,
+  custom: RuleFail
 ): VerifyResult {
   return fail(custom.code, custom.message, {
     ...detailsFromParsed(base, parsed),
@@ -242,13 +242,13 @@ export function policy(rules: readonly Rule[]): Policy {
   const allows = rules.filter((r): r is AllowRule => r.kind === "allow");
   const denies = rules.filter((r): r is DenyRule => r.kind === "deny");
   const allowPrograms = rules.filter(
-    (r): r is AllowProgramRule => r.kind === "allowProgram",
+    (r): r is AllowProgramRule => r.kind === "allowProgram"
   );
   const denyPrograms = rules.filter(
-    (r): r is DenyProgramRule => r.kind === "denyProgram",
+    (r): r is DenyProgramRule => r.kind === "denyProgram"
   );
   const aggregates = rules.filter(
-    (r): r is AggregateRule => r.kind === "aggregate",
+    (r): r is AggregateRule => r.kind === "aggregate"
   );
 
   const allowedPrograms = new Set(allowPrograms.map((r) => r.programAddress));
@@ -282,7 +282,7 @@ export function policy(rules: readonly Rule[]): Policy {
         return fail(
           "instruction_denied",
           `Program denied: ${programId}`,
-          details,
+          details
         );
       }
 
@@ -290,7 +290,7 @@ export function policy(rules: readonly Rule[]): Policy {
         return fail(
           "program_not_allowed",
           `Program not allowed: ${programId}`,
-          details,
+          details
         );
       }
 
@@ -303,7 +303,7 @@ export function policy(rules: readonly Rule[]): Policy {
           return fail(
             "instruction_denied",
             `Instruction denied: ${instructionNameOf(parsed)}`,
-            detailsFromParsed(details, parsed),
+            detailsFromParsed(details, parsed)
           );
         }
       }
@@ -345,7 +345,7 @@ export function policy(rules: readonly Rule[]): Policy {
           parsed
             ? `Instruction not allowed: ${instructionNameOf(parsed)}`
             : `Instruction not allowed for program ${programId}`,
-          detailsFromParsed(details, parsed),
+          detailsFromParsed(details, parsed)
         );
       }
     }
@@ -368,7 +368,7 @@ export function policy(rules: readonly Rule[]): Policy {
               e instanceof Error
                 ? e.message
                 : "Failed to read aggregate amount",
-              { programId: src.matcher.programAddress },
+              { programId: src.matcher.programAddress }
             );
           }
         }
@@ -392,12 +392,14 @@ export function policy(rules: readonly Rule[]): Policy {
         }
         return fail(
           "aggregate_limit",
-          `Aggregate ${agg.op} ${agg.value.toString()} failed (actual ${sum.toString()})`,
+          `Aggregate ${
+            agg.op
+          } ${agg.value.toString()} failed (actual ${sum.toString()})`,
           {
             op: agg.op,
             limit: agg.value.toString(),
             actual: sum.toString(),
-          },
+          }
         );
       }
     }

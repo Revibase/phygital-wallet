@@ -57,9 +57,10 @@ export type TransferInstruction<
   TAccountMerkleTree extends string | AccountMeta<string> = string,
   TAccountLogWrapper extends string | AccountMeta<string> = string,
   TAccountCompressionProgram extends string | AccountMeta<string> = string,
-  TAccountSystemProgram extends string | AccountMeta<string> =
-    "11111111111111111111111111111111",
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+  TAccountSystemProgram extends
+    | string
+    | AccountMeta<string> = "11111111111111111111111111111111",
+  TRemainingAccounts extends readonly AccountMeta<string>[] = []
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
   InstructionWithAccounts<
@@ -88,7 +89,7 @@ export type TransferInstruction<
       TAccountSystemProgram extends string
         ? ReadonlyAccount<TAccountSystemProgram>
         : TAccountSystemProgram,
-      ...TRemainingAccounts,
+      ...TRemainingAccounts
     ]
   >;
 
@@ -119,7 +120,7 @@ export function getTransferInstructionDataEncoder(): FixedSizeEncoder<TransferIn
       ["nonce", getU64Encoder()],
       ["index", getU32Encoder()],
     ]),
-    (value) => ({ ...value, discriminator: TRANSFER_DISCRIMINATOR }),
+    (value) => ({ ...value, discriminator: TRANSFER_DISCRIMINATOR })
   );
 }
 
@@ -140,7 +141,7 @@ export function getTransferInstructionDataCodec(): FixedSizeCodec<
 > {
   return combineCodec(
     getTransferInstructionDataEncoder(),
-    getTransferInstructionDataDecoder(),
+    getTransferInstructionDataDecoder()
   );
 }
 
@@ -152,7 +153,7 @@ export type TransferInput<
   TAccountMerkleTree extends string = string,
   TAccountLogWrapper extends string = string,
   TAccountCompressionProgram extends string = string,
-  TAccountSystemProgram extends string = string,
+  TAccountSystemProgram extends string = string
 > = {
   treeAuthority: Address<TAccountTreeAuthority>;
   leafOwner: Address<TAccountLeafOwner>;
@@ -178,7 +179,7 @@ export function getTransferInstruction<
   TAccountLogWrapper extends string,
   TAccountCompressionProgram extends string,
   TAccountSystemProgram extends string,
-  TProgramAddress extends Address = typeof BUBBLEGUM_PROGRAM_ADDRESS,
+  TProgramAddress extends Address = typeof BUBBLEGUM_PROGRAM_ADDRESS
 >(
   input: TransferInput<
     TAccountTreeAuthority,
@@ -190,7 +191,7 @@ export function getTransferInstruction<
     TAccountCompressionProgram,
     TAccountSystemProgram
   >,
-  config?: { programAddress?: TProgramAddress },
+  config?: { programAddress?: TProgramAddress }
 ): TransferInstruction<
   TProgramAddress,
   TAccountTreeAuthority,
@@ -246,25 +247,15 @@ export function getTransferInstruction<
       getAccountMeta("systemProgram", accounts.systemProgram),
     ],
     data: getTransferInstructionDataEncoder().encode(
-      args as TransferInstructionDataArgs,
+      args as TransferInstructionDataArgs
     ),
     programAddress,
-  } as TransferInstruction<
-    TProgramAddress,
-    TAccountTreeAuthority,
-    TAccountLeafOwner,
-    TAccountLeafDelegate,
-    TAccountNewLeafOwner,
-    TAccountMerkleTree,
-    TAccountLogWrapper,
-    TAccountCompressionProgram,
-    TAccountSystemProgram
-  >);
+  } as TransferInstruction<TProgramAddress, TAccountTreeAuthority, TAccountLeafOwner, TAccountLeafDelegate, TAccountNewLeafOwner, TAccountMerkleTree, TAccountLogWrapper, TAccountCompressionProgram, TAccountSystemProgram>);
 }
 
 export type ParsedTransferInstruction<
   TProgram extends string = typeof BUBBLEGUM_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[]
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -282,11 +273,11 @@ export type ParsedTransferInstruction<
 
 export function parseTransferInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[]
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>,
+    InstructionWithData<ReadonlyUint8Array>
 ): ParsedTransferInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 8) {
     throw new SolanaError(
@@ -294,7 +285,7 @@ export function parseTransferInstruction<
       {
         actualAccountMetas: instruction.accounts.length,
         expectedAccountMetas: 8,
-      },
+      }
     );
   }
   let accountIndex = 0;

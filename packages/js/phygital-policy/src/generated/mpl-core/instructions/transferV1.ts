@@ -63,7 +63,7 @@ export type TransferV1Instruction<
   TAccountNewOwner extends string | AccountMeta<string> = string,
   TAccountSystemProgram extends string | AccountMeta<string> = string,
   TAccountLogWrapper extends string | AccountMeta<string> = string,
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+  TRemainingAccounts extends readonly AccountMeta<string>[] = []
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
   InstructionWithAccounts<
@@ -91,7 +91,7 @@ export type TransferV1Instruction<
       TAccountLogWrapper extends string
         ? ReadonlyAccount<TAccountLogWrapper>
         : TAccountLogWrapper,
-      ...TRemainingAccounts,
+      ...TRemainingAccounts
     ]
   >;
 
@@ -110,7 +110,7 @@ export function getTransferV1InstructionDataEncoder(): Encoder<TransferV1Instruc
       ["discriminator", getU8Encoder()],
       ["compressionProof", getOptionEncoder(getCompressionProofEncoder())],
     ]),
-    (value) => ({ ...value, discriminator: TRANSFER_V1_DISCRIMINATOR }),
+    (value) => ({ ...value, discriminator: TRANSFER_V1_DISCRIMINATOR })
   );
 }
 
@@ -127,7 +127,7 @@ export function getTransferV1InstructionDataCodec(): Codec<
 > {
   return combineCodec(
     getTransferV1InstructionDataEncoder(),
-    getTransferV1InstructionDataDecoder(),
+    getTransferV1InstructionDataDecoder()
   );
 }
 
@@ -138,7 +138,7 @@ export type TransferV1Input<
   TAccountAuthority extends string = string,
   TAccountNewOwner extends string = string,
   TAccountSystemProgram extends string = string,
-  TAccountLogWrapper extends string = string,
+  TAccountLogWrapper extends string = string
 > = {
   /** The address of the asset */
   asset: Address<TAccountAsset>;
@@ -165,7 +165,7 @@ export function getTransferV1Instruction<
   TAccountNewOwner extends string,
   TAccountSystemProgram extends string,
   TAccountLogWrapper extends string,
-  TProgramAddress extends Address = typeof MPL_CORE_PROGRAM_PROGRAM_ADDRESS,
+  TProgramAddress extends Address = typeof MPL_CORE_PROGRAM_PROGRAM_ADDRESS
 >(
   input: TransferV1Input<
     TAccountAsset,
@@ -176,7 +176,7 @@ export function getTransferV1Instruction<
     TAccountSystemProgram,
     TAccountLogWrapper
   >,
-  config?: { programAddress?: TProgramAddress },
+  config?: { programAddress?: TProgramAddress }
 ): TransferV1Instruction<
   TProgramAddress,
   TAccountAsset,
@@ -221,24 +221,15 @@ export function getTransferV1Instruction<
       getAccountMeta("logWrapper", accounts.logWrapper),
     ],
     data: getTransferV1InstructionDataEncoder().encode(
-      args as TransferV1InstructionDataArgs,
+      args as TransferV1InstructionDataArgs
     ),
     programAddress,
-  } as TransferV1Instruction<
-    TProgramAddress,
-    TAccountAsset,
-    TAccountCollection,
-    TAccountPayer,
-    TAccountAuthority,
-    TAccountNewOwner,
-    TAccountSystemProgram,
-    TAccountLogWrapper
-  >);
+  } as TransferV1Instruction<TProgramAddress, TAccountAsset, TAccountCollection, TAccountPayer, TAccountAuthority, TAccountNewOwner, TAccountSystemProgram, TAccountLogWrapper>);
 }
 
 export type ParsedTransferV1Instruction<
   TProgram extends string = typeof MPL_CORE_PROGRAM_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[]
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -262,11 +253,11 @@ export type ParsedTransferV1Instruction<
 
 export function parseTransferV1Instruction<
   TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[]
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>,
+    InstructionWithData<ReadonlyUint8Array>
 ): ParsedTransferV1Instruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 7) {
     throw new SolanaError(
@@ -274,7 +265,7 @@ export function parseTransferV1Instruction<
       {
         actualAccountMetas: instruction.accounts.length,
         expectedAccountMetas: 7,
-      },
+      }
     );
   }
   let accountIndex = 0;

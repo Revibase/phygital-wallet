@@ -8,7 +8,7 @@ export const PASSKEY_NOT_VERIFIED = "Couldn't verify this NFC accessory.";
 
 export function bindVerifiedPasskey(
   result: { isVerified: boolean; secp256r1PublicKey: string },
-  expectedPublicKey?: string,
+  expectedPublicKey?: string
 ): string {
   if (!result.isVerified || !result.secp256r1PublicKey.trim()) {
     throw new Error(PASSKEY_NOT_VERIFIED);

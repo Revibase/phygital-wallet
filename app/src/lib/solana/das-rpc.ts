@@ -66,7 +66,7 @@ export async function postDasRpcBatch<T extends unknown[]>(calls: {
         id: c.id,
         method: c.method,
         params: c.params,
-      })),
+      }))
     ),
   });
   if (!res.ok) {
@@ -116,7 +116,7 @@ export async function dasGetAssetsByOwner(args: {
 
 export async function dasGetAsset(
   id: string,
-  displayOptions?: DasDisplayOptions,
+  displayOptions?: DasDisplayOptions
 ): Promise<DasAsset | null> {
   try {
     const result = await postDasRpc<DasAsset | null>({
@@ -135,7 +135,7 @@ export async function dasGetAsset(
 
 export async function dasGetAssetBatch(
   ids: string[],
-  displayOptions?: DasDisplayOptions,
+  displayOptions?: DasDisplayOptions
 ): Promise<DasAsset[]> {
   if (ids.length === 0) return [];
   const result = await postDasRpc<DasAsset[]>({
@@ -149,7 +149,7 @@ export async function dasGetAssetBatch(
 export type { DasAssetProof };
 
 export async function dasGetAssetProof(
-  assetId: string,
+  assetId: string
 ): Promise<DasAssetProof> {
   const result = await postDasRpc<DasAssetProof>({
     method: "getAssetProof",

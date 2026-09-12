@@ -12,9 +12,9 @@ import { RouteBoot } from "@/components/layout/route-boot";
 const SigningSettingsSheet = dynamic(
   () =>
     import("@/components/wallet/signing-settings-sheet").then(
-      (m) => m.SigningSettingsSheet,
+      (m) => m.SigningSettingsSheet
     ),
-  { ssr: false, loading: () => <RouteBoot /> },
+  { ssr: false, loading: () => <RouteBoot /> }
 );
 
 export default function SigningPage() {

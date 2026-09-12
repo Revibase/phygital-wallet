@@ -98,7 +98,7 @@ describe("PhygitalWallet Wallet Standard surface", () => {
     expect(SolanaSignAndSendTransaction in wallet.features).toBe(true);
     expect(SolanaSignMessage in wallet.features).toBe(true);
     expect(
-      wallet.features[SolanaSignTransaction].supportedTransactionVersions,
+      wallet.features[SolanaSignTransaction].supportedTransactionVersions
     ).toEqual(["legacy", 0, 1]);
   });
 
@@ -121,7 +121,7 @@ describe("PhygitalWallet Wallet Standard surface", () => {
     const { accounts } = await wallet.features[StandardConnect].connect();
     expect(accounts).toHaveLength(1);
     expect(accounts[0]?.address).toBe(
-      "So11111111111111111111111111111111111111112",
+      "So11111111111111111111111111111111111111112"
     );
     expect(accounts[0]?.publicKey).toHaveLength(32);
     expect(accounts[0]?.features).toContain(SolanaSignMessage);
@@ -129,13 +129,13 @@ describe("PhygitalWallet Wallet Standard surface", () => {
     expect(changes).toHaveLength(1);
     expect(startPhygitalConnect).toHaveBeenCalledTimes(1);
     expect(localStorage.getItem(PHYGITAL_WALLET_SESSION_STORAGE_KEY)).toContain(
-      "test-bearer",
+      "test-bearer"
     );
 
     await wallet.features[StandardDisconnect].disconnect();
     expect(wallet.accounts).toEqual([]);
     expect(
-      localStorage.getItem(PHYGITAL_WALLET_SESSION_STORAGE_KEY),
+      localStorage.getItem(PHYGITAL_WALLET_SESSION_STORAGE_KEY)
     ).toBeNull();
   });
 
@@ -147,12 +147,12 @@ describe("PhygitalWallet Wallet Standard surface", () => {
         walletPda: "So11111111111111111111111111111111111111112",
         accessToken: "test-bearer",
         expiresAt: Date.now() + 900_000,
-      }),
+      })
     );
     const wallet = new PhygitalWallet({ rpc: mockRpc() });
     expect(wallet.accounts).toHaveLength(1);
     expect(wallet.accounts[0]?.address).toBe(
-      "So11111111111111111111111111111111111111112",
+      "So11111111111111111111111111111111111111112"
     );
   });
 
@@ -167,7 +167,7 @@ describe("PhygitalWallet Wallet Standard surface", () => {
     });
     expect(accounts).toHaveLength(1);
     expect(accounts[0]?.address).toBe(
-      "So11111111111111111111111111111111111111112",
+      "So11111111111111111111111111111111111111112"
     );
     expect(startPhygitalConnect).toHaveBeenCalledTimes(1);
   });
@@ -189,7 +189,7 @@ describe("PhygitalWallet Wallet Standard surface", () => {
       wallet.features[SolanaSignMessage].signMessage({
         account: accounts[0]!,
         message: new TextEncoder().encode("hello"),
-      }),
+      })
     ).rejects.toThrow(/cannot produce ed25519 message signatures/i);
   });
 });

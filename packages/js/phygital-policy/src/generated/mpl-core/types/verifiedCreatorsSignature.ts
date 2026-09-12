@@ -45,6 +45,6 @@ export function getVerifiedCreatorsSignatureCodec(): FixedSizeCodec<
 > {
   return combineCodec(
     getVerifiedCreatorsSignatureEncoder(),
-    getVerifiedCreatorsSignatureDecoder(),
+    getVerifiedCreatorsSignatureDecoder()
   );
 }

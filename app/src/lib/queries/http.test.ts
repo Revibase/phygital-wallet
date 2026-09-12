@@ -42,8 +42,8 @@ describe("QueryHttpError / retry policy", () => {
     expect(isRetryableQueryError(new TypeError("Failed to fetch"))).toBe(true);
     expect(
       isRetryableQueryError(
-        new DOMException("The operation was aborted", "AbortError"),
-      ),
+        new DOMException("The operation was aborted", "AbortError")
+      )
     ).toBe(false);
     expect(isRetryableQueryError(new Error("wallet required"))).toBe(false);
   });
@@ -58,7 +58,7 @@ describe("QueryHttpError / retry policy", () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       "http://localhost:8787/tokens/verified",
-      expect.objectContaining({ cache: "no-store" }),
+      expect.objectContaining({ cache: "no-store" })
     );
   });
 });

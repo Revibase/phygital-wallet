@@ -34,7 +34,7 @@ function hmacKey(secret: string): Promise<CryptoKey> {
       new TextEncoder().encode(secret),
       { name: "HMAC", hash: "SHA-256" },
       false,
-      ["sign", "verify"],
+      ["sign", "verify"]
     );
     hmacKeyBySecret.set(secret, pending);
   }
@@ -43,13 +43,13 @@ function hmacKey(secret: string): Promise<CryptoKey> {
 
 async function hmacSha256(
   secret: string,
-  payload: string,
+  payload: string
 ): Promise<Uint8Array> {
   const key = await hmacKey(secret);
   const sig = await crypto.subtle.sign(
     "HMAC",
     key,
-    new TextEncoder().encode(payload),
+    new TextEncoder().encode(payload)
   );
   return new Uint8Array(sig);
 }
@@ -65,7 +65,7 @@ function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
 async function parseSignedPayload(
   token: string | undefined,
   secret: string,
-  now: number,
+  now: number
 ): Promise<{ head: string; exp: number; jti: string } | null> {
   if (!token || !secret) return null;
   const [payloadB64, macB64] = token.split(".");
@@ -90,7 +90,7 @@ async function parseSignedPayload(
 export async function verifyDeviceSessionCookie(
   token: string | undefined,
   secret: string,
-  now = Date.now(),
+  now = Date.now()
 ): Promise<DeviceSession | null> {
   const parsed = await parseSignedPayload(token, secret, now);
   if (!parsed || parsed.head.startsWith(REFRESH_HEAD_PREFIX)) return null;
@@ -104,7 +104,7 @@ export async function verifyDeviceSessionCookie(
 export async function verifyDeviceRefreshCookie(
   token: string | undefined,
   secret: string,
-  now = Date.now(),
+  now = Date.now()
 ): Promise<DeviceSession | null> {
   const parsed = await parseSignedPayload(token, secret, now);
   if (!parsed?.head.startsWith(REFRESH_HEAD_PREFIX)) return null;
@@ -120,7 +120,7 @@ export async function verifyDeviceRefreshCookie(
 export async function verifyBrowseUnlockCookie(
   token: string | undefined,
   secret: string,
-  now = Date.now(),
+  now = Date.now()
 ): Promise<BrowseUnlock | null> {
   const parsed = await parseSignedPayload(token, secret, now);
   if (!parsed) return null;
@@ -159,7 +159,7 @@ export async function canAccessTokenWallet(args: {
   const browse = await verifyBrowseUnlockCookie(
     args.browseUnlockCookie,
     args.secret,
-    now,
+    now
   );
   return Boolean(browse && browse.phygitalToken === args.phygitalToken);
 }

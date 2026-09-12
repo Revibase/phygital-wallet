@@ -76,11 +76,11 @@ export function AccessRecoverySheet({
       clearClaimDismiss(phygitalTokenPda);
       queryClient.setQueryData(
         queryKeys.deviceAuth.linkStatus(phygitalTokenPda),
-        "unlinked" as LinkStatus,
+        "unlinked" as LinkStatus
       );
       queryClient.setQueryData(
         queryKeys.deviceAuth.claimed(phygitalTokenPda),
-        false,
+        false
       );
       queryClient.setQueryData(
         queryKeys.deviceAuth.gate(phygitalTokenPda),
@@ -91,12 +91,12 @@ export function AccessRecoverySheet({
                 linkStatus: "unlinked",
                 claimed: false,
               }
-            : prev,
+            : prev
       );
       queryClient.setQueryData(
         queryKeys.deviceAuth.links(),
         (prev: DeviceLink[] | undefined) =>
-          prev?.filter((l) => l.phygitalToken !== phygitalTokenPda),
+          prev?.filter((l) => l.phygitalToken !== phygitalTokenPda)
       );
       await Promise.all([
         queryClient.invalidateQueries({
@@ -160,15 +160,15 @@ export function AccessRecoverySheet({
   const visitorTitle = linkedElsewhere
     ? copy.wallet.limitsLinkedElsewhereTitle
     : claimedQuiet
-      ? copy.wallet.claimSignInTitle
-      : copy.wallet.claimTitle;
+    ? copy.wallet.claimSignInTitle
+    : copy.wallet.claimTitle;
   const visitorHint =
     linkedElsewhere || claimedQuiet ? null : copy.wallet.accessClaimHint;
   const visitorBody = linkedElsewhere
     ? copy.wallet.limitsLinkedElsewhereBody
     : claimedQuiet
-      ? copy.wallet.claimSignInBody
-      : copy.wallet.deviceLinkBody;
+    ? copy.wallet.claimSignInBody
+    : copy.wallet.deviceLinkBody;
 
   return (
     <div className="flex flex-1 flex-col gap-6">

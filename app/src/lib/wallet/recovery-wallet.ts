@@ -68,7 +68,7 @@ export async function getClearRecoveryWalletInstructions(input: {
   if (!rentReceiver) {
     const account = await fetchMaybeRecoveryWallet(
       input.rpc,
-      recoveryWalletAccount,
+      recoveryWalletAccount
     );
     if (!account.exists) {
       throw new Error("Recovery wallet not found");

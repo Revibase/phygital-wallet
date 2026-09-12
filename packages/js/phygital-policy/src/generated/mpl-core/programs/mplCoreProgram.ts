@@ -30,7 +30,7 @@ export enum MplCoreProgramInstruction {
 }
 
 export function identifyMplCoreProgramInstruction(
-  instruction: { data: ReadonlyUint8Array } | ReadonlyUint8Array,
+  instruction: { data: ReadonlyUint8Array } | ReadonlyUint8Array
 ): MplCoreProgramInstruction {
   const data = "data" in instruction ? instruction.data : instruction;
   if (containsBytes(data, getU8Encoder().encode(14), 0)) {
@@ -38,18 +38,18 @@ export function identifyMplCoreProgramInstruction(
   }
   throw new SolanaError(
     SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_INSTRUCTION,
-    { instructionData: data, programName: "mplCoreProgram" },
+    { instructionData: data, programName: "mplCoreProgram" }
   );
 }
 
 export type ParsedMplCoreProgramInstruction<
-  TProgram extends string = "CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d",
+  TProgram extends string = "CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d"
 > = {
   instructionType: MplCoreProgramInstruction.TransferV1;
 } & ParsedTransferV1Instruction<TProgram>;
 
 export function parseMplCoreProgramInstruction<TProgram extends string>(
-  instruction: Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array>,
+  instruction: Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array>
 ): ParsedMplCoreProgramInstruction<TProgram> {
   const instructionType = identifyMplCoreProgramInstruction(instruction);
   switch (instructionType) {
@@ -66,7 +66,7 @@ export function parseMplCoreProgramInstruction<TProgram extends string>(
         {
           instructionType: instructionType as string,
           programName: "mplCoreProgram",
-        },
+        }
       );
   }
 }

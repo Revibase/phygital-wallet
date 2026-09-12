@@ -32,7 +32,7 @@ export type MutationBinding =
 export async function assertPolicyMutation(
   phygitalToken: string,
   binding: MutationBinding,
-  cancelMessage = "Confirmation was cancelled",
+  cancelMessage = "Confirmation was cancelled"
 ): Promise<{ challengeId: string; assertion: AuthenticationResponseJSON }> {
   const optionsRes = await queryFetch(
     `/policies/${encodeURIComponent(phygitalToken)}/mutation-options`,
@@ -40,7 +40,7 @@ export async function assertPolicyMutation(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(binding),
-    },
+    }
   );
   const { challengeId, options } = await readJson<{
     challengeId: string;
@@ -61,10 +61,10 @@ export async function assertPolicyMutation(
 
 /** GET standing policy (owner session required). */
 export async function fetchEffectivePolicy(
-  phygitalToken: string,
+  phygitalToken: string
 ): Promise<EffectivePolicy> {
   const res = await queryFetch(
-    `/policies/${encodeURIComponent(phygitalToken)}`,
+    `/policies/${encodeURIComponent(phygitalToken)}`
   );
   return readJson<EffectivePolicy>(res, "Couldn’t load settings");
 }
@@ -72,12 +72,12 @@ export async function fetchEffectivePolicy(
 /** PUT compiled PaymentsPolicyConfig with platform WebAuthn step-up. */
 export async function putPaymentsPolicyConfig(
   phygitalToken: string,
-  policy: PaymentsPolicyConfig,
+  policy: PaymentsPolicyConfig
 ): Promise<EffectivePolicy> {
   const { challengeId, assertion } = await assertPolicyMutation(
     phygitalToken,
     { kind: "setPolicy", policy },
-    "Save was cancelled",
+    "Save was cancelled"
   );
   const res = await queryFetch(
     `/policies/${encodeURIComponent(phygitalToken)}`,
@@ -85,19 +85,19 @@ export async function putPaymentsPolicyConfig(
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ policy, challengeId, assertion }),
-    },
+    }
   );
   return readJson<EffectivePolicy>(res, "Couldn’t save settings");
 }
 
 /** DELETE standing policy (limits off) with platform WebAuthn step-up. */
 export async function deletePaymentsPolicyConfig(
-  phygitalToken: string,
+  phygitalToken: string
 ): Promise<EffectivePolicy> {
   const { challengeId, assertion } = await assertPolicyMutation(
     phygitalToken,
     { kind: "clearPolicy" },
-    "Turn off was cancelled",
+    "Turn off was cancelled"
   );
   const res = await queryFetch(
     `/policies/${encodeURIComponent(phygitalToken)}`,
@@ -105,19 +105,19 @@ export async function deletePaymentsPolicyConfig(
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ challengeId, assertion }),
-    },
+    }
   );
   return readJson<EffectivePolicy>(res, "Couldn’t turn off limits");
 }
 
 export async function createOneTimeGrant(
   phygitalToken: string,
-  intentHash: string,
+  intentHash: string
 ): Promise<void> {
   const { challengeId, assertion } = await assertPolicyMutation(
     phygitalToken,
     { kind: "createGrant", intentHash },
-    "Approve was cancelled",
+    "Approve was cancelled"
   );
   const res = await queryFetch(
     `/policies/${encodeURIComponent(phygitalToken)}/grants`,
@@ -125,7 +125,7 @@ export async function createOneTimeGrant(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ intentHash, challengeId, assertion }),
-    },
+    }
   );
   await readJson(res, "Couldn’t approve this send");
 }
@@ -133,7 +133,7 @@ export async function createOneTimeGrant(
 /** Owner declines a pending soft-deny (session + isOwner; no WebAuthn). */
 export async function denyOpenApproval(
   phygitalToken: string,
-  intentHash: string,
+  intentHash: string
 ): Promise<void> {
   const res = await queryFetch(
     `/policies/${encodeURIComponent(phygitalToken)}/approvals/deny`,
@@ -141,20 +141,20 @@ export async function denyOpenApproval(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ intentHash }),
-    },
+    }
   );
   await readJson(res, "Couldn’t deny this send");
 }
 
 export async function fetchOpenApprovals(
-  phygitalToken: string,
+  phygitalToken: string
 ): Promise<OpenApproval[]> {
   const res = await queryFetch(
-    `/policies/${encodeURIComponent(phygitalToken)}/approvals`,
+    `/policies/${encodeURIComponent(phygitalToken)}/approvals`
   );
   const body = await readJson<{ approvals: OpenApproval[] }>(
     res,
-    "Couldn’t load approvals",
+    "Couldn’t load approvals"
   );
   return body.approvals;
 }

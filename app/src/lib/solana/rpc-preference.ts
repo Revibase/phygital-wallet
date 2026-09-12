@@ -6,7 +6,8 @@
 const STORAGE_KEY = "phygital-wallet.solana-rpc";
 
 export type RpcPreference =
-  { mode: "default" } | { mode: "custom"; url: string };
+  | { mode: "default" }
+  | { mode: "custom"; url: string };
 
 /** Stable default for SSR / useSyncExternalStore. */
 export const DEFAULT_RPC_PREFERENCE: RpcPreference = { mode: "default" };
@@ -74,13 +75,13 @@ export function writeRpcPreference(pref: RpcPreference): void {
   }
   window.localStorage.setItem(
     STORAGE_KEY,
-    JSON.stringify({ mode: "custom", url: pref.url.trim() }),
+    JSON.stringify({ mode: "custom", url: pref.url.trim() })
   );
 }
 
 /** Active RPC URL for Kit + DAS (custom override or env default). */
 export function resolveSolanaRpcUrl(
-  pref: RpcPreference = readRpcPreference(),
+  pref: RpcPreference = readRpcPreference()
 ): string {
   if (pref.mode === "custom") return pref.url.trim();
   return getDefaultRpcUrl();
@@ -101,7 +102,7 @@ export function isHeliusRpcUrl(url: string): boolean {
  * Uses the custom endpoint only when it looks like Helius; otherwise the app default.
  */
 export function resolveActivityRpcUrl(
-  pref: RpcPreference = readRpcPreference(),
+  pref: RpcPreference = readRpcPreference()
 ): string {
   if (pref.mode === "custom" && isHeliusRpcUrl(pref.url)) {
     return pref.url.trim();

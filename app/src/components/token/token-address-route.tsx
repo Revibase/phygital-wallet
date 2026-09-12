@@ -54,22 +54,22 @@ function layoutForRoute(token: PhygitalToken, pathname: string): ShellLayout {
 function seedAuthCaches(
   queryClient: ReturnType<typeof useQueryClient>,
   tokenAddress: string,
-  gate: TokenGate,
+  gate: TokenGate
 ) {
   queryClient.setQueryData(queryKeys.deviceAuth.session(), gate.session);
   queryClient.setQueryData(
     queryKeys.deviceAuth.browseUnlock(tokenAddress),
-    gate.browseUnlocked,
+    gate.browseUnlocked
   );
   if (gate.linkStatus) {
     queryClient.setQueryData(
       queryKeys.deviceAuth.linkStatus(tokenAddress),
-      gate.linkStatus,
+      gate.linkStatus
     );
   }
   queryClient.setQueryData(
     queryKeys.deviceAuth.claimed(tokenAddress),
-    gate.claimed,
+    gate.claimed
   );
 }
 
@@ -144,7 +144,7 @@ export function TokenAddressRoute({
     }
     const id = window.setTimeout(
       () => setClaimedWaitTimedOut(true),
-      CLAIMED_WAIT_MS,
+      CLAIMED_WAIT_MS
     );
     return () => window.clearTimeout(id);
   }, [waitingClaimed]);
@@ -167,7 +167,7 @@ export function TokenAddressRoute({
     return {
       token,
       role,
-      linkStatus: session ? (linkStatus ?? undefined) : undefined,
+      linkStatus: session ? linkStatus ?? undefined : undefined,
       claimed: gate.isError ? undefined : claimed,
     };
   }, [unlocked, token, role, session, linkStatus, gate.isError, claimed]);
@@ -178,7 +178,7 @@ export function TokenAddressRoute({
         typeof children === "function" ? (
           children(sessionValue)
         ) : (
-          (children ?? null)
+          children ?? null
         )
       ) : waiting && !timedOut ? (
         <CeremonyShell>
@@ -198,7 +198,7 @@ export function TokenAddressRoute({
           onUnlocked={() => {
             queryClient.setQueryData(
               queryKeys.deviceAuth.browseUnlock(tokenAddress),
-              true,
+              true
             );
             queryClient.setQueryData(
               queryKeys.deviceAuth.gate(tokenAddress),
@@ -210,7 +210,7 @@ export function TokenAddressRoute({
                       browseUnlocked: true,
                       linkStatus: null,
                       claimed: false,
-                    },
+                    }
             );
           }}
         />

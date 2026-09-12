@@ -20,7 +20,7 @@ export type RecoveryWalletAccountSeeds = {
 
 export async function findRecoveryWalletAccountPda(
   seeds: RecoveryWalletAccountSeeds,
-  config: { programAddress?: Address | undefined } = {},
+  config: { programAddress?: Address | undefined } = {}
 ): Promise<ProgramDerivedAddress> {
   const {
     programAddress = "Fjbi9JrRAmSBdxQxbkcxYDp6JUwnLbFhU2GsieWQBLSg" as Address<"Fjbi9JrRAmSBdxQxbkcxYDp6JUwnLbFhU2GsieWQBLSg">,
@@ -32,7 +32,7 @@ export async function findRecoveryWalletAccountPda(
         new Uint8Array([
           114, 101, 99, 111, 118, 101, 114, 121, 95, 119, 97, 108, 108, 101,
           116,
-        ]),
+        ])
       ),
       getAddressEncoder().encode(seeds.phygitalToken),
     ],

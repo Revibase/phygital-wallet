@@ -60,7 +60,7 @@ export const SET_RECOVERY_WALLET_DISCRIMINATOR: ReadonlyUint8Array =
 
 export function getSetRecoveryWalletDiscriminatorBytes(): ReadonlyUint8Array {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    SET_RECOVERY_WALLET_DISCRIMINATOR,
+    SET_RECOVERY_WALLET_DISCRIMINATOR
   );
 }
 
@@ -72,15 +72,19 @@ export type SetRecoveryWalletInstruction<
   TAccountPhygitalToken extends string | AccountMeta<string> = string,
   TAccountTokenVerifier extends string | AccountMeta<string> = string,
   TAccountRecoveryWalletAccount extends string | AccountMeta<string> = string,
-  TAccountSlotHashes extends string | AccountMeta<string> =
-    "SysvarS1otHashes111111111111111111111111111",
-  TAccountInstructionsSysvar extends string | AccountMeta<string> =
-    "Sysvar1nstructions1111111111111111111111111",
-  TAccountPhygitalTokenProgram extends string | AccountMeta<string> =
-    "DuPpckdjjgVAnYok2aTMAt264ZPBXqq3JSazJjCUzTJQ",
-  TAccountSystemProgram extends string | AccountMeta<string> =
-    "11111111111111111111111111111111",
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+  TAccountSlotHashes extends
+    | string
+    | AccountMeta<string> = "SysvarS1otHashes111111111111111111111111111",
+  TAccountInstructionsSysvar extends
+    | string
+    | AccountMeta<string> = "Sysvar1nstructions1111111111111111111111111",
+  TAccountPhygitalTokenProgram extends
+    | string
+    | AccountMeta<string> = "DuPpckdjjgVAnYok2aTMAt264ZPBXqq3JSazJjCUzTJQ",
+  TAccountSystemProgram extends
+    | string
+    | AccountMeta<string> = "11111111111111111111111111111111",
+  TRemainingAccounts extends readonly AccountMeta<string>[] = []
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
   InstructionWithAccounts<
@@ -117,7 +121,7 @@ export type SetRecoveryWalletInstruction<
       TAccountSystemProgram extends string
         ? ReadonlyAccount<TAccountSystemProgram>
         : TAccountSystemProgram,
-      ...TRemainingAccounts,
+      ...TRemainingAccounts
     ]
   >;
 
@@ -142,7 +146,7 @@ export function getSetRecoveryWalletInstructionDataEncoder(): Encoder<SetRecover
       ["secp256r1VerifyArgs", getSecp256r1VerifyArgsEncoder()],
       ["slotNumber", getU64Encoder()],
     ]),
-    (value) => ({ ...value, discriminator: SET_RECOVERY_WALLET_DISCRIMINATOR }),
+    (value) => ({ ...value, discriminator: SET_RECOVERY_WALLET_DISCRIMINATOR })
   );
 }
 
@@ -161,7 +165,7 @@ export function getSetRecoveryWalletInstructionDataCodec(): Codec<
 > {
   return combineCodec(
     getSetRecoveryWalletInstructionDataEncoder(),
-    getSetRecoveryWalletInstructionDataDecoder(),
+    getSetRecoveryWalletInstructionDataDecoder()
   );
 }
 
@@ -175,7 +179,7 @@ export type SetRecoveryWalletAsyncInput<
   TAccountSlotHashes extends string = string,
   TAccountInstructionsSysvar extends string = string,
   TAccountPhygitalTokenProgram extends string = string,
-  TAccountSystemProgram extends string = string,
+  TAccountSystemProgram extends string = string
 > = {
   /** Fee payer for rent; not an authorization authority. */
   payer: TransactionSigner<TAccountPayer>;
@@ -206,7 +210,7 @@ export async function getSetRecoveryWalletInstructionAsync<
   TAccountInstructionsSysvar extends string,
   TAccountPhygitalTokenProgram extends string,
   TAccountSystemProgram extends string,
-  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
+  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS
 >(
   input: SetRecoveryWalletAsyncInput<
     TAccountPayer,
@@ -220,7 +224,7 @@ export async function getSetRecoveryWalletInstructionAsync<
     TAccountPhygitalTokenProgram,
     TAccountSystemProgram
   >,
-  config?: { programAddress?: TProgramAddress },
+  config?: { programAddress?: TProgramAddress }
 ): Promise<
   SetRecoveryWalletInstruction<
     TProgramAddress,
@@ -278,7 +282,7 @@ export async function getSetRecoveryWalletInstructionAsync<
     accounts.tokenVerifier.value = await findTokenVerifierPda({
       phygitalToken: getAddressFromResolvedInstructionAccount(
         "phygitalToken",
-        accounts.phygitalToken.value,
+        accounts.phygitalToken.value
       ),
     });
   }
@@ -286,7 +290,7 @@ export async function getSetRecoveryWalletInstructionAsync<
     accounts.recoveryWalletAccount.value = await findRecoveryWalletAccountPda({
       phygitalToken: getAddressFromResolvedInstructionAccount(
         "phygitalToken",
-        accounts.phygitalToken.value,
+        accounts.phygitalToken.value
       ),
     });
   }
@@ -322,22 +326,10 @@ export async function getSetRecoveryWalletInstructionAsync<
       getAccountMeta("systemProgram", accounts.systemProgram),
     ],
     data: getSetRecoveryWalletInstructionDataEncoder().encode(
-      args as SetRecoveryWalletInstructionDataArgs,
+      args as SetRecoveryWalletInstructionDataArgs
     ),
     programAddress,
-  } as SetRecoveryWalletInstruction<
-    TProgramAddress,
-    TAccountPayer,
-    TAccountVerifier,
-    TAccountConfig,
-    TAccountPhygitalToken,
-    TAccountTokenVerifier,
-    TAccountRecoveryWalletAccount,
-    TAccountSlotHashes,
-    TAccountInstructionsSysvar,
-    TAccountPhygitalTokenProgram,
-    TAccountSystemProgram
-  >);
+  } as SetRecoveryWalletInstruction<TProgramAddress, TAccountPayer, TAccountVerifier, TAccountConfig, TAccountPhygitalToken, TAccountTokenVerifier, TAccountRecoveryWalletAccount, TAccountSlotHashes, TAccountInstructionsSysvar, TAccountPhygitalTokenProgram, TAccountSystemProgram>);
 }
 
 export type SetRecoveryWalletInput<
@@ -350,7 +342,7 @@ export type SetRecoveryWalletInput<
   TAccountSlotHashes extends string = string,
   TAccountInstructionsSysvar extends string = string,
   TAccountPhygitalTokenProgram extends string = string,
-  TAccountSystemProgram extends string = string,
+  TAccountSystemProgram extends string = string
 > = {
   /** Fee payer for rent; not an authorization authority. */
   payer: TransactionSigner<TAccountPayer>;
@@ -381,7 +373,7 @@ export function getSetRecoveryWalletInstruction<
   TAccountInstructionsSysvar extends string,
   TAccountPhygitalTokenProgram extends string,
   TAccountSystemProgram extends string,
-  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
+  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS
 >(
   input: SetRecoveryWalletInput<
     TAccountPayer,
@@ -395,7 +387,7 @@ export function getSetRecoveryWalletInstruction<
     TAccountPhygitalTokenProgram,
     TAccountSystemProgram
   >,
-  config?: { programAddress?: TProgramAddress },
+  config?: { programAddress?: TProgramAddress }
 ): SetRecoveryWalletInstruction<
   TProgramAddress,
   TAccountPayer,
@@ -476,27 +468,15 @@ export function getSetRecoveryWalletInstruction<
       getAccountMeta("systemProgram", accounts.systemProgram),
     ],
     data: getSetRecoveryWalletInstructionDataEncoder().encode(
-      args as SetRecoveryWalletInstructionDataArgs,
+      args as SetRecoveryWalletInstructionDataArgs
     ),
     programAddress,
-  } as SetRecoveryWalletInstruction<
-    TProgramAddress,
-    TAccountPayer,
-    TAccountVerifier,
-    TAccountConfig,
-    TAccountPhygitalToken,
-    TAccountTokenVerifier,
-    TAccountRecoveryWalletAccount,
-    TAccountSlotHashes,
-    TAccountInstructionsSysvar,
-    TAccountPhygitalTokenProgram,
-    TAccountSystemProgram
-  >);
+  } as SetRecoveryWalletInstruction<TProgramAddress, TAccountPayer, TAccountVerifier, TAccountConfig, TAccountPhygitalToken, TAccountTokenVerifier, TAccountRecoveryWalletAccount, TAccountSlotHashes, TAccountInstructionsSysvar, TAccountPhygitalTokenProgram, TAccountSystemProgram>);
 }
 
 export type ParsedSetRecoveryWalletInstruction<
   TProgram extends string = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[]
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -519,11 +499,11 @@ export type ParsedSetRecoveryWalletInstruction<
 
 export function parseSetRecoveryWalletInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[]
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>,
+    InstructionWithData<ReadonlyUint8Array>
 ): ParsedSetRecoveryWalletInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 10) {
     throw new SolanaError(
@@ -531,7 +511,7 @@ export function parseSetRecoveryWalletInstruction<
       {
         actualAccountMetas: instruction.accounts.length,
         expectedAccountMetas: 10,
-      },
+      }
     );
   }
   let accountIndex = 0;

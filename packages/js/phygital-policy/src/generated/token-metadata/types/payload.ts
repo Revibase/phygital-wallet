@@ -40,7 +40,7 @@ export function getPayloadEncoder(): Encoder<PayloadArgs> {
       "map",
       getMapEncoder(
         addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder()),
-        getPayloadTypeEncoder(),
+        getPayloadTypeEncoder()
       ),
     ],
   ]);
@@ -52,7 +52,7 @@ export function getPayloadDecoder(): Decoder<Payload> {
       "map",
       getMapDecoder(
         addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder()),
-        getPayloadTypeDecoder(),
+        getPayloadTypeDecoder()
       ),
     ],
   ]);

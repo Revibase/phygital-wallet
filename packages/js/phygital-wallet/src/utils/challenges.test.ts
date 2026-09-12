@@ -13,7 +13,7 @@ function hashSetTokenVerifier(
   slotHash: Uint8Array,
   phygitalToken: ReturnType<typeof address>,
   verifier: ReturnType<typeof address>,
-  endpoint: string,
+  endpoint: string
 ): Uint8Array {
   const prefix = new TextEncoder().encode("phygital_wallet:set_tv:v1");
   const tokenBytes = new Uint8Array(getAddressEncoder().encode(phygitalToken));
@@ -24,7 +24,7 @@ function hashSetTokenVerifier(
       32 +
       tokenBytes.length +
       verifierBytes.length +
-      endpointBytes.length,
+      endpointBytes.length
   );
   let offset = 0;
   preimage.set(prefix, offset);
@@ -41,7 +41,7 @@ function hashSetTokenVerifier(
 
 function hashClearTokenVerifier(
   slotHash: Uint8Array,
-  phygitalToken: ReturnType<typeof address>,
+  phygitalToken: ReturnType<typeof address>
 ): Uint8Array {
   const prefix = new TextEncoder().encode("phygital_wallet:clear_tv:v1");
   const tokenBytes = new Uint8Array(getAddressEncoder().encode(phygitalToken));
@@ -62,15 +62,15 @@ describe("challenge hashes", () => {
   it("execute challenge is deterministic", () => {
     const slotHash = new Uint8Array(32).fill(7);
     expect(hashExecuteChallenge(slotHash, emptyCompact, emptyKeys)).toEqual(
-      hashExecuteChallenge(slotHash, emptyCompact, emptyKeys),
+      hashExecuteChallenge(slotHash, emptyCompact, emptyKeys)
     );
   });
 
   it("execute challenge changes with slot hash", () => {
     expect(
-      hashExecuteChallenge(new Uint8Array(32).fill(7), emptyCompact, emptyKeys),
+      hashExecuteChallenge(new Uint8Array(32).fill(7), emptyCompact, emptyKeys)
     ).not.toEqual(
-      hashExecuteChallenge(new Uint8Array(32).fill(8), emptyCompact, emptyKeys),
+      hashExecuteChallenge(new Uint8Array(32).fill(8), emptyCompact, emptyKeys)
     );
   });
 
@@ -92,7 +92,7 @@ describe("challenge hashes", () => {
       },
     ];
     expect(hashExecuteChallenge(slotHash, a, [program])).not.toEqual(
-      hashExecuteChallenge(slotHash, b, [program]),
+      hashExecuteChallenge(slotHash, b, [program])
     );
   });
 
@@ -108,7 +108,7 @@ describe("challenge hashes", () => {
       },
     ];
     expect(hashReferencedAccounts([program, alice, bob], compact)).not.toEqual(
-      hashReferencedAccounts([program, bob, alice], compact),
+      hashReferencedAccounts([program, bob, alice], compact)
     );
   });
 
@@ -131,29 +131,29 @@ describe("challenge hashes", () => {
     const verifier = address("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
     const endpoint = "https://verifier.example.com/submit";
     expect(
-      hashSetTokenVerifier(slotHash, phygitalToken, verifier, endpoint),
+      hashSetTokenVerifier(slotHash, phygitalToken, verifier, endpoint)
     ).toEqual(
-      hashSetTokenVerifier(slotHash, phygitalToken, verifier, endpoint),
+      hashSetTokenVerifier(slotHash, phygitalToken, verifier, endpoint)
     );
     expect(
-      hashSetTokenVerifier(slotHash, phygitalToken, verifier, endpoint),
+      hashSetTokenVerifier(slotHash, phygitalToken, verifier, endpoint)
     ).not.toEqual(
       hashSetTokenVerifier(
         slotHash,
         phygitalToken,
         address("11111111111111111111111111111112"),
-        endpoint,
-      ),
+        endpoint
+      )
     );
     expect(
-      hashSetTokenVerifier(slotHash, phygitalToken, verifier, endpoint),
+      hashSetTokenVerifier(slotHash, phygitalToken, verifier, endpoint)
     ).not.toEqual(
       hashSetTokenVerifier(
         slotHash,
         address("11111111111111111111111111111112"),
         verifier,
-        endpoint,
-      ),
+        endpoint
+      )
     );
   });
 
@@ -161,13 +161,13 @@ describe("challenge hashes", () => {
     const slotHash = new Uint8Array(32).fill(6);
     const phygitalToken = address("11111111111111111111111111111111");
     expect(hashClearTokenVerifier(slotHash, phygitalToken)).toEqual(
-      hashClearTokenVerifier(slotHash, phygitalToken),
+      hashClearTokenVerifier(slotHash, phygitalToken)
     );
     expect(hashClearTokenVerifier(slotHash, phygitalToken)).not.toEqual(
       hashClearTokenVerifier(
         slotHash,
-        address("11111111111111111111111111111112"),
-      ),
+        address("11111111111111111111111111111112")
+      )
     );
   });
 });

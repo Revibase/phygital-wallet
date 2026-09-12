@@ -24,7 +24,7 @@ const SETTINGS_TO_SEGMENT: Record<SettingsTarget, string> = {
 };
 
 const SEGMENT_TO_SETTINGS = new Map<string, SettingsTarget>(
-  Object.entries(SETTINGS_TO_SEGMENT).map(([k, v]) => [v, k as SettingsTarget]),
+  Object.entries(SETTINGS_TO_SEGMENT).map(([k, v]) => [v, k as SettingsTarget])
 );
 
 /** Single-segment wallet leaves (not receive/collectibles/settings trees). */
@@ -38,7 +38,7 @@ const POLICY_SETUP_SCREENS = new Set<string>([
 ]);
 
 export function isPolicySetupScreen(
-  value: string | null | undefined,
+  value: string | null | undefined
 ): value is PolicySetupScreen {
   return Boolean(value && POLICY_SETUP_SCREENS.has(value));
 }
@@ -48,7 +48,7 @@ export function settingsSegment(target: SettingsTarget): string {
 }
 
 export function settingsFromSegment(
-  segment: string | null | undefined,
+  segment: string | null | undefined
 ): SettingsTarget | null {
   if (!segment) return null;
   return SEGMENT_TO_SETTINGS.get(segment) ?? null;
@@ -80,7 +80,7 @@ export function walletHref(
 
 export function walletSettingsHref(
   phygitalToken: string,
-  target?: SettingsTarget,
+  target?: SettingsTarget
 ): string {
   if (!target) return walletHref(phygitalToken, "settings");
   return walletHref(phygitalToken, "settings", settingsSegment(target));
@@ -88,7 +88,7 @@ export function walletSettingsHref(
 
 /** Soft-deny / fee codes → settings leaf (or hub). */
 export function settingsFromDenyCode(
-  code?: string,
+  code?: string
 ): SettingsTarget | undefined {
   if (code === "spend_limit") return "spendingLimits";
   if (code === "program_not_allowed" || code === "instruction_not_allowed") {
@@ -102,7 +102,7 @@ export function settingsFromDenyCode(
 /** Send route with optional preselected mint / collectible. */
 export function walletSendHref(
   phygitalToken: string,
-  asset?: { mint: string; collectible?: boolean } | null,
+  asset?: { mint: string; collectible?: boolean } | null
 ): string {
   const base = walletHref(phygitalToken, "send");
   if (!asset) return base;
@@ -130,7 +130,7 @@ export type ParsedTokenPath =
  * Returns null for anything outside the allowlist.
  */
 export function parseTokenWalletPath(
-  raw: string | null | undefined,
+  raw: string | null | undefined
 ): ParsedTokenPath | null {
   if (!raw) return null;
   const trimmed = raw.trim();
@@ -185,7 +185,7 @@ export function parseTokenWalletPath(
       if (!mint) return null;
       return wallet(
         ["collectibles", String(mint)],
-        walletHref(tokenStr, "collectibles", String(mint)),
+        walletHref(tokenStr, "collectibles", String(mint))
       );
     }
 
@@ -197,7 +197,7 @@ export function parseTokenWalletPath(
       if (!target) return null;
       return wallet(
         ["settings", settingsSegment(target)],
-        walletSettingsHref(tokenStr, target),
+        walletSettingsHref(tokenStr, target)
       );
     }
 

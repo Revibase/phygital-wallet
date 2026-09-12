@@ -12,7 +12,7 @@ describe("bindVerifiedPasskey", () => {
       bindVerifiedPasskey({
         isVerified: true,
         secp256r1PublicKey: "abc",
-      }),
+      })
     ).toBe("abc");
   });
 
@@ -20,8 +20,8 @@ describe("bindVerifiedPasskey", () => {
     expect(
       bindVerifiedPasskey(
         { isVerified: true, secp256r1PublicKey: "abc" },
-        "abc",
-      ),
+        "abc"
+      )
     ).toBe("abc");
   });
 
@@ -29,8 +29,8 @@ describe("bindVerifiedPasskey", () => {
     expect(() =>
       bindVerifiedPasskey(
         { isVerified: true, secp256r1PublicKey: "abc" },
-        "xyz",
-      ),
+        "xyz"
+      )
     ).toThrow(PASSKEY_MISMATCH);
   });
 
@@ -39,7 +39,7 @@ describe("bindVerifiedPasskey", () => {
       bindVerifiedPasskey({
         isVerified: false,
         secp256r1PublicKey: "abc",
-      }),
+      })
     ).toThrow(PASSKEY_NOT_VERIFIED);
   });
 });

@@ -44,7 +44,7 @@ heliusWebhookRoutes.post("/webhooks/helius", async (c) => {
         error:
           error instanceof Error ? error.message : "Webhook processing failed",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 });

@@ -17,7 +17,7 @@ const tokenForMint = new Map<string, Address>([[String(MINT), TOKEN]]);
 vi.mock("phygital-token-sdk", () => ({
   fetchPhygitalTokenByIdentifier: vi.fn(async () => ({ publicKey: MINT })),
   findPhygitalTokenPda: vi.fn(
-    async (mint: Address) => tokenForMint.get(String(mint)) ?? OTHER_TOKEN,
+    async (mint: Address) => tokenForMint.get(String(mint)) ?? OTHER_TOKEN
   ),
 }));
 
@@ -60,7 +60,7 @@ describe("verifyDynamicConnectProof", () => {
     expect(result.phygitalToken).toBe(TOKEN);
     expect(result.counter).toBe(7);
     expect(consumeCounter).toHaveBeenCalledWith(
-      expect.objectContaining({ counter: 7, phygitalToken: TOKEN }),
+      expect.objectContaining({ counter: 7, phygitalToken: TOKEN })
     );
   });
 
@@ -70,7 +70,7 @@ describe("verifyDynamicConnectProof", () => {
         rpc,
         expectedPhygitalToken: OTHER_TOKEN,
         consumeCounter: async () => true,
-      }),
+      })
     ).rejects.toMatchObject({ code: "token_not_found" });
   });
 
@@ -80,7 +80,7 @@ describe("verifyDynamicConnectProof", () => {
         rpc,
         expectedPhygitalToken: TOKEN,
         consumeCounter: async () => false,
-      }),
+      })
     ).rejects.toMatchObject({ code: "tap_replay" });
   });
 
@@ -91,7 +91,7 @@ describe("verifyDynamicConnectProof", () => {
         rpc: rpcThatMustNotBeUsed,
         expectedPhygitalToken: TOKEN,
         consumeCounter: async () => true,
-      }),
+      })
     ).rejects.toMatchObject({ code: "invalid_signature" });
   });
 });

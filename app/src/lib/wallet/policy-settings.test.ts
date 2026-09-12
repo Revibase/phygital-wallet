@@ -59,7 +59,7 @@ describe("policy-settings compile/derive", () => {
       new Map([
         [String(getUsdcMint()), { decimals: 6, symbol: "USDC" }],
         [other, { decimals: 6, symbol: "OTHER" }],
-      ]),
+      ])
     );
     expect(settings.mintLimits).toEqual([
       {
@@ -114,7 +114,7 @@ describe("policy-settings compile/derive", () => {
       hasStandingPolicyContent({
         ...EMPTY_POLICY_SETTINGS,
         allowedOrigins: ["https://shop.example.com"],
-      }),
+      })
     ).toBe(true);
     const settings = await derivePolicySettings(next);
     expect(settings.allowedOrigins).toEqual([

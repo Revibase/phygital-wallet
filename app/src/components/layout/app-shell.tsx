@@ -41,7 +41,7 @@ export function AppShell({
 
   const stageApi = useMemo(
     () => ({ mount: stageMount, setActive: setStageActive }),
-    [stageMount],
+    [stageMount]
   );
 
   return (
@@ -53,13 +53,13 @@ export function AppShell({
             "relative z-10 mx-auto flex w-full min-w-0 flex-1 flex-col self-center",
             shellPaddingClass,
             shellLayoutClass[layout],
-            shellDeviceFrameClass[layout],
+            shellDeviceFrameClass[layout]
           )}
         >
           <div
             className={cn(
               stageActive && "mb-4 md:mb-5",
-              stageActive && galleryAnimate.rise,
+              stageActive && galleryAnimate.rise
             )}
           >
             <div

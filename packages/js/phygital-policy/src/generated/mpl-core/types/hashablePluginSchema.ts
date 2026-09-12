@@ -62,6 +62,6 @@ export function getHashablePluginSchemaCodec(): Codec<
 > {
   return combineCodec(
     getHashablePluginSchemaEncoder(),
-    getHashablePluginSchemaDecoder(),
+    getHashablePluginSchemaDecoder()
   );
 }

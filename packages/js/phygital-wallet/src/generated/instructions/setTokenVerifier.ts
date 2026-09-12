@@ -62,7 +62,7 @@ export const SET_TOKEN_VERIFIER_DISCRIMINATOR: ReadonlyUint8Array =
 
 export function getSetTokenVerifierDiscriminatorBytes(): ReadonlyUint8Array {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    SET_TOKEN_VERIFIER_DISCRIMINATOR,
+    SET_TOKEN_VERIFIER_DISCRIMINATOR
   );
 }
 
@@ -73,15 +73,19 @@ export type SetTokenVerifierInstruction<
   TAccountConfig extends string | AccountMeta<string> = string,
   TAccountPhygitalToken extends string | AccountMeta<string> = string,
   TAccountTokenVerifier extends string | AccountMeta<string> = string,
-  TAccountSlotHashes extends string | AccountMeta<string> =
-    "SysvarS1otHashes111111111111111111111111111",
-  TAccountInstructionsSysvar extends string | AccountMeta<string> =
-    "Sysvar1nstructions1111111111111111111111111",
-  TAccountPhygitalTokenProgram extends string | AccountMeta<string> =
-    "DuPpckdjjgVAnYok2aTMAt264ZPBXqq3JSazJjCUzTJQ",
-  TAccountSystemProgram extends string | AccountMeta<string> =
-    "11111111111111111111111111111111",
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+  TAccountSlotHashes extends
+    | string
+    | AccountMeta<string> = "SysvarS1otHashes111111111111111111111111111",
+  TAccountInstructionsSysvar extends
+    | string
+    | AccountMeta<string> = "Sysvar1nstructions1111111111111111111111111",
+  TAccountPhygitalTokenProgram extends
+    | string
+    | AccountMeta<string> = "DuPpckdjjgVAnYok2aTMAt264ZPBXqq3JSazJjCUzTJQ",
+  TAccountSystemProgram extends
+    | string
+    | AccountMeta<string> = "11111111111111111111111111111111",
+  TRemainingAccounts extends readonly AccountMeta<string>[] = []
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
   InstructionWithAccounts<
@@ -115,7 +119,7 @@ export type SetTokenVerifierInstruction<
       TAccountSystemProgram extends string
         ? ReadonlyAccount<TAccountSystemProgram>
         : TAccountSystemProgram,
-      ...TRemainingAccounts,
+      ...TRemainingAccounts
     ]
   >;
 
@@ -143,7 +147,7 @@ export function getSetTokenVerifierInstructionDataEncoder(): Encoder<SetTokenVer
       ["secp256r1VerifyArgs", getSecp256r1VerifyArgsEncoder()],
       ["slotNumber", getU64Encoder()],
     ]),
-    (value) => ({ ...value, discriminator: SET_TOKEN_VERIFIER_DISCRIMINATOR }),
+    (value) => ({ ...value, discriminator: SET_TOKEN_VERIFIER_DISCRIMINATOR })
   );
 }
 
@@ -163,7 +167,7 @@ export function getSetTokenVerifierInstructionDataCodec(): Codec<
 > {
   return combineCodec(
     getSetTokenVerifierInstructionDataEncoder(),
-    getSetTokenVerifierInstructionDataDecoder(),
+    getSetTokenVerifierInstructionDataDecoder()
   );
 }
 
@@ -176,7 +180,7 @@ export type SetTokenVerifierAsyncInput<
   TAccountSlotHashes extends string = string,
   TAccountInstructionsSysvar extends string = string,
   TAccountPhygitalTokenProgram extends string = string,
-  TAccountSystemProgram extends string = string,
+  TAccountSystemProgram extends string = string
 > = {
   /** Fee payer for rent; not an authorization authority. */
   payer: TransactionSigner<TAccountPayer>;
@@ -205,7 +209,7 @@ export async function getSetTokenVerifierInstructionAsync<
   TAccountInstructionsSysvar extends string,
   TAccountPhygitalTokenProgram extends string,
   TAccountSystemProgram extends string,
-  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
+  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS
 >(
   input: SetTokenVerifierAsyncInput<
     TAccountPayer,
@@ -218,7 +222,7 @@ export async function getSetTokenVerifierInstructionAsync<
     TAccountPhygitalTokenProgram,
     TAccountSystemProgram
   >,
-  config?: { programAddress?: TProgramAddress },
+  config?: { programAddress?: TProgramAddress }
 ): Promise<
   SetTokenVerifierInstruction<
     TProgramAddress,
@@ -271,7 +275,7 @@ export async function getSetTokenVerifierInstructionAsync<
     accounts.tokenVerifier.value = await findTokenVerifierPda({
       phygitalToken: getAddressFromResolvedInstructionAccount(
         "phygitalToken",
-        accounts.phygitalToken.value,
+        accounts.phygitalToken.value
       ),
     });
   }
@@ -306,21 +310,10 @@ export async function getSetTokenVerifierInstructionAsync<
       getAccountMeta("systemProgram", accounts.systemProgram),
     ],
     data: getSetTokenVerifierInstructionDataEncoder().encode(
-      args as SetTokenVerifierInstructionDataArgs,
+      args as SetTokenVerifierInstructionDataArgs
     ),
     programAddress,
-  } as SetTokenVerifierInstruction<
-    TProgramAddress,
-    TAccountPayer,
-    TAccountVerifier,
-    TAccountConfig,
-    TAccountPhygitalToken,
-    TAccountTokenVerifier,
-    TAccountSlotHashes,
-    TAccountInstructionsSysvar,
-    TAccountPhygitalTokenProgram,
-    TAccountSystemProgram
-  >);
+  } as SetTokenVerifierInstruction<TProgramAddress, TAccountPayer, TAccountVerifier, TAccountConfig, TAccountPhygitalToken, TAccountTokenVerifier, TAccountSlotHashes, TAccountInstructionsSysvar, TAccountPhygitalTokenProgram, TAccountSystemProgram>);
 }
 
 export type SetTokenVerifierInput<
@@ -332,7 +325,7 @@ export type SetTokenVerifierInput<
   TAccountSlotHashes extends string = string,
   TAccountInstructionsSysvar extends string = string,
   TAccountPhygitalTokenProgram extends string = string,
-  TAccountSystemProgram extends string = string,
+  TAccountSystemProgram extends string = string
 > = {
   /** Fee payer for rent; not an authorization authority. */
   payer: TransactionSigner<TAccountPayer>;
@@ -361,7 +354,7 @@ export function getSetTokenVerifierInstruction<
   TAccountInstructionsSysvar extends string,
   TAccountPhygitalTokenProgram extends string,
   TAccountSystemProgram extends string,
-  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
+  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS
 >(
   input: SetTokenVerifierInput<
     TAccountPayer,
@@ -374,7 +367,7 @@ export function getSetTokenVerifierInstruction<
     TAccountPhygitalTokenProgram,
     TAccountSystemProgram
   >,
-  config?: { programAddress?: TProgramAddress },
+  config?: { programAddress?: TProgramAddress }
 ): SetTokenVerifierInstruction<
   TProgramAddress,
   TAccountPayer,
@@ -449,26 +442,15 @@ export function getSetTokenVerifierInstruction<
       getAccountMeta("systemProgram", accounts.systemProgram),
     ],
     data: getSetTokenVerifierInstructionDataEncoder().encode(
-      args as SetTokenVerifierInstructionDataArgs,
+      args as SetTokenVerifierInstructionDataArgs
     ),
     programAddress,
-  } as SetTokenVerifierInstruction<
-    TProgramAddress,
-    TAccountPayer,
-    TAccountVerifier,
-    TAccountConfig,
-    TAccountPhygitalToken,
-    TAccountTokenVerifier,
-    TAccountSlotHashes,
-    TAccountInstructionsSysvar,
-    TAccountPhygitalTokenProgram,
-    TAccountSystemProgram
-  >);
+  } as SetTokenVerifierInstruction<TProgramAddress, TAccountPayer, TAccountVerifier, TAccountConfig, TAccountPhygitalToken, TAccountTokenVerifier, TAccountSlotHashes, TAccountInstructionsSysvar, TAccountPhygitalTokenProgram, TAccountSystemProgram>);
 }
 
 export type ParsedSetTokenVerifierInstruction<
   TProgram extends string = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[]
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -489,11 +471,11 @@ export type ParsedSetTokenVerifierInstruction<
 
 export function parseSetTokenVerifierInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[]
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>,
+    InstructionWithData<ReadonlyUint8Array>
 ): ParsedSetTokenVerifierInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 9) {
     throw new SolanaError(
@@ -501,7 +483,7 @@ export function parseSetTokenVerifierInstruction<
       {
         actualAccountMetas: instruction.accounts.length,
         expectedAccountMetas: 9,
-      },
+      }
     );
   }
   let accountIndex = 0;

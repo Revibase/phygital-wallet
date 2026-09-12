@@ -36,7 +36,7 @@ const FETCH_TIMEOUT_MS = 4_000;
 
 /** `solana:` URIs always open externally; never iframe. */
 export function shortcutOpensExternally(
-  shortcut: CollectibleShortcut,
+  shortcut: CollectibleShortcut
 ): boolean {
   if (shortcut.uri.startsWith("solana:")) return true;
   return shortcut.prefersExternalTarget === true;
@@ -45,7 +45,7 @@ export function shortcutOpensExternally(
 /** Substitute Phantom placeholder variables in shortcut URIs. */
 export function resolveShortcutUri(
   uri: string,
-  ctx: ShortcutUriContext,
+  ctx: ShortcutUriContext
 ): string {
   return uri
     .replaceAll("{{tokenId}}", ctx.tokenId ?? "")
@@ -100,7 +100,7 @@ function sharesRootDomain(a: string, b: string): boolean {
 function isShortcutUriAllowed(
   uri: string,
   externalUrl: string | null,
-  prefersExternalTarget: boolean,
+  prefersExternalTarget: boolean
 ): boolean {
   if (!isAllowedUri(uri)) return false;
   if (uri.startsWith("solana:")) return true;
@@ -112,7 +112,7 @@ function isShortcutUriAllowed(
 function parseCollectibleShortcuts(
   doc: unknown,
   collectionMint: string | null,
-  externalUrl: string | null,
+  externalUrl: string | null
 ): CollectibleShortcut[] {
   if (!doc || typeof doc !== "object") return [];
   const shortcuts = (doc as RawShortcutsDoc).shortcuts;
@@ -156,7 +156,7 @@ function parseCollectibleShortcuts(
 /** Browser fetch of shortcuts.json — [] on CORS / network / parse failure. */
 export async function fetchCollectibleShortcuts(
   externalUrl: string,
-  collectionMint: string | null,
+  collectionMint: string | null
 ): Promise<CollectibleShortcut[]> {
   const jsonUrl = shortcutsJsonUrl(externalUrl);
   if (!jsonUrl) return [];

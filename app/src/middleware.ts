@@ -25,7 +25,7 @@ import {
  */
 export async function middleware(request: NextRequest) {
   const match = request.nextUrl.pathname.match(
-    /^\/token\/([^/]+)\/wallet(?:\/(.*))?$/,
+    /^\/token\/([^/]+)\/wallet(?:\/(.*))?$/
   );
   if (!match?.[1]) return NextResponse.next();
 
@@ -34,7 +34,7 @@ export async function middleware(request: NextRequest) {
   const secret = process.env.POLICY_SESSION_SECRET?.trim() ?? "";
   if (!secret) {
     return NextResponse.redirect(
-      new URL(tokenHref(phygitalToken), request.url),
+      new URL(tokenHref(phygitalToken), request.url)
     );
   }
 
@@ -46,17 +46,17 @@ export async function middleware(request: NextRequest) {
   if (settingsTarget && isOwnerOnlySettings(settingsTarget)) {
     const access = await verifyDeviceSessionCookie(
       request.cookies.get(DEVICE_SESSION_COOKIE)?.value,
-      secret,
+      secret
     );
     const refresh =
       access ??
       (await verifyDeviceRefreshCookie(
         request.cookies.get(DEVICE_REFRESH_COOKIE)?.value,
-        secret,
+        secret
       ));
     if (!refresh) {
       return NextResponse.redirect(
-        new URL(walletSettingsHref(phygitalToken), request.url),
+        new URL(walletSettingsHref(phygitalToken), request.url)
       );
     }
     return NextResponse.next();

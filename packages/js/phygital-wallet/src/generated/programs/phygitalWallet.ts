@@ -100,16 +100,16 @@ export enum PhygitalWalletAccount {
 }
 
 export function identifyPhygitalWalletAccount(
-  account: { data: ReadonlyUint8Array } | ReadonlyUint8Array,
+  account: { data: ReadonlyUint8Array } | ReadonlyUint8Array
 ): PhygitalWalletAccount {
   const data = "data" in account ? account.data : account;
   if (
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([155, 12, 170, 224, 30, 250, 204, 130]),
+        new Uint8Array([155, 12, 170, 224, 30, 250, 204, 130])
       ),
-      0,
+      0
     )
   ) {
     return PhygitalWalletAccount.Config;
@@ -118,9 +118,9 @@ export function identifyPhygitalWalletAccount(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([172, 239, 138, 56, 173, 41, 182, 161]),
+        new Uint8Array([172, 239, 138, 56, 173, 41, 182, 161])
       ),
-      0,
+      0
     )
   ) {
     return PhygitalWalletAccount.RecoveryWallet;
@@ -129,16 +129,16 @@ export function identifyPhygitalWalletAccount(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([52, 84, 111, 160, 81, 247, 144, 43]),
+        new Uint8Array([52, 84, 111, 160, 81, 247, 144, 43])
       ),
-      0,
+      0
     )
   ) {
     return PhygitalWalletAccount.TokenVerifier;
   }
   throw new SolanaError(
     SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_ACCOUNT,
-    { accountData: data, programName: "phygitalWallet" },
+    { accountData: data, programName: "phygitalWallet" }
   );
 }
 
@@ -155,16 +155,16 @@ export enum PhygitalWalletInstruction {
 }
 
 export function identifyPhygitalWalletInstruction(
-  instruction: { data: ReadonlyUint8Array } | ReadonlyUint8Array,
+  instruction: { data: ReadonlyUint8Array } | ReadonlyUint8Array
 ): PhygitalWalletInstruction {
   const data = "data" in instruction ? instruction.data : instruction;
   if (
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([165, 72, 135, 225, 67, 181, 255, 135]),
+        new Uint8Array([165, 72, 135, 225, 67, 181, 255, 135])
       ),
-      0,
+      0
     )
   ) {
     return PhygitalWalletInstruction.AddVerifier;
@@ -173,9 +173,9 @@ export function identifyPhygitalWalletInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([91, 208, 70, 146, 50, 221, 202, 245]),
+        new Uint8Array([91, 208, 70, 146, 50, 221, 202, 245])
       ),
-      0,
+      0
     )
   ) {
     return PhygitalWalletInstruction.ClearRecoveryWallet;
@@ -184,9 +184,9 @@ export function identifyPhygitalWalletInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([83, 237, 126, 93, 140, 254, 231, 156]),
+        new Uint8Array([83, 237, 126, 93, 140, 254, 231, 156])
       ),
-      0,
+      0
     )
   ) {
     return PhygitalWalletInstruction.ClearTokenVerifier;
@@ -195,9 +195,9 @@ export function identifyPhygitalWalletInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([130, 221, 242, 154, 13, 193, 189, 29]),
+        new Uint8Array([130, 221, 242, 154, 13, 193, 189, 29])
       ),
-      0,
+      0
     )
   ) {
     return PhygitalWalletInstruction.Execute;
@@ -206,9 +206,9 @@ export function identifyPhygitalWalletInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([208, 127, 21, 1, 194, 190, 196, 70]),
+        new Uint8Array([208, 127, 21, 1, 194, 190, 196, 70])
       ),
-      0,
+      0
     )
   ) {
     return PhygitalWalletInstruction.InitializeConfig;
@@ -217,9 +217,9 @@ export function identifyPhygitalWalletInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([91, 171, 164, 84, 112, 80, 230, 134]),
+        new Uint8Array([91, 171, 164, 84, 112, 80, 230, 134])
       ),
-      0,
+      0
     )
   ) {
     return PhygitalWalletInstruction.RecoveryWalletExecute;
@@ -228,9 +228,9 @@ export function identifyPhygitalWalletInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([179, 9, 132, 183, 233, 23, 172, 111]),
+        new Uint8Array([179, 9, 132, 183, 233, 23, 172, 111])
       ),
-      0,
+      0
     )
   ) {
     return PhygitalWalletInstruction.RemoveVerifier;
@@ -239,9 +239,9 @@ export function identifyPhygitalWalletInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([211, 147, 53, 173, 100, 180, 242, 49]),
+        new Uint8Array([211, 147, 53, 173, 100, 180, 242, 49])
       ),
-      0,
+      0
     )
   ) {
     return PhygitalWalletInstruction.SetRecoveryWallet;
@@ -250,21 +250,21 @@ export function identifyPhygitalWalletInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([119, 217, 120, 253, 242, 171, 137, 184]),
+        new Uint8Array([119, 217, 120, 253, 242, 171, 137, 184])
       ),
-      0,
+      0
     )
   ) {
     return PhygitalWalletInstruction.SetTokenVerifier;
   }
   throw new SolanaError(
     SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_INSTRUCTION,
-    { instructionData: data, programName: "phygitalWallet" },
+    { instructionData: data, programName: "phygitalWallet" }
   );
 }
 
 export type ParsedPhygitalWalletInstruction<
-  TProgram extends string = "Fjbi9JrRAmSBdxQxbkcxYDp6JUwnLbFhU2GsieWQBLSg",
+  TProgram extends string = "Fjbi9JrRAmSBdxQxbkcxYDp6JUwnLbFhU2GsieWQBLSg"
 > =
   | ({
       instructionType: PhygitalWalletInstruction.AddVerifier;
@@ -295,7 +295,7 @@ export type ParsedPhygitalWalletInstruction<
     } & ParsedSetTokenVerifierInstruction<TProgram>);
 
 export function parsePhygitalWalletInstruction<TProgram extends string>(
-  instruction: Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array>,
+  instruction: Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array>
 ): ParsedPhygitalWalletInstruction<TProgram> {
   const instructionType = identifyPhygitalWalletInstruction(instruction);
   switch (instructionType) {
@@ -368,7 +368,7 @@ export function parsePhygitalWalletInstruction<TProgram extends string>(
         {
           instructionType: instructionType as string,
           programName: "phygitalWallet",
-        },
+        }
       );
   }
 }
@@ -393,38 +393,38 @@ export type PhygitalWalletPluginAccounts = {
 
 export type PhygitalWalletPluginInstructions = {
   addVerifier: (
-    input: AddVerifierAsyncInput,
+    input: AddVerifierAsyncInput
   ) => ReturnType<typeof getAddVerifierInstructionAsync> &
     SelfPlanAndSendFunctions;
   clearRecoveryWallet: (
-    input: ClearRecoveryWalletAsyncInput,
+    input: ClearRecoveryWalletAsyncInput
   ) => ReturnType<typeof getClearRecoveryWalletInstructionAsync> &
     SelfPlanAndSendFunctions;
   clearTokenVerifier: (
-    input: ClearTokenVerifierAsyncInput,
+    input: ClearTokenVerifierAsyncInput
   ) => ReturnType<typeof getClearTokenVerifierInstructionAsync> &
     SelfPlanAndSendFunctions;
   execute: (
-    input: ExecuteAsyncInput,
+    input: ExecuteAsyncInput
   ) => ReturnType<typeof getExecuteInstructionAsync> & SelfPlanAndSendFunctions;
   initializeConfig: (
-    input: InitializeConfigAsyncInput,
+    input: InitializeConfigAsyncInput
   ) => ReturnType<typeof getInitializeConfigInstructionAsync> &
     SelfPlanAndSendFunctions;
   recoveryWalletExecute: (
-    input: RecoveryWalletExecuteAsyncInput,
+    input: RecoveryWalletExecuteAsyncInput
   ) => ReturnType<typeof getRecoveryWalletExecuteInstructionAsync> &
     SelfPlanAndSendFunctions;
   removeVerifier: (
-    input: RemoveVerifierAsyncInput,
+    input: RemoveVerifierAsyncInput
   ) => ReturnType<typeof getRemoveVerifierInstructionAsync> &
     SelfPlanAndSendFunctions;
   setRecoveryWallet: (
-    input: MakeOptional<SetRecoveryWalletAsyncInput, "payer">,
+    input: MakeOptional<SetRecoveryWalletAsyncInput, "payer">
   ) => ReturnType<typeof getSetRecoveryWalletInstructionAsync> &
     SelfPlanAndSendFunctions;
   setTokenVerifier: (
-    input: MakeOptional<SetTokenVerifierAsyncInput, "payer">,
+    input: MakeOptional<SetTokenVerifierAsyncInput, "payer">
   ) => ReturnType<typeof getSetTokenVerifierInstructionAsync> &
     SelfPlanAndSendFunctions;
 };
@@ -445,7 +445,7 @@ export type PhygitalWalletPluginRequirements = ClientWithRpc<
 
 export function phygitalWalletProgram() {
   return <T extends PhygitalWalletPluginRequirements>(
-    client: T,
+    client: T
   ): ExtendedClient<T, { phygitalWallet: PhygitalWalletPlugin }> => {
     return extendClient(client, {
       phygitalWallet: <PhygitalWalletPlugin>{
@@ -453,7 +453,7 @@ export function phygitalWalletProgram() {
           config: addSelfFetchFunctions(client, getConfigCodec()),
           recoveryWallet: addSelfFetchFunctions(
             client,
-            getRecoveryWalletCodec(),
+            getRecoveryWalletCodec()
           ),
           tokenVerifier: addSelfFetchFunctions(client, getTokenVerifierCodec()),
         },
@@ -461,37 +461,37 @@ export function phygitalWalletProgram() {
           addVerifier: (input) =>
             addSelfPlanAndSendFunctions(
               client,
-              getAddVerifierInstructionAsync(input),
+              getAddVerifierInstructionAsync(input)
             ),
           clearRecoveryWallet: (input) =>
             addSelfPlanAndSendFunctions(
               client,
-              getClearRecoveryWalletInstructionAsync(input),
+              getClearRecoveryWalletInstructionAsync(input)
             ),
           clearTokenVerifier: (input) =>
             addSelfPlanAndSendFunctions(
               client,
-              getClearTokenVerifierInstructionAsync(input),
+              getClearTokenVerifierInstructionAsync(input)
             ),
           execute: (input) =>
             addSelfPlanAndSendFunctions(
               client,
-              getExecuteInstructionAsync(input),
+              getExecuteInstructionAsync(input)
             ),
           initializeConfig: (input) =>
             addSelfPlanAndSendFunctions(
               client,
-              getInitializeConfigInstructionAsync(input),
+              getInitializeConfigInstructionAsync(input)
             ),
           recoveryWalletExecute: (input) =>
             addSelfPlanAndSendFunctions(
               client,
-              getRecoveryWalletExecuteInstructionAsync(input),
+              getRecoveryWalletExecuteInstructionAsync(input)
             ),
           removeVerifier: (input) =>
             addSelfPlanAndSendFunctions(
               client,
-              getRemoveVerifierInstructionAsync(input),
+              getRemoveVerifierInstructionAsync(input)
             ),
           setRecoveryWallet: (input) =>
             addSelfPlanAndSendFunctions(
@@ -499,7 +499,7 @@ export function phygitalWalletProgram() {
               getSetRecoveryWalletInstructionAsync({
                 ...input,
                 payer: input.payer ?? client.payer,
-              }),
+              })
             ),
           setTokenVerifier: (input) =>
             addSelfPlanAndSendFunctions(
@@ -507,7 +507,7 @@ export function phygitalWalletProgram() {
               getSetTokenVerifierInstructionAsync({
                 ...input,
                 payer: input.payer ?? client.payer,
-              }),
+              })
             ),
         },
         pdas: {

@@ -48,6 +48,6 @@ export function getVerifiedCreatorsCodec(): Codec<
 > {
   return combineCodec(
     getVerifiedCreatorsEncoder(),
-    getVerifiedCreatorsDecoder(),
+    getVerifiedCreatorsDecoder()
   );
 }

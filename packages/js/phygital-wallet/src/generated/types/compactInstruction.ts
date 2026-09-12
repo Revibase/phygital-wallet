@@ -63,6 +63,6 @@ export function getCompactInstructionCodec(): Codec<
 > {
   return combineCodec(
     getCompactInstructionEncoder(),
-    getCompactInstructionDecoder(),
+    getCompactInstructionDecoder()
   );
 }

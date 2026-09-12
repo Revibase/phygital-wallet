@@ -59,8 +59,8 @@
 :root {
   /* Product UI — Space Grotesk via next/font (--font-space-grotesk). */
   --font-display: var(--font-space-grotesk), "Segoe UI", system-ui, sans-serif;
-  --font-system-mono:
-    ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Monaco, monospace;
+  --font-system-mono: ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Monaco,
+    monospace;
 
   /* Warm pearl canvas + locked accent #00C2B8 (logo tiles / CTAs). */
   --background: oklch(0.972 0.008 85);

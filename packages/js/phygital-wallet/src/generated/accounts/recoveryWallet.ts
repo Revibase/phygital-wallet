@@ -38,12 +38,12 @@ import {
 } from "@solana/kit";
 
 export const RECOVERY_WALLET_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array(
-  [172, 239, 138, 56, 173, 41, 182, 161],
+  [172, 239, 138, 56, 173, 41, 182, 161]
 );
 
 export function getRecoveryWalletDiscriminatorBytes(): ReadonlyUint8Array {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    RECOVERY_WALLET_DISCRIMINATOR,
+    RECOVERY_WALLET_DISCRIMINATOR
   );
 }
 
@@ -76,7 +76,7 @@ export function getRecoveryWalletEncoder(): FixedSizeEncoder<RecoveryWalletArgs>
       ["payer", getAddressEncoder()],
       ["bump", getU8Encoder()],
     ]),
-    (value) => ({ ...value, discriminator: RECOVERY_WALLET_DISCRIMINATOR }),
+    (value) => ({ ...value, discriminator: RECOVERY_WALLET_DISCRIMINATOR })
   );
 }
 
@@ -100,24 +100,24 @@ export function getRecoveryWalletCodec(): FixedSizeCodec<
 }
 
 export function decodeRecoveryWallet<TAddress extends string = string>(
-  encodedAccount: EncodedAccount<TAddress>,
+  encodedAccount: EncodedAccount<TAddress>
 ): Account<RecoveryWallet, TAddress>;
 export function decodeRecoveryWallet<TAddress extends string = string>(
-  encodedAccount: MaybeEncodedAccount<TAddress>,
+  encodedAccount: MaybeEncodedAccount<TAddress>
 ): MaybeAccount<RecoveryWallet, TAddress>;
 export function decodeRecoveryWallet<TAddress extends string = string>(
-  encodedAccount: EncodedAccount<TAddress> | MaybeEncodedAccount<TAddress>,
+  encodedAccount: EncodedAccount<TAddress> | MaybeEncodedAccount<TAddress>
 ): Account<RecoveryWallet, TAddress> | MaybeAccount<RecoveryWallet, TAddress> {
   return decodeAccount(
     encodedAccount as MaybeEncodedAccount<TAddress>,
-    getRecoveryWalletDecoder(),
+    getRecoveryWalletDecoder()
   );
 }
 
 export async function fetchRecoveryWallet<TAddress extends string = string>(
   rpc: Parameters<typeof fetchEncodedAccount>[0],
   address: Address<TAddress>,
-  config?: FetchAccountConfig,
+  config?: FetchAccountConfig
 ): Promise<Account<RecoveryWallet, TAddress>> {
   const maybeAccount = await fetchMaybeRecoveryWallet(rpc, address, config);
   assertAccountExists(maybeAccount);
@@ -125,11 +125,11 @@ export async function fetchRecoveryWallet<TAddress extends string = string>(
 }
 
 export async function fetchMaybeRecoveryWallet<
-  TAddress extends string = string,
+  TAddress extends string = string
 >(
   rpc: Parameters<typeof fetchEncodedAccount>[0],
   address: Address<TAddress>,
-  config?: FetchAccountConfig,
+  config?: FetchAccountConfig
 ): Promise<MaybeAccount<RecoveryWallet, TAddress>> {
   const maybeAccount = await fetchEncodedAccount(rpc, address, config);
   return decodeRecoveryWallet(maybeAccount);
@@ -138,12 +138,12 @@ export async function fetchMaybeRecoveryWallet<
 export async function fetchAllRecoveryWallet(
   rpc: Parameters<typeof fetchEncodedAccounts>[0],
   addresses: Array<Address>,
-  config?: FetchAccountsConfig,
+  config?: FetchAccountsConfig
 ): Promise<Account<RecoveryWallet>[]> {
   const maybeAccounts = await fetchAllMaybeRecoveryWallet(
     rpc,
     addresses,
-    config,
+    config
   );
   assertAccountsExist(maybeAccounts);
   return maybeAccounts;
@@ -152,11 +152,11 @@ export async function fetchAllRecoveryWallet(
 export async function fetchAllMaybeRecoveryWallet(
   rpc: Parameters<typeof fetchEncodedAccounts>[0],
   addresses: Array<Address>,
-  config?: FetchAccountsConfig,
+  config?: FetchAccountsConfig
 ): Promise<MaybeAccount<RecoveryWallet>[]> {
   const maybeAccounts = await fetchEncodedAccounts(rpc, addresses, config);
   return maybeAccounts.map((maybeAccount) =>
-    decodeRecoveryWallet(maybeAccount),
+    decodeRecoveryWallet(maybeAccount)
   );
 }
 

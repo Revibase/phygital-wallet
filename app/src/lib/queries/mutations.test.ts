@@ -117,7 +117,7 @@ describe("applyOptimisticPortfolioDelta / restorePortfolioSnapshot", () => {
 
     expect(previous).toEqual(portfolio);
     expect(qc.getQueryData<WalletPortfolio>(key)?.holdings[0]?.balanceUi).toBe(
-      "0.5",
+      "0.5"
     );
 
     restorePortfolioSnapshot(qc, "wallet", previous);
@@ -182,7 +182,7 @@ describe("applyOptimisticWalletActivity / restoreWalletActivitySnapshot", () => 
       patch: { pending: false },
     });
     expect(
-      qc.getQueryData<{ items: WalletActivityItem[] }>(key)?.items[0]?.pending,
+      qc.getQueryData<{ items: WalletActivityItem[] }>(key)?.items[0]?.pending
     ).toBe(false);
 
     restoreWalletActivitySnapshot(qc, snapshot);
@@ -197,7 +197,7 @@ describe("applyOptimisticWalletActivity / restoreWalletActivitySnapshot", () => 
     const key = queryKeys.walletActivity.byOwner("wallet", 40, null);
     const snapshot = applyOptimisticWalletActivity(qc, pendingSend);
     expect(
-      qc.getQueryData<{ items: WalletActivityItem[] }>(key)?.items,
+      qc.getQueryData<{ items: WalletActivityItem[] }>(key)?.items
     ).toHaveLength(1);
 
     restoreWalletActivitySnapshot(qc, snapshot);

@@ -30,7 +30,7 @@ export enum TokenMetadataInstruction {
 }
 
 export function identifyTokenMetadataInstruction(
-  instruction: { data: ReadonlyUint8Array } | ReadonlyUint8Array,
+  instruction: { data: ReadonlyUint8Array } | ReadonlyUint8Array
 ): TokenMetadataInstruction {
   const data = "data" in instruction ? instruction.data : instruction;
   if (containsBytes(data, getU8Encoder().encode(49), 0)) {
@@ -38,18 +38,18 @@ export function identifyTokenMetadataInstruction(
   }
   throw new SolanaError(
     SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_INSTRUCTION,
-    { instructionData: data, programName: "tokenMetadata" },
+    { instructionData: data, programName: "tokenMetadata" }
   );
 }
 
 export type ParsedTokenMetadataInstruction<
-  TProgram extends string = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s",
+  TProgram extends string = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
 > = {
   instructionType: TokenMetadataInstruction.Transfer;
 } & ParsedTransferInstruction<TProgram>;
 
 export function parseTokenMetadataInstruction<TProgram extends string>(
-  instruction: Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array>,
+  instruction: Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array>
 ): ParsedTokenMetadataInstruction<TProgram> {
   const instructionType = identifyTokenMetadataInstruction(instruction);
   switch (instructionType) {
@@ -66,7 +66,7 @@ export function parseTokenMetadataInstruction<TProgram extends string>(
         {
           instructionType: instructionType as string,
           programName: "tokenMetadata",
-        },
+        }
       );
   }
 }

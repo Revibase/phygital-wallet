@@ -34,7 +34,7 @@ export enum AssociatedTokenAccountInstruction {
 }
 
 export function identifyAssociatedTokenAccountInstruction(
-  instruction: { data: ReadonlyUint8Array } | ReadonlyUint8Array,
+  instruction: { data: ReadonlyUint8Array } | ReadonlyUint8Array
 ): AssociatedTokenAccountInstruction {
   const data = "data" in instruction ? instruction.data : instruction;
   if (containsBytes(data, getU8Encoder().encode(0), 0)) {
@@ -45,12 +45,12 @@ export function identifyAssociatedTokenAccountInstruction(
   }
   throw new SolanaError(
     SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_INSTRUCTION,
-    { instructionData: data, programName: "associatedTokenAccount" },
+    { instructionData: data, programName: "associatedTokenAccount" }
   );
 }
 
 export type ParsedAssociatedTokenAccountInstruction<
-  TProgram extends string = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
+  TProgram extends string = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
 > =
   | ({
       instructionType: AssociatedTokenAccountInstruction.Create;
@@ -60,7 +60,7 @@ export type ParsedAssociatedTokenAccountInstruction<
     } & ParsedCreateIdempotentInstruction<TProgram>);
 
 export function parseAssociatedTokenAccountInstruction<TProgram extends string>(
-  instruction: Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array>,
+  instruction: Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array>
 ): ParsedAssociatedTokenAccountInstruction<TProgram> {
   const instructionType =
     identifyAssociatedTokenAccountInstruction(instruction);
@@ -85,7 +85,7 @@ export function parseAssociatedTokenAccountInstruction<TProgram extends string>(
         {
           instructionType: instructionType as string,
           programName: "associatedTokenAccount",
-        },
+        }
       );
   }
 }

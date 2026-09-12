@@ -28,7 +28,7 @@ export function StatusPill({
         tone === "accent" && "bg-primary/12 text-primary",
         tone === "neutral" && "bg-muted/60 text-muted-foreground",
         sealed && galleryAnimate.seal,
-        className,
+        className
       )}
       {...props}
     >

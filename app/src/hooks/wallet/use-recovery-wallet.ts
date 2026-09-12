@@ -21,7 +21,7 @@ export type RecoveryWalletStatus = {
 /** Subtitle for recovery row / access sheet. */
 export function recoveryWalletSubtitle(
   status: RecoveryWalletStatus | undefined,
-  loading: boolean,
+  loading: boolean
 ): string {
   if (loading) return copy.common.loading;
   if (status?.configured && status.recoveryWallet) {

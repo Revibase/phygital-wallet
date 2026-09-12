@@ -48,7 +48,7 @@ export function isDefaultMint(mint: string | Address): boolean {
 /** Prefer vendored SOL/USDC marks — remote Jupiter URLs often fail to paint. */
 export function resolveTokenIconSrc(
   mint: string,
-  icon: string | null | undefined,
+  icon: string | null | undefined
 ): string | null {
   if (mint === NATIVE_SOL_MINT) return SOL_ICON_URL;
   if (isDefaultMint(mint)) return USDC_ICON_URL;
@@ -63,7 +63,7 @@ export function isNativeSolHolding(h: {
 }
 
 export function isClassicTokenProgram(
-  program: string | null | undefined,
+  program: string | null | undefined
 ): boolean {
   return (
     program === CLASSIC_TOKEN_PROGRAM ||
@@ -72,7 +72,7 @@ export function isClassicTokenProgram(
 }
 
 export function isToken2022Program(
-  program: string | null | undefined,
+  program: string | null | undefined
 ): boolean {
   return (
     program === TOKEN_2022_PROGRAM || program === String(TOKEN_2022_PROGRAM)
@@ -80,14 +80,14 @@ export function isToken2022Program(
 }
 
 export function isSupportedTokenProgram(
-  program: string | null | undefined,
+  program: string | null | undefined
 ): boolean {
   return isClassicTokenProgram(program) || isToken2022Program(program);
 }
 
 /** Resolve classic vs Token-2022; throws when DAS/API omitted the program. */
 export function requireSupportedTokenProgram(
-  program: string | null | undefined,
+  program: string | null | undefined
 ): typeof CLASSIC_TOKEN_PROGRAM | typeof TOKEN_2022_PROGRAM {
   if (isToken2022Program(program)) return TOKEN_2022_PROGRAM;
   if (isClassicTokenProgram(program)) return CLASSIC_TOKEN_PROGRAM;
@@ -98,7 +98,7 @@ export function nativeSolHolding(
   balanceRaw: bigint,
   balanceUi: string,
   pricePerTokenUsd?: number | null,
-  valueUsd?: number | null,
+  valueUsd?: number | null
 ): PaymentTokenHolding {
   return {
     mint: NATIVE_SOL_MINT,

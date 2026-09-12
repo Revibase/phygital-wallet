@@ -93,7 +93,7 @@ export function RecoveryWalletSheet({
 
   const parsedInput = useMemo(
     () => tryParseAddress(pubkeyInput.trim()),
-    [pubkeyInput],
+    [pubkeyInput]
   );
   const inputValid =
     Boolean(parsedInput) && String(parsedInput) !== SYSTEM_PROGRAM;
@@ -153,7 +153,7 @@ export function RecoveryWalletSheet({
       const before = applyOptimisticRecoveryWallet(
         queryClient,
         phygitalTokenPda,
-        pending.nextStatus,
+        pending.nextStatus
       );
       pending.onSuccess();
       pendingRef.current = null;

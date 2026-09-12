@@ -26,7 +26,7 @@ app.use("*", async (c, next) => {
       env: c.env,
       waitUntil: (promise) => c.executionCtx.waitUntil(promise),
     },
-    () => next(),
+    () => next()
   );
 });
 

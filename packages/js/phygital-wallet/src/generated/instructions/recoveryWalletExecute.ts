@@ -53,7 +53,7 @@ export const RECOVERY_WALLET_EXECUTE_DISCRIMINATOR: ReadonlyUint8Array =
 
 export function getRecoveryWalletExecuteDiscriminatorBytes(): ReadonlyUint8Array {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    RECOVERY_WALLET_EXECUTE_DISCRIMINATOR,
+    RECOVERY_WALLET_EXECUTE_DISCRIMINATOR
   );
 }
 
@@ -63,7 +63,7 @@ export type RecoveryWalletExecuteInstruction<
   TAccountPhygitalToken extends string | AccountMeta<string> = string,
   TAccountRecoveryWalletAccount extends string | AccountMeta<string> = string,
   TAccountWallet extends string | AccountMeta<string> = string,
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+  TRemainingAccounts extends readonly AccountMeta<string>[] = []
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
   InstructionWithAccounts<
@@ -81,7 +81,7 @@ export type RecoveryWalletExecuteInstruction<
       TAccountWallet extends string
         ? ReadonlyAccount<TAccountWallet>
         : TAccountWallet,
-      ...TRemainingAccounts,
+      ...TRemainingAccounts
     ]
   >;
 
@@ -103,7 +103,7 @@ export function getRecoveryWalletExecuteInstructionDataEncoder(): Encoder<Recove
     (value) => ({
       ...value,
       discriminator: RECOVERY_WALLET_EXECUTE_DISCRIMINATOR,
-    }),
+    })
   );
 }
 
@@ -120,7 +120,7 @@ export function getRecoveryWalletExecuteInstructionDataCodec(): Codec<
 > {
   return combineCodec(
     getRecoveryWalletExecuteInstructionDataEncoder(),
-    getRecoveryWalletExecuteInstructionDataDecoder(),
+    getRecoveryWalletExecuteInstructionDataDecoder()
   );
 }
 
@@ -128,7 +128,7 @@ export type RecoveryWalletExecuteAsyncInput<
   TAccountRecoveryWallet extends string = string,
   TAccountPhygitalToken extends string = string,
   TAccountRecoveryWalletAccount extends string = string,
-  TAccountWallet extends string = string,
+  TAccountWallet extends string = string
 > = {
   /** Must match `recovery_wallet_account.recovery_wallet`. */
   recoveryWallet: TransactionSigner<TAccountRecoveryWallet>;
@@ -143,7 +143,7 @@ export async function getRecoveryWalletExecuteInstructionAsync<
   TAccountPhygitalToken extends string,
   TAccountRecoveryWalletAccount extends string,
   TAccountWallet extends string,
-  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
+  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS
 >(
   input: RecoveryWalletExecuteAsyncInput<
     TAccountRecoveryWallet,
@@ -151,7 +151,7 @@ export async function getRecoveryWalletExecuteInstructionAsync<
     TAccountRecoveryWalletAccount,
     TAccountWallet
   >,
-  config?: { programAddress?: TProgramAddress },
+  config?: { programAddress?: TProgramAddress }
 ): Promise<
   RecoveryWalletExecuteInstruction<
     TProgramAddress,
@@ -188,7 +188,7 @@ export async function getRecoveryWalletExecuteInstructionAsync<
     accounts.recoveryWalletAccount.value = await findRecoveryWalletAccountPda({
       phygitalToken: getAddressFromResolvedInstructionAccount(
         "phygitalToken",
-        accounts.phygitalToken.value,
+        accounts.phygitalToken.value
       ),
     });
   }
@@ -196,7 +196,7 @@ export async function getRecoveryWalletExecuteInstructionAsync<
     accounts.wallet.value = await findWalletPda({
       phygitalToken: getAddressFromResolvedInstructionAccount(
         "phygitalToken",
-        accounts.phygitalToken.value,
+        accounts.phygitalToken.value
       ),
     });
   }
@@ -210,23 +210,17 @@ export async function getRecoveryWalletExecuteInstructionAsync<
       getAccountMeta("wallet", accounts.wallet),
     ],
     data: getRecoveryWalletExecuteInstructionDataEncoder().encode(
-      args as RecoveryWalletExecuteInstructionDataArgs,
+      args as RecoveryWalletExecuteInstructionDataArgs
     ),
     programAddress,
-  } as RecoveryWalletExecuteInstruction<
-    TProgramAddress,
-    TAccountRecoveryWallet,
-    TAccountPhygitalToken,
-    TAccountRecoveryWalletAccount,
-    TAccountWallet
-  >);
+  } as RecoveryWalletExecuteInstruction<TProgramAddress, TAccountRecoveryWallet, TAccountPhygitalToken, TAccountRecoveryWalletAccount, TAccountWallet>);
 }
 
 export type RecoveryWalletExecuteInput<
   TAccountRecoveryWallet extends string = string,
   TAccountPhygitalToken extends string = string,
   TAccountRecoveryWalletAccount extends string = string,
-  TAccountWallet extends string = string,
+  TAccountWallet extends string = string
 > = {
   /** Must match `recovery_wallet_account.recovery_wallet`. */
   recoveryWallet: TransactionSigner<TAccountRecoveryWallet>;
@@ -241,7 +235,7 @@ export function getRecoveryWalletExecuteInstruction<
   TAccountPhygitalToken extends string,
   TAccountRecoveryWalletAccount extends string,
   TAccountWallet extends string,
-  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
+  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS
 >(
   input: RecoveryWalletExecuteInput<
     TAccountRecoveryWallet,
@@ -249,7 +243,7 @@ export function getRecoveryWalletExecuteInstruction<
     TAccountRecoveryWalletAccount,
     TAccountWallet
   >,
-  config?: { programAddress?: TProgramAddress },
+  config?: { programAddress?: TProgramAddress }
 ): RecoveryWalletExecuteInstruction<
   TProgramAddress,
   TAccountRecoveryWallet,
@@ -288,21 +282,15 @@ export function getRecoveryWalletExecuteInstruction<
       getAccountMeta("wallet", accounts.wallet),
     ],
     data: getRecoveryWalletExecuteInstructionDataEncoder().encode(
-      args as RecoveryWalletExecuteInstructionDataArgs,
+      args as RecoveryWalletExecuteInstructionDataArgs
     ),
     programAddress,
-  } as RecoveryWalletExecuteInstruction<
-    TProgramAddress,
-    TAccountRecoveryWallet,
-    TAccountPhygitalToken,
-    TAccountRecoveryWalletAccount,
-    TAccountWallet
-  >);
+  } as RecoveryWalletExecuteInstruction<TProgramAddress, TAccountRecoveryWallet, TAccountPhygitalToken, TAccountRecoveryWalletAccount, TAccountWallet>);
 }
 
 export type ParsedRecoveryWalletExecuteInstruction<
   TProgram extends string = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[]
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -317,11 +305,11 @@ export type ParsedRecoveryWalletExecuteInstruction<
 
 export function parseRecoveryWalletExecuteInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[]
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>,
+    InstructionWithData<ReadonlyUint8Array>
 ): ParsedRecoveryWalletExecuteInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 4) {
     throw new SolanaError(
@@ -329,7 +317,7 @@ export function parseRecoveryWalletExecuteInstruction<
       {
         actualAccountMetas: instruction.accounts.length,
         expectedAccountMetas: 4,
-      },
+      }
     );
   }
   let accountIndex = 0;
@@ -347,7 +335,7 @@ export function parseRecoveryWalletExecuteInstruction<
       wallet: getNextAccount(),
     },
     data: getRecoveryWalletExecuteInstructionDataDecoder().decode(
-      instruction.data,
+      instruction.data
     ),
   };
 }

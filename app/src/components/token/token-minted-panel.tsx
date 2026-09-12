@@ -44,7 +44,7 @@ export function TokenMintedPanel({
       ownerAddress: String(token.currentOwner),
       collectionId: collectible?.collectionMint ?? null,
     }),
-    [mint, token.currentOwner, collectible?.collectionMint],
+    [mint, token.currentOwner, collectible?.collectionMint]
   );
 
   const attributes = collectible?.attributes ?? [];

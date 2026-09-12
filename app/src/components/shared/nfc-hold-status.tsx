@@ -51,7 +51,7 @@ export function NfcHoldStatus({
     <div
       className={cn(
         "relative flex min-h-0 flex-1 flex-col items-center justify-center gap-5 py-8 text-center sm:py-14",
-        className,
+        className
       )}
     >
       {header ? (
@@ -77,7 +77,7 @@ export function NfcHoldStatus({
         className={cn(
           copyBlockClass,
           "relative z-10 space-y-1.5",
-          galleryAnimate.rise,
+          galleryAnimate.rise
         )}
         style={staggerStyle(base + 1)}
       >

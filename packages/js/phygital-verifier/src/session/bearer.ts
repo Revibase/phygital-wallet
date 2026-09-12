@@ -37,7 +37,7 @@ export type VerifierBearerPayload = {
 };
 
 export function normalizeOrigin(
-  origin: string | null | undefined,
+  origin: string | null | undefined
 ): string | null {
   if (!origin) return null;
   try {
@@ -88,7 +88,7 @@ export async function signVerifierBearer(
     ttlMs: number;
   },
   sign: (message: Uint8Array) => Uint8Array | Promise<Uint8Array>,
-  now = Date.now(),
+  now = Date.now()
 ): Promise<{ accessToken: string; expiresAt: number }> {
   const exp = now + fields.ttlMs;
   const payload: VerifierBearerPayload = {
@@ -101,7 +101,7 @@ export async function signVerifierBearer(
   const payloadBytes = utf8.encode(JSON.stringify(payload));
   const signature = await sign(signingMessage(payloadBytes));
   const accessToken = `${base64UrlEncode(payloadBytes)}.${base64UrlEncode(
-    signature,
+    signature
   )}`;
   return { accessToken, expiresAt: exp };
 }
@@ -119,7 +119,7 @@ export async function verifyVerifierBearer(
   opts: {
     decodeVerifierKey: DecodeVerifierKey;
     isAuthorizedVerifier: IsAuthorizedVerifier;
-  },
+  }
 ): Promise<VerifierBearerPayload | null> {
   if (!token) return null;
   const result = decodeVerifierBearer(token);
@@ -153,7 +153,7 @@ export function decodeVerifierBearer(token: string): {
     const payloadBytes = base64UrlDecode(token.slice(0, dot));
     const signature = base64UrlDecode(token.slice(dot + 1));
     const payload = JSON.parse(
-      fromUtf8.decode(payloadBytes),
+      fromUtf8.decode(payloadBytes)
     ) as VerifierBearerPayload;
     if (
       typeof payload.sub !== "string" ||

@@ -4,7 +4,7 @@
  */
 export function navigateBack(
   router: { back: () => void; replace: (href: string) => void },
-  fallbackHref: string,
+  fallbackHref: string
 ): void {
   if (typeof window !== "undefined" && window.history.length > 1) {
     router.back();

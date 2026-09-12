@@ -26,7 +26,7 @@ type FakeParsed =
 function makeIx(
   programAddress: string,
   disc: number,
-  extra: Uint8Array = new Uint8Array(),
+  extra: Uint8Array = new Uint8Array()
 ): Instruction {
   return {
     programAddress: programAddress as Instruction["programAddress"],
@@ -70,7 +70,7 @@ describe("policy.verify", () => {
     const gate = policy([
       allow(
         programA.instruction(FakeIx.Transfer),
-        (ix) => ix.data.amount <= 100n,
+        (ix) => ix.data.amount <= 100n
       ),
     ]);
     expect(gate.verify([makeIx(PROGRAM_A, 1)]).ok).toBe(true);
@@ -80,7 +80,7 @@ describe("policy.verify", () => {
     const gate = policy([
       allow(
         programA.instruction(FakeIx.Transfer),
-        (ix) => ix.data.amount <= 5n,
+        (ix) => ix.data.amount <= 5n
       ),
     ]);
     const r = gate.verify([makeIx(PROGRAM_A, 1)]);
@@ -133,7 +133,7 @@ describe("policy.verify", () => {
       }),
       allow(
         programA.instruction(FakeIx.Transfer),
-        (ix) => ix.data.amount <= 100n,
+        (ix) => ix.data.amount <= 100n
       ),
     ]);
     expect(gate.verify([makeIx(PROGRAM_A, 1)]).ok).toBe(true);
@@ -157,7 +157,7 @@ describe("policy.verify", () => {
           programAddress: PROGRAM_B as Instruction["programAddress"],
           data: new Uint8Array([9, 9, 9]),
         },
-      ]).ok,
+      ]).ok
     ).toBe(true);
   });
 
@@ -183,11 +183,11 @@ describe("policy.verify", () => {
             amount: (ix) => ix.data.amount,
           },
         ],
-        { lte: 20n },
+        { lte: 20n }
       ),
     ]);
     expect(gate.verify([makeIx(PROGRAM_A, 1), makeIx(PROGRAM_A, 1)]).ok).toBe(
-      true,
+      true
     );
     const over = gate.verify([
       makeIx(PROGRAM_A, 1),
@@ -219,7 +219,7 @@ describe("policy.verify", () => {
               actual: actual.toString(),
             },
           }),
-        },
+        }
       ),
     ]);
     const r = gate.verify([makeIx(PROGRAM_A, 1)]);

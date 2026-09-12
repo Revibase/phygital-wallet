@@ -4,7 +4,7 @@ import { isMainnet } from "@/shared/solana/cluster";
 
 /** Circle USDC (SPL Token), 6 decimals. */
 const USDC_MINT_MAINNET = address(
-  "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+  "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
 );
 
 /** Common Circulating / faucet USDC on Solana Devnet. */

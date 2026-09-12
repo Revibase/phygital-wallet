@@ -49,6 +49,6 @@ export function getAutographSignatureCodec(): Codec<
 > {
   return combineCodec(
     getAutographSignatureEncoder(),
-    getAutographSignatureDecoder(),
+    getAutographSignatureDecoder()
   );
 }

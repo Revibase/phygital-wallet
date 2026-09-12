@@ -391,7 +391,7 @@ export function plugin(
     PluginArgs,
     "__kind",
     "Royalties"
-  >["fields"],
+  >["fields"]
 ): GetDiscriminatedUnionVariant<PluginArgs, "__kind", "Royalties">;
 export function plugin(
   kind: "FreezeDelegate",
@@ -399,7 +399,7 @@ export function plugin(
     PluginArgs,
     "__kind",
     "FreezeDelegate"
-  >["fields"],
+  >["fields"]
 ): GetDiscriminatedUnionVariant<PluginArgs, "__kind", "FreezeDelegate">;
 export function plugin(
   kind: "BurnDelegate",
@@ -407,7 +407,7 @@ export function plugin(
     PluginArgs,
     "__kind",
     "BurnDelegate"
-  >["fields"],
+  >["fields"]
 ): GetDiscriminatedUnionVariant<PluginArgs, "__kind", "BurnDelegate">;
 export function plugin(
   kind: "TransferDelegate",
@@ -415,7 +415,7 @@ export function plugin(
     PluginArgs,
     "__kind",
     "TransferDelegate"
-  >["fields"],
+  >["fields"]
 ): GetDiscriminatedUnionVariant<PluginArgs, "__kind", "TransferDelegate">;
 export function plugin(
   kind: "UpdateDelegate",
@@ -423,7 +423,7 @@ export function plugin(
     PluginArgs,
     "__kind",
     "UpdateDelegate"
-  >["fields"],
+  >["fields"]
 ): GetDiscriminatedUnionVariant<PluginArgs, "__kind", "UpdateDelegate">;
 export function plugin(
   kind: "PermanentFreezeDelegate",
@@ -431,7 +431,7 @@ export function plugin(
     PluginArgs,
     "__kind",
     "PermanentFreezeDelegate"
-  >["fields"],
+  >["fields"]
 ): GetDiscriminatedUnionVariant<
   PluginArgs,
   "__kind",
@@ -443,7 +443,7 @@ export function plugin(
     PluginArgs,
     "__kind",
     "Attributes"
-  >["fields"],
+  >["fields"]
 ): GetDiscriminatedUnionVariant<PluginArgs, "__kind", "Attributes">;
 export function plugin(
   kind: "PermanentTransferDelegate",
@@ -451,7 +451,7 @@ export function plugin(
     PluginArgs,
     "__kind",
     "PermanentTransferDelegate"
-  >["fields"],
+  >["fields"]
 ): GetDiscriminatedUnionVariant<
   PluginArgs,
   "__kind",
@@ -463,7 +463,7 @@ export function plugin(
     PluginArgs,
     "__kind",
     "PermanentBurnDelegate"
-  >["fields"],
+  >["fields"]
 ): GetDiscriminatedUnionVariant<PluginArgs, "__kind", "PermanentBurnDelegate">;
 export function plugin(
   kind: "Edition",
@@ -471,7 +471,7 @@ export function plugin(
     PluginArgs,
     "__kind",
     "Edition"
-  >["fields"],
+  >["fields"]
 ): GetDiscriminatedUnionVariant<PluginArgs, "__kind", "Edition">;
 export function plugin(
   kind: "MasterEdition",
@@ -479,7 +479,7 @@ export function plugin(
     PluginArgs,
     "__kind",
     "MasterEdition"
-  >["fields"],
+  >["fields"]
 ): GetDiscriminatedUnionVariant<PluginArgs, "__kind", "MasterEdition">;
 export function plugin(
   kind: "AddBlocker",
@@ -487,7 +487,7 @@ export function plugin(
     PluginArgs,
     "__kind",
     "AddBlocker"
-  >["fields"],
+  >["fields"]
 ): GetDiscriminatedUnionVariant<PluginArgs, "__kind", "AddBlocker">;
 export function plugin(
   kind: "ImmutableMetadata",
@@ -495,7 +495,7 @@ export function plugin(
     PluginArgs,
     "__kind",
     "ImmutableMetadata"
-  >["fields"],
+  >["fields"]
 ): GetDiscriminatedUnionVariant<PluginArgs, "__kind", "ImmutableMetadata">;
 export function plugin(
   kind: "VerifiedCreators",
@@ -503,7 +503,7 @@ export function plugin(
     PluginArgs,
     "__kind",
     "VerifiedCreators"
-  >["fields"],
+  >["fields"]
 ): GetDiscriminatedUnionVariant<PluginArgs, "__kind", "VerifiedCreators">;
 export function plugin(
   kind: "Autograph",
@@ -511,7 +511,7 @@ export function plugin(
     PluginArgs,
     "__kind",
     "Autograph"
-  >["fields"],
+  >["fields"]
 ): GetDiscriminatedUnionVariant<PluginArgs, "__kind", "Autograph">;
 export function plugin(
   kind: "BubblegumV2",
@@ -519,7 +519,7 @@ export function plugin(
     PluginArgs,
     "__kind",
     "BubblegumV2"
-  >["fields"],
+  >["fields"]
 ): GetDiscriminatedUnionVariant<PluginArgs, "__kind", "BubblegumV2">;
 export function plugin(
   kind: "FreezeExecute",
@@ -527,7 +527,7 @@ export function plugin(
     PluginArgs,
     "__kind",
     "FreezeExecute"
-  >["fields"],
+  >["fields"]
 ): GetDiscriminatedUnionVariant<PluginArgs, "__kind", "FreezeExecute">;
 export function plugin(
   kind: "PermanentFreezeExecute",
@@ -535,7 +535,7 @@ export function plugin(
     PluginArgs,
     "__kind",
     "PermanentFreezeExecute"
-  >["fields"],
+  >["fields"]
 ): GetDiscriminatedUnionVariant<PluginArgs, "__kind", "PermanentFreezeExecute">;
 export function plugin(
   kind: "Groups",
@@ -543,11 +543,11 @@ export function plugin(
     PluginArgs,
     "__kind",
     "Groups"
-  >["fields"],
+  >["fields"]
 ): GetDiscriminatedUnionVariant<PluginArgs, "__kind", "Groups">;
 export function plugin<K extends PluginArgs["__kind"], Data>(
   kind: K,
-  data?: Data,
+  data?: Data
 ) {
   return Array.isArray(data)
     ? { __kind: kind, fields: data }
@@ -556,7 +556,7 @@ export function plugin<K extends PluginArgs["__kind"], Data>(
 
 export function isPlugin<K extends Plugin["__kind"]>(
   kind: K,
-  value: Plugin,
+  value: Plugin
 ): value is Plugin & { __kind: K } {
   return value.__kind === kind;
 }

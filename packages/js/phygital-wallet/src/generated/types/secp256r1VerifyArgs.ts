@@ -73,6 +73,6 @@ export function getSecp256r1VerifyArgsCodec(): Codec<
 > {
   return combineCodec(
     getSecp256r1VerifyArgsEncoder(),
-    getSecp256r1VerifyArgsDecoder(),
+    getSecp256r1VerifyArgsDecoder()
   );
 }

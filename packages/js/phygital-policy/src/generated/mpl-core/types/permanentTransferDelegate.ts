@@ -34,6 +34,6 @@ export function getPermanentTransferDelegateCodec(): FixedSizeCodec<
 > {
   return combineCodec(
     getPermanentTransferDelegateEncoder(),
-    getPermanentTransferDelegateDecoder(),
+    getPermanentTransferDelegateDecoder()
   );
 }

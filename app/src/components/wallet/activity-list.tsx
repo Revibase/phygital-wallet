@@ -39,7 +39,7 @@ function isNativeSolMint(mint: string): boolean {
 
 function symbolForMint(
   mint: string,
-  assetMetaByMint?: Record<string, { symbol: string; name: string }>,
+  assetMetaByMint?: Record<string, { symbol: string; name: string }>
 ) {
   if (assetMetaByMint?.[mint]?.symbol) return assetMetaByMint[mint]!.symbol;
   if (isNativeSolMint(mint)) return "SOL";
@@ -104,8 +104,8 @@ const ActivityRow = memo(function ActivityRow({
           item.kind === "received"
             ? "text-success"
             : item.kind === "sent"
-              ? "text-destructive"
-              : undefined,
+            ? "text-destructive"
+            : undefined
         )}
       >
         {item.amountLabel}
@@ -164,7 +164,7 @@ export function ActivityList({
       <p
         className={cn(
           "px-4 py-8 text-center text-sm text-muted-foreground",
-          className,
+          className
         )}
       >
         {emptyLabel}

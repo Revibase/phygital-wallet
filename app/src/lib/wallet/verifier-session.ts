@@ -21,13 +21,13 @@ const sessions = new Map<string, VerifierSession>();
 
 export function setVerifierSession(
   phygitalToken: string,
-  session: VerifierSession,
+  session: VerifierSession
 ): void {
   sessions.set(phygitalToken, session);
 }
 
 export function getVerifierSession(
-  phygitalToken: string,
+  phygitalToken: string
 ): VerifierSession | null {
   const session = sessions.get(phygitalToken);
   if (!session) return null;
@@ -50,7 +50,7 @@ export function accessTokenFor(phygitalToken: string): () => string | null {
  */
 export async function adoptVerifierSession(
   phygitalToken: string,
-  session: VerifierSession,
+  session: VerifierSession
 ): Promise<{ phygitalToken: string; expiresAt: number }> {
   setVerifierSession(phygitalToken, session);
   const { expiresAt } = await exchangeAppSession(session.accessToken);

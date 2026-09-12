@@ -16,7 +16,7 @@ export type PaymentToken = {
 };
 
 export function isClassicTokenProgram(
-  program: string | null | undefined,
+  program: string | null | undefined
 ): boolean {
   return (
     program === CLASSIC_TOKEN_PROGRAM ||

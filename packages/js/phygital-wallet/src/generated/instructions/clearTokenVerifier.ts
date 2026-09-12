@@ -53,7 +53,7 @@ export const CLEAR_TOKEN_VERIFIER_DISCRIMINATOR: ReadonlyUint8Array =
 
 export function getClearTokenVerifierDiscriminatorBytes(): ReadonlyUint8Array {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    CLEAR_TOKEN_VERIFIER_DISCRIMINATOR,
+    CLEAR_TOKEN_VERIFIER_DISCRIMINATOR
   );
 }
 
@@ -64,13 +64,16 @@ export type ClearTokenVerifierInstruction<
   TAccountPhygitalToken extends string | AccountMeta<string> = string,
   TAccountRentReceiver extends string | AccountMeta<string> = string,
   TAccountTokenVerifier extends string | AccountMeta<string> = string,
-  TAccountSlotHashes extends string | AccountMeta<string> =
-    "SysvarS1otHashes111111111111111111111111111",
-  TAccountInstructionsSysvar extends string | AccountMeta<string> =
-    "Sysvar1nstructions1111111111111111111111111",
-  TAccountPhygitalTokenProgram extends string | AccountMeta<string> =
-    "DuPpckdjjgVAnYok2aTMAt264ZPBXqq3JSazJjCUzTJQ",
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+  TAccountSlotHashes extends
+    | string
+    | AccountMeta<string> = "SysvarS1otHashes111111111111111111111111111",
+  TAccountInstructionsSysvar extends
+    | string
+    | AccountMeta<string> = "Sysvar1nstructions1111111111111111111111111",
+  TAccountPhygitalTokenProgram extends
+    | string
+    | AccountMeta<string> = "DuPpckdjjgVAnYok2aTMAt264ZPBXqq3JSazJjCUzTJQ",
+  TRemainingAccounts extends readonly AccountMeta<string>[] = []
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
   InstructionWithAccounts<
@@ -100,7 +103,7 @@ export type ClearTokenVerifierInstruction<
       TAccountPhygitalTokenProgram extends string
         ? ReadonlyAccount<TAccountPhygitalTokenProgram>
         : TAccountPhygitalTokenProgram,
-      ...TRemainingAccounts,
+      ...TRemainingAccounts
     ]
   >;
 
@@ -125,7 +128,7 @@ export function getClearTokenVerifierInstructionDataEncoder(): Encoder<ClearToke
     (value) => ({
       ...value,
       discriminator: CLEAR_TOKEN_VERIFIER_DISCRIMINATOR,
-    }),
+    })
   );
 }
 
@@ -143,7 +146,7 @@ export function getClearTokenVerifierInstructionDataCodec(): Codec<
 > {
   return combineCodec(
     getClearTokenVerifierInstructionDataEncoder(),
-    getClearTokenVerifierInstructionDataDecoder(),
+    getClearTokenVerifierInstructionDataDecoder()
   );
 }
 
@@ -155,7 +158,7 @@ export type ClearTokenVerifierAsyncInput<
   TAccountTokenVerifier extends string = string,
   TAccountSlotHashes extends string = string,
   TAccountInstructionsSysvar extends string = string,
-  TAccountPhygitalTokenProgram extends string = string,
+  TAccountPhygitalTokenProgram extends string = string
 > = {
   /** Verifier co-signer. Token override (exclusive) or config default set. */
   verifier: TransactionSigner<TAccountVerifier>;
@@ -179,7 +182,7 @@ export async function getClearTokenVerifierInstructionAsync<
   TAccountSlotHashes extends string,
   TAccountInstructionsSysvar extends string,
   TAccountPhygitalTokenProgram extends string,
-  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
+  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS
 >(
   input: ClearTokenVerifierAsyncInput<
     TAccountVerifier,
@@ -191,7 +194,7 @@ export async function getClearTokenVerifierInstructionAsync<
     TAccountInstructionsSysvar,
     TAccountPhygitalTokenProgram
   >,
-  config?: { programAddress?: TProgramAddress },
+  config?: { programAddress?: TProgramAddress }
 ): Promise<
   ClearTokenVerifierInstruction<
     TProgramAddress,
@@ -242,7 +245,7 @@ export async function getClearTokenVerifierInstructionAsync<
     accounts.tokenVerifier.value = await findTokenVerifierPda({
       phygitalToken: getAddressFromResolvedInstructionAccount(
         "phygitalToken",
-        accounts.phygitalToken.value,
+        accounts.phygitalToken.value
       ),
     });
   }
@@ -272,20 +275,10 @@ export async function getClearTokenVerifierInstructionAsync<
       getAccountMeta("phygitalTokenProgram", accounts.phygitalTokenProgram),
     ],
     data: getClearTokenVerifierInstructionDataEncoder().encode(
-      args as ClearTokenVerifierInstructionDataArgs,
+      args as ClearTokenVerifierInstructionDataArgs
     ),
     programAddress,
-  } as ClearTokenVerifierInstruction<
-    TProgramAddress,
-    TAccountVerifier,
-    TAccountConfig,
-    TAccountPhygitalToken,
-    TAccountRentReceiver,
-    TAccountTokenVerifier,
-    TAccountSlotHashes,
-    TAccountInstructionsSysvar,
-    TAccountPhygitalTokenProgram
-  >);
+  } as ClearTokenVerifierInstruction<TProgramAddress, TAccountVerifier, TAccountConfig, TAccountPhygitalToken, TAccountRentReceiver, TAccountTokenVerifier, TAccountSlotHashes, TAccountInstructionsSysvar, TAccountPhygitalTokenProgram>);
 }
 
 export type ClearTokenVerifierInput<
@@ -296,7 +289,7 @@ export type ClearTokenVerifierInput<
   TAccountTokenVerifier extends string = string,
   TAccountSlotHashes extends string = string,
   TAccountInstructionsSysvar extends string = string,
-  TAccountPhygitalTokenProgram extends string = string,
+  TAccountPhygitalTokenProgram extends string = string
 > = {
   /** Verifier co-signer. Token override (exclusive) or config default set. */
   verifier: TransactionSigner<TAccountVerifier>;
@@ -320,7 +313,7 @@ export function getClearTokenVerifierInstruction<
   TAccountSlotHashes extends string,
   TAccountInstructionsSysvar extends string,
   TAccountPhygitalTokenProgram extends string,
-  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
+  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS
 >(
   input: ClearTokenVerifierInput<
     TAccountVerifier,
@@ -332,7 +325,7 @@ export function getClearTokenVerifierInstruction<
     TAccountInstructionsSysvar,
     TAccountPhygitalTokenProgram
   >,
-  config?: { programAddress?: TProgramAddress },
+  config?: { programAddress?: TProgramAddress }
 ): ClearTokenVerifierInstruction<
   TProgramAddress,
   TAccountVerifier,
@@ -400,25 +393,15 @@ export function getClearTokenVerifierInstruction<
       getAccountMeta("phygitalTokenProgram", accounts.phygitalTokenProgram),
     ],
     data: getClearTokenVerifierInstructionDataEncoder().encode(
-      args as ClearTokenVerifierInstructionDataArgs,
+      args as ClearTokenVerifierInstructionDataArgs
     ),
     programAddress,
-  } as ClearTokenVerifierInstruction<
-    TProgramAddress,
-    TAccountVerifier,
-    TAccountConfig,
-    TAccountPhygitalToken,
-    TAccountRentReceiver,
-    TAccountTokenVerifier,
-    TAccountSlotHashes,
-    TAccountInstructionsSysvar,
-    TAccountPhygitalTokenProgram
-  >);
+  } as ClearTokenVerifierInstruction<TProgramAddress, TAccountVerifier, TAccountConfig, TAccountPhygitalToken, TAccountRentReceiver, TAccountTokenVerifier, TAccountSlotHashes, TAccountInstructionsSysvar, TAccountPhygitalTokenProgram>);
 }
 
 export type ParsedClearTokenVerifierInstruction<
   TProgram extends string = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[]
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -437,11 +420,11 @@ export type ParsedClearTokenVerifierInstruction<
 
 export function parseClearTokenVerifierInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[]
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>,
+    InstructionWithData<ReadonlyUint8Array>
 ): ParsedClearTokenVerifierInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 8) {
     throw new SolanaError(
@@ -449,7 +432,7 @@ export function parseClearTokenVerifierInstruction<
       {
         actualAccountMetas: instruction.accounts.length,
         expectedAccountMetas: 8,
-      },
+      }
     );
   }
   let accountIndex = 0;
@@ -471,7 +454,7 @@ export function parseClearTokenVerifierInstruction<
       phygitalTokenProgram: getNextAccount(),
     },
     data: getClearTokenVerifierInstructionDataDecoder().decode(
-      instruction.data,
+      instruction.data
     ),
   };
 }

@@ -48,18 +48,20 @@ export const INITIALIZE_CONFIG_DISCRIMINATOR: ReadonlyUint8Array =
 
 export function getInitializeConfigDiscriminatorBytes(): ReadonlyUint8Array {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    INITIALIZE_CONFIG_DISCRIMINATOR,
+    INITIALIZE_CONFIG_DISCRIMINATOR
   );
 }
 
 export type InitializeConfigInstruction<
   TProgram extends string = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
-  TAccountAdmin extends string | AccountMeta<string> =
-    "G6kBnedts6uAivtY72ToaFHBs1UVbT9udiXmQZgMEjoF",
+  TAccountAdmin extends
+    | string
+    | AccountMeta<string> = "G6kBnedts6uAivtY72ToaFHBs1UVbT9udiXmQZgMEjoF",
   TAccountConfig extends string | AccountMeta<string> = string,
-  TAccountSystemProgram extends string | AccountMeta<string> =
-    "11111111111111111111111111111111",
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+  TAccountSystemProgram extends
+    | string
+    | AccountMeta<string> = "11111111111111111111111111111111",
+  TRemainingAccounts extends readonly AccountMeta<string>[] = []
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
   InstructionWithAccounts<
@@ -74,7 +76,7 @@ export type InitializeConfigInstruction<
       TAccountSystemProgram extends string
         ? ReadonlyAccount<TAccountSystemProgram>
         : TAccountSystemProgram,
-      ...TRemainingAccounts,
+      ...TRemainingAccounts
     ]
   >;
 
@@ -93,7 +95,7 @@ export function getInitializeConfigInstructionDataEncoder(): Encoder<InitializeC
       ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
       ["initialVerifiers", getArrayEncoder(getAddressEncoder())],
     ]),
-    (value) => ({ ...value, discriminator: INITIALIZE_CONFIG_DISCRIMINATOR }),
+    (value) => ({ ...value, discriminator: INITIALIZE_CONFIG_DISCRIMINATOR })
   );
 }
 
@@ -110,14 +112,14 @@ export function getInitializeConfigInstructionDataCodec(): Codec<
 > {
   return combineCodec(
     getInitializeConfigInstructionDataEncoder(),
-    getInitializeConfigInstructionDataDecoder(),
+    getInitializeConfigInstructionDataDecoder()
   );
 }
 
 export type InitializeConfigAsyncInput<
   TAccountAdmin extends string = string,
   TAccountConfig extends string = string,
-  TAccountSystemProgram extends string = string,
+  TAccountSystemProgram extends string = string
 > = {
   admin?: TransactionSigner<TAccountAdmin>;
   config?: Address<TAccountConfig>;
@@ -129,14 +131,14 @@ export async function getInitializeConfigInstructionAsync<
   TAccountAdmin extends string,
   TAccountConfig extends string,
   TAccountSystemProgram extends string,
-  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
+  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS
 >(
   input: InitializeConfigAsyncInput<
     TAccountAdmin,
     TAccountConfig,
     TAccountSystemProgram
   >,
-  config?: { programAddress?: TProgramAddress },
+  config?: { programAddress?: TProgramAddress }
 ): Promise<
   InitializeConfigInstruction<
     TProgramAddress,
@@ -184,21 +186,16 @@ export async function getInitializeConfigInstructionAsync<
       getAccountMeta("systemProgram", accounts.systemProgram),
     ],
     data: getInitializeConfigInstructionDataEncoder().encode(
-      args as InitializeConfigInstructionDataArgs,
+      args as InitializeConfigInstructionDataArgs
     ),
     programAddress,
-  } as InitializeConfigInstruction<
-    TProgramAddress,
-    TAccountAdmin,
-    TAccountConfig,
-    TAccountSystemProgram
-  >);
+  } as InitializeConfigInstruction<TProgramAddress, TAccountAdmin, TAccountConfig, TAccountSystemProgram>);
 }
 
 export type InitializeConfigInput<
   TAccountAdmin extends string = string,
   TAccountConfig extends string = string,
-  TAccountSystemProgram extends string = string,
+  TAccountSystemProgram extends string = string
 > = {
   admin?: TransactionSigner<TAccountAdmin>;
   config: Address<TAccountConfig>;
@@ -210,14 +207,14 @@ export function getInitializeConfigInstruction<
   TAccountAdmin extends string,
   TAccountConfig extends string,
   TAccountSystemProgram extends string,
-  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
+  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS
 >(
   input: InitializeConfigInput<
     TAccountAdmin,
     TAccountConfig,
     TAccountSystemProgram
   >,
-  config?: { programAddress?: TProgramAddress },
+  config?: { programAddress?: TProgramAddress }
 ): InitializeConfigInstruction<
   TProgramAddress,
   TAccountAdmin,
@@ -260,20 +257,15 @@ export function getInitializeConfigInstruction<
       getAccountMeta("systemProgram", accounts.systemProgram),
     ],
     data: getInitializeConfigInstructionDataEncoder().encode(
-      args as InitializeConfigInstructionDataArgs,
+      args as InitializeConfigInstructionDataArgs
     ),
     programAddress,
-  } as InitializeConfigInstruction<
-    TProgramAddress,
-    TAccountAdmin,
-    TAccountConfig,
-    TAccountSystemProgram
-  >);
+  } as InitializeConfigInstruction<TProgramAddress, TAccountAdmin, TAccountConfig, TAccountSystemProgram>);
 }
 
 export type ParsedInitializeConfigInstruction<
   TProgram extends string = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[]
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -286,11 +278,11 @@ export type ParsedInitializeConfigInstruction<
 
 export function parseInitializeConfigInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[]
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>,
+    InstructionWithData<ReadonlyUint8Array>
 ): ParsedInitializeConfigInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 3) {
     throw new SolanaError(
@@ -298,7 +290,7 @@ export function parseInitializeConfigInstruction<
       {
         actualAccountMetas: instruction.accounts.length,
         expectedAccountMetas: 3,
-      },
+      }
     );
   }
   let accountIndex = 0;

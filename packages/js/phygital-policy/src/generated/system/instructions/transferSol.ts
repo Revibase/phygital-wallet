@@ -48,7 +48,7 @@ export type TransferSolInstruction<
   TProgram extends string = typeof SYSTEM_PROGRAM_ADDRESS,
   TAccountSource extends string | AccountMeta<string> = string,
   TAccountDestination extends string | AccountMeta<string> = string,
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+  TRemainingAccounts extends readonly AccountMeta<string>[] = []
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
   InstructionWithAccounts<
@@ -60,7 +60,7 @@ export type TransferSolInstruction<
       TAccountDestination extends string
         ? WritableAccount<TAccountDestination>
         : TAccountDestination,
-      ...TRemainingAccounts,
+      ...TRemainingAccounts
     ]
   >;
 
@@ -77,7 +77,7 @@ export function getTransferSolInstructionDataEncoder(): FixedSizeEncoder<Transfe
       ["discriminator", getU32Encoder()],
       ["amount", getU64Encoder()],
     ]),
-    (value) => ({ ...value, discriminator: TRANSFER_SOL_DISCRIMINATOR }),
+    (value) => ({ ...value, discriminator: TRANSFER_SOL_DISCRIMINATOR })
   );
 }
 
@@ -94,13 +94,13 @@ export function getTransferSolInstructionDataCodec(): FixedSizeCodec<
 > {
   return combineCodec(
     getTransferSolInstructionDataEncoder(),
-    getTransferSolInstructionDataDecoder(),
+    getTransferSolInstructionDataDecoder()
   );
 }
 
 export type TransferSolInput<
   TAccountSource extends string = string,
-  TAccountDestination extends string = string,
+  TAccountDestination extends string = string
 > = {
   source: TransactionSigner<TAccountSource>;
   destination: Address<TAccountDestination>;
@@ -110,10 +110,10 @@ export type TransferSolInput<
 export function getTransferSolInstruction<
   TAccountSource extends string,
   TAccountDestination extends string,
-  TProgramAddress extends Address = typeof SYSTEM_PROGRAM_ADDRESS,
+  TProgramAddress extends Address = typeof SYSTEM_PROGRAM_ADDRESS
 >(
   input: TransferSolInput<TAccountSource, TAccountDestination>,
-  config?: { programAddress?: TProgramAddress },
+  config?: { programAddress?: TProgramAddress }
 ): TransferSolInstruction<
   TProgramAddress,
   TAccountSource,
@@ -142,19 +142,15 @@ export function getTransferSolInstruction<
       getAccountMeta("destination", accounts.destination),
     ],
     data: getTransferSolInstructionDataEncoder().encode(
-      args as TransferSolInstructionDataArgs,
+      args as TransferSolInstructionDataArgs
     ),
     programAddress,
-  } as TransferSolInstruction<
-    TProgramAddress,
-    TAccountSource,
-    TAccountDestination
-  >);
+  } as TransferSolInstruction<TProgramAddress, TAccountSource, TAccountDestination>);
 }
 
 export type ParsedTransferSolInstruction<
   TProgram extends string = typeof SYSTEM_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[]
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -166,11 +162,11 @@ export type ParsedTransferSolInstruction<
 
 export function parseTransferSolInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[]
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>,
+    InstructionWithData<ReadonlyUint8Array>
 ): ParsedTransferSolInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 2) {
     throw new SolanaError(
@@ -178,7 +174,7 @@ export function parseTransferSolInstruction<
       {
         actualAccountMetas: instruction.accounts.length,
         expectedAccountMetas: 2,
-      },
+      }
     );
   }
   let accountIndex = 0;

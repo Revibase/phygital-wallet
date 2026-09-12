@@ -24,7 +24,7 @@ export type OriginVerdict =
  */
 export function checkOriginAllowed(
   policy: PaymentsPolicyConfig | null,
-  bearerOrigin: string | null,
+  bearerOrigin: string | null
 ): OriginVerdict {
   const allowed = policy?.allowedOrigins;
   if (!allowed || allowed.length === 0) return { ok: true };

@@ -48,7 +48,7 @@ export function CollectibleOrb({
           "relative flex items-center justify-center",
           shell,
           success ? galleryAnimate.seal : galleryAnimate.scaleIn,
-          className,
+          className
         )}
         style={style}
       >
@@ -86,7 +86,7 @@ export function CollectibleOrb({
               "absolute inset-0 rounded-full border",
               success ? "border-success/30" : "border-primary/30",
               showPulse &&
-                "motion-safe:animate-[gallery-pulse_1.6s_ease-out_infinite]",
+                "motion-safe:animate-[gallery-pulse_1.6s_ease-out_infinite]"
             )}
           />
         )}
@@ -97,9 +97,9 @@ export function CollectibleOrb({
             showArt
               ? "bg-muted/40 shadow-[0_8px_32px_-8px_var(--card-shadow)]"
               : success
-                ? "flex items-center justify-center bg-success/15 text-success"
-                : "flex items-center justify-center bg-primary/15 text-primary",
-            busy && showArt && "opacity-70",
+              ? "flex items-center justify-center bg-success/15 text-success"
+              : "flex items-center justify-center bg-primary/15 text-primary",
+            busy && showArt && "opacity-70"
           )}
         >
           {busy && !progress ? (

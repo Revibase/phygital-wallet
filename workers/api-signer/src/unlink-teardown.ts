@@ -25,7 +25,7 @@ export type UnlinkTeardownResult =
     };
 
 export function unlinkTeardownFromPresence(
-  blockers: UnlinkTeardownBlockers,
+  blockers: UnlinkTeardownBlockers
 ): UnlinkTeardownResult {
   if (!blockers.recoveryWallet && !blockers.tokenVerifier) {
     return { ok: true };
@@ -43,7 +43,7 @@ export function unlinkTeardownFromPresence(
 
 /** True when both PDAs are absent (safe to wipe DO owner). */
 export async function assertOnChainUnlinkTeardown(
-  phygitalToken: string,
+  phygitalToken: string
 ): Promise<UnlinkTeardownResult> {
   const rpc = getSolanaRpc();
   const token = address(phygitalToken);

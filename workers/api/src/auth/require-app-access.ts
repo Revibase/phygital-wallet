@@ -63,7 +63,7 @@ export function isOpenCorsPath(_method: string, path: string): boolean {
  */
 export function extractPhygitalTokenFromRequest(
   path: string,
-  queryToken: string | undefined,
+  queryToken: string | undefined
 ): string | null {
   const q = queryToken?.trim();
   if (q) return q;
@@ -91,7 +91,7 @@ export type AppAccessInput = {
 
 /** Pure gate decision for tests and middleware. */
 export function evaluateAppAccess(
-  input: AppAccessInput,
+  input: AppAccessInput
 ): "allow" | "deny" | "deny_token_mismatch" {
   if (isPublicApiPath(input.method, input.path)) return "allow";
   if (input.hasDeviceSession) return "allow";
@@ -106,7 +106,7 @@ export function evaluateAppAccess(
  * Returns a 401 Response when access is denied; otherwise null.
  */
 export async function requireAppAccess(
-  c: Context<{ Bindings: Env }>,
+  c: Context<{ Bindings: Env }>
 ): Promise<Response | null> {
   const device = await readDeviceSession(c);
   const browse = await readBrowseUnlock(c);
@@ -126,7 +126,7 @@ export async function requireAppAccess(
         error: "Unlock this item again to continue.",
         code: "session_required",
       },
-      { status: 401 },
+      { status: 401 }
     );
   }
 
@@ -135,6 +135,6 @@ export async function requireAppAccess(
       error: "Sign in or unlock this item to continue.",
       code: "session_required",
     },
-    { status: 401 },
+    { status: 401 }
   );
 }

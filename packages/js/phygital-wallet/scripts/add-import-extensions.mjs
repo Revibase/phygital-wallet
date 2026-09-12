@@ -49,7 +49,7 @@ function fixFile(file) {
     (match, keyword, spec) => {
       const fixed = fixSpec(dir, spec);
       return fixed === spec ? match : `${keyword} "${fixed}"`;
-    },
+    }
   );
 
   if (updated !== source) {

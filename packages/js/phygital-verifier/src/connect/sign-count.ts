@@ -22,7 +22,7 @@ const AUTH_DATA_MIN_LEN = SIGN_COUNT_OFFSET + 4;
  * Returns `null` when the data is too short to contain one.
  */
 export function extractSignCount(
-  authenticatorDataBase64Url: string,
+  authenticatorDataBase64Url: string
 ): number | null {
   let bytes: Uint8Array;
   try {

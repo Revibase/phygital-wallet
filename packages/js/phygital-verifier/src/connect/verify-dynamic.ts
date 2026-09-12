@@ -40,7 +40,7 @@ export async function verifyDynamicConnectProof(
     rpc: Rpc<SolanaRpcApi>;
     consumeCounter: ConsumeTapCounter;
     expectedPhygitalToken: Address;
-  },
+  }
 ): Promise<{
   phygitalToken: Address;
   identifier: string;
@@ -52,7 +52,7 @@ export async function verifyDynamicConnectProof(
   } catch (err) {
     throw new ConnectProofError(
       "invalid_proof",
-      err instanceof Error ? err.message : "Invalid tap parameters",
+      err instanceof Error ? err.message : "Invalid tap parameters"
     );
   }
   if (!tap.isVerified) {
@@ -61,12 +61,12 @@ export async function verifyDynamicConnectProof(
 
   const account = await fetchPhygitalTokenByIdentifier(
     opts.rpc,
-    tap.identifier,
+    tap.identifier
   );
   if (!account) {
     throw new ConnectProofError(
       "token_not_found",
-      "No phygital token for this accessory",
+      "No phygital token for this accessory"
     );
   }
   const phygitalToken = await findPhygitalTokenPda(account.publicKey);
@@ -74,7 +74,7 @@ export async function verifyDynamicConnectProof(
   if (String(phygitalToken) !== String(opts.expectedPhygitalToken)) {
     throw new ConnectProofError(
       "token_not_found",
-      "Phygital token does not match expected token",
+      "Phygital token does not match expected token"
     );
   }
 
@@ -86,7 +86,7 @@ export async function verifyDynamicConnectProof(
   if (!fresh) {
     throw new ConnectProofError(
       "tap_replay",
-      "This tap timed out. Hold your item here again to verify.",
+      "This tap timed out. Hold your item here again to verify."
     );
   }
 

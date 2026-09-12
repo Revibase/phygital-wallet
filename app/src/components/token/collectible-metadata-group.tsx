@@ -17,7 +17,7 @@ export function CollectibleMetadataGroup({
     <div
       className={cn(
         "divide-y divide-border/50 overflow-hidden rounded-xl border border-border/50 bg-muted/25",
-        className,
+        className
       )}
     >
       {children}
@@ -59,7 +59,7 @@ export function CollectibleMetadataRow({
 
   const rowClasses = cn(
     "h-auto min-h-0 w-full justify-between gap-3 rounded-none px-0 py-2 text-left text-xs font-normal",
-    className,
+    className
   );
 
   if (onPress) {
@@ -79,7 +79,7 @@ export function CollectibleMetadataRow({
     <div
       className={cn(
         "flex items-center justify-between gap-3 py-2 text-xs",
-        className,
+        className
       )}
     >
       {content}

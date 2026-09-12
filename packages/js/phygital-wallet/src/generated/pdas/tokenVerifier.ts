@@ -20,7 +20,7 @@ export type TokenVerifierSeeds = {
 
 export async function findTokenVerifierPda(
   seeds: TokenVerifierSeeds,
-  config: { programAddress?: Address | undefined } = {},
+  config: { programAddress?: Address | undefined } = {}
 ): Promise<ProgramDerivedAddress> {
   const {
     programAddress = "Fjbi9JrRAmSBdxQxbkcxYDp6JUwnLbFhU2GsieWQBLSg" as Address<"Fjbi9JrRAmSBdxQxbkcxYDp6JUwnLbFhU2GsieWQBLSg">,
@@ -31,7 +31,7 @@ export async function findTokenVerifierPda(
       getBytesEncoder().encode(
         new Uint8Array([
           116, 111, 107, 101, 110, 95, 118, 101, 114, 105, 102, 105, 101, 114,
-        ]),
+        ])
       ),
       getAddressEncoder().encode(seeds.phygitalToken),
     ],

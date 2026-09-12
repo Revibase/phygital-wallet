@@ -10,7 +10,7 @@ import { getTransferV1Instruction } from "@macalinao/clients-mpl-core";
 import { dasGetAsset } from "@/lib/solana/das-rpc";
 
 const SPL_NOOP_PROGRAM_ID = address(
-  "noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV",
+  "noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV"
 );
 
 /** Mpl Core TransferV1 via Codama Kit client. */
@@ -22,7 +22,7 @@ export async function buildCoreTransferInstructions(args: {
   const das = await dasGetAsset(String(args.asset));
   if (!das?.id) throw new Error("getAsset returned no asset");
   const collection = das.grouping?.find(
-    (g) => g.group_key === "collection",
+    (g) => g.group_key === "collection"
   )?.group_value;
 
   return [

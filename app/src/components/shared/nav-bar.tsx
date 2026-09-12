@@ -56,13 +56,13 @@ function NavBarFrame({
     <div
       className={cn(
         "relative flex min-h-11 items-center justify-between gap-2",
-        className,
+        className
       )}
     >
       <div
         className={cn(
           "flex min-w-0 flex-1 items-center justify-start gap-2",
-          desktopStart && "lg:flex-none lg:shrink-0",
+          desktopStart && "lg:flex-none lg:shrink-0"
         )}
       >
         {leading ?? <span className="w-11" aria-hidden />}
@@ -72,7 +72,7 @@ function NavBarFrame({
           className={cn(
             "pointer-events-none absolute left-1/2 max-w-[50%] -translate-x-1/2 truncate text-center text-sm font-semibold tracking-tight",
             desktopStart &&
-              "lg:pointer-events-auto lg:static lg:max-w-none lg:min-w-0 lg:flex-1 lg:translate-x-0 lg:text-left",
+              "lg:pointer-events-auto lg:static lg:max-w-none lg:min-w-0 lg:flex-1 lg:translate-x-0 lg:text-left"
           )}
         >
           {title}
@@ -142,7 +142,7 @@ export function NavBar({
       className={cn(
         (!inShell || preferInline) && "mb-3",
         desktopHidden && "lg:hidden",
-        className,
+        className
       )}
     />
   );

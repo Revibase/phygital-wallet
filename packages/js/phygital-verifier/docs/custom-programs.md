@@ -220,7 +220,7 @@ const gate = policy([
         amount: (ix) => ix.data.amount,
       },
     ],
-    { lte: 5_000_000n },
+    { lte: 5_000_000n }
   ),
 ]);
 

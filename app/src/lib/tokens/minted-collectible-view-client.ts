@@ -12,7 +12,7 @@ export type MintedCollectibleView = {
 
 /** Minted landing: DAS collectible + shortcuts (client RPC / browser). */
 export async function fetchMintedCollectibleViewClient(
-  mint: string,
+  mint: string
 ): Promise<MintedCollectibleView> {
   const collectible = await fetchDasCollectibleClient(mint);
   if (!collectible) {
@@ -22,7 +22,7 @@ export async function fetchMintedCollectibleViewClient(
   const shortcuts = collectible.externalUrl
     ? await fetchCollectibleShortcuts(
         collectible.externalUrl,
-        collectible.collectionMint,
+        collectible.collectionMint
       )
     : [];
 

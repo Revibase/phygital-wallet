@@ -34,6 +34,6 @@ export function getPermanentBurnDelegateCodec(): FixedSizeCodec<
 > {
   return combineCodec(
     getPermanentBurnDelegateEncoder(),
-    getPermanentBurnDelegateDecoder(),
+    getPermanentBurnDelegateDecoder()
   );
 }

@@ -37,7 +37,7 @@ export function activeConfigVerifierAddresses(config: {
   verifierCount: number;
 }): Set<string> {
   return new Set(
-    config.verifiers.slice(0, config.verifierCount).map((v) => String(v)),
+    config.verifiers.slice(0, config.verifierCount).map((v) => String(v))
   );
 }
 
@@ -46,7 +46,7 @@ export function isConfigDefaultVerifier(
     verifiers: readonly Address[];
     verifierCount: number;
   } | null,
-  verifier: Address | string,
+  verifier: Address | string
 ): boolean {
   if (!config) return false;
   return activeConfigVerifierAddresses(config).has(String(verifier));
@@ -54,7 +54,7 @@ export function isConfigDefaultVerifier(
 
 export function assertHttpsEndpoint(
   endpoint: string,
-  options: { maxLen?: number } = {},
+  options: { maxLen?: number } = {}
 ): string {
   const trimmed = endpoint.trim();
   if (!trimmed.startsWith("https://")) {
@@ -74,7 +74,7 @@ export function createVerifierEndpointSigner(
     fetch?: typeof fetch;
     /** Verifier session bearer; `/sign` is bearer-authenticated. */
     getAccessToken?: () => string | null | Promise<string | null>;
-  },
+  }
 ): TransactionPartialSigner<Address> {
   const httpFetch = config.fetch ?? fetch;
 
@@ -82,7 +82,7 @@ export function createVerifierEndpointSigner(
     address: verifierAddress,
     signTransactions: async (
       transactions: readonly SignableTransaction[],
-      options,
+      options
     ): Promise<readonly SignatureDictionary[]> => {
       options?.abortSignal?.throwIfAborted();
 
@@ -97,7 +97,7 @@ export function createVerifierEndpointSigner(
         },
         body: JSON.stringify({
           transactions: transactions.map((transaction) =>
-            getBase64EncodedWireTransaction(transaction),
+            getBase64EncodedWireTransaction(transaction)
           ),
         }),
         signal: options?.abortSignal,
@@ -125,7 +125,7 @@ export function createVerifierEndpointSigner(
           });
         }
         throw new Error(
-          body.error ?? `Verifier sign request failed (${response.status})`,
+          body.error ?? `Verifier sign request failed (${response.status})`
         );
       }
 
@@ -135,7 +135,7 @@ export function createVerifierEndpointSigner(
 
       return body.signatures.map((signatureBase64) => {
         const signatureBytes = new Uint8Array(
-          base64Encoder.encode(signatureBase64),
+          base64Encoder.encode(signatureBase64)
         );
         if (signatureBytes.length !== 64) {
           throw new Error("Verifier signature must be 64 bytes");
@@ -190,7 +190,7 @@ function resolvedFromAccounts(args: {
     const apiBase = normalizeVerifierApiBase(
       assertHttpsEndpoint(tokenVerifier.data.endpoint, {
         maxLen: MAX_ENDPOINT_LEN,
-      }),
+      })
     );
     const verifierAddress = tokenVerifier.data.verifier;
     const isConfigDefault = defaults.has(String(verifierAddress));
@@ -213,7 +213,7 @@ function resolvedFromAccounts(args: {
   }
   const activeVerifiers = onChainConfig.data.verifiers.slice(
     0,
-    onChainConfig.data.verifierCount,
+    onChainConfig.data.verifierCount
   );
   if (activeVerifiers.length === 0) {
     throw new Error("No verifier configured for phygital-wallet execute");
@@ -242,7 +242,7 @@ export async function resolveVerifier(
   config: {
     fetch?: typeof fetch;
     getAccessToken?: () => string | null | Promise<string | null>;
-  } = {},
+  } = {}
 ): Promise<ResolvedVerifier> {
   const [[tokenVerifierPda], [configPda]] = await Promise.all([
     findTokenVerifierPda({ phygitalToken }),
@@ -251,7 +251,7 @@ export async function resolveVerifier(
 
   const [tokenVerifierEncoded, configEncoded] = await fetchEncodedAccounts(
     rpc,
-    [tokenVerifierPda, configPda],
+    [tokenVerifierPda, configPda]
   );
 
   return resolvedFromAccounts({

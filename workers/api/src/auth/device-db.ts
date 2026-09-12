@@ -40,12 +40,12 @@ function mapCredential(row: CredentialRow): DeviceCredential {
 }
 
 export async function getCredentialById(
-  credentialId: string,
+  credentialId: string
 ): Promise<DeviceCredential | null> {
   const row = await db()
     .prepare(
       `SELECT credential_id, public_key, counter, user_handle, created_at
-       FROM device_credentials WHERE credential_id = ?`,
+       FROM device_credentials WHERE credential_id = ?`
     )
     .bind(credentialId)
     .first<CredentialRow>();
@@ -53,12 +53,12 @@ export async function getCredentialById(
 }
 
 export async function getCredentialByUserHandle(
-  userHandle: string,
+  userHandle: string
 ): Promise<DeviceCredential | null> {
   const row = await db()
     .prepare(
       `SELECT credential_id, public_key, counter, user_handle, created_at
-       FROM device_credentials WHERE user_handle = ?`,
+       FROM device_credentials WHERE user_handle = ?`
     )
     .bind(userHandle)
     .first<CredentialRow>();
@@ -75,7 +75,7 @@ export async function insertCredential(args: {
     .prepare(
       `INSERT INTO device_credentials
          (credential_id, public_key, counter, user_handle, created_at)
-       VALUES (?, ?, 0, ?, ?)`,
+       VALUES (?, ?, 0, ?, ?)`
     )
     .bind(args.credentialId, args.publicKey, args.userHandle, now)
     .run();
@@ -90,25 +90,25 @@ export async function insertCredential(args: {
 
 export async function updateCredentialCounter(
   credentialId: string,
-  counter: number,
+  counter: number
 ): Promise<void> {
   await db()
     .prepare(
-      `UPDATE device_credentials SET counter = ? WHERE credential_id = ?`,
+      `UPDATE device_credentials SET counter = ? WHERE credential_id = ?`
     )
     .bind(counter, credentialId)
     .run();
 }
 
 export async function listLinksForCredential(
-  credentialId: string,
+  credentialId: string
 ): Promise<DeviceTokenLink[]> {
   const { results } = await db()
     .prepare(
       `SELECT credential_id, phygital_token, label, image_url, mint, linked_at
        FROM device_token_links
        WHERE credential_id = ?
-       ORDER BY linked_at DESC`,
+       ORDER BY linked_at DESC`
     )
     .bind(credentialId)
     .all<{
@@ -148,7 +148,7 @@ export async function upsertLink(args: {
          label = COALESCE(excluded.label, device_token_links.label),
          image_url = COALESCE(excluded.image_url, device_token_links.image_url),
          mint = COALESCE(excluded.mint, device_token_links.mint),
-         linked_at = excluded.linked_at`,
+         linked_at = excluded.linked_at`
     )
     .bind(
       args.credentialId,
@@ -156,7 +156,7 @@ export async function upsertLink(args: {
       args.label ?? null,
       args.imageUrl ?? null,
       args.mint ?? null,
-      now,
+      now
     )
     .run();
   return {
@@ -170,7 +170,7 @@ export async function upsertLink(args: {
 }
 
 export async function deleteLinkForToken(
-  phygitalToken: string,
+  phygitalToken: string
 ): Promise<boolean> {
   const result = await db()
     .prepare(`DELETE FROM device_token_links WHERE phygital_token = ?`)

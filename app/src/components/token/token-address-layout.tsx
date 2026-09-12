@@ -24,8 +24,8 @@ export function TokenAddressLayout({ children }: { children: ReactNode }) {
     typeof params.address === "string"
       ? params.address
       : Array.isArray(params.address)
-        ? params.address[0]
-        : "";
+      ? params.address[0]
+      : "";
   const address = tryParseAddress(raw);
 
   if (!address) {

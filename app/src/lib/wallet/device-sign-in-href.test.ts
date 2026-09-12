@@ -39,7 +39,7 @@ describe("parseTokenWalletPath", () => {
       path: walletHref(TOKEN, "activity"),
     });
     expect(
-      parseTokenWalletPath(walletSettingsHref(TOKEN, "spendingLimits")),
+      parseTokenWalletPath(walletSettingsHref(TOKEN, "spendingLimits"))
     ).toEqual({
       kind: "wallet",
       token: TOKEN,
@@ -52,12 +52,12 @@ describe("parseTokenWalletPath", () => {
     expect(parseTokenWalletPath("https://evil.example/phish")).toBeNull();
     expect(parseTokenWalletPath("//evil.example/phish")).toBeNull();
     expect(
-      parseTokenWalletPath(`/token/${TOKEN}/wallet/../settings`),
+      parseTokenWalletPath(`/token/${TOKEN}/wallet/../settings`)
     ).toBeNull();
     expect(parseTokenWalletPath(`/token/${TOKEN}/wallet/claim`)).toBeNull();
     expect(parseTokenWalletPath(`/token/not-a-pubkey/wallet`)).toBeNull();
     expect(
-      parseTokenWalletPath(`/token/${TOKEN}/wallet/settings/unknown`),
+      parseTokenWalletPath(`/token/${TOKEN}/wallet/settings/unknown`)
     ).toBeNull();
   });
 });
@@ -116,7 +116,7 @@ describe("device sign-in intent", () => {
       returnTo: returnPath,
     });
     expect(
-      parseDeviceSignInIntent({ setup: "limits", returnPath: null }),
+      parseDeviceSignInIntent({ setup: "limits", returnPath: null })
     ).toBeNull();
     expect(parseDeviceSignInIntent({ setup: null, returnPath })).toBeNull();
   });
@@ -140,8 +140,8 @@ describe("isOwnerAuthFailure", () => {
           code: "device_session_required",
           error: "Sign in with this phone to continue.",
           soft: false,
-        }),
-      ),
+        })
+      )
     ).toBe(true);
     expect(
       isOwnerAuthFailure(
@@ -149,8 +149,8 @@ describe("isOwnerAuthFailure", () => {
           code: "not_owner",
           error: "Only the owner phone can do this.",
           soft: false,
-        }),
-      ),
+        })
+      )
     ).toBe(true);
     expect(
       isOwnerAuthFailure(
@@ -158,8 +158,8 @@ describe("isOwnerAuthFailure", () => {
           code: "insufficient_fee_balance",
           error: "Fee balance is too low",
           soft: false,
-        }),
-      ),
+        })
+      )
     ).toBe(false);
   });
 });

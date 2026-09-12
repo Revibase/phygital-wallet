@@ -72,21 +72,21 @@ async function shouldAttemptRefresh(res: Response): Promise<boolean> {
 
 export function queryFetch(
   input: RequestInfo | URL,
-  init?: RequestInit,
+  init?: RequestInit
 ): Promise<Response> {
   const resolved =
     typeof input === "string"
       ? apiUrl(input)
       : input instanceof URL
-        ? apiUrl(input.toString())
-        : input;
+      ? apiUrl(input.toString())
+      : input;
 
   const url =
     typeof resolved === "string"
       ? resolved
       : resolved instanceof URL
-        ? resolved.toString()
-        : resolved.url;
+      ? resolved.toString()
+      : resolved.url;
 
   const run = () =>
     fetch(resolved, {
@@ -118,7 +118,7 @@ export class QueryHttpError extends Error {
     message: string,
     status: number,
     code?: string | null,
-    retryAfterMs?: number | null,
+    retryAfterMs?: number | null
   ) {
     super(message);
     this.name = "QueryHttpError";
@@ -170,7 +170,7 @@ export function isRetryableQueryError(error: unknown): boolean {
 /** React Query `retry` callback — up to 3 attempts on retryable errors only. */
 export function shouldRetryQuery(
   failureCount: number,
-  error: unknown,
+  error: unknown
 ): boolean {
   if (failureCount >= 3) return false;
   return isRetryableQueryError(error);
@@ -187,7 +187,7 @@ export async function readJson<T>(res: Response, fallback: string): Promise<T> {
       body.error ?? fallback,
       res.status,
       body.code ?? null,
-      parseRetryAfterMs(res),
+      parseRetryAfterMs(res)
     );
   }
   return body;

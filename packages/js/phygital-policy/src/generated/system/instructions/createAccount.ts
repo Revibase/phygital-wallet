@@ -51,7 +51,7 @@ export type CreateAccountInstruction<
   TProgram extends string = typeof SYSTEM_PROGRAM_ADDRESS,
   TAccountPayer extends string | AccountMeta<string> = string,
   TAccountNewAccount extends string | AccountMeta<string> = string,
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+  TRemainingAccounts extends readonly AccountMeta<string>[] = []
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
   InstructionWithAccounts<
@@ -64,7 +64,7 @@ export type CreateAccountInstruction<
         ? WritableSignerAccount<TAccountNewAccount> &
             AccountSignerMeta<TAccountNewAccount>
         : TAccountNewAccount,
-      ...TRemainingAccounts,
+      ...TRemainingAccounts
     ]
   >;
 
@@ -89,7 +89,7 @@ export function getCreateAccountInstructionDataEncoder(): FixedSizeEncoder<Creat
       ["space", getU64Encoder()],
       ["programAddress", getAddressEncoder()],
     ]),
-    (value) => ({ ...value, discriminator: CREATE_ACCOUNT_DISCRIMINATOR }),
+    (value) => ({ ...value, discriminator: CREATE_ACCOUNT_DISCRIMINATOR })
   );
 }
 
@@ -108,13 +108,13 @@ export function getCreateAccountInstructionDataCodec(): FixedSizeCodec<
 > {
   return combineCodec(
     getCreateAccountInstructionDataEncoder(),
-    getCreateAccountInstructionDataDecoder(),
+    getCreateAccountInstructionDataDecoder()
   );
 }
 
 export type CreateAccountInput<
   TAccountPayer extends string = string,
-  TAccountNewAccount extends string = string,
+  TAccountNewAccount extends string = string
 > = {
   payer: TransactionSigner<TAccountPayer>;
   newAccount: TransactionSigner<TAccountNewAccount>;
@@ -126,10 +126,10 @@ export type CreateAccountInput<
 export function getCreateAccountInstruction<
   TAccountPayer extends string,
   TAccountNewAccount extends string,
-  TProgramAddress extends Address = typeof SYSTEM_PROGRAM_ADDRESS,
+  TProgramAddress extends Address = typeof SYSTEM_PROGRAM_ADDRESS
 >(
   input: CreateAccountInput<TAccountPayer, TAccountNewAccount>,
-  config?: { programAddress?: TProgramAddress },
+  config?: { programAddress?: TProgramAddress }
 ): CreateAccountInstruction<
   TProgramAddress,
   TAccountPayer,
@@ -155,7 +155,7 @@ export function getCreateAccountInstruction<
   // Bytes created or reallocated by the instruction.
   const byteDelta: number = [Number(args.space) + BASE_ACCOUNT_SIZE].reduce(
     (a, b) => a + b,
-    0,
+    0
   );
 
   const getAccountMeta = getAccountMetaFactory(programAddress, "omitted");
@@ -166,20 +166,15 @@ export function getCreateAccountInstruction<
     ],
     byteDelta,
     data: getCreateAccountInstructionDataEncoder().encode(
-      args as CreateAccountInstructionDataArgs,
+      args as CreateAccountInstructionDataArgs
     ),
     programAddress,
-  } as CreateAccountInstruction<
-    TProgramAddress,
-    TAccountPayer,
-    TAccountNewAccount
-  > &
-    InstructionWithByteDelta);
+  } as CreateAccountInstruction<TProgramAddress, TAccountPayer, TAccountNewAccount> & InstructionWithByteDelta);
 }
 
 export type ParsedCreateAccountInstruction<
   TProgram extends string = typeof SYSTEM_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[]
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -191,11 +186,11 @@ export type ParsedCreateAccountInstruction<
 
 export function parseCreateAccountInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[]
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>,
+    InstructionWithData<ReadonlyUint8Array>
 ): ParsedCreateAccountInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 2) {
     throw new SolanaError(
@@ -203,7 +198,7 @@ export function parseCreateAccountInstruction<
       {
         actualAccountMetas: instruction.accounts.length,
         expectedAccountMetas: 2,
-      },
+      }
     );
   }
   let accountIndex = 0;

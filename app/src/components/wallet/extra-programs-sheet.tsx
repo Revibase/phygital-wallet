@@ -58,7 +58,7 @@ export function ExtraProgramsSheet({
                 programAllowlist: true,
                 extraPrograms: customPrograms,
               },
-              onBack,
+              onBack
             )
           }
         />

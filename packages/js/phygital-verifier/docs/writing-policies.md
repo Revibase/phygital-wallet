@@ -44,7 +44,7 @@ const gate = policy([
         message: "Over USDC aggregate",
         details: { limit: limit.toString(), actual: actual.toString() },
       }),
-    },
+    }
   ),
 ]);
 ```

@@ -13,15 +13,15 @@ import { getSolanaRpc } from "@/lib/solana/rpc";
 
 function seedPhygitalTokenCache(
   queryClient: ReturnType<typeof useQueryClient>,
-  token: PhygitalToken,
+  token: PhygitalToken
 ) {
   queryClient.setQueryData(
     queryKeys.phygitalToken.byAddress(String(token.address)),
-    token,
+    token
   );
   queryClient.setQueryData(
     queryKeys.phygitalToken.byIdentifier(token.identifier),
-    token,
+    token
   );
 }
 
@@ -34,7 +34,7 @@ export function usePhygitalToken(identifier: string | null) {
       if (!identifier) throw new Error("Missing identifier");
       const token = await fetchPhygitalTokenByIdentifier(
         getSolanaRpc(),
-        identifier,
+        identifier
       );
       seedPhygitalTokenCache(queryClient, token);
       return token;
@@ -53,7 +53,7 @@ export function usePhygitalTokenByAddress(tokenAddress: string | null) {
       if (!tokenAddress) throw new Error("Missing token");
       const token = await fetchPhygitalToken(
         getSolanaRpc(),
-        address(tokenAddress),
+        address(tokenAddress)
       );
       seedPhygitalTokenCache(queryClient, token);
       return token;

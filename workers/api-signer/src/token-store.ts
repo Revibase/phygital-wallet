@@ -42,7 +42,10 @@ const MAX_OPEN_PENDING = 5;
  * audit trail (create + terminal) lives in the centralized D1 audit_log.
  */
 export type ApprovalResolutionStatus =
-  "granted" | "denied" | "cancelled" | "expired";
+  | "granted"
+  | "denied"
+  | "cancelled"
+  | "expired";
 
 /** Open inbox row — only what the owner sheet needs. */
 export type PendingApproval = {
@@ -53,7 +56,7 @@ export type PendingApproval = {
 };
 
 function parseStoredPolicy(
-  policyJson: string,
+  policyJson: string
 ): PaymentsPolicyConfig | "invalid" {
   try {
     const parsed = JSON.parse(policyJson) as unknown;
@@ -148,13 +151,13 @@ export class TokenStore {
 
   constructor(
     private readonly sql: Sql,
-    private readonly phygitalToken: string,
+    private readonly phygitalToken: string
   ) {}
 
   ensureToken(token: string): void {
     const existing = this.sql
       .exec<{ value: string }>(
-        `SELECT value FROM meta WHERE key = 'phygital_token'`,
+        `SELECT value FROM meta WHERE key = 'phygital_token'`
       )
       .toArray()[0];
     if (existing) {
@@ -167,13 +170,13 @@ export class TokenStore {
     }
     this.sql.exec(
       `INSERT INTO meta (key, value) VALUES ('phygital_token', ?)`,
-      token,
+      token
     );
     const now = Date.now();
     this.sql.exec(
       `INSERT INTO fee_balance (id, balance_lamports, updated_at) VALUES (1, ?, ?)`,
       STARTER_FEE_BALANCE_LAMPORTS,
-      now,
+      now
     );
   }
 
@@ -191,7 +194,7 @@ export class TokenStore {
         mint: string | null;
       }>(
         `SELECT credential_id, public_key, linked_at, label, image_url, mint
-         FROM owner WHERE id = 1`,
+         FROM owner WHERE id = 1`
       )
       .toArray()[0];
     if (!row) return null;
@@ -256,7 +259,7 @@ export class TokenStore {
       now,
       args.label ?? null,
       args.imageUrl ?? null,
-      args.mint ?? null,
+      args.mint ?? null
     );
     return { ok: true };
   }
@@ -298,13 +301,13 @@ export class TokenStore {
   consumeAccessoryCounter(
     kind: AccessoryCounterKind,
     identifier: string,
-    counter: number,
+    counter: number
   ): boolean {
     const stored = this.sql
       .exec<{ c: number }>(
         `SELECT c FROM accessory_counter WHERE kind = ? AND identifier = ?`,
         kind,
-        identifier,
+        identifier
       )
       .toArray()[0];
 
@@ -320,7 +323,7 @@ export class TokenStore {
       kind,
       identifier,
       counter,
-      Date.now(),
+      Date.now()
     );
     return true;
   }
@@ -333,7 +336,7 @@ export class TokenStore {
    */
   async createChallenge(
     origin: string,
-    bindingHash: string,
+    bindingHash: string
   ): Promise<{ id: string; challenge: string }> {
     const id = crypto.randomUUID();
     const nonceBytes = crypto.getRandomValues(new Uint8Array(32));
@@ -348,7 +351,7 @@ export class TokenStore {
       nonce,
       bindingHash,
       origin,
-      expiresAt,
+      expiresAt
     );
     return { id, challenge };
   }
@@ -360,7 +363,7 @@ export class TokenStore {
   async consumeChallenge(
     id: string,
     origin: string,
-    bindingHash: string,
+    bindingHash: string
   ): Promise<{ challenge: string } | null> {
     const row = this.sql
       .exec<{
@@ -372,7 +375,7 @@ export class TokenStore {
       }>(
         `SELECT id, nonce, binding_hash, origin, expires_at FROM challenges
          WHERE id = ? LIMIT 1`,
-        id,
+        id
       )
       .toArray()[0];
     if (!row) return null;
@@ -393,7 +396,7 @@ export class TokenStore {
     if (this.#policyCache !== undefined) return this.#policyCache;
     const row = this.sql
       .exec<{ policy_json: string }>(
-        `SELECT policy_json FROM policy WHERE id = 1`,
+        `SELECT policy_json FROM policy WHERE id = 1`
       )
       .toArray()[0];
     if (!row) {
@@ -453,7 +456,7 @@ export class TokenStore {
          policy_json = excluded.policy_json,
          updated_at = excluded.updated_at`,
       json,
-      now,
+      now
     );
     this.#policyCache = clean;
     return { ok: true };
@@ -468,7 +471,7 @@ export class TokenStore {
          WHERE intent_hash = ? AND consumed_at IS NULL AND expires_at > ?
          LIMIT 1`,
         intentHash,
-        now,
+        now
       )
       .toArray()[0];
     return row ?? null;
@@ -476,7 +479,7 @@ export class TokenStore {
 
   createGrant(
     intentHash: string,
-    ttlSeconds: number,
+    ttlSeconds: number
   ): { grantId: string; expiresAt: number } {
     const now = Date.now();
     const expiresAt = now + ttlSeconds * 1000;
@@ -487,7 +490,7 @@ export class TokenStore {
       grantId,
       intentHash,
       expiresAt,
-      now,
+      now
     );
     return { grantId, expiresAt };
   }
@@ -499,7 +502,7 @@ export class TokenStore {
     this.sql.exec(
       `UPDATE grants SET consumed_at = ? WHERE id = ? AND consumed_at IS NULL`,
       now,
-      open.id,
+      open.id
     );
     return true;
   }
@@ -534,7 +537,7 @@ export class TokenStore {
          WHERE intent_hash = ? AND resolved_at IS NULL AND expires_at > ?
          LIMIT 1`,
         intentHash,
-        now,
+        now
       )
       .toArray()[0];
     if (openRow) {
@@ -546,7 +549,7 @@ export class TokenStore {
         args.error,
         detailsJson,
         expiresAt,
-        openRow.id,
+        openRow.id
       );
       return;
     }
@@ -556,7 +559,7 @@ export class TokenStore {
         `SELECT id FROM pending_approvals
          WHERE resolved_at IS NULL AND expires_at > ?
          ORDER BY created_at ASC`,
-        now,
+        now
       )
       .toArray();
     const overflow = open.length - (MAX_OPEN_PENDING - 1);
@@ -577,7 +580,7 @@ export class TokenStore {
       args.error,
       detailsJson,
       expiresAt,
-      now,
+      now
     );
   }
 
@@ -595,7 +598,7 @@ export class TokenStore {
          ORDER BY created_at DESC
          LIMIT ?`,
         now,
-        MAX_OPEN_PENDING,
+        MAX_OPEN_PENDING
       )
       .toArray();
 
@@ -616,14 +619,14 @@ export class TokenStore {
   resolvePendingApproval(
     intentHash: string,
     _resolution: ApprovalResolutionStatus,
-    _now = Date.now(),
+    _now = Date.now()
   ): boolean {
     const open = this.sql
       .exec<{ id: string }>(
         `SELECT id FROM pending_approvals
          WHERE intent_hash = ? AND resolved_at IS NULL
          LIMIT 1`,
-        intentHash.trim(),
+        intentHash.trim()
       )
       .toArray()[0];
     if (!open) return false;
@@ -641,7 +644,7 @@ export class TokenStore {
   getFeeBalanceLamports(): number {
     const row = this.sql
       .exec<{ balance_lamports: number }>(
-        `SELECT balance_lamports FROM fee_balance WHERE id = 1`,
+        `SELECT balance_lamports FROM fee_balance WHERE id = 1`
       )
       .toArray()[0];
     return row?.balance_lamports ?? 0;
@@ -652,7 +655,7 @@ export class TokenStore {
     const existing = this.sql
       .exec<{ signature: string }>(
         `SELECT signature FROM fee_events WHERE signature = ?`,
-        event.signature,
+        event.signature
       )
       .toArray()[0];
     if (existing) return false;
@@ -664,7 +667,7 @@ export class TokenStore {
       event.signature,
       event.kind,
       event.lamports,
-      now,
+      now
     );
 
     const current = this.getFeeBalanceLamports();
@@ -678,7 +681,7 @@ export class TokenStore {
          balance_lamports = excluded.balance_lamports,
          updated_at = excluded.updated_at`,
       next,
-      now,
+      now
     );
     return true;
   }
@@ -687,7 +690,7 @@ export class TokenStore {
 async function sha256Base64Url(input: string): Promise<string> {
   const digest = await crypto.subtle.digest(
     "SHA-256",
-    new TextEncoder().encode(input),
+    new TextEncoder().encode(input)
   );
   return bytesToBase64Url(new Uint8Array(digest));
 }

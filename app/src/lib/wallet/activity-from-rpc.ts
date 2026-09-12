@@ -82,7 +82,7 @@ function uiAmountFromToken(entry: TokenBalanceEntry): number {
 
 function tokenAmountsByMint(
   entries: TokenBalanceEntry[] | undefined,
-  walletAddress: string,
+  walletAddress: string
 ): Map<string, number> {
   const byMint = new Map<string, number>();
   for (const entry of entries ?? []) {
@@ -96,7 +96,7 @@ function tokenAmountsByMint(
 function pushDelta(
   deltas: WalletActivityDelta[],
   mint: string,
-  signedUi: number,
+  signedUi: number
 ): void {
   if (!Number.isFinite(signedUi) || signedUi === 0) return;
   deltas.push({
@@ -109,7 +109,7 @@ function pushDelta(
 /** Derive Phantom-style activity row from a full GTFA transaction. */
 export function mapGtfaTransaction(
   walletAddress: string,
-  tx: GtfaFullTransaction,
+  tx: GtfaFullTransaction
 ): WalletActivityItem | null {
   const signature = tx.transaction?.signatures?.[0]?.trim();
   if (!signature) return null;
@@ -117,7 +117,7 @@ export function mapGtfaTransaction(
   const meta = tx.meta;
   const accountKeys = tx.transaction?.message?.accountKeys ?? [];
   const walletIndex = accountKeys.findIndex(
-    (k) => accountPubkey(k) === walletAddress,
+    (k) => accountPubkey(k) === walletAddress
   );
 
   const balanceDeltas: WalletActivityDelta[] = [];
@@ -130,7 +130,7 @@ export function mapGtfaTransaction(
     pushDelta(
       balanceDeltas,
       mint,
-      (postTokens.get(mint) ?? 0) - (preTokens.get(mint) ?? 0),
+      (postTokens.get(mint) ?? 0) - (preTokens.get(mint) ?? 0)
     );
   }
 
@@ -162,10 +162,10 @@ export function mapGtfaTransaction(
   const kind: WalletActivityKind = failed
     ? "failed"
     : hasOut && !hasIn
-      ? "sent"
-      : hasIn && !hasOut
-        ? "received"
-        : "other";
+    ? "sent"
+    : hasIn && !hasOut
+    ? "received"
+    : "other";
 
   const primary = balanceDeltas[0] ?? null;
   const amountLabel = primary
@@ -175,14 +175,14 @@ export function mapGtfaTransaction(
   const title = failed
     ? "Failed"
     : kind === "sent"
-      ? asset
-        ? `Sent ${asset}`
-        : "Sent"
-      : kind === "received"
-        ? asset
-          ? `Received ${asset}`
-          : "Received"
-        : "Transaction";
+    ? asset
+      ? `Sent ${asset}`
+      : "Sent"
+    : kind === "received"
+    ? asset
+      ? `Received ${asset}`
+      : "Received"
+    : "Transaction";
 
   return {
     id: signature,

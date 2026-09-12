@@ -73,13 +73,16 @@ export type ExecuteInstruction<
   TAccountPhygitalToken extends string | AccountMeta<string> = string,
   TAccountTokenVerifier extends string | AccountMeta<string> = string,
   TAccountWallet extends string | AccountMeta<string> = string,
-  TAccountSlotHashes extends string | AccountMeta<string> =
-    "SysvarS1otHashes111111111111111111111111111",
-  TAccountInstructionsSysvar extends string | AccountMeta<string> =
-    "Sysvar1nstructions1111111111111111111111111",
-  TAccountPhygitalTokenProgram extends string | AccountMeta<string> =
-    "DuPpckdjjgVAnYok2aTMAt264ZPBXqq3JSazJjCUzTJQ",
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+  TAccountSlotHashes extends
+    | string
+    | AccountMeta<string> = "SysvarS1otHashes111111111111111111111111111",
+  TAccountInstructionsSysvar extends
+    | string
+    | AccountMeta<string> = "Sysvar1nstructions1111111111111111111111111",
+  TAccountPhygitalTokenProgram extends
+    | string
+    | AccountMeta<string> = "DuPpckdjjgVAnYok2aTMAt264ZPBXqq3JSazJjCUzTJQ",
+  TRemainingAccounts extends readonly AccountMeta<string>[] = []
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
   InstructionWithAccounts<
@@ -109,7 +112,7 @@ export type ExecuteInstruction<
       TAccountPhygitalTokenProgram extends string
         ? ReadonlyAccount<TAccountPhygitalTokenProgram>
         : TAccountPhygitalTokenProgram,
-      ...TRemainingAccounts,
+      ...TRemainingAccounts
     ]
   >;
 
@@ -134,7 +137,7 @@ export function getExecuteInstructionDataEncoder(): Encoder<ExecuteInstructionDa
       ["secp256r1VerifyArgs", getSecp256r1VerifyArgsEncoder()],
       ["slotNumber", getU64Encoder()],
     ]),
-    (value) => ({ ...value, discriminator: EXECUTE_DISCRIMINATOR }),
+    (value) => ({ ...value, discriminator: EXECUTE_DISCRIMINATOR })
   );
 }
 
@@ -153,7 +156,7 @@ export function getExecuteInstructionDataCodec(): Codec<
 > {
   return combineCodec(
     getExecuteInstructionDataEncoder(),
-    getExecuteInstructionDataDecoder(),
+    getExecuteInstructionDataDecoder()
   );
 }
 
@@ -165,7 +168,7 @@ export type ExecuteAsyncInput<
   TAccountWallet extends string = string,
   TAccountSlotHashes extends string = string,
   TAccountInstructionsSysvar extends string = string,
-  TAccountPhygitalTokenProgram extends string = string,
+  TAccountPhygitalTokenProgram extends string = string
 > = {
   /** Verifier co-signer. Must match token override or config set. */
   verifier: TransactionSigner<TAccountVerifier>;
@@ -196,7 +199,7 @@ export async function getExecuteInstructionAsync<
   TAccountSlotHashes extends string,
   TAccountInstructionsSysvar extends string,
   TAccountPhygitalTokenProgram extends string,
-  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
+  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS
 >(
   input: ExecuteAsyncInput<
     TAccountVerifier,
@@ -208,7 +211,7 @@ export async function getExecuteInstructionAsync<
     TAccountInstructionsSysvar,
     TAccountPhygitalTokenProgram
   >,
-  config?: { programAddress?: TProgramAddress },
+  config?: { programAddress?: TProgramAddress }
 ): Promise<
   ExecuteInstruction<
     TProgramAddress,
@@ -259,7 +262,7 @@ export async function getExecuteInstructionAsync<
     accounts.tokenVerifier.value = await findTokenVerifierPda({
       phygitalToken: getAddressFromResolvedInstructionAccount(
         "phygitalToken",
-        accounts.phygitalToken.value,
+        accounts.phygitalToken.value
       ),
     });
   }
@@ -267,7 +270,7 @@ export async function getExecuteInstructionAsync<
     accounts.wallet.value = await findWalletPda({
       phygitalToken: getAddressFromResolvedInstructionAccount(
         "phygitalToken",
-        accounts.phygitalToken.value,
+        accounts.phygitalToken.value
       ),
     });
   }
@@ -297,20 +300,10 @@ export async function getExecuteInstructionAsync<
       getAccountMeta("phygitalTokenProgram", accounts.phygitalTokenProgram),
     ],
     data: getExecuteInstructionDataEncoder().encode(
-      args as ExecuteInstructionDataArgs,
+      args as ExecuteInstructionDataArgs
     ),
     programAddress,
-  } as ExecuteInstruction<
-    TProgramAddress,
-    TAccountVerifier,
-    TAccountConfig,
-    TAccountPhygitalToken,
-    TAccountTokenVerifier,
-    TAccountWallet,
-    TAccountSlotHashes,
-    TAccountInstructionsSysvar,
-    TAccountPhygitalTokenProgram
-  >);
+  } as ExecuteInstruction<TProgramAddress, TAccountVerifier, TAccountConfig, TAccountPhygitalToken, TAccountTokenVerifier, TAccountWallet, TAccountSlotHashes, TAccountInstructionsSysvar, TAccountPhygitalTokenProgram>);
 }
 
 export type ExecuteInput<
@@ -321,7 +314,7 @@ export type ExecuteInput<
   TAccountWallet extends string = string,
   TAccountSlotHashes extends string = string,
   TAccountInstructionsSysvar extends string = string,
-  TAccountPhygitalTokenProgram extends string = string,
+  TAccountPhygitalTokenProgram extends string = string
 > = {
   /** Verifier co-signer. Must match token override or config set. */
   verifier: TransactionSigner<TAccountVerifier>;
@@ -352,7 +345,7 @@ export function getExecuteInstruction<
   TAccountSlotHashes extends string,
   TAccountInstructionsSysvar extends string,
   TAccountPhygitalTokenProgram extends string,
-  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
+  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS
 >(
   input: ExecuteInput<
     TAccountVerifier,
@@ -364,7 +357,7 @@ export function getExecuteInstruction<
     TAccountInstructionsSysvar,
     TAccountPhygitalTokenProgram
   >,
-  config?: { programAddress?: TProgramAddress },
+  config?: { programAddress?: TProgramAddress }
 ): ExecuteInstruction<
   TProgramAddress,
   TAccountVerifier,
@@ -432,25 +425,15 @@ export function getExecuteInstruction<
       getAccountMeta("phygitalTokenProgram", accounts.phygitalTokenProgram),
     ],
     data: getExecuteInstructionDataEncoder().encode(
-      args as ExecuteInstructionDataArgs,
+      args as ExecuteInstructionDataArgs
     ),
     programAddress,
-  } as ExecuteInstruction<
-    TProgramAddress,
-    TAccountVerifier,
-    TAccountConfig,
-    TAccountPhygitalToken,
-    TAccountTokenVerifier,
-    TAccountWallet,
-    TAccountSlotHashes,
-    TAccountInstructionsSysvar,
-    TAccountPhygitalTokenProgram
-  >);
+  } as ExecuteInstruction<TProgramAddress, TAccountVerifier, TAccountConfig, TAccountPhygitalToken, TAccountTokenVerifier, TAccountWallet, TAccountSlotHashes, TAccountInstructionsSysvar, TAccountPhygitalTokenProgram>);
 }
 
 export type ParsedExecuteInstruction<
   TProgram extends string = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[]
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -475,11 +458,11 @@ export type ParsedExecuteInstruction<
 
 export function parseExecuteInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[]
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>,
+    InstructionWithData<ReadonlyUint8Array>
 ): ParsedExecuteInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 8) {
     throw new SolanaError(
@@ -487,7 +470,7 @@ export function parseExecuteInstruction<
       {
         actualAccountMetas: instruction.accounts.length,
         expectedAccountMetas: 8,
-      },
+      }
     );
   }
   let accountIndex = 0;
