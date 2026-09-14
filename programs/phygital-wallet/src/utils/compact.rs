@@ -6,6 +6,7 @@ use solana_sha256_hasher::{hash, hashv};
 use crate::constants::{EXECUTE_CHALLENGE_PREFIX, PROGRAM_WALLET_SEED};
 use crate::error::PhygitalError;
 use crate::state::CompactInstruction;
+use crate::utils::instruction_policy::{ProgramPermission, check_instruction};
 
 /// Packed compact format used for `instructions_hash`:
 /// ```text
@@ -108,7 +109,7 @@ pub(crate) fn execute_compact_instructions<'info>(
     remaining_accounts: &[AccountInfo<'info>],
     compact_instructions: &mut [CompactInstruction],
     // None is the explicit authority/no-policy bypass. Some(empty) is baseline.
-    program_permissions: Option<&[crate::ProgramPermission]>,
+    program_permissions: Option<&[ProgramPermission]>,
 ) -> Result<()> {
     let wallet_owner_before = *wallet.owner;
     let wallet_data_len_before = wallet.data_len();
@@ -140,7 +141,7 @@ pub(crate) fn execute_compact_instructions<'info>(
             PhygitalError::PhygitalTokenCpiNotAllowed
         );
         if let Some(permissions) = program_permissions {
-            crate::instruction_policy::check_instruction(
+            check_instruction(
                 permissions,
                 &target_program,
                 compact,

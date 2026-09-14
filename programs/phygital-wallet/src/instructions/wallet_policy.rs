@@ -3,6 +3,7 @@ use anchor_lang::prelude::*;
 use crate::constants::is_wsol_mint;
 use crate::error::PhygitalError;
 use crate::state::{Authority, MintCap, SpendCap, WALLET_POLICY_VERSION};
+use crate::utils::instruction_policy::{MAX_PERMISSION_BYTES, ProgramPermission, validate_permissions};
 use crate::utils::policy::{
     authorize_authority_signer, read_authority_header, reject_durable_nonce,
 };
@@ -46,7 +47,7 @@ pub struct WalletPolicyArgs {
     pub mint_caps: Vec<MintCapArg>,
     /// Per-program overrides. Omitted programs fall back to baseline permissions.
     /// Preserve this list when removing only caps; empty removes custom blocks too.
-    pub program_permissions: Vec<crate::ProgramPermission>,
+    pub program_permissions: Vec<ProgramPermission>,
 }
 
 #[derive(Accounts)]
@@ -99,11 +100,11 @@ pub fn set_wallet_policy_handler(
         );
     }
 
-    crate::instruction_policy::validate_permissions(&args.program_permissions)?;
+    validate_permissions(&args.program_permissions)?;
     let mut permission_bytes = Vec::new();
     args.program_permissions.serialize(&mut permission_bytes)?;
     require!(
-        permission_bytes.len() <= crate::MAX_PERMISSION_BYTES,
+        permission_bytes.len() <= MAX_PERMISSION_BYTES,
         PhygitalError::InvalidPolicyArgs
     );
 

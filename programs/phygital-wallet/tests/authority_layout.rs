@@ -261,7 +261,7 @@ fn malformed_authority_and_policy_fail_closed_without_panicking() {
     let pda = ctx.authority_pda(asset);
     let original = ctx.svm.get_account(&pda).unwrap();
     // Truncated header, truncated/oversized tail, bad discriminator, header version,
-    // policy version and cap count, wrong owner and noncanonical bump.
+    // policy version and cap count, wrong owner and mismatched token binding.
     for variant in 0..9 {
         let mut account = original.clone();
         let expected = match variant {
@@ -302,7 +302,9 @@ fn malformed_authority_and_policy_fail_closed_without_panicking() {
                 "AccessoryDisabled"
             }
             _ => {
-                account.data[8 + core::mem::offset_of!(AuthorityHeader, bump)] ^= 1;
+                // Header intact and program-owned, but bound to a different token:
+                // the token-binding check is what identifies the canonical PDA.
+                account.data[8 + core::mem::offset_of!(AuthorityHeader, phygital_token)] ^= 1;
                 "AuthorityTokenMismatch"
             }
         };

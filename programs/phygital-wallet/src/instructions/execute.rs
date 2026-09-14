@@ -87,7 +87,7 @@ pub fn handler<'info>(
 
     let token_key = ctx.accounts.phygital_token.key();
     let (wallet_bump, policy_present) =
-        resolve_authority(&ctx.accounts.authority_account, &token_key, ctx.program_id)?;
+        resolve_authority(&ctx.accounts.authority_account, &token_key)?;
 
     let slot_hash = fetch_slot_hash(&ctx.accounts.slot_hashes, slot_number)?;
     let message_hash =

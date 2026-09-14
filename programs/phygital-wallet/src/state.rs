@@ -2,6 +2,8 @@ use anchor_lang::prelude::*;
 use anchor_lang::Discriminator;
 
 use crate::error::PhygitalError;
+use crate::utils::instruction_policy::ProgramPermission;
+use crate::utils::instruction_policy::decode_permissions;
 
 /// Instruction-arg mirror of `phygital_token_client::Secp256r1VerifyArgs`.
 ///
@@ -95,7 +97,7 @@ pub struct Authority {
     /// assets; no caps means no amount limits. WSOL belongs to sol_cap.
     pub mint_caps: Vec<MintCap>,
     /// Explicit per-program overrides of the fixed baseline.
-    pub program_permissions: Vec<crate::ProgramPermission>,
+    pub program_permissions: Vec<ProgramPermission>,
 }
 
 impl Authority {
@@ -212,13 +214,13 @@ impl Authority {
 
     pub fn read_policy(
         data: &[u8],
-    ) -> Result<(&SpendCap, &[MintCap], Vec<crate::ProgramPermission>)> {
+    ) -> Result<(&SpendCap, &[MintCap], Vec<ProgramPermission>)> {
         let end = Self::parse_layout(data)?;
         let sol = bytemuck::try_from_bytes(&data[Self::SOL_CAP_OFFSET..Self::SOL_CAP_END])
             .map_err(|_| error!(PhygitalError::InvalidAccountData))?;
         let mints = bytemuck::try_cast_slice(&data[Self::MINTS_OFFSET..end])
             .map_err(|_| error!(PhygitalError::InvalidAccountData))?;
-        let permissions = crate::instruction_policy::decode_permissions(&data[end..])?;
+        let permissions = decode_permissions(&data[end..])?;
         Ok((sol, mints, permissions))
     }
 

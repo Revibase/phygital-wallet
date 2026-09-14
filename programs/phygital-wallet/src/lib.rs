@@ -11,15 +11,14 @@ use anchor_lang::prelude::*;
 
 pub mod constants;
 pub mod error;
-pub mod instruction_policy;
 pub mod instructions;
 pub mod state;
 pub(crate) mod utils;
 
 pub use constants::*;
-pub use instruction_policy::*;
 pub use instructions::*;
 pub use state::*;
+pub use utils::instruction_policy::*;
 
 declare_id!("Fjbi9JrRAmSBdxQxbkcxYDp6JUwnLbFhU2GsieWQBLSg");
 

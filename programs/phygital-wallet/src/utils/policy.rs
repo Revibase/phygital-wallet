@@ -7,6 +7,7 @@ use crate::error::PhygitalError;
 use crate::state::AuthorityHeader;
 use crate::Authority;
 
+use crate::utils::instruction_policy::ProgramPermission;
 use crate::utils::spending_limit::charge_cap;
 
 // System `AdvanceNonceAccount` discriminant (u32 LE), used by `reject_durable_nonce`.
@@ -116,7 +117,7 @@ pub(crate) struct PolicySnapshot {
     tracked: Vec<TrackedAccount>,
     /// Explicit per-program overrides, including restrictions on baseline programs.
     /// Captured pre-CPI so the execute loop needs no further policy-account borrow.
-    pub(crate) program_permissions: Vec<crate::ProgramPermission>,
+    pub(crate) program_permissions: Vec<ProgramPermission>,
 }
 
 /// Reads the fixed header (via bytemuck) without decoding the policy tail, so
@@ -164,7 +165,7 @@ pub(crate) fn authorize_authority_signer(
     Ok(header)
 }
 
-/// Resolve the canonical authority account and whether a spending policy is active.
+/// Resolve the authority account and whether a spending policy is active.
 ///
 /// The accessory tap REQUIRES a present owner: an absent authority account (never
 /// set up, or removed by `clear_authority`, which closes it) disables the tap. This
@@ -173,23 +174,22 @@ pub(crate) fn authorize_authority_signer(
 /// spending protections off with `clear_wallet_policy` (policy absent, owner present)
 /// while keeping the tap enabled. Unknown layouts fail closed.
 ///
-/// Program-ownership (an absent/closed PDA is system-owned) is enforced upstream by
-/// the caller's `#[account(owner = crate::ID @ AccessoryDisabled)]` constraint, so
-/// this only decodes the header and validates the token binding + canonical PDA.
-pub(crate) fn resolve_authority(
-    info: &AccountInfo,
-    token_key: &Pubkey,
-    program_id: &Pubkey,
-) -> Result<(u8, bool)> {
+/// The stored token binding uniquely identifies the canonical PDA, so no address
+/// re-derivation is needed: `set_authority` `init`s exactly one authority account per
+/// token, at the canonical `[AUTHORITY_SEED, token]` PDA, and a program-owned
+/// account's data can only be written by this program. Combined with the caller's
+/// `#[account(owner = crate::ID @ AccessoryDisabled)]` constraint (an absent/closed
+/// PDA is system-owned), any program-owned Authority whose header binds to this token
+/// *is* that canonical PDA. Dropping the `create_program_address` syscall keeps the
+/// hot path cheaper without weakening the guarantee.
+pub(crate) fn resolve_authority(info: &AccountInfo, token_key: &Pubkey) -> Result<(u8, bool)> {
     let data = info.try_borrow_data()?;
     let (header, policy_present) = Authority::read(&data)?;
-    // Validate both the stored token binding and the canonical PDA address.
     require_keys_eq!(
         header.phygital_token,
         *token_key,
         PhygitalError::AuthorityTokenMismatch
     );
-    require_canonical_authority(info, header, program_id)?;
     Ok((header.wallet_bump, policy_present))
 }
 
@@ -224,13 +224,14 @@ pub(crate) fn check_policy_and_snapshot<'info>(
     };
 
     for (idx, acc) in remaining_accounts.iter().enumerate() {
+        // Cheap owner check first, so only token accounts pay for the dedup scan.
+        if !is_token_program(acc.owner) {
+            continue;
+        }
         if remaining_accounts[..idx]
             .iter()
             .any(|other| other.key == acc.key)
         {
-            continue;
-        }
-        if !is_token_program(acc.owner) {
             continue;
         }
         let acc_data = acc.try_borrow_data()?;
