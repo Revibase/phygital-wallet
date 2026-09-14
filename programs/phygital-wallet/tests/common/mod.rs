@@ -228,6 +228,7 @@ impl TestContext {
             accounts: phygital_wallet::accounts::SetAuthority {
                 payer: self.payer.pubkey(),
                 phygital_token: asset,
+                wallet: self.wallet(asset),
                 authority_account: self.authority_pda(asset),
                 slot_hashes: SLOT_HASHES_SYSVAR_ID,
                 instructions_sysvar: INSTRUCTIONS_SYSVAR_ID,
@@ -1114,6 +1115,32 @@ impl TestContext {
         }
     }
 
+    pub fn execute_authority_using_policies_ix(
+        &self,
+        asset: Pubkey,
+        authority: Pubkey,
+        compact_instructions: Vec<CompactInstruction>,
+        remaining: Vec<AccountMeta>,
+    ) -> Instruction {
+        let mut accounts = phygital_wallet::accounts::ExecuteWithAuthorityUsingPolicies {
+            authority,
+            phygital_token: asset,
+            authority_account: self.authority_pda(asset),
+            wallet: self.wallet(asset),
+        }
+        .to_account_metas(None);
+        accounts.extend(remaining);
+
+        Instruction {
+            program_id: self.program_id,
+            accounts,
+            data: phygital_wallet::instruction::ExecuteWithAuthorityUsingPolicies {
+                compact_instructions,
+            }
+            .data(),
+        }
+    }
+
     /// Passkey-path execute over the current slot.
     pub fn send_execute(
         &mut self,
@@ -1195,6 +1222,29 @@ impl TestContext {
         for s in extra_signers {
             if !signers.contains(s) {
                 signers.push(*s);
+            }
+        }
+        Self::send_instructions(&mut self.svm, &[execute_ix], &signers)
+    }
+
+    pub fn send_execute_with_authority_using_policies(
+        &mut self,
+        asset: Pubkey,
+        compact_instructions: Vec<CompactInstruction>,
+        remaining: Vec<AccountMeta>,
+        authority: &Keypair,
+        extra_signers: &[Pubkey],
+    ) -> litesvm::types::TransactionResult {
+        let execute_ix = self.execute_authority_using_policies_ix(
+            asset,
+            authority.pubkey(),
+            compact_instructions,
+            remaining,
+        );
+        let mut signers = vec![self.payer.pubkey(), authority.pubkey()];
+        for signer in extra_signers {
+            if !signers.contains(signer) {
+                signers.push(*signer);
             }
         }
         Self::send_instructions(&mut self.svm, &[execute_ix], &signers)

@@ -16,12 +16,11 @@ import {
   getBytesEncoder,
   getStructDecoder,
   getStructEncoder,
-  getU64Decoder,
-  getU64Encoder,
   SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
   SolanaError,
   transformEncoder,
   type AccountMeta,
+  type AccountSignerMeta,
   type Address,
   type Codec,
   type Decoder,
@@ -30,7 +29,9 @@ import {
   type InstructionWithAccounts,
   type InstructionWithData,
   type ReadonlyAccount,
+  type ReadonlySignerAccount,
   type ReadonlyUint8Array,
+  type TransactionSigner,
   type WritableAccount,
 } from "@solana/kit";
 import {
@@ -41,156 +42,136 @@ import { PHYGITAL_WALLET_PROGRAM_ADDRESS } from "../programs/index.js";
 import {
   getCompactInstructionDecoder,
   getCompactInstructionEncoder,
-  getSecp256r1VerifyArgsDecoder,
-  getSecp256r1VerifyArgsEncoder,
   type CompactInstruction,
   type CompactInstructionArgs,
-  type Secp256r1VerifyArgs,
-  type Secp256r1VerifyArgsArgs,
 } from "../types/index.js";
 
-export const EXECUTE_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array([
-  130, 221, 242, 154, 13, 193, 189, 29,
-]);
+export const EXECUTE_WITH_AUTHORITY_DISCRIMINATOR: ReadonlyUint8Array =
+  new Uint8Array([249, 39, 107, 35, 244, 181, 161, 142]);
 
-export function getExecuteDiscriminatorBytes(): ReadonlyUint8Array {
-  return fixEncoderSize(getBytesEncoder(), 8).encode(EXECUTE_DISCRIMINATOR);
+export function getExecuteWithAuthorityDiscriminatorBytes(): ReadonlyUint8Array {
+  return fixEncoderSize(getBytesEncoder(), 8).encode(
+    EXECUTE_WITH_AUTHORITY_DISCRIMINATOR,
+  );
 }
 
-export type ExecuteInstruction<
+export type ExecuteWithAuthorityInstruction<
   TProgram extends string = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
+  TAccountAuthority extends string | AccountMeta<string> = string,
   TAccountPhygitalToken extends string | AccountMeta<string> = string,
-  TAccountWallet extends string | AccountMeta<string> = string,
   TAccountAuthorityAccount extends string | AccountMeta<string> = string,
-  TAccountSlotHashes extends string | AccountMeta<string> =
-    "SysvarS1otHashes111111111111111111111111111",
+  TAccountWallet extends string | AccountMeta<string> = string,
   TAccountInstructionsSysvar extends string | AccountMeta<string> =
     "Sysvar1nstructions1111111111111111111111111",
-  TAccountPhygitalTokenProgram extends string | AccountMeta<string> =
-    "DuPpckdjjgVAnYok2aTMAt264ZPBXqq3JSazJjCUzTJQ",
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
   InstructionWithAccounts<
     [
+      TAccountAuthority extends string
+        ? ReadonlySignerAccount<TAccountAuthority> &
+            AccountSignerMeta<TAccountAuthority>
+        : TAccountAuthority,
       TAccountPhygitalToken extends string
-        ? WritableAccount<TAccountPhygitalToken>
+        ? ReadonlyAccount<TAccountPhygitalToken>
         : TAccountPhygitalToken,
+      TAccountAuthorityAccount extends string
+        ? ReadonlyAccount<TAccountAuthorityAccount>
+        : TAccountAuthorityAccount,
       TAccountWallet extends string
         ? WritableAccount<TAccountWallet>
         : TAccountWallet,
-      TAccountAuthorityAccount extends string
-        ? WritableAccount<TAccountAuthorityAccount>
-        : TAccountAuthorityAccount,
-      TAccountSlotHashes extends string
-        ? ReadonlyAccount<TAccountSlotHashes>
-        : TAccountSlotHashes,
       TAccountInstructionsSysvar extends string
         ? ReadonlyAccount<TAccountInstructionsSysvar>
         : TAccountInstructionsSysvar,
-      TAccountPhygitalTokenProgram extends string
-        ? ReadonlyAccount<TAccountPhygitalTokenProgram>
-        : TAccountPhygitalTokenProgram,
       ...TRemainingAccounts,
     ]
   >;
 
-export type ExecuteInstructionData = {
+export type ExecuteWithAuthorityInstructionData = {
   discriminator: ReadonlyUint8Array;
   compactInstructions: Array<CompactInstruction>;
-  secp256r1VerifyArgs: Secp256r1VerifyArgs;
-  slotNumber: bigint;
 };
 
-export type ExecuteInstructionDataArgs = {
+export type ExecuteWithAuthorityInstructionDataArgs = {
   compactInstructions: Array<CompactInstructionArgs>;
-  secp256r1VerifyArgs: Secp256r1VerifyArgsArgs;
-  slotNumber: number | bigint;
 };
 
-export function getExecuteInstructionDataEncoder(): Encoder<ExecuteInstructionDataArgs> {
+export function getExecuteWithAuthorityInstructionDataEncoder(): Encoder<ExecuteWithAuthorityInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
       ["compactInstructions", getArrayEncoder(getCompactInstructionEncoder())],
-      ["secp256r1VerifyArgs", getSecp256r1VerifyArgsEncoder()],
-      ["slotNumber", getU64Encoder()],
     ]),
-    (value) => ({ ...value, discriminator: EXECUTE_DISCRIMINATOR }),
+    (value) => ({
+      ...value,
+      discriminator: EXECUTE_WITH_AUTHORITY_DISCRIMINATOR,
+    }),
   );
 }
 
-export function getExecuteInstructionDataDecoder(): Decoder<ExecuteInstructionData> {
+export function getExecuteWithAuthorityInstructionDataDecoder(): Decoder<ExecuteWithAuthorityInstructionData> {
   return getStructDecoder([
     ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
     ["compactInstructions", getArrayDecoder(getCompactInstructionDecoder())],
-    ["secp256r1VerifyArgs", getSecp256r1VerifyArgsDecoder()],
-    ["slotNumber", getU64Decoder()],
   ]);
 }
 
-export function getExecuteInstructionDataCodec(): Codec<
-  ExecuteInstructionDataArgs,
-  ExecuteInstructionData
+export function getExecuteWithAuthorityInstructionDataCodec(): Codec<
+  ExecuteWithAuthorityInstructionDataArgs,
+  ExecuteWithAuthorityInstructionData
 > {
   return combineCodec(
-    getExecuteInstructionDataEncoder(),
-    getExecuteInstructionDataDecoder(),
+    getExecuteWithAuthorityInstructionDataEncoder(),
+    getExecuteWithAuthorityInstructionDataDecoder(),
   );
 }
 
-export type ExecuteInput<
+export type ExecuteWithAuthorityInput<
+  TAccountAuthority extends string = string,
   TAccountPhygitalToken extends string = string,
-  TAccountWallet extends string = string,
   TAccountAuthorityAccount extends string = string,
-  TAccountSlotHashes extends string = string,
+  TAccountWallet extends string = string,
   TAccountInstructionsSysvar extends string = string,
-  TAccountPhygitalTokenProgram extends string = string,
 > = {
+  /** The token's authority (ed25519) — the sole authorization; policy is skipped. */
+  authority: TransactionSigner<TAccountAuthority>;
   phygitalToken: Address<TAccountPhygitalToken>;
-  /** (`wallet.key == phygital_token.owner`, the canonical wallet PDA). */
-  wallet: Address<TAccountWallet>;
   /**
-   * program-owned (an absent/closed PDA is system-owned) — this is what disables
-   * the tap once the owner is removed. Token binding, canonical PDA and policy tail
-   * are validated in the handler (they need the header, so they cannot be Anchor
-   * constraints). Writable for spend counters.
+   * PDA validated in the handler (not via Anchor `seeds`/`has_one`, whose
+   * `?`/self-referential form is not expressible in the IDL). Not writable: the
+   * authority path never touches policy counters.
    */
   authorityAccount: Address<TAccountAuthorityAccount>;
-  slotHashes?: Address<TAccountSlotHashes>;
+  /** the wallet bump comes from the validated authority header. */
+  wallet: Address<TAccountWallet>;
   instructionsSysvar?: Address<TAccountInstructionsSysvar>;
-  phygitalTokenProgram?: Address<TAccountPhygitalTokenProgram>;
-  compactInstructions: ExecuteInstructionDataArgs["compactInstructions"];
-  secp256r1VerifyArgs: ExecuteInstructionDataArgs["secp256r1VerifyArgs"];
-  slotNumber: ExecuteInstructionDataArgs["slotNumber"];
+  compactInstructions: ExecuteWithAuthorityInstructionDataArgs["compactInstructions"];
 };
 
-export function getExecuteInstruction<
+export function getExecuteWithAuthorityInstruction<
+  TAccountAuthority extends string,
   TAccountPhygitalToken extends string,
-  TAccountWallet extends string,
   TAccountAuthorityAccount extends string,
-  TAccountSlotHashes extends string,
+  TAccountWallet extends string,
   TAccountInstructionsSysvar extends string,
-  TAccountPhygitalTokenProgram extends string,
   TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
 >(
-  input: ExecuteInput<
+  input: ExecuteWithAuthorityInput<
+    TAccountAuthority,
     TAccountPhygitalToken,
-    TAccountWallet,
     TAccountAuthorityAccount,
-    TAccountSlotHashes,
-    TAccountInstructionsSysvar,
-    TAccountPhygitalTokenProgram
+    TAccountWallet,
+    TAccountInstructionsSysvar
   >,
   config?: { programAddress?: TProgramAddress },
-): ExecuteInstruction<
+): ExecuteWithAuthorityInstruction<
   TProgramAddress,
+  TAccountAuthority,
   TAccountPhygitalToken,
-  TAccountWallet,
   TAccountAuthorityAccount,
-  TAccountSlotHashes,
-  TAccountInstructionsSysvar,
-  TAccountPhygitalTokenProgram
+  TAccountWallet,
+  TAccountInstructionsSysvar
 > {
   // Program address.
   const programAddress =
@@ -198,19 +179,15 @@ export function getExecuteInstruction<
 
   // Original accounts.
   const originalAccounts = {
-    phygitalToken: { value: input.phygitalToken ?? null, isWritable: true },
-    wallet: { value: input.wallet ?? null, isWritable: true },
+    authority: { value: input.authority ?? null, isWritable: false },
+    phygitalToken: { value: input.phygitalToken ?? null, isWritable: false },
     authorityAccount: {
       value: input.authorityAccount ?? null,
-      isWritable: true,
-    },
-    slotHashes: { value: input.slotHashes ?? null, isWritable: false },
-    instructionsSysvar: {
-      value: input.instructionsSysvar ?? null,
       isWritable: false,
     },
-    phygitalTokenProgram: {
-      value: input.phygitalTokenProgram ?? null,
+    wallet: { value: input.wallet ?? null, isWritable: true },
+    instructionsSysvar: {
+      value: input.instructionsSysvar ?? null,
       isWritable: false,
     },
   };
@@ -223,81 +200,70 @@ export function getExecuteInstruction<
   const args = { ...input };
 
   // Resolve default values.
-  if (!accounts.slotHashes.value) {
-    accounts.slotHashes.value =
-      "SysvarS1otHashes111111111111111111111111111" as Address<"SysvarS1otHashes111111111111111111111111111">;
-  }
   if (!accounts.instructionsSysvar.value) {
     accounts.instructionsSysvar.value =
       "Sysvar1nstructions1111111111111111111111111" as Address<"Sysvar1nstructions1111111111111111111111111">;
-  }
-  if (!accounts.phygitalTokenProgram.value) {
-    accounts.phygitalTokenProgram.value =
-      "DuPpckdjjgVAnYok2aTMAt264ZPBXqq3JSazJjCUzTJQ" as Address<"DuPpckdjjgVAnYok2aTMAt264ZPBXqq3JSazJjCUzTJQ">;
   }
 
   const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
+      getAccountMeta("authority", accounts.authority),
       getAccountMeta("phygitalToken", accounts.phygitalToken),
-      getAccountMeta("wallet", accounts.wallet),
       getAccountMeta("authorityAccount", accounts.authorityAccount),
-      getAccountMeta("slotHashes", accounts.slotHashes),
+      getAccountMeta("wallet", accounts.wallet),
       getAccountMeta("instructionsSysvar", accounts.instructionsSysvar),
-      getAccountMeta("phygitalTokenProgram", accounts.phygitalTokenProgram),
     ],
-    data: getExecuteInstructionDataEncoder().encode(
-      args as ExecuteInstructionDataArgs,
+    data: getExecuteWithAuthorityInstructionDataEncoder().encode(
+      args as ExecuteWithAuthorityInstructionDataArgs,
     ),
     programAddress,
-  } as ExecuteInstruction<
+  } as ExecuteWithAuthorityInstruction<
     TProgramAddress,
+    TAccountAuthority,
     TAccountPhygitalToken,
-    TAccountWallet,
     TAccountAuthorityAccount,
-    TAccountSlotHashes,
-    TAccountInstructionsSysvar,
-    TAccountPhygitalTokenProgram
+    TAccountWallet,
+    TAccountInstructionsSysvar
   >);
 }
 
-export type ParsedExecuteInstruction<
+export type ParsedExecuteWithAuthorityInstruction<
   TProgram extends string = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
   TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
-    phygitalToken: TAccountMetas[0];
-    /** (`wallet.key == phygital_token.owner`, the canonical wallet PDA). */
-    wallet: TAccountMetas[1];
+    /** The token's authority (ed25519) — the sole authorization; policy is skipped. */
+    authority: TAccountMetas[0];
+    phygitalToken: TAccountMetas[1];
     /**
-     * program-owned (an absent/closed PDA is system-owned) — this is what disables
-     * the tap once the owner is removed. Token binding, canonical PDA and policy tail
-     * are validated in the handler (they need the header, so they cannot be Anchor
-     * constraints). Writable for spend counters.
+     * PDA validated in the handler (not via Anchor `seeds`/`has_one`, whose
+     * `?`/self-referential form is not expressible in the IDL). Not writable: the
+     * authority path never touches policy counters.
      */
     authorityAccount: TAccountMetas[2];
-    slotHashes: TAccountMetas[3];
+    /** the wallet bump comes from the validated authority header. */
+    wallet: TAccountMetas[3];
     instructionsSysvar: TAccountMetas[4];
-    phygitalTokenProgram: TAccountMetas[5];
   };
-  data: ExecuteInstructionData;
+  data: ExecuteWithAuthorityInstructionData;
 };
 
-export function parseExecuteInstruction<
+export function parseExecuteWithAuthorityInstruction<
   TProgram extends string,
   TAccountMetas extends readonly AccountMeta[],
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
-): ParsedExecuteInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 6) {
+): ParsedExecuteWithAuthorityInstruction<TProgram, TAccountMetas> {
+  if (instruction.accounts.length < 5) {
     throw new SolanaError(
       SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
       {
         actualAccountMetas: instruction.accounts.length,
-        expectedAccountMetas: 6,
+        expectedAccountMetas: 5,
       },
     );
   }
@@ -310,13 +276,14 @@ export function parseExecuteInstruction<
   return {
     programAddress: instruction.programAddress,
     accounts: {
+      authority: getNextAccount(),
       phygitalToken: getNextAccount(),
-      wallet: getNextAccount(),
       authorityAccount: getNextAccount(),
-      slotHashes: getNextAccount(),
+      wallet: getNextAccount(),
       instructionsSysvar: getNextAccount(),
-      phygitalTokenProgram: getNextAccount(),
     },
-    data: getExecuteInstructionDataDecoder().decode(instruction.data),
+    data: getExecuteWithAuthorityInstructionDataDecoder().decode(
+      instruction.data,
+    ),
   };
 }

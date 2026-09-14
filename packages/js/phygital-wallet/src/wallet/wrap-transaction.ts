@@ -3,9 +3,7 @@ import {
   decompileTransactionMessageFetchingLookupTables,
   estimateResourceLimitsFactory,
   getCompiledTransactionMessageDecoder,
-  isAdvanceNonceAccountInstruction,
   isTransactionMessageWithBlockhashLifetime,
-  isTransactionMessageWithDurableNonceLifetime,
   isTransactionWithBlockhashLifetime,
   isWritableRole,
   prependTransactionMessageInstructions,
@@ -23,6 +21,7 @@ import {
   type SignaturesMap,
   type SolanaRpcApi,
   type Transaction,
+  type TransactionPartialSigner,
   type TransactionSigner,
   type TransactionWithLifetime,
   type TransactionWithinSizeLimit,
@@ -42,6 +41,7 @@ import {
   MIN_BLOCKHASH_REMAINING_SLOTS,
 } from "../constants.js";
 import { getExecuteInstruction } from "../generated/instructions/execute.js";
+import { getExecuteWithAuthorityUsingPoliciesInstruction } from "../generated/instructions/executeWithAuthorityUsingPolicies.js";
 import type { CompactInstructionArgs } from "../generated/types/compactInstruction.js";
 import type { Secp256r1VerifyArgsArgs } from "../generated/types/secp256r1VerifyArgs.js";
 import { compileWalletInstructions } from "./compile.js";
@@ -56,6 +56,8 @@ const MEMO_PROGRAM_ADDRESS =
 
 /** Round loaded-accounts data size up to the next 32 KiB page (v1 cost model). */
 const LOADED_ACCOUNTS_PAGE_BYTES = 32 * 1024;
+/** Covers the passkey precompile + verify CPI omitted by authority preview. */
+const PASSKEY_VERIFY_COMPUTE_BUFFER = 30_000;
 
 /** Account metas for execute don't depend on the passkey payload. */
 const PLACEHOLDER_SECP_ARGS: Secp256r1VerifyArgsArgs = {
@@ -69,8 +71,11 @@ type SignedTransaction = Transaction &
   TransactionWithLifetime;
 
 type WalletExecuteAccounts = {
-  config: Address;
-  tokenVerifier: Address;
+  authority: TransactionSigner;
+  feePayer: TransactionPartialSigner;
+  authorityAccount: {
+    readonly address: Address<string>;
+  };
   wallet: Address;
   phygitalToken: Address;
 };
@@ -82,7 +87,6 @@ type DecompiledMessage = Awaited<
 type PreparedWalletWrap = {
   transaction: Transaction & TransactionWithLifetime;
   decompiled: DecompiledMessage;
-  advanceNonceInstruction: Instruction | null;
   bodyInstructions: Instruction[];
   memoInstructions: Instruction[];
 };
@@ -209,24 +213,12 @@ function applyResourceLimits<T extends DecompiledMessage>(
     ) as T;
   }
 
-  // Keep AdvanceNonce as instruction 0 for durable-nonce messages.
   const budgetIxs = [
     getSetComputeUnitLimitInstruction({ units: unitLimit }),
     getSetComputeUnitPriceInstruction({
       microLamports: unitPriceMicroLamports,
     }),
   ];
-
-  if (
-    withoutBudget.instructions[0] &&
-    isAdvanceNonceAccountInstruction(withoutBudget.instructions[0])
-  ) {
-    const [advanceNonce, ...rest] = withoutBudget.instructions;
-    return {
-      ...withoutBudget,
-      instructions: [advanceNonce, ...budgetIxs, ...rest],
-    } as T;
-  }
 
   return prependTransactionMessageInstructions(budgetIxs, withoutBudget) as T;
 }
@@ -268,30 +260,15 @@ function withLifetimeConstraint(
  * Wallet PDA cannot pay fees (no private key). If the message uses it as fee
  * payer, swap in the verifier co-signer instead.
  */
-function withVerifierFeePayerIfWallet<T extends DecompiledMessage>(
+function withFeePayerIfWallet<T extends DecompiledMessage>(
   message: T,
   walletPda: Address,
-  verifier: TransactionSigner
+  feePayer: TransactionSigner
 ): T {
   if (message.feePayer?.address !== walletPda) {
     return message;
   }
-  return setTransactionMessageFeePayerSigner(verifier, message) as T;
-}
-
-function assertDurableNonceAuthorityNotWallet(
-  message: DecompiledMessage,
-  walletPda: Address
-): void {
-  if (!isTransactionMessageWithDurableNonceLifetime(message)) return;
-  const advanceNonce = message.instructions[0];
-  if (!advanceNonce || !isAdvanceNonceAccountInstruction(advanceNonce)) return;
-  const authority = advanceNonce.accounts[2]?.address;
-  if (authority === walletPda) {
-    throw new Error(
-      "Durable nonce authority cannot be the phygital wallet PDA (PDA cannot outer-sign AdvanceNonceAccount); use the verifier or another ed25519 key as nonce authority"
-    );
-  }
+  return setTransactionMessageFeePayerSigner(feePayer, message) as T;
 }
 
 /**
@@ -300,22 +277,19 @@ function assertDurableNonceAuthorityNotWallet(
  */
 function buildWrappedBaseMessage(input: {
   pending: PendingWalletWrap;
-  verifier: TransactionSigner;
   executeAccounts: WalletExecuteAccounts;
   secp256r1VerifyInstruction?: Instruction;
   secp256r1VerifyArgs?: Secp256r1VerifyArgsArgs;
 }): DecompiledMessage {
-  const { pending, verifier, executeAccounts } = input;
+  const { pending, executeAccounts } = input;
 
   const executeIx = getExecuteInstruction({
-    verifier,
-    config: executeAccounts.config,
     phygitalToken: executeAccounts.phygitalToken,
-    tokenVerifier: executeAccounts.tokenVerifier,
     wallet: executeAccounts.wallet,
     compactInstructions: pending.compactInstructions,
     secp256r1VerifyArgs: input.secp256r1VerifyArgs ?? PLACEHOLDER_SECP_ARGS,
     slotNumber: pending.slotNumber,
+    authorityAccount: executeAccounts.authorityAccount.address,
   });
 
   const executeWithRemaining = withRemainingAccounts(
@@ -323,9 +297,6 @@ function buildWrappedBaseMessage(input: {
     pending.remainingAccounts
   );
   const instructions = [
-    ...(pending.prepared.advanceNonceInstruction
-      ? [pending.prepared.advanceNonceInstruction]
-      : []),
     ...(input.secp256r1VerifyInstruction
       ? [input.secp256r1VerifyInstruction]
       : []),
@@ -338,10 +309,35 @@ function buildWrappedBaseMessage(input: {
     instructions,
   } as typeof pending.prepared.decompiled;
 
-  return withVerifierFeePayerIfWallet(
+  return withFeePayerIfWallet(
     baseMessage,
     executeAccounts.wallet,
-    verifier
+    executeAccounts.feePayer
+  );
+}
+
+function buildPolicyPreviewMessage(input: {
+  prepared: PreparedWalletWrap;
+  compactInstructions: CompactInstructionArgs[];
+  remainingAccounts: AccountMeta[];
+  executeAccounts: WalletExecuteAccounts;
+}): DecompiledMessage {
+  const { prepared, executeAccounts } = input;
+  const previewIx = getExecuteWithAuthorityUsingPoliciesInstruction({
+    authority: executeAccounts.authority,
+    phygitalToken: executeAccounts.phygitalToken,
+    authorityAccount: executeAccounts.authorityAccount.address,
+    wallet: executeAccounts.wallet,
+    compactInstructions: input.compactInstructions,
+  });
+  const instructions = [
+    withRemainingAccounts(previewIx, input.remainingAccounts),
+    ...prepared.memoInstructions,
+  ];
+  return withFeePayerIfWallet(
+    { ...prepared.decompiled, instructions } as DecompiledMessage,
+    executeAccounts.wallet,
+    executeAccounts.feePayer
   );
 }
 
@@ -352,9 +348,9 @@ function fetchPriorityFeeMicroLamports(
     prepared: PreparedWalletWrap;
     compactInstructions: CompactInstructionArgs[];
     remainingAccounts: AccountMeta[];
-    verifier: TransactionSigner;
     executeAccounts: WalletExecuteAccounts;
-  }
+  },
+  abortSignal?: AbortSignal
 ): Promise<bigint> {
   // Slot / messageHash unused for writable-account selection.
   const pending: PendingWalletWrap = {
@@ -369,41 +365,15 @@ function fetchPriorityFeeMicroLamports(
       collectWritableAddresses(
         buildWrappedBaseMessage({
           pending,
-          verifier: input.verifier,
           executeAccounts: input.executeAccounts,
         })
       )
     )
-    .send()
+    .send({ abortSignal })
     .then(pickPriorityFeeMicroLamports);
 }
 
-/**
- * Simulate body ixs before NFC (verifier fee payer, sigVerify skipped).
- */
-async function assertBodyInstructionsExecutable(input: {
-  rpc: Rpc<SolanaRpcApi>;
-  verifier: TransactionSigner;
-  prepared: PreparedWalletWrap;
-  abortSignal?: AbortSignal;
-}): Promise<void> {
-  const withVerifierFeePayer = setTransactionMessageFeePayerSigner(
-    input.verifier,
-    {
-      ...input.prepared.decompiled,
-      instructions: [...input.prepared.bodyInstructions],
-    } as typeof input.prepared.decompiled
-  );
-
-  await estimateResourceLimitsFactory({ rpc: input.rpc })(
-    withVerifierFeePayer,
-    {
-      abortSignal: input.abortSignal,
-    }
-  );
-}
-
-function applyVerifierCoSignature(
+function applyFeePayerSignature(
   transaction: SignedTransaction,
   walletPda: Address,
   priorSignatures: SignaturesMap | undefined,
@@ -443,28 +413,12 @@ async function prepareWrappedWalletTransaction(input: {
     decompileConfig
   );
 
-  assertDurableNonceAuthorityNotWallet(decompiled, input.walletPda);
-
-  const durableNonce = isTransactionMessageWithDurableNonceLifetime(decompiled);
   const instructions = decompiled.instructions;
-  let advanceNonceInstruction: Instruction | null = null;
-  let bodyStart = 0;
-
-  if (durableNonce) {
-    const first = instructions[0];
-    if (!first || !isAdvanceNonceAccountInstruction(first)) {
-      throw new Error(
-        "Durable-nonce transaction is missing AdvanceNonceAccount as the first instruction"
-      );
-    }
-    advanceNonceInstruction = first;
-    bodyStart = 1;
-  }
 
   const bodyInstructions: Instruction[] = [];
   const memoInstructions: Instruction[] = [];
 
-  for (let i = bodyStart; i < instructions.length; i++) {
+  for (let i = 0; i < instructions.length; i++) {
     const instruction = instructions[i]!;
     if (instruction.programAddress === COMPUTE_BUDGET_PROGRAM_ADDRESS) continue;
     if (instruction.programAddress === MEMO_PROGRAM_ADDRESS) {
@@ -483,7 +437,6 @@ async function prepareWrappedWalletTransaction(input: {
   return {
     transaction: input.transaction,
     decompiled,
-    advanceNonceInstruction,
     bodyInstructions,
     memoInstructions,
   };
@@ -515,56 +468,36 @@ function buildPendingWalletWrap(
  * After passkey: execute ix, resource limits, lifetime, compile.
  */
 async function finalizeWrappedWalletTransaction(input: {
-  rpc: Rpc<SolanaRpcApi>;
   pending: PendingWalletWrap;
-  verifier: TransactionSigner;
   executeAccounts: WalletExecuteAccounts;
   passkeyTap: Awaited<ReturnType<typeof authenticatePasskeyForSecp256r1Verify>>;
-  /** Prefetched priority fee; otherwise fetched in finalize. */
-  unitPricePromise?: Promise<bigint>;
+  limits: Awaited<ReturnType<ReturnType<typeof estimateResourceLimitsFactory>>>;
+  unitPrice: bigint;
+  block: BlockContext | null;
 }): Promise<SignedTransaction> {
-  const { pending, rpc, verifier, executeAccounts, passkeyTap } = input;
+  const { pending, executeAccounts, passkeyTap } = input;
 
   const { secp256r1VerifyInstruction, secp256r1VerifyArgs } =
     await buildSecp256r1VerifyInstruction(passkeyTap);
 
   const baseMessage = buildWrappedBaseMessage({
     pending,
-    verifier,
     executeAccounts,
     secp256r1VerifyInstruction,
     secp256r1VerifyArgs,
   });
 
-  const needsBlockhashRefresh =
-    isTransactionMessageWithBlockhashLifetime(baseMessage);
-
-  const [limits, unitPrice, block] = await Promise.all([
-    estimateResourceLimitsFactory({ rpc })(baseMessage),
-    input.unitPricePromise ??
-      fetchPriorityFeeMicroLamports(rpc, {
-        prepared: pending.prepared,
-        compactInstructions: pending.compactInstructions,
-        remainingAccounts: pending.remainingAccounts,
-        verifier,
-        executeAccounts,
-      }),
-    needsBlockhashRefresh
-      ? rpc
-          .getLatestBlockhash({ commitment: "confirmed" })
-          .send()
-          .then(({ value: latestBlockhash }) => latestBlockhash)
-      : Promise.resolve(null),
-  ]);
-
   let message = applyResourceLimits(
     baseMessage,
-    withMargin(limits.computeUnitLimit),
-    unitPrice,
-    limits.loadedAccountsDataSizeLimit
+    Math.min(
+      1_400_000,
+      withMargin(input.limits.computeUnitLimit) + PASSKEY_VERIFY_COMPUTE_BUFFER
+    ),
+    input.unitPrice,
+    input.limits.loadedAccountsDataSizeLimit
   );
-  if (block) {
-    message = applyBlockhashIfNeeded(message, block);
+  if (input.block) {
+    message = applyBlockhashIfNeeded(message, input.block);
   }
 
   const compiledTx = compileTransaction(
@@ -574,27 +507,21 @@ async function finalizeWrappedWalletTransaction(input: {
 }
 
 /**
- * Wrap pipeline: preview + body sim → SlotHashes → passkey → finalize → co-sign.
+ * Wrap pipeline: policy simulation + RPC prefetch → passkey → finalize → fee signing.
  */
 export async function modifyAndWrapWalletTransaction(input: {
   rpc: Rpc<SolanaRpcApi>;
   transaction: Transaction & TransactionWithLifetime;
   walletPda: Address;
-  verifier: TransactionSigner;
-  executeAccounts: {
-    config: Address;
-    tokenVerifier: Address;
-    wallet: Address;
-    phygitalToken: Address;
-  };
+  executeAccounts: WalletExecuteAccounts;
   abortSignal?: AbortSignal;
-  preview: (bodyInstructions: readonly Instruction[]) => Promise<void>;
+  onPreview?: () => void;
   authenticate: (
     messageHash: Uint8Array
   ) => Promise<
     Awaited<ReturnType<typeof authenticatePasskeyForSecp256r1Verify>>
   >;
-  coSign: (wrapped: SignedTransaction) => Promise<SignatureDictionary>;
+  feePayer: (wrapped: SignedTransaction) => Promise<SignatureDictionary>;
 }): Promise<SignedTransaction> {
   const prepared = await prepareWrappedWalletTransaction({
     rpc: input.rpc,
@@ -606,27 +533,35 @@ export async function modifyAndWrapWalletTransaction(input: {
     prepared.bodyInstructions,
     input.walletPda
   );
-  const unitPricePromise = fetchPriorityFeeMicroLamports(input.rpc, {
+
+  input.onPreview?.();
+  const previewMessage = buildPolicyPreviewMessage({
     prepared,
     compactInstructions: earlyCompiled.compactInstructions,
     remainingAccounts: earlyCompiled.remainingAccounts,
-    verifier: input.verifier,
     executeAccounts: input.executeAccounts,
   });
 
-  const [previewResult, bodySimResult] = await Promise.allSettled([
-    input.preview(prepared.bodyInstructions),
-    assertBodyInstructionsExecutable({
-      rpc: input.rpc,
-      verifier: input.verifier,
-      prepared,
+  const [limits, unitPrice, slot, block] = await Promise.all([
+    estimateResourceLimitsFactory({ rpc: input.rpc })(previewMessage, {
       abortSignal: input.abortSignal,
     }),
+    fetchPriorityFeeMicroLamports(
+      input.rpc,
+      {
+        prepared,
+        compactInstructions: earlyCompiled.compactInstructions,
+        remainingAccounts: earlyCompiled.remainingAccounts,
+        executeAccounts: input.executeAccounts,
+      },
+      input.abortSignal
+    ),
+    fetchLatestSlotHash(input.rpc, input.abortSignal),
+    input.rpc
+      .getLatestBlockhash({ commitment: "confirmed" })
+      .send({ abortSignal: input.abortSignal })
+      .then(({ value }) => value),
   ]);
-  if (previewResult.status === "rejected") throw previewResult.reason;
-  if (bodySimResult.status === "rejected") throw bodySimResult.reason;
-
-  const slot = await fetchLatestSlotHash(input.rpc);
   const pending = buildPendingWalletWrap(
     prepared,
     input.walletPda,
@@ -638,20 +573,20 @@ export async function modifyAndWrapWalletTransaction(input: {
   const passkeyTap = await input.authenticate(pending.messageHash);
 
   const wrapped = await finalizeWrappedWalletTransaction({
-    rpc: input.rpc,
     pending,
-    verifier: input.verifier,
     executeAccounts: input.executeAccounts,
     passkeyTap,
-    unitPricePromise,
+    limits,
+    unitPrice,
+    block,
   });
 
   input.abortSignal?.throwIfAborted();
-  const verifierSignatures = await input.coSign(wrapped);
-  return applyVerifierCoSignature(
+  const feePayerSignatures = await input.feePayer(wrapped);
+  return applyFeePayerSignature(
     wrapped,
     input.walletPda,
     input.transaction.signatures,
-    verifierSignatures
+    feePayerSignatures
   );
 }

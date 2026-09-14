@@ -14,13 +14,13 @@ import {
   type ProgramDerivedAddress,
 } from "@solana/kit";
 
-export type RecoveryWalletAccountSeeds = {
+export type AuthorityAccountSeeds = {
   phygitalToken: Address;
 };
 
-export async function findRecoveryWalletAccountPda(
-  seeds: RecoveryWalletAccountSeeds,
-  config: { programAddress?: Address | undefined } = {}
+export async function findAuthorityAccountPda(
+  seeds: AuthorityAccountSeeds,
+  config: { programAddress?: Address | undefined } = {},
 ): Promise<ProgramDerivedAddress> {
   const {
     programAddress = "Fjbi9JrRAmSBdxQxbkcxYDp6JUwnLbFhU2GsieWQBLSg" as Address<"Fjbi9JrRAmSBdxQxbkcxYDp6JUwnLbFhU2GsieWQBLSg">,
@@ -29,10 +29,7 @@ export async function findRecoveryWalletAccountPda(
     programAddress,
     seeds: [
       getBytesEncoder().encode(
-        new Uint8Array([
-          114, 101, 99, 111, 118, 101, 114, 121, 95, 119, 97, 108, 108, 101,
-          116,
-        ])
+        new Uint8Array([97, 117, 116, 104, 111, 114, 105, 116, 121]),
       ),
       getAddressEncoder().encode(seeds.phygitalToken),
     ],

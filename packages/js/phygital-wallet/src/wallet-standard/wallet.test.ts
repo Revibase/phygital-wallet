@@ -1,4 +1,9 @@
-import { address, type Rpc, type SolanaRpcApi } from "@solana/kit";
+import {
+  address,
+  type Rpc,
+  type SolanaRpcApi,
+  type TransactionPartialSigner,
+} from "@solana/kit";
 import {
   SolanaSignAndSendTransaction,
   SolanaSignMessage,
@@ -11,26 +16,24 @@ import {
 } from "@wallet-standard/features";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const startPhygitalConnect = vi.fn(async () => ({
-  blockhash: "test-blockhash",
-  response: { id: "test-passkey-id" },
-  phygitalToken: address("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
-  resolved: { endpoint: "https://verifier.test" },
+const startAuthentication = vi.fn(async () => ({ id: "test-passkey-id" }));
+const verifyResponse = vi.fn(() => ({
+  isVerified: true,
+  secp256r1PublicKey: "test-secp256r1-key",
 }));
-const exchangeConnectProof = vi.fn(async () => ({
-  accessToken: "test-bearer",
-  expiresAt: Date.now() + 900_000,
+const findPhygitalTokenPda = vi.fn(async () =>
+  address("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
+);
+const getPhygitalWalletSigner = vi.fn(async () => ({
+  address: address("So11111111111111111111111111111111111111112"),
+  modifyAndSignTransactions: vi.fn(async (txs) => txs),
 }));
 
 vi.mock("phygital-token-sdk", () => ({
   authenticatePasskeyForSecp256r1Verify: vi.fn(),
-}));
-
-vi.mock("../wallet/connect.js", () => ({
-  startPhygitalConnect: (...args: unknown[]) => startPhygitalConnect(...args),
-  exchangeConnectProof: (...args: unknown[]) => exchangeConnectProof(...args),
-  SESSION_SKEW_MS: 5_000,
-  AccessoryMismatchError: class extends Error {},
+  startAuthentication: (...args: unknown[]) => startAuthentication(...args),
+  verifyResponse: (...args: unknown[]) => verifyResponse(...args),
+  findPhygitalTokenPda: (...args: unknown[]) => findPhygitalTokenPda(...args),
 }));
 
 vi.mock("../generated/pdas/wallet.js", () => ({
@@ -40,10 +43,8 @@ vi.mock("../generated/pdas/wallet.js", () => ({
 }));
 
 vi.mock("../wallet/signer.js", () => ({
-  getPhygitalWalletSigner: vi.fn(async () => ({
-    address: address("So11111111111111111111111111111111111111112"),
-    modifyAndSignTransactions: vi.fn(async (txs) => txs),
-  })),
+  getPhygitalWalletSigner: (...args: unknown[]) =>
+    getPhygitalWalletSigner(...args),
 }));
 
 import { PhygitalWallet } from "./wallet.js";
@@ -81,7 +82,10 @@ function createMemoryStorage(): Storage {
 
 describe("PhygitalWallet Wallet Standard surface", () => {
   beforeEach(() => {
-    startPhygitalConnect.mockClear();
+    startAuthentication.mockClear();
+    verifyResponse.mockClear();
+    findPhygitalTokenPda.mockClear();
+    getPhygitalWalletSigner.mockClear();
     vi.stubGlobal("localStorage", createMemoryStorage());
   });
 
@@ -108,11 +112,15 @@ describe("PhygitalWallet Wallet Standard surface", () => {
       silent: true,
     });
     expect(accounts).toEqual([]);
-    expect(startPhygitalConnect).not.toHaveBeenCalled();
+    expect(startAuthentication).not.toHaveBeenCalled();
   });
 
   it("connect derives wallet PDA from passkey verify and persists session", async () => {
-    const wallet = new PhygitalWallet({ rpc: mockRpc() });
+    const feePayer = {
+      address: address("11111111111111111111111111111112"),
+      signTransactions: vi.fn(),
+    } as unknown as TransactionPartialSigner;
+    const wallet = new PhygitalWallet({ rpc: mockRpc(), feePayer });
     const changes: unknown[] = [];
     wallet.features[StandardEvents].on("change", (props) => {
       changes.push(props);
@@ -127,13 +135,41 @@ describe("PhygitalWallet Wallet Standard surface", () => {
     expect(accounts[0]?.features).toContain(SolanaSignMessage);
     expect(wallet.accounts).toHaveLength(1);
     expect(changes).toHaveLength(1);
-    expect(startPhygitalConnect).toHaveBeenCalledTimes(1);
+    expect(startAuthentication).toHaveBeenCalledTimes(1);
+    expect(verifyResponse).toHaveBeenCalledTimes(1);
+    expect(verifyResponse).toHaveBeenCalledWith({
+      expectedMessage: startAuthentication.mock.calls[0]?.[0],
+      response: { id: "test-passkey-id" },
+    });
+    expect(findPhygitalTokenPda).toHaveBeenCalledWith("test-secp256r1-key");
+    expect(getPhygitalWalletSigner).toHaveBeenCalledWith(
+      expect.anything(),
+      address("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
+      expect.objectContaining({ feePayer })
+    );
     expect(localStorage.getItem(PHYGITAL_WALLET_SESSION_STORAGE_KEY)).toContain(
-      "test-bearer"
+      "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
     );
 
     await wallet.features[StandardDisconnect].disconnect();
     expect(wallet.accounts).toEqual([]);
+    expect(
+      localStorage.getItem(PHYGITAL_WALLET_SESSION_STORAGE_KEY)
+    ).toBeNull();
+  });
+
+  it("stays disconnected when local authentication verification fails", async () => {
+    verifyResponse.mockReturnValueOnce({
+      isVerified: false,
+      secp256r1PublicKey: "test-secp256r1-key",
+    });
+    const wallet = new PhygitalWallet({ rpc: mockRpc() });
+
+    await expect(wallet.features[StandardConnect].connect()).rejects.toThrow(
+      "Could not verify this phygital accessory"
+    );
+    expect(wallet.accounts).toEqual([]);
+    expect(findPhygitalTokenPda).not.toHaveBeenCalled();
     expect(
       localStorage.getItem(PHYGITAL_WALLET_SESSION_STORAGE_KEY)
     ).toBeNull();
@@ -145,8 +181,6 @@ describe("PhygitalWallet Wallet Standard surface", () => {
       JSON.stringify({
         phygitalTokenPda: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
         walletPda: "So11111111111111111111111111111111111111112",
-        accessToken: "test-bearer",
-        expiresAt: Date.now() + 900_000,
       })
     );
     const wallet = new PhygitalWallet({ rpc: mockRpc() });
@@ -159,7 +193,7 @@ describe("PhygitalWallet Wallet Standard surface", () => {
   it("silent connect restores a persisted session without a new tap", async () => {
     const first = new PhygitalWallet({ rpc: mockRpc() });
     await first.features[StandardConnect].connect();
-    expect(startPhygitalConnect).toHaveBeenCalledTimes(1);
+    expect(startAuthentication).toHaveBeenCalledTimes(1);
 
     const restored = new PhygitalWallet({ rpc: mockRpc() });
     const { accounts } = await restored.features[StandardConnect].connect({
@@ -169,7 +203,7 @@ describe("PhygitalWallet Wallet Standard surface", () => {
     expect(accounts[0]?.address).toBe(
       "So11111111111111111111111111111111111111112"
     );
-    expect(startPhygitalConnect).toHaveBeenCalledTimes(1);
+    expect(startAuthentication).toHaveBeenCalledTimes(1);
   });
 
   it("interactive connect reuses persisted session without a new tap", async () => {
@@ -179,7 +213,7 @@ describe("PhygitalWallet Wallet Standard surface", () => {
     const second = new PhygitalWallet({ rpc: mockRpc() });
     const { accounts } = await second.features[StandardConnect].connect();
     expect(accounts).toHaveLength(1);
-    expect(startPhygitalConnect).toHaveBeenCalledTimes(1);
+    expect(startAuthentication).toHaveBeenCalledTimes(1);
   });
 
   it("solana:signMessage is present but rejects PDA message signing", async () => {

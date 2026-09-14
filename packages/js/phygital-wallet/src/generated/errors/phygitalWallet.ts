@@ -16,121 +16,120 @@ import { PHYGITAL_WALLET_PROGRAM_ADDRESS } from "../programs/index.js";
 
 /** TokenIsCurrentlyUnLocked: Token must be lockable and currently locked */
 export const PHYGITAL_WALLET_ERROR__TOKEN_IS_CURRENTLY_UN_LOCKED = 0x1770; // 6000
-/** UnauthorizedVerifier: Verifier is not authorized for this execute */
-export const PHYGITAL_WALLET_ERROR__UNAUTHORIZED_VERIFIER = 0x1771; // 6001
-/** TokenVerifierRequired: Token has a custom verifier configured; that key must sign */
-export const PHYGITAL_WALLET_ERROR__TOKEN_VERIFIER_REQUIRED = 0x1772; // 6002
-/** VerifierAlreadyExists: Verifier is already in the config set */
-export const PHYGITAL_WALLET_ERROR__VERIFIER_ALREADY_EXISTS = 0x1773; // 6003
-/** VerifierNotFound: Verifier was not found in the config set */
-export const PHYGITAL_WALLET_ERROR__VERIFIER_NOT_FOUND = 0x1774; // 6004
-/** TooManyVerifiers: Config verifier set is full */
-export const PHYGITAL_WALLET_ERROR__TOO_MANY_VERIFIERS = 0x1775; // 6005
-/** UnauthorizedAdmin: Only the config admin may perform this action */
-export const PHYGITAL_WALLET_ERROR__UNAUTHORIZED_ADMIN = 0x1776; // 6006
-/** TokenVerifierMismatch: Token verifier account does not match the phygital token */
-export const PHYGITAL_WALLET_ERROR__TOKEN_VERIFIER_MISMATCH = 0x1777; // 6007
-/** InvalidEndpoint: Verifier endpoint URL is empty or invalid */
-export const PHYGITAL_WALLET_ERROR__INVALID_ENDPOINT = 0x1778; // 6008
-/** EndpointTooLong: Verifier endpoint URL exceeds max length */
-export const PHYGITAL_WALLET_ERROR__ENDPOINT_TOO_LONG = 0x1779; // 6009
 /** InvalidSlotHash: Slot not found in SlotHashes sysvar — signature has expired or is being replayed */
-export const PHYGITAL_WALLET_ERROR__INVALID_SLOT_HASH = 0x177a; // 6010
+export const PHYGITAL_WALLET_ERROR__INVALID_SLOT_HASH = 0x1771; // 6001
 /** InvalidSysvarDataFormat: Invalid SlotHashes sysvar data format */
-export const PHYGITAL_WALLET_ERROR__INVALID_SYSVAR_DATA_FORMAT = 0x177b; // 6011
+export const PHYGITAL_WALLET_ERROR__INVALID_SYSVAR_DATA_FORMAT = 0x1772; // 6002
 /** InvalidAccountData: Account data is missing or malformed */
-export const PHYGITAL_WALLET_ERROR__INVALID_ACCOUNT_DATA = 0x177c; // 6012
+export const PHYGITAL_WALLET_ERROR__INVALID_ACCOUNT_DATA = 0x1773; // 6003
 /** InvalidAccountIndex: Compact instruction account index out of bounds */
-export const PHYGITAL_WALLET_ERROR__INVALID_ACCOUNT_INDEX = 0x177d; // 6013
+export const PHYGITAL_WALLET_ERROR__INVALID_ACCOUNT_INDEX = 0x1774; // 6004
 /** SelfReentrancyNotAllowed: Self-reentrancy via CPI into this program is not allowed */
-export const PHYGITAL_WALLET_ERROR__SELF_REENTRANCY_NOT_ALLOWED = 0x177e; // 6014
+export const PHYGITAL_WALLET_ERROR__SELF_REENTRANCY_NOT_ALLOWED = 0x1775; // 6005
 /** PhygitalTokenCpiNotAllowed: CPI into the phygital-token program is not allowed */
-export const PHYGITAL_WALLET_ERROR__PHYGITAL_TOKEN_CPI_NOT_ALLOWED = 0x177f; // 6015
-/** TokenVerifierPayerMismatch: Rent receiver must match the token verifier account creator */
-export const PHYGITAL_WALLET_ERROR__TOKEN_VERIFIER_PAYER_MISMATCH = 0x1780; // 6016
+export const PHYGITAL_WALLET_ERROR__PHYGITAL_TOKEN_CPI_NOT_ALLOWED = 0x1776; // 6006
 /** WalletOwnerMismatch: Wallet PDA must equal phygital_token.owner */
-export const PHYGITAL_WALLET_ERROR__WALLET_OWNER_MISMATCH = 0x1781; // 6017
+export const PHYGITAL_WALLET_ERROR__WALLET_OWNER_MISMATCH = 0x1777; // 6007
 /** ExecuteViaCpiNotAllowed: Execute must be a top-level instruction (CPI into execute is not allowed) */
-export const PHYGITAL_WALLET_ERROR__EXECUTE_VIA_CPI_NOT_ALLOWED = 0x1782; // 6018
+export const PHYGITAL_WALLET_ERROR__EXECUTE_VIA_CPI_NOT_ALLOWED = 0x1778; // 6008
 /** WalletInvariantViolated: Wallet PDA owner or data length changed during inner CPI */
-export const PHYGITAL_WALLET_ERROR__WALLET_INVARIANT_VIOLATED = 0x1783; // 6019
+export const PHYGITAL_WALLET_ERROR__WALLET_INVARIANT_VIOLATED = 0x1779; // 6009
 /** ProtectedAccountPrivilege: Protected account may not be a signer or writable in inner instructions */
-export const PHYGITAL_WALLET_ERROR__PROTECTED_ACCOUNT_PRIVILEGE = 0x1784; // 6020
-/** InvalidTokenVerifier: Token verifier pubkey must be a non-default key */
-export const PHYGITAL_WALLET_ERROR__INVALID_TOKEN_VERIFIER = 0x1785; // 6021
-/** RecoveryWalletMismatch: Recovery wallet account does not match the phygital token */
-export const PHYGITAL_WALLET_ERROR__RECOVERY_WALLET_MISMATCH = 0x1786; // 6022
-/** RecoveryWalletPayerMismatch: Rent receiver must match the recovery wallet account creator */
-export const PHYGITAL_WALLET_ERROR__RECOVERY_WALLET_PAYER_MISMATCH = 0x1787; // 6023
-/** InvalidRecoveryWallet: Recovery wallet pubkey must be a non-default key */
-export const PHYGITAL_WALLET_ERROR__INVALID_RECOVERY_WALLET = 0x1788; // 6024
-/** UnauthorizedRecoveryWallet: Recovery wallet signer does not match the configured recovery key */
-export const PHYGITAL_WALLET_ERROR__UNAUTHORIZED_RECOVERY_WALLET = 0x1789; // 6025
+export const PHYGITAL_WALLET_ERROR__PROTECTED_ACCOUNT_PRIVILEGE = 0x177a; // 6010
+/** DurableNonceNotAllowed: Durable-nonce transactions are not allowed */
+export const PHYGITAL_WALLET_ERROR__DURABLE_NONCE_NOT_ALLOWED = 0x177b; // 6011
+/** AuthorityMismatch: Authority signer does not match the token's configured authority */
+export const PHYGITAL_WALLET_ERROR__AUTHORITY_MISMATCH = 0x177c; // 6012
+/** AuthorityTokenMismatch: Authority account does not match the phygital token */
+export const PHYGITAL_WALLET_ERROR__AUTHORITY_TOKEN_MISMATCH = 0x177d; // 6013
+/** InvalidAuthority: Authority pubkey must be a non-default key */
+export const PHYGITAL_WALLET_ERROR__INVALID_AUTHORITY = 0x177e; // 6014
+/** AuthorityPayerMismatch: Rent receiver must match the authority account creator */
+export const PHYGITAL_WALLET_ERROR__AUTHORITY_PAYER_MISMATCH = 0x177f; // 6015
+/** MintNotAllowed: Mint has no configured spend cap */
+export const PHYGITAL_WALLET_ERROR__MINT_NOT_ALLOWED = 0x1780; // 6016
+/** SpendLimitExceeded: Transfer exceeds the configured spending limit */
+export const PHYGITAL_WALLET_ERROR__SPEND_LIMIT_EXCEEDED = 0x1781; // 6017
+/** InvalidPolicyArgs: Policy arguments or requested account size are invalid */
+export const PHYGITAL_WALLET_ERROR__INVALID_POLICY_ARGS = 0x1782; // 6018
+/** DelegationNotAllowed: Execute may not leave a standing delegate on a wallet-owned token account */
+export const PHYGITAL_WALLET_ERROR__DELEGATION_NOT_ALLOWED = 0x1783; // 6019
+/** TokenAuthorityChanged: Wallet-owned token account control changed during execute */
+export const PHYGITAL_WALLET_ERROR__TOKEN_AUTHORITY_CHANGED = 0x1784; // 6020
+/** UnsupportedPolicyVersion: Unsupported policy layout: authority must clear and recreate the policy */
+export const PHYGITAL_WALLET_ERROR__UNSUPPORTED_POLICY_VERSION = 0x1785; // 6021
+/** ProgramNotAllowed: Passkey execute may only invoke allow-listed programs while a policy is active */
+export const PHYGITAL_WALLET_ERROR__PROGRAM_NOT_ALLOWED = 0x1786; // 6022
+/** UnsupportedAuthorityVersion: Unsupported authority header layout */
+export const PHYGITAL_WALLET_ERROR__UNSUPPORTED_AUTHORITY_VERSION = 0x1787; // 6023
+/** InstructionNotAllowed: Instruction does not satisfy the configured program rules */
+export const PHYGITAL_WALLET_ERROR__INSTRUCTION_NOT_ALLOWED = 0x1788; // 6024
+/** AccessoryDisabled: Accessory tap is disabled: an owner must be set before tapping (removing the owner disables it) */
+export const PHYGITAL_WALLET_ERROR__ACCESSORY_DISABLED = 0x1789; // 6025
 
 export type PhygitalWalletError =
-  | typeof PHYGITAL_WALLET_ERROR__ENDPOINT_TOO_LONG
+  | typeof PHYGITAL_WALLET_ERROR__ACCESSORY_DISABLED
+  | typeof PHYGITAL_WALLET_ERROR__AUTHORITY_MISMATCH
+  | typeof PHYGITAL_WALLET_ERROR__AUTHORITY_PAYER_MISMATCH
+  | typeof PHYGITAL_WALLET_ERROR__AUTHORITY_TOKEN_MISMATCH
+  | typeof PHYGITAL_WALLET_ERROR__DELEGATION_NOT_ALLOWED
+  | typeof PHYGITAL_WALLET_ERROR__DURABLE_NONCE_NOT_ALLOWED
   | typeof PHYGITAL_WALLET_ERROR__EXECUTE_VIA_CPI_NOT_ALLOWED
+  | typeof PHYGITAL_WALLET_ERROR__INSTRUCTION_NOT_ALLOWED
   | typeof PHYGITAL_WALLET_ERROR__INVALID_ACCOUNT_DATA
   | typeof PHYGITAL_WALLET_ERROR__INVALID_ACCOUNT_INDEX
-  | typeof PHYGITAL_WALLET_ERROR__INVALID_ENDPOINT
-  | typeof PHYGITAL_WALLET_ERROR__INVALID_RECOVERY_WALLET
+  | typeof PHYGITAL_WALLET_ERROR__INVALID_AUTHORITY
+  | typeof PHYGITAL_WALLET_ERROR__INVALID_POLICY_ARGS
   | typeof PHYGITAL_WALLET_ERROR__INVALID_SLOT_HASH
   | typeof PHYGITAL_WALLET_ERROR__INVALID_SYSVAR_DATA_FORMAT
-  | typeof PHYGITAL_WALLET_ERROR__INVALID_TOKEN_VERIFIER
+  | typeof PHYGITAL_WALLET_ERROR__MINT_NOT_ALLOWED
   | typeof PHYGITAL_WALLET_ERROR__PHYGITAL_TOKEN_CPI_NOT_ALLOWED
+  | typeof PHYGITAL_WALLET_ERROR__PROGRAM_NOT_ALLOWED
   | typeof PHYGITAL_WALLET_ERROR__PROTECTED_ACCOUNT_PRIVILEGE
-  | typeof PHYGITAL_WALLET_ERROR__RECOVERY_WALLET_MISMATCH
-  | typeof PHYGITAL_WALLET_ERROR__RECOVERY_WALLET_PAYER_MISMATCH
   | typeof PHYGITAL_WALLET_ERROR__SELF_REENTRANCY_NOT_ALLOWED
+  | typeof PHYGITAL_WALLET_ERROR__SPEND_LIMIT_EXCEEDED
+  | typeof PHYGITAL_WALLET_ERROR__TOKEN_AUTHORITY_CHANGED
   | typeof PHYGITAL_WALLET_ERROR__TOKEN_IS_CURRENTLY_UN_LOCKED
-  | typeof PHYGITAL_WALLET_ERROR__TOKEN_VERIFIER_MISMATCH
-  | typeof PHYGITAL_WALLET_ERROR__TOKEN_VERIFIER_PAYER_MISMATCH
-  | typeof PHYGITAL_WALLET_ERROR__TOKEN_VERIFIER_REQUIRED
-  | typeof PHYGITAL_WALLET_ERROR__TOO_MANY_VERIFIERS
-  | typeof PHYGITAL_WALLET_ERROR__UNAUTHORIZED_ADMIN
-  | typeof PHYGITAL_WALLET_ERROR__UNAUTHORIZED_RECOVERY_WALLET
-  | typeof PHYGITAL_WALLET_ERROR__UNAUTHORIZED_VERIFIER
-  | typeof PHYGITAL_WALLET_ERROR__VERIFIER_ALREADY_EXISTS
-  | typeof PHYGITAL_WALLET_ERROR__VERIFIER_NOT_FOUND
+  | typeof PHYGITAL_WALLET_ERROR__UNSUPPORTED_AUTHORITY_VERSION
+  | typeof PHYGITAL_WALLET_ERROR__UNSUPPORTED_POLICY_VERSION
   | typeof PHYGITAL_WALLET_ERROR__WALLET_INVARIANT_VIOLATED
   | typeof PHYGITAL_WALLET_ERROR__WALLET_OWNER_MISMATCH;
 
 let phygitalWalletErrorMessages:
-  | Record<PhygitalWalletError, string>
-  | undefined;
+  Record<PhygitalWalletError, string> | undefined;
 if (process.env["NODE_ENV"] !== "production") {
   phygitalWalletErrorMessages = {
-    [PHYGITAL_WALLET_ERROR__ENDPOINT_TOO_LONG]: `Verifier endpoint URL exceeds max length`,
+    [PHYGITAL_WALLET_ERROR__ACCESSORY_DISABLED]: `Accessory tap is disabled: an owner must be set before tapping (removing the owner disables it)`,
+    [PHYGITAL_WALLET_ERROR__AUTHORITY_MISMATCH]: `Authority signer does not match the token's configured authority`,
+    [PHYGITAL_WALLET_ERROR__AUTHORITY_PAYER_MISMATCH]: `Rent receiver must match the authority account creator`,
+    [PHYGITAL_WALLET_ERROR__AUTHORITY_TOKEN_MISMATCH]: `Authority account does not match the phygital token`,
+    [PHYGITAL_WALLET_ERROR__DELEGATION_NOT_ALLOWED]: `Execute may not leave a standing delegate on a wallet-owned token account`,
+    [PHYGITAL_WALLET_ERROR__DURABLE_NONCE_NOT_ALLOWED]: `Durable-nonce transactions are not allowed`,
     [PHYGITAL_WALLET_ERROR__EXECUTE_VIA_CPI_NOT_ALLOWED]: `Execute must be a top-level instruction (CPI into execute is not allowed)`,
+    [PHYGITAL_WALLET_ERROR__INSTRUCTION_NOT_ALLOWED]: `Instruction does not satisfy the configured program rules`,
     [PHYGITAL_WALLET_ERROR__INVALID_ACCOUNT_DATA]: `Account data is missing or malformed`,
     [PHYGITAL_WALLET_ERROR__INVALID_ACCOUNT_INDEX]: `Compact instruction account index out of bounds`,
-    [PHYGITAL_WALLET_ERROR__INVALID_ENDPOINT]: `Verifier endpoint URL is empty or invalid`,
-    [PHYGITAL_WALLET_ERROR__INVALID_RECOVERY_WALLET]: `Recovery wallet pubkey must be a non-default key`,
+    [PHYGITAL_WALLET_ERROR__INVALID_AUTHORITY]: `Authority pubkey must be a non-default key`,
+    [PHYGITAL_WALLET_ERROR__INVALID_POLICY_ARGS]: `Policy arguments or requested account size are invalid`,
     [PHYGITAL_WALLET_ERROR__INVALID_SLOT_HASH]: `Slot not found in SlotHashes sysvar — signature has expired or is being replayed`,
     [PHYGITAL_WALLET_ERROR__INVALID_SYSVAR_DATA_FORMAT]: `Invalid SlotHashes sysvar data format`,
-    [PHYGITAL_WALLET_ERROR__INVALID_TOKEN_VERIFIER]: `Token verifier pubkey must be a non-default key`,
+    [PHYGITAL_WALLET_ERROR__MINT_NOT_ALLOWED]: `Mint has no configured spend cap`,
     [PHYGITAL_WALLET_ERROR__PHYGITAL_TOKEN_CPI_NOT_ALLOWED]: `CPI into the phygital-token program is not allowed`,
+    [PHYGITAL_WALLET_ERROR__PROGRAM_NOT_ALLOWED]: `Passkey execute may only invoke allow-listed programs while a policy is active`,
     [PHYGITAL_WALLET_ERROR__PROTECTED_ACCOUNT_PRIVILEGE]: `Protected account may not be a signer or writable in inner instructions`,
-    [PHYGITAL_WALLET_ERROR__RECOVERY_WALLET_MISMATCH]: `Recovery wallet account does not match the phygital token`,
-    [PHYGITAL_WALLET_ERROR__RECOVERY_WALLET_PAYER_MISMATCH]: `Rent receiver must match the recovery wallet account creator`,
     [PHYGITAL_WALLET_ERROR__SELF_REENTRANCY_NOT_ALLOWED]: `Self-reentrancy via CPI into this program is not allowed`,
+    [PHYGITAL_WALLET_ERROR__SPEND_LIMIT_EXCEEDED]: `Transfer exceeds the configured spending limit`,
+    [PHYGITAL_WALLET_ERROR__TOKEN_AUTHORITY_CHANGED]: `Wallet-owned token account control changed during execute`,
     [PHYGITAL_WALLET_ERROR__TOKEN_IS_CURRENTLY_UN_LOCKED]: `Token must be lockable and currently locked`,
-    [PHYGITAL_WALLET_ERROR__TOKEN_VERIFIER_MISMATCH]: `Token verifier account does not match the phygital token`,
-    [PHYGITAL_WALLET_ERROR__TOKEN_VERIFIER_PAYER_MISMATCH]: `Rent receiver must match the token verifier account creator`,
-    [PHYGITAL_WALLET_ERROR__TOKEN_VERIFIER_REQUIRED]: `Token has a custom verifier configured; that key must sign`,
-    [PHYGITAL_WALLET_ERROR__TOO_MANY_VERIFIERS]: `Config verifier set is full`,
-    [PHYGITAL_WALLET_ERROR__UNAUTHORIZED_ADMIN]: `Only the config admin may perform this action`,
-    [PHYGITAL_WALLET_ERROR__UNAUTHORIZED_RECOVERY_WALLET]: `Recovery wallet signer does not match the configured recovery key`,
-    [PHYGITAL_WALLET_ERROR__UNAUTHORIZED_VERIFIER]: `Verifier is not authorized for this execute`,
-    [PHYGITAL_WALLET_ERROR__VERIFIER_ALREADY_EXISTS]: `Verifier is already in the config set`,
-    [PHYGITAL_WALLET_ERROR__VERIFIER_NOT_FOUND]: `Verifier was not found in the config set`,
+    [PHYGITAL_WALLET_ERROR__UNSUPPORTED_AUTHORITY_VERSION]: `Unsupported authority header layout`,
+    [PHYGITAL_WALLET_ERROR__UNSUPPORTED_POLICY_VERSION]: `Unsupported policy layout: authority must clear and recreate the policy`,
     [PHYGITAL_WALLET_ERROR__WALLET_INVARIANT_VIOLATED]: `Wallet PDA owner or data length changed during inner CPI`,
     [PHYGITAL_WALLET_ERROR__WALLET_OWNER_MISMATCH]: `Wallet PDA must equal phygital_token.owner`,
   };
 }
 
 export function getPhygitalWalletErrorMessage(
-  code: PhygitalWalletError
+  code: PhygitalWalletError,
 ): string {
   if (process.env["NODE_ENV"] !== "production") {
     return (phygitalWalletErrorMessages as Record<PhygitalWalletError, string>)[
@@ -142,19 +141,19 @@ export function getPhygitalWalletErrorMessage(
 }
 
 export function isPhygitalWalletError<
-  TProgramErrorCode extends PhygitalWalletError
+  TProgramErrorCode extends PhygitalWalletError,
 >(
   error: unknown,
   transactionMessage: {
     instructions: Record<number, { programAddress: Address }>;
   },
-  code?: TProgramErrorCode
+  code?: TProgramErrorCode,
 ): error is SolanaError<typeof SOLANA_ERROR__INSTRUCTION_ERROR__CUSTOM> &
   Readonly<{ context: Readonly<{ code: TProgramErrorCode }> }> {
   return isProgramError<TProgramErrorCode>(
     error,
     transactionMessage,
     PHYGITAL_WALLET_PROGRAM_ADDRESS,
-    code
+    code,
   );
 }

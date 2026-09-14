@@ -8,6 +8,33 @@ use common::{
 use solana_keypair::Keypair;
 use solana_signer::Signer;
 
+#[test]
+fn every_execute_path_marks_wallet_writable() {
+    let ctx = TestContext::new();
+    let asset = Keypair::new().pubkey();
+    let authority = Keypair::new().pubkey();
+    let wallet = ctx.wallet(asset);
+    let verify_args = phygital_wallet::Secp256r1VerifyArgs {
+        verify_args_relative_index: 0,
+        signed_message_index: 0,
+        client_data_json: vec![],
+    };
+
+    let instructions = [
+        ctx.execute_ix(asset, vec![], vec![], verify_args, 0),
+        ctx.execute_authority_ix(asset, authority, vec![], vec![]),
+        ctx.execute_authority_using_policies_ix(asset, authority, vec![], vec![]),
+    ];
+    for instruction in instructions {
+        let wallet_meta = instruction
+            .accounts
+            .iter()
+            .find(|meta| meta.pubkey == wallet)
+            .expect("wallet account");
+        assert!(wallet_meta.is_writable);
+    }
+}
+
 /// Passkey execute with an owner set but no spending caps is open: an SPL transfer
 /// succeeds. (The tap requires a present owner; caps are optional.)
 #[test]
@@ -40,6 +67,33 @@ fn passkey_execute_lamport_transfer() {
         .expect("execute");
 
     assert_eq!(ctx.lamports(recipient), 100_000);
+}
+
+#[test]
+fn authority_using_policies_executes_without_passkey_and_charges_cap() {
+    let mut ctx = TestContext::new();
+    let amount = 1_000_000u64;
+    let (mut passkey, _owner, _recipient, asset, mint, sender, recipient_token) =
+        setup_locked_execute(&mut ctx, amount);
+    let authority =
+        ctx.install_policy(&mut passkey, asset, policy_args(vec![mint_cap(mint, 1, 0)]));
+    let (remaining, compact) = ctx.spl_transfer_compact(asset, mint, sender, recipient_token, 1, 6);
+
+    ctx.send_execute_with_authority_using_policies(
+        asset,
+        compact.clone(),
+        remaining.clone(),
+        &authority,
+        &[],
+    )
+    .expect("policy-aware authority execute");
+    assert_eq!(ctx.token_balance(recipient_token), 1);
+
+    let err = ctx
+        .send_execute_with_authority_using_policies(asset, compact, remaining, &authority, &[])
+        .expect_err("spent allowance must be enforced");
+    assert_tx_err(err, &["SpendLimitExceeded"]);
+    assert_eq!(ctx.token_balance(recipient_token), 1);
 }
 
 /// With no owner set, the accessory tap is disabled: passkey execute is rejected.

@@ -8,407 +8,217 @@
   },
   "instructions": [
     {
-      "name": "add_verifier",
-      "discriminator": [165, 72, 135, 225, 67, 181, 255, 135],
-      "accounts": [
-        {
-          "name": "admin",
-          "signer": true,
-          "address": "G6kBnedts6uAivtY72ToaFHBs1UVbT9udiXmQZgMEjoF"
-        },
-        {
-          "name": "config",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [99, 111, 110, 102, 105, 103]
-              }
-            ]
-          }
-        }
+      "name": "clear_authority",
+      "docs": [
+        "Owner-signed: remove owner controls and policy. The wallet and accessory",
+        "remain usable without wallet policy; this is not a freeze or browser logout."
       ],
-      "args": [
-        {
-          "name": "verifier",
-          "type": "pubkey"
-        }
-      ]
-    },
-    {
-      "name": "clear_recovery_wallet",
-      "discriminator": [91, 208, 70, 146, 50, 221, 202, 245],
+      "discriminator": [
+        129,
+        249,
+        41,
+        111,
+        187,
+        52,
+        199,
+        214
+      ],
       "accounts": [
         {
-          "name": "verifier",
+          "name": "authority",
           "docs": [
-            "Verifier co-signer. Token override (exclusive) or config default set."
+            "Current owner key. Clearing removes the policy and disables the accessory tap",
+            "(a tap requires a present owner); it does not close the wallet holding funds.",
+            "The passkey can re-enable the tap by running `set_authority` again."
           ],
           "signer": true
-        },
-        {
-          "name": "config",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [99, 111, 110, 102, 105, 103]
-              }
-            ]
-          }
-        },
-        {
-          "name": "phygital_token",
-          "writable": true,
-          "relations": ["recovery_wallet_account"]
-        },
-        {
-          "name": "token_verifier",
-          "docs": [
-            "Optional per-token verifier override PDA (may be uninitialized)."
-          ],
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  116, 111, 107, 101, 110, 95, 118, 101, 114, 105, 102, 105,
-                  101, 114
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "phygital_token"
-              }
-            ]
-          }
         },
         {
           "name": "rent_receiver",
           "writable": true
         },
         {
-          "name": "recovery_wallet_account",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  114, 101, 99, 111, 118, 101, 114, 121, 95, 119, 97, 108, 108,
-                  101, 116
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "phygital_token"
-              }
-            ]
-          }
-        },
-        {
-          "name": "slot_hashes",
-          "address": "SysvarS1otHashes111111111111111111111111111"
+          "name": "authority_account",
+          "docs": [
+            "Canonical PDA + authority signer are validated in the handler (Anchor",
+            "`seeds`/`has_one` can't be expressed in the IDL here — they'd need `?` and",
+            "a self-reference to `authority_account`). `close` refunds `rent_receiver`."
+          ],
+          "writable": true
         },
         {
           "name": "instructions_sysvar",
           "address": "Sysvar1nstructions1111111111111111111111111"
-        },
-        {
-          "name": "phygital_token_program",
-          "address": "DuPpckdjjgVAnYok2aTMAt264ZPBXqq3JSazJjCUzTJQ"
         }
       ],
-      "args": [
-        {
-          "name": "secp256r1_verify_args",
-          "type": {
-            "defined": {
-              "name": "Secp256r1VerifyArgs"
-            }
-          }
-        },
-        {
-          "name": "slot_number",
-          "type": "u64"
-        }
-      ]
+      "args": []
     },
     {
-      "name": "clear_token_verifier",
-      "discriminator": [83, 237, 126, 93, 140, 254, 231, 156],
+      "name": "clear_wallet_policy",
+      "docs": [
+        "Authority-signed: explicitly disable all policy protections (authority remains).",
+        "To remove only spending limits, submit no caps while preserving program",
+        "permissions. Empty/default args also remove custom application restrictions."
+      ],
+      "discriminator": [
+        226,
+        224,
+        82,
+        15,
+        201,
+        69,
+        123,
+        12
+      ],
       "accounts": [
         {
-          "name": "verifier",
+          "name": "authority",
           "docs": [
-            "Verifier co-signer. Token override (exclusive) or config default set."
+            "The token's authority (ed25519)."
           ],
           "signer": true
-        },
-        {
-          "name": "config",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [99, 111, 110, 102, 105, 103]
-              }
-            ]
-          }
-        },
-        {
-          "name": "phygital_token",
-          "writable": true,
-          "relations": ["token_verifier"]
         },
         {
           "name": "rent_receiver",
           "writable": true
         },
         {
-          "name": "token_verifier",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  116, 111, 107, 101, 110, 95, 118, 101, 114, 105, 102, 105,
-                  101, 114
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "phygital_token"
-              }
-            ]
-          }
-        },
-        {
-          "name": "slot_hashes",
-          "address": "SysvarS1otHashes111111111111111111111111111"
+          "name": "authority_account",
+          "docs": [
+            "and canonical PDA are validated in the handler (see `SetWalletPolicy`)."
+          ],
+          "writable": true
         },
         {
           "name": "instructions_sysvar",
           "address": "Sysvar1nstructions1111111111111111111111111"
-        },
-        {
-          "name": "phygital_token_program",
-          "address": "DuPpckdjjgVAnYok2aTMAt264ZPBXqq3JSazJjCUzTJQ"
         }
       ],
-      "args": [
-        {
-          "name": "secp256r1_verify_args",
-          "type": {
-            "defined": {
-              "name": "Secp256r1VerifyArgs"
-            }
-          }
-        },
-        {
-          "name": "slot_number",
-          "type": "u64"
-        }
-      ]
+      "args": []
     },
     {
       "name": "execute",
-      "docs": ["Passkey-gated execute of compact inner instructions."],
-      "discriminator": [130, 221, 242, 154, 13, 193, 189, 29],
-      "accounts": [
-        {
-          "name": "verifier",
-          "docs": [
-            "Verifier co-signer. Must match token override or config set."
-          ],
-          "signer": true
-        },
-        {
-          "name": "config",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [99, 111, 110, 102, 105, 103]
-              }
-            ]
-          }
-        },
-        {
-          "name": "phygital_token",
-          "writable": true
-        },
-        {
-          "name": "token_verifier",
-          "docs": [
-            "Optional per-token verifier override PDA.",
-            "Uninitialized (system-owned / empty) → use `config.verifiers`.",
-            "Initialized → ONLY `token_verifier.verifier` is accepted (exclusive)."
-          ],
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  116, 111, 107, 101, 110, 95, 118, 101, 114, 105, 102, 105,
-                  101, 114
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "phygital_token"
-              }
-            ]
-          }
-        },
-        {
-          "name": "wallet",
-          "docs": ["`seeds`/`bump` lands in `ctx.bumps.wallet`."],
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  112, 114, 111, 103, 114, 97, 109, 95, 119, 97, 108, 108, 101,
-                  116
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "phygital_token"
-              }
-            ]
-          }
-        },
-        {
-          "name": "slot_hashes",
-          "address": "SysvarS1otHashes111111111111111111111111111"
-        },
-        {
-          "name": "instructions_sysvar",
-          "address": "Sysvar1nstructions1111111111111111111111111"
-        },
-        {
-          "name": "phygital_token_program",
-          "address": "DuPpckdjjgVAnYok2aTMAt264ZPBXqq3JSazJjCUzTJQ"
-        }
-      ],
-      "args": [
-        {
-          "name": "compact_instructions",
-          "type": {
-            "vec": {
-              "defined": {
-                "name": "CompactInstruction"
-              }
-            }
-          }
-        },
-        {
-          "name": "secp256r1_verify_args",
-          "type": {
-            "defined": {
-              "name": "Secp256r1VerifyArgs"
-            }
-          }
-        },
-        {
-          "name": "slot_number",
-          "type": "u64"
-        }
-      ]
-    },
-    {
-      "name": "initialize_config",
-      "discriminator": [208, 127, 21, 1, 194, 190, 196, 70],
-      "accounts": [
-        {
-          "name": "admin",
-          "writable": true,
-          "signer": true,
-          "address": "G6kBnedts6uAivtY72ToaFHBs1UVbT9udiXmQZgMEjoF"
-        },
-        {
-          "name": "config",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [99, 111, 110, 102, 105, 103]
-              }
-            ]
-          }
-        },
-        {
-          "name": "system_program",
-          "address": "11111111111111111111111111111111"
-        }
-      ],
-      "args": [
-        {
-          "name": "initial_verifiers",
-          "type": {
-            "vec": "pubkey"
-          }
-        }
-      ]
-    },
-    {
-      "name": "recovery_wallet_execute",
       "docs": [
-        "Ed25519 recovery-key execute (no accessory passkey). Requires a prior",
-        "`set_recovery_wallet` and a matching recovery signer."
+        "Passkey-authorized execute of compact inner instructions. Enforces the",
+        "token's instruction rules, spending allowances and token-control checks",
+        "when a policy is present. A valid accessory proof alone does not bypass them."
       ],
-      "discriminator": [91, 171, 164, 84, 112, 80, 230, 134],
+      "discriminator": [
+        130,
+        221,
+        242,
+        154,
+        13,
+        193,
+        189,
+        29
+      ],
       "accounts": [
         {
-          "name": "recovery_wallet",
-          "docs": ["Must match `recovery_wallet_account.recovery_wallet`."],
-          "signer": true
-        },
-        {
           "name": "phygital_token",
-          "writable": true,
-          "relations": ["recovery_wallet_account"]
-        },
-        {
-          "name": "recovery_wallet_account",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  114, 101, 99, 111, 118, 101, 114, 121, 95, 119, 97, 108, 108,
-                  101, 116
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "phygital_token"
-              }
-            ]
-          }
+          "writable": true
         },
         {
           "name": "wallet",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  112, 114, 111, 103, 114, 97, 109, 95, 119, 97, 108, 108, 101,
-                  116
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "phygital_token"
+          "docs": [
+            "(`wallet.key == phygital_token.owner`, the canonical wallet PDA)."
+          ],
+          "writable": true
+        },
+        {
+          "name": "authority_account",
+          "docs": [
+            "program-owned (an absent/closed PDA is system-owned) — this is what disables",
+            "the tap once the owner is removed. Token binding, canonical PDA and policy tail",
+            "are validated in the handler (they need the header, so they cannot be Anchor",
+            "constraints). Writable for spend counters."
+          ],
+          "writable": true
+        },
+        {
+          "name": "slot_hashes",
+          "address": "SysvarS1otHashes111111111111111111111111111"
+        },
+        {
+          "name": "instructions_sysvar",
+          "address": "Sysvar1nstructions1111111111111111111111111"
+        },
+        {
+          "name": "phygital_token_program",
+          "address": "DuPpckdjjgVAnYok2aTMAt264ZPBXqq3JSazJjCUzTJQ"
+        }
+      ],
+      "args": [
+        {
+          "name": "compact_instructions",
+          "type": {
+            "vec": {
+              "defined": {
+                "name": "CompactInstruction"
               }
-            ]
+            }
           }
+        },
+        {
+          "name": "secp256r1_verify_args",
+          "type": {
+            "defined": {
+              "name": "Secp256r1VerifyArgs"
+            }
+          }
+        },
+        {
+          "name": "slot_number",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "execute_with_authority",
+      "docs": [
+        "Authority-authorized execute (ed25519 authority signer). Skips the passkey",
+        "verify and policy checks for this separate owner transaction. Does not",
+        "consume accessory allowances or grant approval to retry a blocked tap."
+      ],
+      "discriminator": [
+        249,
+        39,
+        107,
+        35,
+        244,
+        181,
+        161,
+        142
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "docs": [
+            "The token's authority (ed25519) — the sole authorization; policy is skipped."
+          ],
+          "signer": true
+        },
+        {
+          "name": "phygital_token"
+        },
+        {
+          "name": "authority_account",
+          "docs": [
+            "PDA validated in the handler (not via Anchor `seeds`/`has_one`, whose",
+            "`?`/self-referential form is not expressible in the IDL). Not writable: the",
+            "authority path never touches policy counters."
+          ]
+        },
+        {
+          "name": "wallet",
+          "docs": [
+            "the wallet bump comes from the validated authority header."
+          ],
+          "writable": true
+        },
+        {
+          "name": "instructions_sysvar",
+          "address": "Sysvar1nstructions1111111111111111111111111"
         }
       ],
       "args": [
@@ -425,78 +235,107 @@
       ]
     },
     {
-      "name": "remove_verifier",
-      "discriminator": [179, 9, 132, 183, 233, 23, 172, 111],
+      "name": "execute_with_authority_using_policies",
+      "docs": [
+        "Authority-authorized execute that skips the accessory proof but enforces",
+        "and charges the wallet policy exactly like `execute`."
+      ],
+      "discriminator": [
+        237,
+        150,
+        126,
+        114,
+        227,
+        5,
+        73,
+        250
+      ],
       "accounts": [
         {
-          "name": "admin",
-          "signer": true,
-          "address": "G6kBnedts6uAivtY72ToaFHBs1UVbT9udiXmQZgMEjoF"
+          "name": "authority",
+          "signer": true
         },
         {
-          "name": "config",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [99, 111, 110, 102, 105, 103]
-              }
-            ]
-          }
+          "name": "phygital_token"
+        },
+        {
+          "name": "authority_account",
+          "docs": [
+            "Writable because successful execution may charge spending counters."
+          ],
+          "writable": true
+        },
+        {
+          "name": "wallet",
+          "writable": true
         }
       ],
       "args": [
         {
-          "name": "verifier",
-          "type": "pubkey"
+          "name": "compact_instructions",
+          "type": {
+            "vec": {
+              "defined": {
+                "name": "CompactInstruction"
+              }
+            }
+          }
         }
       ]
     },
     {
-      "name": "set_recovery_wallet",
-      "discriminator": [211, 147, 53, 173, 100, 180, 242, 49],
+      "name": "set_authority",
+      "docs": [
+        "Passkey-gated: set the token's authority (ed25519). Only succeeds when no",
+        "authority exists yet. Starts with standard protections and no spending limits."
+      ],
+      "discriminator": [
+        133,
+        250,
+        37,
+        21,
+        110,
+        163,
+        26,
+        121
+      ],
       "accounts": [
         {
           "name": "payer",
-          "docs": ["Fee payer for rent; not an authorization authority."],
+          "docs": [
+            "Fee payer for rent; not an authorization authority."
+          ],
           "writable": true,
           "signer": true
-        },
-        {
-          "name": "verifier",
-          "docs": [
-            "Verifier co-signer. Token override (exclusive) or config default set."
-          ],
-          "signer": true
-        },
-        {
-          "name": "config",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [99, 111, 110, 102, 105, 103]
-              }
-            ]
-          }
         },
         {
           "name": "phygital_token",
           "writable": true
         },
         {
-          "name": "token_verifier",
+          "name": "wallet",
           "docs": [
-            "Optional per-token verifier override PDA (may be uninitialized)."
+            "enforced by the seeds and `wallet_matches_owner` constraints."
           ],
           "pda": {
             "seeds": [
               {
                 "kind": "const",
                 "value": [
-                  116, 111, 107, 101, 110, 95, 118, 101, 114, 105, 102, 105,
-                  101, 114
+                  112,
+                  114,
+                  111,
+                  103,
+                  114,
+                  97,
+                  109,
+                  95,
+                  119,
+                  97,
+                  108,
+                  108,
+                  101,
+                  116
                 ]
               },
               {
@@ -507,15 +346,25 @@
           }
         },
         {
-          "name": "recovery_wallet_account",
+          "name": "authority_account",
+          "docs": [
+            "`init` (not `init_if_needed`) enforces \"only if no authority exists yet\"."
+          ],
           "writable": true,
           "pda": {
             "seeds": [
               {
                 "kind": "const",
                 "value": [
-                  114, 101, 99, 111, 118, 101, 114, 121, 95, 119, 97, 108, 108,
-                  101, 116
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
                 ]
               },
               {
@@ -544,7 +393,7 @@
       ],
       "args": [
         {
-          "name": "recovery_wallet",
+          "name": "authority",
           "type": "pubkey"
         },
         {
@@ -562,67 +411,54 @@
       ]
     },
     {
-      "name": "set_token_verifier",
-      "discriminator": [119, 217, 120, 253, 242, 171, 137, 184],
+      "name": "set_wallet_policy",
+      "docs": [
+        "Owner-signed: replace all settings and refill every allowance, even when",
+        "only permissions changed. Empty args restore standard settings, removing",
+        "caps AND custom restrictions; they do not disable the policy."
+      ],
+      "discriminator": [
+        246,
+        162,
+        84,
+        132,
+        73,
+        92,
+        217,
+        149
+      ],
       "accounts": [
         {
-          "name": "payer",
-          "docs": ["Fee payer for rent; not an authorization authority."],
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "verifier",
+          "name": "authority",
           "docs": [
-            "Verifier co-signer. Token override (exclusive) or config default set."
+            "The token's authority (ed25519) — the sole authorization for policy admin."
           ],
           "signer": true
         },
         {
-          "name": "config",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [99, 111, 110, 102, 105, 103]
-              }
-            ]
-          }
+          "name": "payer",
+          "docs": [
+            "Pays any additional rent when growing the policy."
+          ],
+          "writable": true,
+          "signer": true
         },
         {
-          "name": "phygital_token",
+          "name": "rent_receiver",
           "writable": true
         },
         {
-          "name": "token_verifier",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  116, 111, 107, 101, 110, 95, 118, 101, 114, 105, 102, 105,
-                  101, 114
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "phygital_token"
-              }
-            ]
-          }
-        },
-        {
-          "name": "slot_hashes",
-          "address": "SysvarS1otHashes111111111111111111111111111"
+          "name": "authority_account",
+          "docs": [
+            "version, authority signer and canonical PDA are validated in the handler;",
+            "Anchor `seeds`/`has_one` are not used here because their `?`/self-reference",
+            "form is not expressible in the IDL."
+          ],
+          "writable": true
         },
         {
           "name": "instructions_sysvar",
           "address": "Sysvar1nstructions1111111111111111111111111"
-        },
-        {
-          "name": "phygital_token_program",
-          "address": "DuPpckdjjgVAnYok2aTMAt264ZPBXqq3JSazJjCUzTJQ"
         },
         {
           "name": "system_program",
@@ -631,40 +467,29 @@
       ],
       "args": [
         {
-          "name": "new_verifier",
-          "type": "pubkey"
-        },
-        {
-          "name": "endpoint",
-          "type": "string"
-        },
-        {
-          "name": "secp256r1_verify_args",
+          "name": "args",
           "type": {
             "defined": {
-              "name": "Secp256r1VerifyArgs"
+              "name": "WalletPolicyArgs"
             }
           }
-        },
-        {
-          "name": "slot_number",
-          "type": "u64"
         }
       ]
     }
   ],
   "accounts": [
     {
-      "name": "Config",
-      "discriminator": [155, 12, 170, 224, 30, 250, 204, 130]
-    },
-    {
-      "name": "RecoveryWallet",
-      "discriminator": [172, 239, 138, 56, 173, 41, 182, 161]
-    },
-    {
-      "name": "TokenVerifier",
-      "discriminator": [52, 84, 111, 160, 81, 247, 144, 43]
+      "name": "Authority",
+      "discriminator": [
+        36,
+        108,
+        254,
+        18,
+        167,
+        144,
+        27,
+        36
+      ]
     }
   ],
   "errors": [
@@ -675,134 +500,357 @@
     },
     {
       "code": 6001,
-      "name": "UnauthorizedVerifier",
-      "msg": "Verifier is not authorized for this execute"
-    },
-    {
-      "code": 6002,
-      "name": "TokenVerifierRequired",
-      "msg": "Token has a custom verifier configured; that key must sign"
-    },
-    {
-      "code": 6003,
-      "name": "VerifierAlreadyExists",
-      "msg": "Verifier is already in the config set"
-    },
-    {
-      "code": 6004,
-      "name": "VerifierNotFound",
-      "msg": "Verifier was not found in the config set"
-    },
-    {
-      "code": 6005,
-      "name": "TooManyVerifiers",
-      "msg": "Config verifier set is full"
-    },
-    {
-      "code": 6006,
-      "name": "UnauthorizedAdmin",
-      "msg": "Only the config admin may perform this action"
-    },
-    {
-      "code": 6007,
-      "name": "TokenVerifierMismatch",
-      "msg": "Token verifier account does not match the phygital token"
-    },
-    {
-      "code": 6008,
-      "name": "InvalidEndpoint",
-      "msg": "Verifier endpoint URL is empty or invalid"
-    },
-    {
-      "code": 6009,
-      "name": "EndpointTooLong",
-      "msg": "Verifier endpoint URL exceeds max length"
-    },
-    {
-      "code": 6010,
       "name": "InvalidSlotHash",
       "msg": "Slot not found in SlotHashes sysvar — signature has expired or is being replayed"
     },
     {
-      "code": 6011,
+      "code": 6002,
       "name": "InvalidSysvarDataFormat",
       "msg": "Invalid SlotHashes sysvar data format"
     },
     {
-      "code": 6012,
+      "code": 6003,
       "name": "InvalidAccountData",
       "msg": "Account data is missing or malformed"
     },
     {
-      "code": 6013,
+      "code": 6004,
       "name": "InvalidAccountIndex",
       "msg": "Compact instruction account index out of bounds"
     },
     {
-      "code": 6014,
+      "code": 6005,
       "name": "SelfReentrancyNotAllowed",
       "msg": "Self-reentrancy via CPI into this program is not allowed"
     },
     {
-      "code": 6015,
+      "code": 6006,
       "name": "PhygitalTokenCpiNotAllowed",
       "msg": "CPI into the phygital-token program is not allowed"
     },
     {
-      "code": 6016,
-      "name": "TokenVerifierPayerMismatch",
-      "msg": "Rent receiver must match the token verifier account creator"
-    },
-    {
-      "code": 6017,
+      "code": 6007,
       "name": "WalletOwnerMismatch",
       "msg": "Wallet PDA must equal phygital_token.owner"
     },
     {
-      "code": 6018,
+      "code": 6008,
       "name": "ExecuteViaCpiNotAllowed",
       "msg": "Execute must be a top-level instruction (CPI into execute is not allowed)"
     },
     {
-      "code": 6019,
+      "code": 6009,
       "name": "WalletInvariantViolated",
       "msg": "Wallet PDA owner or data length changed during inner CPI"
     },
     {
-      "code": 6020,
+      "code": 6010,
       "name": "ProtectedAccountPrivilege",
       "msg": "Protected account may not be a signer or writable in inner instructions"
     },
     {
+      "code": 6011,
+      "name": "DurableNonceNotAllowed",
+      "msg": "Durable-nonce transactions are not allowed"
+    },
+    {
+      "code": 6012,
+      "name": "AuthorityMismatch",
+      "msg": "Authority signer does not match the token's configured authority"
+    },
+    {
+      "code": 6013,
+      "name": "AuthorityTokenMismatch",
+      "msg": "Authority account does not match the phygital token"
+    },
+    {
+      "code": 6014,
+      "name": "InvalidAuthority",
+      "msg": "Authority pubkey must be a non-default key"
+    },
+    {
+      "code": 6015,
+      "name": "AuthorityPayerMismatch",
+      "msg": "Rent receiver must match the authority account creator"
+    },
+    {
+      "code": 6016,
+      "name": "MintNotAllowed",
+      "msg": "Mint has no configured spend cap"
+    },
+    {
+      "code": 6017,
+      "name": "SpendLimitExceeded",
+      "msg": "Transfer exceeds the configured spending limit"
+    },
+    {
+      "code": 6018,
+      "name": "InvalidPolicyArgs",
+      "msg": "Policy arguments or requested account size are invalid"
+    },
+    {
+      "code": 6019,
+      "name": "DelegationNotAllowed",
+      "msg": "Execute may not leave a standing delegate on a wallet-owned token account"
+    },
+    {
+      "code": 6020,
+      "name": "TokenAuthorityChanged",
+      "msg": "Wallet-owned token account control changed during execute"
+    },
+    {
       "code": 6021,
-      "name": "InvalidTokenVerifier",
-      "msg": "Token verifier pubkey must be a non-default key"
+      "name": "UnsupportedPolicyVersion",
+      "msg": "Unsupported policy layout: authority must clear and recreate the policy"
     },
     {
       "code": 6022,
-      "name": "RecoveryWalletMismatch",
-      "msg": "Recovery wallet account does not match the phygital token"
+      "name": "ProgramNotAllowed",
+      "msg": "Passkey execute may only invoke allow-listed programs while a policy is active"
     },
     {
       "code": 6023,
-      "name": "RecoveryWalletPayerMismatch",
-      "msg": "Rent receiver must match the recovery wallet account creator"
+      "name": "UnsupportedAuthorityVersion",
+      "msg": "Unsupported authority header layout"
     },
     {
       "code": 6024,
-      "name": "InvalidRecoveryWallet",
-      "msg": "Recovery wallet pubkey must be a non-default key"
+      "name": "InstructionNotAllowed",
+      "msg": "Instruction does not satisfy the configured program rules"
     },
     {
       "code": 6025,
-      "name": "UnauthorizedRecoveryWallet",
-      "msg": "Recovery wallet signer does not match the configured recovery key"
+      "name": "AccessoryDisabled",
+      "msg": "Accessory tap is disabled: an owner must be set before tapping (removing the owner disables it)"
     }
   ],
   "types": [
     {
+      "name": "AccountConstraint",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "index",
+            "docs": [
+              "Position in this instruction, not in the outer remaining_accounts list."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "key",
+            "type": {
+              "defined": {
+                "name": "AccountKeyConstraint"
+              }
+            }
+          },
+          {
+            "name": "owner",
+            "docs": [
+              "Solana owner program, not the token account's encoded owner field."
+            ],
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "is_signer",
+            "docs": [
+              "Effective privileges passed to CPI, including the wallet PDA signature."
+            ],
+            "type": {
+              "option": "bool"
+            }
+          },
+          {
+            "name": "is_writable",
+            "type": {
+              "option": "bool"
+            }
+          },
+          {
+            "name": "data",
+            "docs": [
+              "Account-data predicates require an explicit owner program."
+            ],
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "DataConstraint"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "AccountKeyConstraint",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Any"
+          },
+          {
+            "name": "Address",
+            "fields": [
+              "pubkey"
+            ]
+          },
+          {
+            "name": "Wallet"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Authority",
+      "docs": [
+        "Per-token authority: an ed25519 key set once by the passkey. It administers",
+        "policy, may bypass policy on execute, and may drive the wallet without the",
+        "accessory passkey. Cleared only by its own signature.",
+        "",
+        "The fixed header and aligned spending counters are read with bytemuck.",
+        "A bounded Borsh program-permission tail follows the mint array. The complete",
+        "account remains decodable by standard Anchor clients."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "header",
+            "type": {
+              "defined": {
+                "name": "AuthorityHeader"
+              }
+            }
+          },
+          {
+            "name": "sol_cap",
+            "docs": [
+              "Native SOL spend cap. Meters native lamports AND wallet-owned wrapped SOL",
+              "(both WSOL native mints) together — one asset to the user. Active when",
+              "`cap != 0` and `header.policy_version == WALLET_POLICY_VERSION`."
+            ],
+            "type": {
+              "defined": {
+                "name": "SpendCap"
+              }
+            }
+          },
+          {
+            "name": "policy_padding",
+            "docs": [
+              "Must be zero; aligns the following mint array for zero-copy reads."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "mint_caps",
+            "docs": [
+              "Per-asset allowances. Any configured cap blocks decreases of uncapped",
+              "assets; no caps means no amount limits. WSOL belongs to sol_cap."
+            ],
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "MintCap"
+                }
+              }
+            }
+          },
+          {
+            "name": "program_permissions",
+            "docs": [
+              "Explicit per-program overrides of the fixed baseline."
+            ],
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "ProgramPermission"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "AuthorityHeader",
+      "docs": [
+        "Fixed 104-byte header of the [`Authority`] account, laid out immediately after",
+        "the 8-byte Anchor discriminator. Kept as its own `#[repr(C)]` Pod type so the",
+        "hot path can `bytemuck`-read it in place, and reused as the first field of the",
+        "Borsh `Authority` so the IDL and the on-chain bytes share one definition",
+        "(Borsh serializes a nested struct inline, byte-for-byte with its Pod layout)."
+      ],
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "docs": [
+              "Owner admin key: changes settings and executes outside accessory policy."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "phygital_token",
+            "docs": [
+              "Token governed by this account, retained for authority-filtered GPA discovery."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "payer",
+            "docs": [
+              "Account that paid init rent; close refunds this pubkey."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "wallet_bump",
+            "type": "u8"
+          },
+          {
+            "name": "version",
+            "type": "u8"
+          },
+          {
+            "name": "policy_version",
+            "docs": [
+              "Zero => no policy configured (unrestricted). `WALLET_POLICY_VERSION` => the",
+              "inline policy below is active (and enforces token-control invariants even",
+              "with no spend caps set)."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "_padding",
+            "type": {
+              "array": [
+                "u8",
+                4
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "CompactInstruction",
-      "docs": ["Index-based inner instruction for execute."],
+      "docs": [
+        "Index-based inner instruction for execute."
+      ],
       "type": {
         "kind": "struct",
         "fields": [
@@ -828,14 +876,152 @@
       }
     },
     {
-      "name": "Config",
+      "name": "Comparison",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Equal"
+          },
+          {
+            "name": "NotEqual"
+          },
+          {
+            "name": "LessThan"
+          },
+          {
+            "name": "LessThanOrEqual"
+          },
+          {
+            "name": "GreaterThan"
+          },
+          {
+            "name": "GreaterThanOrEqual"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DataConstraint",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "offset",
+            "type": "u16"
+          },
+          {
+            "name": "predicate",
+            "type": {
+              "defined": {
+                "name": "DataPredicate"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "DataPredicate",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "BytesEqual",
+            "fields": [
+              "bytes"
+            ]
+          },
+          {
+            "name": "Unsigned",
+            "fields": [
+              {
+                "name": "width",
+                "type": {
+                  "defined": {
+                    "name": "NumericWidth"
+                  }
+                }
+              },
+              {
+                "name": "comparison",
+                "type": {
+                  "defined": {
+                    "name": "Comparison"
+                  }
+                }
+              },
+              {
+                "name": "value",
+                "type": "u64"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "InstructionRule",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "selector",
+            "docs": [
+              "Nonempty byte prefix identifying the instruction (not necessarily Anchor)."
+            ],
+            "type": "bytes"
+          },
+          {
+            "name": "data_length",
+            "docs": [
+              "Exact encoded data length when the instruction has a fixed layout."
+            ],
+            "type": {
+              "option": "u16"
+            }
+          },
+          {
+            "name": "account_count",
+            "docs": [
+              "Exact number of instruction account positions, including duplicates."
+            ],
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "accounts",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "AccountConstraint"
+                }
+              }
+            }
+          },
+          {
+            "name": "arguments",
+            "docs": [
+              "Per-instruction checks; an amount bound here is not a per-tap budget."
+            ],
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "DataConstraint"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "MintCap",
       "docs": [
-        "Global program config: admin + default verifier set (fee-payer/verifiers).",
-        "",
-        "Fixed-size so execute can `AccountLoader` (zero-copy) instead of",
-        "Borsh-decoding a `Vec`."
+        "A spending allowance bound to a specific SPL/Token-2022 mint. Same dual Borsh +",
+        "Pod derivation and padding-free layout as [`SpendCap`]."
       ],
-      "serialization": "bytemuck",
       "repr": {
         "kind": "c"
       },
@@ -843,59 +1029,112 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "admin",
+            "name": "mint",
             "type": "pubkey"
           },
           {
-            "name": "verifiers",
+            "name": "cap",
             "type": {
-              "array": ["pubkey", 8]
-            }
-          },
-          {
-            "name": "verifier_count",
-            "type": "u8"
-          },
-          {
-            "name": "bump",
-            "type": "u8"
-          },
-          {
-            "name": "_padding",
-            "type": {
-              "array": ["u8", 6]
+              "defined": {
+                "name": "SpendCap"
+              }
             }
           }
         ]
       }
     },
     {
-      "name": "RecoveryWallet",
-      "docs": [
-        "Optional ed25519 recovery key for a phygital token. When set, that key may",
-        "call `recovery_wallet_execute` to drive the program wallet without the",
-        "accessory passkey (lost-device recovery)."
-      ],
+      "name": "MintCapArg",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "phygital_token",
+            "name": "mint",
             "type": "pubkey"
           },
           {
-            "name": "recovery_wallet",
-            "docs": ["Ed25519 pubkey authorized to recover the wallet."],
+            "name": "cap",
+            "docs": [
+              "Allowance in raw asset units; must be nonzero. Saving refills it only when",
+              "the amount or window changes; an unchanged cap keeps its remaining usage."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "window_seconds",
+            "docs": [
+              "0 => no automatic reset; > 0 => interval in seconds anchored at save time."
+            ],
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "NumericWidth",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "U8"
+          },
+          {
+            "name": "U16"
+          },
+          {
+            "name": "U32"
+          },
+          {
+            "name": "U64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProgramAccess",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Denied"
+          },
+          {
+            "name": "AllInstructions"
+          },
+          {
+            "name": "Restricted",
+            "fields": [
+              {
+                "vec": {
+                  "defined": {
+                    "name": "InstructionRule"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProgramPermission",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "program_id",
             "type": "pubkey"
           },
           {
-            "name": "payer",
-            "docs": ["Account that paid init rent; close refunds this pubkey."],
-            "type": "pubkey"
-          },
-          {
-            "name": "bump",
-            "type": "u8"
+            "name": "access",
+            "docs": [
+              "Overrides this program's baseline permission; never additive to it."
+            ],
+            "type": {
+              "defined": {
+                "name": "ProgramAccess"
+              }
+            }
           }
         ]
       }
@@ -928,38 +1167,132 @@
       }
     },
     {
-      "name": "TokenVerifier",
+      "name": "SolCapArg",
       "docs": [
-        "Optional per-phygital-token verifier override. When present, ONLY this",
-        "verifier may authorize executes for that token (config set is not accepted).",
-        "`endpoint` is the HTTPS URL of that verifier's build/sign/send service.",
-        "",
-        "Not on the execute hot path (read by offset in `resolve_verifier`); keep",
-        "Borsh so the endpoint stays a human-readable `String` in the IDL."
+        "Fixed-interval allowance for SOL and wallet-owned WSOL, in lamports."
       ],
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "phygital_token",
-            "type": "pubkey"
+            "name": "cap",
+            "docs": [
+              "Allowance in raw asset units; must be nonzero. Saving refills it only when",
+              "the amount or window changes; an unchanged cap keeps its remaining usage."
+            ],
+            "type": "u64"
           },
           {
-            "name": "verifier",
-            "type": "pubkey"
+            "name": "window_seconds",
+            "docs": [
+              "0 => no automatic reset; > 0 => interval in seconds anchored at save time."
+            ],
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SpendCap",
+      "docs": [
+        "A fixed-interval allowance in raw units. `window_seconds == 0` never resets",
+        "automatically. Positive windows refill on a charge at or after the boundary;",
+        "`last_reset` anchors the interval. Saving policy preserves usage for a cap left",
+        "unchanged; changing a cap's amount or window refills and reanchors that cap.",
+        "Used directly as the SOL cap and embedded (with a mint) in `MintCap`. Derives",
+        "both Borsh (for the IDL / clients) and `bytemuck::Pod` (for on-chain reads); the",
+        "padding-free `#[repr(C)]` layout makes those two encodings byte-identical."
+      ],
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "cap",
+            "docs": [
+              "Maximum allowance per period (or lifetime for a zero window)."
+            ],
+            "type": "u64"
           },
           {
-            "name": "endpoint",
-            "type": "string"
+            "name": "remaining",
+            "docs": [
+              "Stored allowance; reads do not refill it when an interval passes."
+            ],
+            "type": "u64"
           },
           {
-            "name": "payer",
-            "docs": ["Account that paid init rent; close refunds this pubkey."],
-            "type": "pubkey"
+            "name": "last_reset",
+            "docs": [
+              "Chain timestamp anchoring this interval, not the time of the last payment."
+            ],
+            "type": "i64"
           },
           {
-            "name": "bump",
-            "type": "u8"
+            "name": "window_seconds",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "WalletPolicyArgs",
+      "docs": [
+        "Present policy with standard protections and optional spending limits.",
+        "`Default` restores baseline programs and control invariants with no spending",
+        "limits and no custom restrictions. It never removes the policy;",
+        "`clear_wallet_policy` explicitly turns off its protections."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "sol_cap",
+            "docs": [
+              "SOL/WSOL cap on net loss across execute; incoming offsets outgoing. Meters",
+              "native lamports AND wallet-owned wrapped SOL (both native mints) as one",
+              "budget. Absent => SOL cannot decrease when any spending limit exists."
+            ],
+            "type": {
+              "option": {
+                "defined": {
+                  "name": "SolCapArg"
+                }
+              }
+            }
+          },
+          {
+            "name": "mint_caps",
+            "docs": [
+              "Each mint may appear once; the WSOL mints are rejected here (they belong to",
+              "`sol_cap`). Unlisted mints cannot decrease when any cap exists. No SOL or",
+              "mint limits means no amount limits; program/control checks still apply.",
+              "Token spending sums each source account decrease, including transfers",
+              "between wallet-owned accounts."
+            ],
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "MintCapArg"
+                }
+              }
+            }
+          },
+          {
+            "name": "program_permissions",
+            "docs": [
+              "Per-program overrides. Omitted programs fall back to baseline permissions.",
+              "Preserve this list when removing only caps; empty removes custom blocks too."
+            ],
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "ProgramPermission"
+                }
+              }
+            }
           }
         ]
       }
@@ -967,24 +1300,22 @@
   ],
   "constants": [
     {
-      "name": "CONFIG_SEED",
+      "name": "AUTHORITY_SEED",
       "type": "bytes",
-      "value": "[99, 111, 110, 102, 105, 103]"
+      "value": "[97, 117, 116, 104, 111, 114, 105, 116, 121]"
+    },
+    {
+      "name": "EXECUTE_CHALLENGE_PREFIX",
+      "docs": [
+        "Execute challenge: `SHA256(prefix || slot_hash || instructions_hash || accounts_hash)`."
+      ],
+      "type": "bytes",
+      "value": "[112, 104, 121, 103, 105, 116, 97, 108, 95, 119, 97, 108, 108, 101, 116, 58, 101, 120, 101, 99, 117, 116, 101, 58, 118, 50]"
     },
     {
       "name": "PROGRAM_WALLET_SEED",
       "type": "bytes",
       "value": "[112, 114, 111, 103, 114, 97, 109, 95, 119, 97, 108, 108, 101, 116]"
-    },
-    {
-      "name": "RECOVERY_WALLET_SEED",
-      "type": "bytes",
-      "value": "[114, 101, 99, 111, 118, 101, 114, 121, 95, 119, 97, 108, 108, 101, 116]"
-    },
-    {
-      "name": "TOKEN_VERIFIER_SEED",
-      "type": "bytes",
-      "value": "[116, 111, 107, 101, 110, 95, 118, 101, 114, 105, 102, 105, 101, 114]"
     }
   ]
 }

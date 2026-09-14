@@ -35,169 +35,113 @@ import {
   type SelfPlanAndSendFunctions,
 } from "@solana/kit/program-client-core";
 import {
-  getConfigCodec,
-  getRecoveryWalletCodec,
-  getTokenVerifierCodec,
-  type Config,
-  type ConfigArgs,
-  type RecoveryWallet,
-  type RecoveryWalletArgs,
-  type TokenVerifier,
-  type TokenVerifierArgs,
+  getAuthorityCodec,
+  type Authority,
+  type AuthorityArgs,
 } from "../accounts/index.js";
 import {
-  getAddVerifierInstructionAsync,
-  getClearRecoveryWalletInstructionAsync,
-  getClearTokenVerifierInstructionAsync,
-  getExecuteInstructionAsync,
-  getInitializeConfigInstructionAsync,
-  getRecoveryWalletExecuteInstructionAsync,
-  getRemoveVerifierInstructionAsync,
-  getSetRecoveryWalletInstructionAsync,
-  getSetTokenVerifierInstructionAsync,
-  parseAddVerifierInstruction,
-  parseClearRecoveryWalletInstruction,
-  parseClearTokenVerifierInstruction,
+  getClearAuthorityInstruction,
+  getClearWalletPolicyInstruction,
+  getExecuteInstruction,
+  getExecuteWithAuthorityInstruction,
+  getExecuteWithAuthorityUsingPoliciesInstruction,
+  getSetAuthorityInstructionAsync,
+  getSetWalletPolicyInstruction,
+  parseClearAuthorityInstruction,
+  parseClearWalletPolicyInstruction,
   parseExecuteInstruction,
-  parseInitializeConfigInstruction,
-  parseRecoveryWalletExecuteInstruction,
-  parseRemoveVerifierInstruction,
-  parseSetRecoveryWalletInstruction,
-  parseSetTokenVerifierInstruction,
-  type AddVerifierAsyncInput,
-  type ClearRecoveryWalletAsyncInput,
-  type ClearTokenVerifierAsyncInput,
-  type ExecuteAsyncInput,
-  type InitializeConfigAsyncInput,
-  type ParsedAddVerifierInstruction,
-  type ParsedClearRecoveryWalletInstruction,
-  type ParsedClearTokenVerifierInstruction,
+  parseExecuteWithAuthorityInstruction,
+  parseExecuteWithAuthorityUsingPoliciesInstruction,
+  parseSetAuthorityInstruction,
+  parseSetWalletPolicyInstruction,
+  type ClearAuthorityInput,
+  type ClearWalletPolicyInput,
+  type ExecuteInput,
+  type ExecuteWithAuthorityInput,
+  type ExecuteWithAuthorityUsingPoliciesInput,
+  type ParsedClearAuthorityInstruction,
+  type ParsedClearWalletPolicyInstruction,
   type ParsedExecuteInstruction,
-  type ParsedInitializeConfigInstruction,
-  type ParsedRecoveryWalletExecuteInstruction,
-  type ParsedRemoveVerifierInstruction,
-  type ParsedSetRecoveryWalletInstruction,
-  type ParsedSetTokenVerifierInstruction,
-  type RecoveryWalletExecuteAsyncInput,
-  type RemoveVerifierAsyncInput,
-  type SetRecoveryWalletAsyncInput,
-  type SetTokenVerifierAsyncInput,
+  type ParsedExecuteWithAuthorityInstruction,
+  type ParsedExecuteWithAuthorityUsingPoliciesInstruction,
+  type ParsedSetAuthorityInstruction,
+  type ParsedSetWalletPolicyInstruction,
+  type SetAuthorityAsyncInput,
+  type SetWalletPolicyInput,
 } from "../instructions/index.js";
-import {
-  findConfigPda,
-  findRecoveryWalletAccountPda,
-  findTokenVerifierPda,
-  findWalletPda,
-} from "../pdas/index.js";
+import { findAuthorityAccountPda, findWalletPda } from "../pdas/index.js";
 
 export const PHYGITAL_WALLET_PROGRAM_ADDRESS =
   "Fjbi9JrRAmSBdxQxbkcxYDp6JUwnLbFhU2GsieWQBLSg" as Address<"Fjbi9JrRAmSBdxQxbkcxYDp6JUwnLbFhU2GsieWQBLSg">;
 
 export enum PhygitalWalletAccount {
-  Config,
-  RecoveryWallet,
-  TokenVerifier,
+  Authority,
 }
 
 export function identifyPhygitalWalletAccount(
-  account: { data: ReadonlyUint8Array } | ReadonlyUint8Array
+  account: { data: ReadonlyUint8Array } | ReadonlyUint8Array,
 ): PhygitalWalletAccount {
   const data = "data" in account ? account.data : account;
   if (
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([155, 12, 170, 224, 30, 250, 204, 130])
+        new Uint8Array([36, 108, 254, 18, 167, 144, 27, 36]),
       ),
-      0
+      0,
     )
   ) {
-    return PhygitalWalletAccount.Config;
-  }
-  if (
-    containsBytes(
-      data,
-      fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([172, 239, 138, 56, 173, 41, 182, 161])
-      ),
-      0
-    )
-  ) {
-    return PhygitalWalletAccount.RecoveryWallet;
-  }
-  if (
-    containsBytes(
-      data,
-      fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([52, 84, 111, 160, 81, 247, 144, 43])
-      ),
-      0
-    )
-  ) {
-    return PhygitalWalletAccount.TokenVerifier;
+    return PhygitalWalletAccount.Authority;
   }
   throw new SolanaError(
     SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_ACCOUNT,
-    { accountData: data, programName: "phygitalWallet" }
+    { accountData: data, programName: "phygitalWallet" },
   );
 }
 
 export enum PhygitalWalletInstruction {
-  AddVerifier,
-  ClearRecoveryWallet,
-  ClearTokenVerifier,
+  ClearAuthority,
+  ClearWalletPolicy,
   Execute,
-  InitializeConfig,
-  RecoveryWalletExecute,
-  RemoveVerifier,
-  SetRecoveryWallet,
-  SetTokenVerifier,
+  ExecuteWithAuthority,
+  ExecuteWithAuthorityUsingPolicies,
+  SetAuthority,
+  SetWalletPolicy,
 }
 
 export function identifyPhygitalWalletInstruction(
-  instruction: { data: ReadonlyUint8Array } | ReadonlyUint8Array
+  instruction: { data: ReadonlyUint8Array } | ReadonlyUint8Array,
 ): PhygitalWalletInstruction {
   const data = "data" in instruction ? instruction.data : instruction;
   if (
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([165, 72, 135, 225, 67, 181, 255, 135])
+        new Uint8Array([129, 249, 41, 111, 187, 52, 199, 214]),
       ),
-      0
+      0,
     )
   ) {
-    return PhygitalWalletInstruction.AddVerifier;
+    return PhygitalWalletInstruction.ClearAuthority;
   }
   if (
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([91, 208, 70, 146, 50, 221, 202, 245])
+        new Uint8Array([226, 224, 82, 15, 201, 69, 123, 12]),
       ),
-      0
+      0,
     )
   ) {
-    return PhygitalWalletInstruction.ClearRecoveryWallet;
+    return PhygitalWalletInstruction.ClearWalletPolicy;
   }
   if (
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([83, 237, 126, 93, 140, 254, 231, 156])
+        new Uint8Array([130, 221, 242, 154, 13, 193, 189, 29]),
       ),
-      0
-    )
-  ) {
-    return PhygitalWalletInstruction.ClearTokenVerifier;
-  }
-  if (
-    containsBytes(
-      data,
-      fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([130, 221, 242, 154, 13, 193, 189, 29])
-      ),
-      0
+      0,
     )
   ) {
     return PhygitalWalletInstruction.Execute;
@@ -206,118 +150,94 @@ export function identifyPhygitalWalletInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([208, 127, 21, 1, 194, 190, 196, 70])
+        new Uint8Array([249, 39, 107, 35, 244, 181, 161, 142]),
       ),
-      0
+      0,
     )
   ) {
-    return PhygitalWalletInstruction.InitializeConfig;
+    return PhygitalWalletInstruction.ExecuteWithAuthority;
   }
   if (
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([91, 171, 164, 84, 112, 80, 230, 134])
+        new Uint8Array([237, 150, 126, 114, 227, 5, 73, 250]),
       ),
-      0
+      0,
     )
   ) {
-    return PhygitalWalletInstruction.RecoveryWalletExecute;
+    return PhygitalWalletInstruction.ExecuteWithAuthorityUsingPolicies;
   }
   if (
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([179, 9, 132, 183, 233, 23, 172, 111])
+        new Uint8Array([133, 250, 37, 21, 110, 163, 26, 121]),
       ),
-      0
+      0,
     )
   ) {
-    return PhygitalWalletInstruction.RemoveVerifier;
+    return PhygitalWalletInstruction.SetAuthority;
   }
   if (
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([211, 147, 53, 173, 100, 180, 242, 49])
+        new Uint8Array([246, 162, 84, 132, 73, 92, 217, 149]),
       ),
-      0
+      0,
     )
   ) {
-    return PhygitalWalletInstruction.SetRecoveryWallet;
-  }
-  if (
-    containsBytes(
-      data,
-      fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([119, 217, 120, 253, 242, 171, 137, 184])
-      ),
-      0
-    )
-  ) {
-    return PhygitalWalletInstruction.SetTokenVerifier;
+    return PhygitalWalletInstruction.SetWalletPolicy;
   }
   throw new SolanaError(
     SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_INSTRUCTION,
-    { instructionData: data, programName: "phygitalWallet" }
+    { instructionData: data, programName: "phygitalWallet" },
   );
 }
 
 export type ParsedPhygitalWalletInstruction<
-  TProgram extends string = "Fjbi9JrRAmSBdxQxbkcxYDp6JUwnLbFhU2GsieWQBLSg"
+  TProgram extends string = "Fjbi9JrRAmSBdxQxbkcxYDp6JUwnLbFhU2GsieWQBLSg",
 > =
   | ({
-      instructionType: PhygitalWalletInstruction.AddVerifier;
-    } & ParsedAddVerifierInstruction<TProgram>)
+      instructionType: PhygitalWalletInstruction.ClearAuthority;
+    } & ParsedClearAuthorityInstruction<TProgram>)
   | ({
-      instructionType: PhygitalWalletInstruction.ClearRecoveryWallet;
-    } & ParsedClearRecoveryWalletInstruction<TProgram>)
-  | ({
-      instructionType: PhygitalWalletInstruction.ClearTokenVerifier;
-    } & ParsedClearTokenVerifierInstruction<TProgram>)
+      instructionType: PhygitalWalletInstruction.ClearWalletPolicy;
+    } & ParsedClearWalletPolicyInstruction<TProgram>)
   | ({
       instructionType: PhygitalWalletInstruction.Execute;
     } & ParsedExecuteInstruction<TProgram>)
   | ({
-      instructionType: PhygitalWalletInstruction.InitializeConfig;
-    } & ParsedInitializeConfigInstruction<TProgram>)
+      instructionType: PhygitalWalletInstruction.ExecuteWithAuthority;
+    } & ParsedExecuteWithAuthorityInstruction<TProgram>)
   | ({
-      instructionType: PhygitalWalletInstruction.RecoveryWalletExecute;
-    } & ParsedRecoveryWalletExecuteInstruction<TProgram>)
+      instructionType: PhygitalWalletInstruction.ExecuteWithAuthorityUsingPolicies;
+    } & ParsedExecuteWithAuthorityUsingPoliciesInstruction<TProgram>)
   | ({
-      instructionType: PhygitalWalletInstruction.RemoveVerifier;
-    } & ParsedRemoveVerifierInstruction<TProgram>)
+      instructionType: PhygitalWalletInstruction.SetAuthority;
+    } & ParsedSetAuthorityInstruction<TProgram>)
   | ({
-      instructionType: PhygitalWalletInstruction.SetRecoveryWallet;
-    } & ParsedSetRecoveryWalletInstruction<TProgram>)
-  | ({
-      instructionType: PhygitalWalletInstruction.SetTokenVerifier;
-    } & ParsedSetTokenVerifierInstruction<TProgram>);
+      instructionType: PhygitalWalletInstruction.SetWalletPolicy;
+    } & ParsedSetWalletPolicyInstruction<TProgram>);
 
 export function parsePhygitalWalletInstruction<TProgram extends string>(
-  instruction: Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array>
+  instruction: Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array>,
 ): ParsedPhygitalWalletInstruction<TProgram> {
   const instructionType = identifyPhygitalWalletInstruction(instruction);
   switch (instructionType) {
-    case PhygitalWalletInstruction.AddVerifier: {
+    case PhygitalWalletInstruction.ClearAuthority: {
       assertIsInstructionWithAccounts(instruction);
       return {
-        instructionType: PhygitalWalletInstruction.AddVerifier,
-        ...parseAddVerifierInstruction(instruction),
+        instructionType: PhygitalWalletInstruction.ClearAuthority,
+        ...parseClearAuthorityInstruction(instruction),
       };
     }
-    case PhygitalWalletInstruction.ClearRecoveryWallet: {
+    case PhygitalWalletInstruction.ClearWalletPolicy: {
       assertIsInstructionWithAccounts(instruction);
       return {
-        instructionType: PhygitalWalletInstruction.ClearRecoveryWallet,
-        ...parseClearRecoveryWalletInstruction(instruction),
-      };
-    }
-    case PhygitalWalletInstruction.ClearTokenVerifier: {
-      assertIsInstructionWithAccounts(instruction);
-      return {
-        instructionType: PhygitalWalletInstruction.ClearTokenVerifier,
-        ...parseClearTokenVerifierInstruction(instruction),
+        instructionType: PhygitalWalletInstruction.ClearWalletPolicy,
+        ...parseClearWalletPolicyInstruction(instruction),
       };
     }
     case PhygitalWalletInstruction.Execute: {
@@ -327,39 +247,33 @@ export function parsePhygitalWalletInstruction<TProgram extends string>(
         ...parseExecuteInstruction(instruction),
       };
     }
-    case PhygitalWalletInstruction.InitializeConfig: {
+    case PhygitalWalletInstruction.ExecuteWithAuthority: {
       assertIsInstructionWithAccounts(instruction);
       return {
-        instructionType: PhygitalWalletInstruction.InitializeConfig,
-        ...parseInitializeConfigInstruction(instruction),
+        instructionType: PhygitalWalletInstruction.ExecuteWithAuthority,
+        ...parseExecuteWithAuthorityInstruction(instruction),
       };
     }
-    case PhygitalWalletInstruction.RecoveryWalletExecute: {
+    case PhygitalWalletInstruction.ExecuteWithAuthorityUsingPolicies: {
       assertIsInstructionWithAccounts(instruction);
       return {
-        instructionType: PhygitalWalletInstruction.RecoveryWalletExecute,
-        ...parseRecoveryWalletExecuteInstruction(instruction),
+        instructionType:
+          PhygitalWalletInstruction.ExecuteWithAuthorityUsingPolicies,
+        ...parseExecuteWithAuthorityUsingPoliciesInstruction(instruction),
       };
     }
-    case PhygitalWalletInstruction.RemoveVerifier: {
+    case PhygitalWalletInstruction.SetAuthority: {
       assertIsInstructionWithAccounts(instruction);
       return {
-        instructionType: PhygitalWalletInstruction.RemoveVerifier,
-        ...parseRemoveVerifierInstruction(instruction),
+        instructionType: PhygitalWalletInstruction.SetAuthority,
+        ...parseSetAuthorityInstruction(instruction),
       };
     }
-    case PhygitalWalletInstruction.SetRecoveryWallet: {
+    case PhygitalWalletInstruction.SetWalletPolicy: {
       assertIsInstructionWithAccounts(instruction);
       return {
-        instructionType: PhygitalWalletInstruction.SetRecoveryWallet,
-        ...parseSetRecoveryWalletInstruction(instruction),
-      };
-    }
-    case PhygitalWalletInstruction.SetTokenVerifier: {
-      assertIsInstructionWithAccounts(instruction);
-      return {
-        instructionType: PhygitalWalletInstruction.SetTokenVerifier,
-        ...parseSetTokenVerifierInstruction(instruction),
+        instructionType: PhygitalWalletInstruction.SetWalletPolicy,
+        ...parseSetWalletPolicyInstruction(instruction),
       };
     }
     default:
@@ -368,7 +282,7 @@ export function parsePhygitalWalletInstruction<TProgram extends string>(
         {
           instructionType: instructionType as string,
           programName: "phygitalWallet",
-        }
+        },
       );
   }
 }
@@ -383,57 +297,43 @@ export type PhygitalWalletPlugin = {
 };
 
 export type PhygitalWalletPluginAccounts = {
-  config: ReturnType<typeof getConfigCodec> &
-    SelfFetchFunctions<ConfigArgs, Config>;
-  recoveryWallet: ReturnType<typeof getRecoveryWalletCodec> &
-    SelfFetchFunctions<RecoveryWalletArgs, RecoveryWallet>;
-  tokenVerifier: ReturnType<typeof getTokenVerifierCodec> &
-    SelfFetchFunctions<TokenVerifierArgs, TokenVerifier>;
+  authority: ReturnType<typeof getAuthorityCodec> &
+    SelfFetchFunctions<AuthorityArgs, Authority>;
 };
 
 export type PhygitalWalletPluginInstructions = {
-  addVerifier: (
-    input: AddVerifierAsyncInput
-  ) => ReturnType<typeof getAddVerifierInstructionAsync> &
+  clearAuthority: (
+    input: ClearAuthorityInput,
+  ) => ReturnType<typeof getClearAuthorityInstruction> &
     SelfPlanAndSendFunctions;
-  clearRecoveryWallet: (
-    input: ClearRecoveryWalletAsyncInput
-  ) => ReturnType<typeof getClearRecoveryWalletInstructionAsync> &
-    SelfPlanAndSendFunctions;
-  clearTokenVerifier: (
-    input: ClearTokenVerifierAsyncInput
-  ) => ReturnType<typeof getClearTokenVerifierInstructionAsync> &
+  clearWalletPolicy: (
+    input: ClearWalletPolicyInput,
+  ) => ReturnType<typeof getClearWalletPolicyInstruction> &
     SelfPlanAndSendFunctions;
   execute: (
-    input: ExecuteAsyncInput
-  ) => ReturnType<typeof getExecuteInstructionAsync> & SelfPlanAndSendFunctions;
-  initializeConfig: (
-    input: InitializeConfigAsyncInput
-  ) => ReturnType<typeof getInitializeConfigInstructionAsync> &
+    input: ExecuteInput,
+  ) => ReturnType<typeof getExecuteInstruction> & SelfPlanAndSendFunctions;
+  executeWithAuthority: (
+    input: ExecuteWithAuthorityInput,
+  ) => ReturnType<typeof getExecuteWithAuthorityInstruction> &
     SelfPlanAndSendFunctions;
-  recoveryWalletExecute: (
-    input: RecoveryWalletExecuteAsyncInput
-  ) => ReturnType<typeof getRecoveryWalletExecuteInstructionAsync> &
+  executeWithAuthorityUsingPolicies: (
+    input: ExecuteWithAuthorityUsingPoliciesInput,
+  ) => ReturnType<typeof getExecuteWithAuthorityUsingPoliciesInstruction> &
     SelfPlanAndSendFunctions;
-  removeVerifier: (
-    input: RemoveVerifierAsyncInput
-  ) => ReturnType<typeof getRemoveVerifierInstructionAsync> &
+  setAuthority: (
+    input: MakeOptional<SetAuthorityAsyncInput, "payer">,
+  ) => ReturnType<typeof getSetAuthorityInstructionAsync> &
     SelfPlanAndSendFunctions;
-  setRecoveryWallet: (
-    input: MakeOptional<SetRecoveryWalletAsyncInput, "payer">
-  ) => ReturnType<typeof getSetRecoveryWalletInstructionAsync> &
-    SelfPlanAndSendFunctions;
-  setTokenVerifier: (
-    input: MakeOptional<SetTokenVerifierAsyncInput, "payer">
-  ) => ReturnType<typeof getSetTokenVerifierInstructionAsync> &
+  setWalletPolicy: (
+    input: MakeOptional<SetWalletPolicyInput, "payer">,
+  ) => ReturnType<typeof getSetWalletPolicyInstruction> &
     SelfPlanAndSendFunctions;
 };
 
 export type PhygitalWalletPluginPdas = {
-  config: typeof findConfigPda;
-  tokenVerifier: typeof findTokenVerifierPda;
-  recoveryWalletAccount: typeof findRecoveryWalletAccountPda;
   wallet: typeof findWalletPda;
+  authorityAccount: typeof findAuthorityAccountPda;
 };
 
 export type PhygitalWalletPluginRequirements = ClientWithRpc<
@@ -445,76 +345,56 @@ export type PhygitalWalletPluginRequirements = ClientWithRpc<
 
 export function phygitalWalletProgram() {
   return <T extends PhygitalWalletPluginRequirements>(
-    client: T
+    client: T,
   ): ExtendedClient<T, { phygitalWallet: PhygitalWalletPlugin }> => {
     return extendClient(client, {
       phygitalWallet: <PhygitalWalletPlugin>{
         accounts: {
-          config: addSelfFetchFunctions(client, getConfigCodec()),
-          recoveryWallet: addSelfFetchFunctions(
-            client,
-            getRecoveryWalletCodec()
-          ),
-          tokenVerifier: addSelfFetchFunctions(client, getTokenVerifierCodec()),
+          authority: addSelfFetchFunctions(client, getAuthorityCodec()),
         },
         instructions: {
-          addVerifier: (input) =>
+          clearAuthority: (input) =>
             addSelfPlanAndSendFunctions(
               client,
-              getAddVerifierInstructionAsync(input)
+              getClearAuthorityInstruction(input),
             ),
-          clearRecoveryWallet: (input) =>
+          clearWalletPolicy: (input) =>
             addSelfPlanAndSendFunctions(
               client,
-              getClearRecoveryWalletInstructionAsync(input)
-            ),
-          clearTokenVerifier: (input) =>
-            addSelfPlanAndSendFunctions(
-              client,
-              getClearTokenVerifierInstructionAsync(input)
+              getClearWalletPolicyInstruction(input),
             ),
           execute: (input) =>
+            addSelfPlanAndSendFunctions(client, getExecuteInstruction(input)),
+          executeWithAuthority: (input) =>
             addSelfPlanAndSendFunctions(
               client,
-              getExecuteInstructionAsync(input)
+              getExecuteWithAuthorityInstruction(input),
             ),
-          initializeConfig: (input) =>
+          executeWithAuthorityUsingPolicies: (input) =>
             addSelfPlanAndSendFunctions(
               client,
-              getInitializeConfigInstructionAsync(input)
+              getExecuteWithAuthorityUsingPoliciesInstruction(input),
             ),
-          recoveryWalletExecute: (input) =>
+          setAuthority: (input) =>
             addSelfPlanAndSendFunctions(
               client,
-              getRecoveryWalletExecuteInstructionAsync(input)
-            ),
-          removeVerifier: (input) =>
-            addSelfPlanAndSendFunctions(
-              client,
-              getRemoveVerifierInstructionAsync(input)
-            ),
-          setRecoveryWallet: (input) =>
-            addSelfPlanAndSendFunctions(
-              client,
-              getSetRecoveryWalletInstructionAsync({
+              getSetAuthorityInstructionAsync({
                 ...input,
                 payer: input.payer ?? client.payer,
-              })
+              }),
             ),
-          setTokenVerifier: (input) =>
+          setWalletPolicy: (input) =>
             addSelfPlanAndSendFunctions(
               client,
-              getSetTokenVerifierInstructionAsync({
+              getSetWalletPolicyInstruction({
                 ...input,
                 payer: input.payer ?? client.payer,
-              })
+              }),
             ),
         },
         pdas: {
-          config: findConfigPda,
-          tokenVerifier: findTokenVerifierPda,
-          recoveryWalletAccount: findRecoveryWalletAccountPda,
           wallet: findWalletPda,
+          authorityAccount: findAuthorityAccountPda,
         },
         identifyAccount: identifyPhygitalWalletAccount,
         identifyInstruction: identifyPhygitalWalletInstruction,

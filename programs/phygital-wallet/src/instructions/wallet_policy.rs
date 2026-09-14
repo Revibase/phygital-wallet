@@ -58,6 +58,7 @@ pub struct SetWalletPolicy<'info> {
     pub authority: Signer<'info>,
 
     /// Pays any additional rent when growing the policy.
+    #[account(mut)]
     pub payer: Signer<'info>,
 
     /// CHECK: must match the original authority payer; receives rent on shrink.

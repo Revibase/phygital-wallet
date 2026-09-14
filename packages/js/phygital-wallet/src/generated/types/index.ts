@@ -6,5 +6,19 @@
  * @see https://github.com/codama-idl/codama
  */
 
+export * from "./accountConstraint.js";
+export * from "./accountKeyConstraint.js";
+export * from "./authorityHeader.js";
 export * from "./compactInstruction.js";
+export * from "./comparison.js";
+export * from "./dataConstraint.js";
+export * from "./dataPredicate.js";
+export * from "./instructionRule.js";
+export * from "./mintCap.js";
+export * from "./mintCapArg.js";
+export * from "./numericWidth.js";
+export * from "./programAccess.js";
+export * from "./programPermission.js";
 export * from "./secp256r1VerifyArgs.js";
+export * from "./solCapArg.js";
+export * from "./spendCap.js";

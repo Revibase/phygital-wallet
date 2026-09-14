@@ -88,4 +88,13 @@ pub mod phygital_wallet {
     ) -> Result<()> {
         instructions::execute::authority_handler(ctx, compact_instructions)
     }
+
+    /// Authority-authorized execute that skips the accessory proof but enforces
+    /// and charges the wallet policy exactly like `execute`.
+    pub fn execute_with_authority_using_policies<'info>(
+        ctx: Context<'info, ExecuteWithAuthorityUsingPolicies<'info>>,
+        compact_instructions: Vec<CompactInstruction>,
+    ) -> Result<()> {
+        instructions::execute::authority_with_policies_handler(ctx, compact_instructions)
+    }
 }

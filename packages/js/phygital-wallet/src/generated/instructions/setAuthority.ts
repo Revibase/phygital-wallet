@@ -7,8 +7,6 @@
  */
 
 import {
-  addDecoderSizePrefix,
-  addEncoderSizePrefix,
   combineCodec,
   fixDecoderSize,
   fixEncoderSize,
@@ -18,12 +16,8 @@ import {
   getBytesEncoder,
   getStructDecoder,
   getStructEncoder,
-  getU32Decoder,
-  getU32Encoder,
   getU64Decoder,
   getU64Encoder,
-  getUtf8Decoder,
-  getUtf8Encoder,
   SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
   SolanaError,
   transformEncoder,
@@ -37,7 +31,6 @@ import {
   type InstructionWithAccounts,
   type InstructionWithData,
   type ReadonlyAccount,
-  type ReadonlySignerAccount,
   type ReadonlyUint8Array,
   type TransactionSigner,
   type WritableAccount,
@@ -48,7 +41,7 @@ import {
   getAddressFromResolvedInstructionAccount,
   type ResolvedInstructionAccount,
 } from "@solana/kit/program-client-core";
-import { findConfigPda, findTokenVerifierPda } from "../pdas/index.js";
+import { findAuthorityAccountPda, findWalletPda } from "../pdas/index.js";
 import { PHYGITAL_WALLET_PROGRAM_ADDRESS } from "../programs/index.js";
 import {
   getSecp256r1VerifyArgsDecoder,
@@ -57,35 +50,31 @@ import {
   type Secp256r1VerifyArgsArgs,
 } from "../types/index.js";
 
-export const SET_TOKEN_VERIFIER_DISCRIMINATOR: ReadonlyUint8Array =
-  new Uint8Array([119, 217, 120, 253, 242, 171, 137, 184]);
+export const SET_AUTHORITY_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array([
+  133, 250, 37, 21, 110, 163, 26, 121,
+]);
 
-export function getSetTokenVerifierDiscriminatorBytes(): ReadonlyUint8Array {
+export function getSetAuthorityDiscriminatorBytes(): ReadonlyUint8Array {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    SET_TOKEN_VERIFIER_DISCRIMINATOR
+    SET_AUTHORITY_DISCRIMINATOR,
   );
 }
 
-export type SetTokenVerifierInstruction<
+export type SetAuthorityInstruction<
   TProgram extends string = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
   TAccountPayer extends string | AccountMeta<string> = string,
-  TAccountVerifier extends string | AccountMeta<string> = string,
-  TAccountConfig extends string | AccountMeta<string> = string,
   TAccountPhygitalToken extends string | AccountMeta<string> = string,
-  TAccountTokenVerifier extends string | AccountMeta<string> = string,
-  TAccountSlotHashes extends
-    | string
-    | AccountMeta<string> = "SysvarS1otHashes111111111111111111111111111",
-  TAccountInstructionsSysvar extends
-    | string
-    | AccountMeta<string> = "Sysvar1nstructions1111111111111111111111111",
-  TAccountPhygitalTokenProgram extends
-    | string
-    | AccountMeta<string> = "DuPpckdjjgVAnYok2aTMAt264ZPBXqq3JSazJjCUzTJQ",
-  TAccountSystemProgram extends
-    | string
-    | AccountMeta<string> = "11111111111111111111111111111111",
-  TRemainingAccounts extends readonly AccountMeta<string>[] = []
+  TAccountWallet extends string | AccountMeta<string> = string,
+  TAccountAuthorityAccount extends string | AccountMeta<string> = string,
+  TAccountSlotHashes extends string | AccountMeta<string> =
+    "SysvarS1otHashes111111111111111111111111111",
+  TAccountInstructionsSysvar extends string | AccountMeta<string> =
+    "Sysvar1nstructions1111111111111111111111111",
+  TAccountPhygitalTokenProgram extends string | AccountMeta<string> =
+    "DuPpckdjjgVAnYok2aTMAt264ZPBXqq3JSazJjCUzTJQ",
+  TAccountSystemProgram extends string | AccountMeta<string> =
+    "11111111111111111111111111111111",
+  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
   InstructionWithAccounts<
@@ -94,19 +83,15 @@ export type SetTokenVerifierInstruction<
         ? WritableSignerAccount<TAccountPayer> &
             AccountSignerMeta<TAccountPayer>
         : TAccountPayer,
-      TAccountVerifier extends string
-        ? ReadonlySignerAccount<TAccountVerifier> &
-            AccountSignerMeta<TAccountVerifier>
-        : TAccountVerifier,
-      TAccountConfig extends string
-        ? ReadonlyAccount<TAccountConfig>
-        : TAccountConfig,
       TAccountPhygitalToken extends string
         ? WritableAccount<TAccountPhygitalToken>
         : TAccountPhygitalToken,
-      TAccountTokenVerifier extends string
-        ? WritableAccount<TAccountTokenVerifier>
-        : TAccountTokenVerifier,
+      TAccountWallet extends string
+        ? ReadonlyAccount<TAccountWallet>
+        : TAccountWallet,
+      TAccountAuthorityAccount extends string
+        ? WritableAccount<TAccountAuthorityAccount>
+        : TAccountAuthorityAccount,
       TAccountSlotHashes extends string
         ? ReadonlyAccount<TAccountSlotHashes>
         : TAccountSlotHashes,
@@ -119,118 +104,109 @@ export type SetTokenVerifierInstruction<
       TAccountSystemProgram extends string
         ? ReadonlyAccount<TAccountSystemProgram>
         : TAccountSystemProgram,
-      ...TRemainingAccounts
+      ...TRemainingAccounts,
     ]
   >;
 
-export type SetTokenVerifierInstructionData = {
+export type SetAuthorityInstructionData = {
   discriminator: ReadonlyUint8Array;
-  newVerifier: Address;
-  endpoint: string;
+  authority: Address;
   secp256r1VerifyArgs: Secp256r1VerifyArgs;
   slotNumber: bigint;
 };
 
-export type SetTokenVerifierInstructionDataArgs = {
-  newVerifier: Address;
-  endpoint: string;
+export type SetAuthorityInstructionDataArgs = {
+  authority: Address;
   secp256r1VerifyArgs: Secp256r1VerifyArgsArgs;
   slotNumber: number | bigint;
 };
 
-export function getSetTokenVerifierInstructionDataEncoder(): Encoder<SetTokenVerifierInstructionDataArgs> {
+export function getSetAuthorityInstructionDataEncoder(): Encoder<SetAuthorityInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
-      ["newVerifier", getAddressEncoder()],
-      ["endpoint", addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
+      ["authority", getAddressEncoder()],
       ["secp256r1VerifyArgs", getSecp256r1VerifyArgsEncoder()],
       ["slotNumber", getU64Encoder()],
     ]),
-    (value) => ({ ...value, discriminator: SET_TOKEN_VERIFIER_DISCRIMINATOR })
+    (value) => ({ ...value, discriminator: SET_AUTHORITY_DISCRIMINATOR }),
   );
 }
 
-export function getSetTokenVerifierInstructionDataDecoder(): Decoder<SetTokenVerifierInstructionData> {
+export function getSetAuthorityInstructionDataDecoder(): Decoder<SetAuthorityInstructionData> {
   return getStructDecoder([
     ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
-    ["newVerifier", getAddressDecoder()],
-    ["endpoint", addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
+    ["authority", getAddressDecoder()],
     ["secp256r1VerifyArgs", getSecp256r1VerifyArgsDecoder()],
     ["slotNumber", getU64Decoder()],
   ]);
 }
 
-export function getSetTokenVerifierInstructionDataCodec(): Codec<
-  SetTokenVerifierInstructionDataArgs,
-  SetTokenVerifierInstructionData
+export function getSetAuthorityInstructionDataCodec(): Codec<
+  SetAuthorityInstructionDataArgs,
+  SetAuthorityInstructionData
 > {
   return combineCodec(
-    getSetTokenVerifierInstructionDataEncoder(),
-    getSetTokenVerifierInstructionDataDecoder()
+    getSetAuthorityInstructionDataEncoder(),
+    getSetAuthorityInstructionDataDecoder(),
   );
 }
 
-export type SetTokenVerifierAsyncInput<
+export type SetAuthorityAsyncInput<
   TAccountPayer extends string = string,
-  TAccountVerifier extends string = string,
-  TAccountConfig extends string = string,
   TAccountPhygitalToken extends string = string,
-  TAccountTokenVerifier extends string = string,
+  TAccountWallet extends string = string,
+  TAccountAuthorityAccount extends string = string,
   TAccountSlotHashes extends string = string,
   TAccountInstructionsSysvar extends string = string,
   TAccountPhygitalTokenProgram extends string = string,
-  TAccountSystemProgram extends string = string
+  TAccountSystemProgram extends string = string,
 > = {
   /** Fee payer for rent; not an authorization authority. */
   payer: TransactionSigner<TAccountPayer>;
-  /** Verifier co-signer. Token override (exclusive) or config default set. */
-  verifier: TransactionSigner<TAccountVerifier>;
-  config?: Address<TAccountConfig>;
   phygitalToken: Address<TAccountPhygitalToken>;
-  tokenVerifier?: Address<TAccountTokenVerifier>;
+  /** enforced by the seeds and `wallet_matches_owner` constraints. */
+  wallet?: Address<TAccountWallet>;
+  /** `init` (not `init_if_needed`) enforces "only if no authority exists yet". */
+  authorityAccount?: Address<TAccountAuthorityAccount>;
   slotHashes?: Address<TAccountSlotHashes>;
   instructionsSysvar?: Address<TAccountInstructionsSysvar>;
   phygitalTokenProgram?: Address<TAccountPhygitalTokenProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
-  newVerifier: SetTokenVerifierInstructionDataArgs["newVerifier"];
-  endpoint: SetTokenVerifierInstructionDataArgs["endpoint"];
-  secp256r1VerifyArgs: SetTokenVerifierInstructionDataArgs["secp256r1VerifyArgs"];
-  slotNumber: SetTokenVerifierInstructionDataArgs["slotNumber"];
+  authority: SetAuthorityInstructionDataArgs["authority"];
+  secp256r1VerifyArgs: SetAuthorityInstructionDataArgs["secp256r1VerifyArgs"];
+  slotNumber: SetAuthorityInstructionDataArgs["slotNumber"];
 };
 
-export async function getSetTokenVerifierInstructionAsync<
+export async function getSetAuthorityInstructionAsync<
   TAccountPayer extends string,
-  TAccountVerifier extends string,
-  TAccountConfig extends string,
   TAccountPhygitalToken extends string,
-  TAccountTokenVerifier extends string,
+  TAccountWallet extends string,
+  TAccountAuthorityAccount extends string,
   TAccountSlotHashes extends string,
   TAccountInstructionsSysvar extends string,
   TAccountPhygitalTokenProgram extends string,
   TAccountSystemProgram extends string,
-  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS
+  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
 >(
-  input: SetTokenVerifierAsyncInput<
+  input: SetAuthorityAsyncInput<
     TAccountPayer,
-    TAccountVerifier,
-    TAccountConfig,
     TAccountPhygitalToken,
-    TAccountTokenVerifier,
+    TAccountWallet,
+    TAccountAuthorityAccount,
     TAccountSlotHashes,
     TAccountInstructionsSysvar,
     TAccountPhygitalTokenProgram,
     TAccountSystemProgram
   >,
-  config?: { programAddress?: TProgramAddress }
+  config?: { programAddress?: TProgramAddress },
 ): Promise<
-  SetTokenVerifierInstruction<
+  SetAuthorityInstruction<
     TProgramAddress,
     TAccountPayer,
-    TAccountVerifier,
-    TAccountConfig,
     TAccountPhygitalToken,
-    TAccountTokenVerifier,
+    TAccountWallet,
+    TAccountAuthorityAccount,
     TAccountSlotHashes,
     TAccountInstructionsSysvar,
     TAccountPhygitalTokenProgram,
@@ -244,10 +220,12 @@ export async function getSetTokenVerifierInstructionAsync<
   // Original accounts.
   const originalAccounts = {
     payer: { value: input.payer ?? null, isWritable: true },
-    verifier: { value: input.verifier ?? null, isWritable: false },
-    config: { value: input.config ?? null, isWritable: false },
     phygitalToken: { value: input.phygitalToken ?? null, isWritable: true },
-    tokenVerifier: { value: input.tokenVerifier ?? null, isWritable: true },
+    wallet: { value: input.wallet ?? null, isWritable: false },
+    authorityAccount: {
+      value: input.authorityAccount ?? null,
+      isWritable: true,
+    },
     slotHashes: { value: input.slotHashes ?? null, isWritable: false },
     instructionsSysvar: {
       value: input.instructionsSysvar ?? null,
@@ -268,14 +246,19 @@ export async function getSetTokenVerifierInstructionAsync<
   const args = { ...input };
 
   // Resolve default values.
-  if (!accounts.config.value) {
-    accounts.config.value = await findConfigPda();
-  }
-  if (!accounts.tokenVerifier.value) {
-    accounts.tokenVerifier.value = await findTokenVerifierPda({
+  if (!accounts.wallet.value) {
+    accounts.wallet.value = await findWalletPda({
       phygitalToken: getAddressFromResolvedInstructionAccount(
         "phygitalToken",
-        accounts.phygitalToken.value
+        accounts.phygitalToken.value,
+      ),
+    });
+  }
+  if (!accounts.authorityAccount.value) {
+    accounts.authorityAccount.value = await findAuthorityAccountPda({
+      phygitalToken: getAddressFromResolvedInstructionAccount(
+        "phygitalToken",
+        accounts.phygitalToken.value,
       ),
     });
   }
@@ -300,81 +283,85 @@ export async function getSetTokenVerifierInstructionAsync<
   return Object.freeze({
     accounts: [
       getAccountMeta("payer", accounts.payer),
-      getAccountMeta("verifier", accounts.verifier),
-      getAccountMeta("config", accounts.config),
       getAccountMeta("phygitalToken", accounts.phygitalToken),
-      getAccountMeta("tokenVerifier", accounts.tokenVerifier),
+      getAccountMeta("wallet", accounts.wallet),
+      getAccountMeta("authorityAccount", accounts.authorityAccount),
       getAccountMeta("slotHashes", accounts.slotHashes),
       getAccountMeta("instructionsSysvar", accounts.instructionsSysvar),
       getAccountMeta("phygitalTokenProgram", accounts.phygitalTokenProgram),
       getAccountMeta("systemProgram", accounts.systemProgram),
     ],
-    data: getSetTokenVerifierInstructionDataEncoder().encode(
-      args as SetTokenVerifierInstructionDataArgs
+    data: getSetAuthorityInstructionDataEncoder().encode(
+      args as SetAuthorityInstructionDataArgs,
     ),
     programAddress,
-  } as SetTokenVerifierInstruction<TProgramAddress, TAccountPayer, TAccountVerifier, TAccountConfig, TAccountPhygitalToken, TAccountTokenVerifier, TAccountSlotHashes, TAccountInstructionsSysvar, TAccountPhygitalTokenProgram, TAccountSystemProgram>);
+  } as SetAuthorityInstruction<
+    TProgramAddress,
+    TAccountPayer,
+    TAccountPhygitalToken,
+    TAccountWallet,
+    TAccountAuthorityAccount,
+    TAccountSlotHashes,
+    TAccountInstructionsSysvar,
+    TAccountPhygitalTokenProgram,
+    TAccountSystemProgram
+  >);
 }
 
-export type SetTokenVerifierInput<
+export type SetAuthorityInput<
   TAccountPayer extends string = string,
-  TAccountVerifier extends string = string,
-  TAccountConfig extends string = string,
   TAccountPhygitalToken extends string = string,
-  TAccountTokenVerifier extends string = string,
+  TAccountWallet extends string = string,
+  TAccountAuthorityAccount extends string = string,
   TAccountSlotHashes extends string = string,
   TAccountInstructionsSysvar extends string = string,
   TAccountPhygitalTokenProgram extends string = string,
-  TAccountSystemProgram extends string = string
+  TAccountSystemProgram extends string = string,
 > = {
   /** Fee payer for rent; not an authorization authority. */
   payer: TransactionSigner<TAccountPayer>;
-  /** Verifier co-signer. Token override (exclusive) or config default set. */
-  verifier: TransactionSigner<TAccountVerifier>;
-  config: Address<TAccountConfig>;
   phygitalToken: Address<TAccountPhygitalToken>;
-  tokenVerifier: Address<TAccountTokenVerifier>;
+  /** enforced by the seeds and `wallet_matches_owner` constraints. */
+  wallet: Address<TAccountWallet>;
+  /** `init` (not `init_if_needed`) enforces "only if no authority exists yet". */
+  authorityAccount: Address<TAccountAuthorityAccount>;
   slotHashes?: Address<TAccountSlotHashes>;
   instructionsSysvar?: Address<TAccountInstructionsSysvar>;
   phygitalTokenProgram?: Address<TAccountPhygitalTokenProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
-  newVerifier: SetTokenVerifierInstructionDataArgs["newVerifier"];
-  endpoint: SetTokenVerifierInstructionDataArgs["endpoint"];
-  secp256r1VerifyArgs: SetTokenVerifierInstructionDataArgs["secp256r1VerifyArgs"];
-  slotNumber: SetTokenVerifierInstructionDataArgs["slotNumber"];
+  authority: SetAuthorityInstructionDataArgs["authority"];
+  secp256r1VerifyArgs: SetAuthorityInstructionDataArgs["secp256r1VerifyArgs"];
+  slotNumber: SetAuthorityInstructionDataArgs["slotNumber"];
 };
 
-export function getSetTokenVerifierInstruction<
+export function getSetAuthorityInstruction<
   TAccountPayer extends string,
-  TAccountVerifier extends string,
-  TAccountConfig extends string,
   TAccountPhygitalToken extends string,
-  TAccountTokenVerifier extends string,
+  TAccountWallet extends string,
+  TAccountAuthorityAccount extends string,
   TAccountSlotHashes extends string,
   TAccountInstructionsSysvar extends string,
   TAccountPhygitalTokenProgram extends string,
   TAccountSystemProgram extends string,
-  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS
+  TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
 >(
-  input: SetTokenVerifierInput<
+  input: SetAuthorityInput<
     TAccountPayer,
-    TAccountVerifier,
-    TAccountConfig,
     TAccountPhygitalToken,
-    TAccountTokenVerifier,
+    TAccountWallet,
+    TAccountAuthorityAccount,
     TAccountSlotHashes,
     TAccountInstructionsSysvar,
     TAccountPhygitalTokenProgram,
     TAccountSystemProgram
   >,
-  config?: { programAddress?: TProgramAddress }
-): SetTokenVerifierInstruction<
+  config?: { programAddress?: TProgramAddress },
+): SetAuthorityInstruction<
   TProgramAddress,
   TAccountPayer,
-  TAccountVerifier,
-  TAccountConfig,
   TAccountPhygitalToken,
-  TAccountTokenVerifier,
+  TAccountWallet,
+  TAccountAuthorityAccount,
   TAccountSlotHashes,
   TAccountInstructionsSysvar,
   TAccountPhygitalTokenProgram,
@@ -387,10 +374,12 @@ export function getSetTokenVerifierInstruction<
   // Original accounts.
   const originalAccounts = {
     payer: { value: input.payer ?? null, isWritable: true },
-    verifier: { value: input.verifier ?? null, isWritable: false },
-    config: { value: input.config ?? null, isWritable: false },
     phygitalToken: { value: input.phygitalToken ?? null, isWritable: true },
-    tokenVerifier: { value: input.tokenVerifier ?? null, isWritable: true },
+    wallet: { value: input.wallet ?? null, isWritable: false },
+    authorityAccount: {
+      value: input.authorityAccount ?? null,
+      isWritable: true,
+    },
     slotHashes: { value: input.slotHashes ?? null, isWritable: false },
     instructionsSysvar: {
       value: input.instructionsSysvar ?? null,
@@ -432,58 +421,67 @@ export function getSetTokenVerifierInstruction<
   return Object.freeze({
     accounts: [
       getAccountMeta("payer", accounts.payer),
-      getAccountMeta("verifier", accounts.verifier),
-      getAccountMeta("config", accounts.config),
       getAccountMeta("phygitalToken", accounts.phygitalToken),
-      getAccountMeta("tokenVerifier", accounts.tokenVerifier),
+      getAccountMeta("wallet", accounts.wallet),
+      getAccountMeta("authorityAccount", accounts.authorityAccount),
       getAccountMeta("slotHashes", accounts.slotHashes),
       getAccountMeta("instructionsSysvar", accounts.instructionsSysvar),
       getAccountMeta("phygitalTokenProgram", accounts.phygitalTokenProgram),
       getAccountMeta("systemProgram", accounts.systemProgram),
     ],
-    data: getSetTokenVerifierInstructionDataEncoder().encode(
-      args as SetTokenVerifierInstructionDataArgs
+    data: getSetAuthorityInstructionDataEncoder().encode(
+      args as SetAuthorityInstructionDataArgs,
     ),
     programAddress,
-  } as SetTokenVerifierInstruction<TProgramAddress, TAccountPayer, TAccountVerifier, TAccountConfig, TAccountPhygitalToken, TAccountTokenVerifier, TAccountSlotHashes, TAccountInstructionsSysvar, TAccountPhygitalTokenProgram, TAccountSystemProgram>);
+  } as SetAuthorityInstruction<
+    TProgramAddress,
+    TAccountPayer,
+    TAccountPhygitalToken,
+    TAccountWallet,
+    TAccountAuthorityAccount,
+    TAccountSlotHashes,
+    TAccountInstructionsSysvar,
+    TAccountPhygitalTokenProgram,
+    TAccountSystemProgram
+  >);
 }
 
-export type ParsedSetTokenVerifierInstruction<
+export type ParsedSetAuthorityInstruction<
   TProgram extends string = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[]
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
     /** Fee payer for rent; not an authorization authority. */
     payer: TAccountMetas[0];
-    /** Verifier co-signer. Token override (exclusive) or config default set. */
-    verifier: TAccountMetas[1];
-    config: TAccountMetas[2];
-    phygitalToken: TAccountMetas[3];
-    tokenVerifier: TAccountMetas[4];
-    slotHashes: TAccountMetas[5];
-    instructionsSysvar: TAccountMetas[6];
-    phygitalTokenProgram: TAccountMetas[7];
-    systemProgram: TAccountMetas[8];
+    phygitalToken: TAccountMetas[1];
+    /** enforced by the seeds and `wallet_matches_owner` constraints. */
+    wallet: TAccountMetas[2];
+    /** `init` (not `init_if_needed`) enforces "only if no authority exists yet". */
+    authorityAccount: TAccountMetas[3];
+    slotHashes: TAccountMetas[4];
+    instructionsSysvar: TAccountMetas[5];
+    phygitalTokenProgram: TAccountMetas[6];
+    systemProgram: TAccountMetas[7];
   };
-  data: SetTokenVerifierInstructionData;
+  data: SetAuthorityInstructionData;
 };
 
-export function parseSetTokenVerifierInstruction<
+export function parseSetAuthorityInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[]
+  TAccountMetas extends readonly AccountMeta[],
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
-): ParsedSetTokenVerifierInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 9) {
+    InstructionWithData<ReadonlyUint8Array>,
+): ParsedSetAuthorityInstruction<TProgram, TAccountMetas> {
+  if (instruction.accounts.length < 8) {
     throw new SolanaError(
       SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
       {
         actualAccountMetas: instruction.accounts.length,
-        expectedAccountMetas: 9,
-      }
+        expectedAccountMetas: 8,
+      },
     );
   }
   let accountIndex = 0;
@@ -496,15 +494,14 @@ export function parseSetTokenVerifierInstruction<
     programAddress: instruction.programAddress,
     accounts: {
       payer: getNextAccount(),
-      verifier: getNextAccount(),
-      config: getNextAccount(),
       phygitalToken: getNextAccount(),
-      tokenVerifier: getNextAccount(),
+      wallet: getNextAccount(),
+      authorityAccount: getNextAccount(),
       slotHashes: getNextAccount(),
       instructionsSysvar: getNextAccount(),
       phygitalTokenProgram: getNextAccount(),
       systemProgram: getNextAccount(),
     },
-    data: getSetTokenVerifierInstructionDataDecoder().decode(instruction.data),
+    data: getSetAuthorityInstructionDataDecoder().decode(instruction.data),
   };
 }

@@ -1,109 +1,118 @@
 # AGENTS — phygital-wallet-sdk
 
-Kit client for the **phygital-wallet** Solana program. Prefer public exports from the package root (`phygital-wallet-sdk`). Do not deep-import `dist/wallet/*`.
+Kit client for the **phygital-wallet** Solana program. Prefer exports from the package root (`phygital-wallet-sdk`). Do not deep-import internal `wallet/*` or `wallet-standard/*` modules.
 
-## When to use what
+## Routing
 
-| Goal                                                         | Use                                                                                        |
-| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
-| Connect an accessory (tap → session bearer)                  | `startPhygitalConnect(rpc)` then `exchangeConnectProof({ endpoint, blockhash, response })` |
-| Sign a spend / CPI as the wallet PDA                         | `getPhygitalWalletSigner(rpc, phygitalTokenPda, { getAccessToken, … })`                    |
-| Discoverable browser wallet (`@solana/connectors`, adapters) | `registerPhygitalWallet({ rpc, … })` once at startup                                       |
-| Resolve co-signer endpoint / paymaster flags                 | `resolveVerifier(rpc, phygitalTokenPda)`                                                   |
-| Build set/clear TokenVerifier or RecoveryWallet ixs          | `buildSet*Challenge` / `buildClear*Challenge`                                              |
-| PDAs, decode accounts, raw program ixs                       | Codama exports (`findWalletPda`, `fetchMaybeTokenVerifier`, `getExecuteInstruction`, …)    |
-
-Companion packages:
-
-- **`phygital-token-sdk`** — passkey auth (`startAuthentication`, `verifyResponse`, `findPhygitalTokenPda`, `authenticatePasskeyForSecp256r1Verify`)
-- **`phygital-verifier-sdk`** — policy engine (this wallet SDK calls verifier HTTP `/preview` + `/sign`; it does not embed policy rules)
+| Goal                                   | Use                                                                                         |
+| -------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Sign a spend or CPI as the wallet PDA  | `getPhygitalWalletSigner(rpc, phygitalTokenPda, options?)`                                  |
+| Register a discoverable browser wallet | `registerPhygitalWallet({ rpc, … })` once at startup                                        |
+| Authenticate an accessory manually     | `startAuthentication` + `verifyResponse` + `findPhygitalTokenPda` from `phygital-token-sdk` |
+| Manage authority or wallet policy      | Generated `getSet*Instruction` / `getClear*Instruction` builders                            |
+| Decode program state or derive PDAs    | Generated Codama `fetch*`, `decode*`, and `find*Pda` helpers                                |
 
 ## Mental model
 
-1. User’s accessory → **phygital token PDA** (passkey / secp256r1).
-2. **Wallet PDA** = PDA of phygital-wallet program seeded by that token.
-3. Transactions that spend from the wallet are Kit messages with the wallet PDA as fee payer / signer; this SDK **wraps** body ixs into `execute` (+ secp256r1 verify), refreshes lifetime, then **co-signs** via the verifier API.
-4. The verifier's `/preview` + `/sign` are **bearer-only**. Get a session bearer by connecting (`startPhygitalConnect` → `exchangeConnectProof`) and hand it to the signer through `getAccessToken`.
-5. Default co-signer origin when no TokenVerifier override: `DEFAULT_VERIFIER_API_BASE` (`https://api.revibase.com`). Override endpoint comes from on-chain TokenVerifier.
+1. A verified secp256r1 accessory key derives the **phygital token PDA**.
+2. The phygital token PDA derives the **wallet PDA**.
+3. The on-chain Authority account identifies the ed25519 authority used by the policy-preview instruction. It is distinct from the fee payer.
+4. `getPhygitalWalletSigner` compacts the caller's instructions and simulates `execute_with_authority_using_policies` before requesting a passkey assertion.
+5. After a successful preview, it builds `secp256r1 verify` + `execute`, applies compute/priority-fee settings, refreshes the recent blockhash when needed, and requests the fee-payer signature.
+6. The final on-chain `execute` repeats policy checks and commits applicable counters. Simulation never commits state.
 
-## Connect, then sign (primary path)
+There is no connect-proof endpoint, verifier resolution, bearer session, or `getAccessToken` in the current signer flow.
+
+## Direct signer
 
 ```ts
-import {
-  startPhygitalConnect,
-  exchangeConnectProof,
-  getPhygitalWalletSigner,
-  PolicyDeniedError,
-} from "phygital-wallet-sdk";
+import { getPhygitalWalletSigner } from "phygital-wallet-sdk";
 
-// Connect: tap → proof → session bearer. (startPhygitalConnect mirrors
-// startAuthentication; exchangeConnectProof mirrors verifyResponse.)
-const proof = await startPhygitalConnect(rpc);
-const session = await exchangeConnectProof({
-  endpoint: proof.resolved.endpoint,
-  blockhash: proof.blockhash,
-  response: proof.response,
+const walletSigner = await getPhygitalWalletSigner(rpc, phygitalTokenPda, {
+  fetch, // optional HTTP override for the default fee payer
+  feePayer, // optional TransactionPartialSigner; independent of authority
+  onPhaseChange,
 });
-
-// Signer: pass the bearer via getAccessToken (required — /preview + /sign are bearer-only).
-const source = await getPhygitalWalletSigner(rpc, proof.phygitalToken, {
-  resolved: proof.resolved, // skip a redundant verifier re-resolve
-  getAccessToken: () => session.accessToken,
-  fetch, // optional
-  onPhaseChange, // preparing | previewing | awaitingPasskey | building | coSigning | complete
-});
-
-// Build a normal Kit message with `source` as fee payer / transfer authority, then:
-await signTransactionMessageWithSigners(message);
 ```
 
-Constraints agents must respect:
+`onPhaseChange` values are `preparing`, `previewing`, `awaitingPasskey`, `building`, `feePaying`, and `complete`.
 
-- **Exactly one** transaction per `modifyAndSignTransactions` call.
-- Transaction must have a **lifetime** (blockhash or durable nonce).
-- Session bearer lasts ~15 min. `getAccessToken` returns the cached bearer and should **throw** once it lapses — never silently re-tap; reconnect on an explicit user action.
-- Soft policy deny → throws `PolicyDeniedError` with `soft === true` and often `intentHash`. Retry the **same** instructions after the owner approves; do not invent a new intent.
-- Durable nonce: `AdvanceNonceAccount` stays **outer** ix 0 (not inside `execute`). Nonce authority must **not** be the wallet PDA.
-- Supported versions: legacy, v0, v1 (v1 uses message config for CU/fees, not ComputeBudget ixs).
+Constraints:
+
+- Exactly one transaction per `modifyAndSignTransactions` call.
+- A lifetime constraint is required.
+- Durable nonce transactions are unsupported and rejected before preview/authentication; use a recent blockhash.
+- Without a configured `feePayer`, fetch its address from `https://api.revibase.com/getFeePayer` and use the corresponding `/sign` endpoint.
+- Legacy, v0, and v1 messages are supported. V1 resource limits use message config rather than ComputeBudget instructions.
+- Preserve the caller's non-wallet signatures. The wallet PDA itself cannot produce an outer ed25519 signature.
+- Propagate abort signals through RPC and fee-payer requests.
+
+## Policy preview
+
+- Preview with `execute_with_authority_using_policies`, not `execute_with_authority`.
+- Build the preview authority from `Authority.header.authority`; do not substitute the fee payer.
+- The preview authority is a no-op signer identity. Simulation skips transaction signature verification but executes the program's authority and policy checks.
+- The wallet/authority accounts must remain writable because policy execution may update spend counters.
+- Add the passkey verification compute buffer when converting preview estimates into final limits.
+- Fetch independent pre-passkey data concurrently where possible: policy simulation, recent priority fees, slot hash, and latest blockhash.
+- Do not request the passkey if policy simulation fails.
 
 ## Wallet Standard
 
 ```ts
 import { registerPhygitalWallet } from "phygital-wallet-sdk";
 
-registerPhygitalWallet({ rpc }); // idempotent per rpc instance
+registerPhygitalWallet({ rpc, feePayer }); // feePayer is optional
 ```
 
-- UI name: **Revibase**. Browser-only (WebAuthn + `localStorage` session key `revibase:wallet-standard:v1`).
-- Chains default to **mainnet only** (`solana:mainnet`); the program is not deployed on other clusters.
-- Connect: tap → token PDA → wallet PDA. Session restore avoids a second tap after refresh.
-- Implements `solana:signTransaction` / `signAndSendTransaction`. `solana:signMessage` is declared for connectors but **throws** (PDA cannot ed25519-sign messages).
+- Wallet name: **Revibase**.
+- Browser connect uses a fresh random challenge with `startAuthentication`, verifies locally with `verifyResponse`, then derives the token PDA using `findPhygitalTokenPda`.
+- Never trust a token PDA supplied by an authentication response; derive it from the verified secp256r1 public key.
+- Failed local verification must leave the wallet disconnected and must not persist state.
+- Persist only `{ phygitalTokenPda, walletPda }` under `revibase:wallet-standard:v3` for refresh restoration.
+- Silent connect never initiates an accessory tap.
+- `solana:signMessage` must throw: the wallet account is a PDA and cannot produce an ed25519 message signature.
+- Default chains are mainnet only unless explicitly overridden for testing.
 
-## Verifier / paymaster helpers
+## Generated program client
 
-- `resolveVerifier` → `{ verifier, endpoint, usesDefaultPaymaster, requiresOwnerCosignAssertion, … }`
-- `isConfigDefaultVerifier(config, verifier)` / `activeConfigVerifierAddresses(config)` — same membership rules as resolve
-- Endpoints must be `https://` and ≤ `MAX_ENDPOINT_LEN`
+Use generated Codama helpers rather than hand-rolling discriminators or compact instruction layouts. Relevant instructions include:
 
-## Do
+- `execute`: passkey-authenticated execution with policies
+- `executeWithAuthority`: authority execution without policy enforcement
+- `executeWithAuthorityUsingPolicies`: authority execution with the same policies as `execute`; used by SDK preview simulation
+- `setAuthority` / `clearAuthority`
+- `setWalletPolicy` / `clearWalletPolicy`
 
-- Use generated Codama helpers for program bytes (`parsePhygitalWalletInstruction`, `get*Instruction`, `fetch*` / `decode*`)
-- Pass Kit `Instruction`s / messages; do not hand-roll execute compact layouts
-- Surface `PolicyDeniedError` to the user (soft vs hard)
+The wallet and any policy-counter account that can change must be writable.
+
+## Tests and validation
+
+From the repository root:
+
+```bash
+pnpm --filter phygital-wallet-sdk test
+pnpm --filter phygital-wallet-sdk build
+```
+
+For Rust/Anchor commands, set `NO_DNA=1`.
 
 ## Do not
 
-- Deep-import wrap/compile/session modules (not public API)
-- Treat `solana:signMessage` as working SIWS for the wallet PDA
-- Put wallet PDA as durable-nonce authority
-- Hand-roll discriminators that duplicate Codama output
+- Reintroduce the deleted `wallet/connect.ts`, verifier bearer flow, or stale TokenVerifier/Config helpers.
+- Permit durable nonce transactions in `getPhygitalWalletSigner`.
+- Put the wallet PDA in an outer-signature role.
+- Treat `solana:signMessage` as SIWS support.
+- Deep-import internal wrap, fee-payer, signer-support, or session modules.
 
 ## Orientation
 
-```
-src/index.ts           → public API
-src/wallet/            → signer, resolve-verifier, wrap (internal)
-src/wallet-standard/   → registerPhygitalWallet
-src/generated/         → Codama client (re-exported)
-README.md              → human quickstart
+```text
+src/index.ts                    public API
+src/wallet/signer.ts            Kit modifying signer
+src/wallet/wrap-transaction.ts  policy preview and execute wrapping
+src/wallet/feePayer.ts          default/custom fee-payer integration
+src/wallet-standard/            Wallet Standard registration and local session
+src/generated/                  Codama client
+README.md                       integration guide
 ```

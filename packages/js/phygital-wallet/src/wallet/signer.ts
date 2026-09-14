@@ -4,19 +4,21 @@ import type {
   SolanaRpcApi,
   Transaction,
   TransactionModifyingSigner,
+  TransactionPartialSigner,
   TransactionWithLifetime,
 } from "@solana/kit";
-import { authenticatePasskeyForSecp256r1Verify } from "phygital-token-sdk";
-
-import { findWalletPda } from "../generated/pdas/wallet.js";
-import { previewWalletIntent } from "./preview.js";
 import {
-  createVerifierEndpointSigner,
-  resolveVerifier,
-  type ResolvedVerifier,
-} from "./resolve-verifier.js";
+  createNoopSigner,
+  isTransactionWithDurableNonceLifetime,
+} from "@solana/kit";
+import { authenticatePasskeyForSecp256r1Verify } from "phygital-token-sdk";
 import { modifyAndWrapWalletTransaction } from "./wrap-transaction.js";
-import { verifierSignUrl } from "./verifier-endpoint.js";
+import {
+  fetchAuthority,
+  findAuthorityAccountPda,
+  findWalletPda,
+} from "../generated/index.js";
+import { createDefaultFeePayer } from "./feePayer.js";
 
 /**
  * Stages of `modifyAndSignTransactions` for hold / progress UI via
@@ -27,7 +29,7 @@ export type PhygitalWalletSignPhase =
   | "previewing"
   | "awaitingPasskey"
   | "building"
-  | "coSigning"
+  | "feePaying"
   | "complete";
 
 export type PhygitalWalletSignerCallbacks = {
@@ -36,18 +38,18 @@ export type PhygitalWalletSignerCallbacks = {
 
 export type PhygitalWalletSignerConfig = PhygitalWalletSignerCallbacks & {
   fetch?: typeof fetch;
-  /**
-   * Verifier session bearer for `/preview` + `/sign` (both are bearer-only).
-   * Obtain one with `startPhygitalConnect` + `exchangeConnectProof` (or your own
-   * backend), then return it here — cached, and re-fetched when it lapses.
-   */
-  getAccessToken?: () => string | null | Promise<string | null>;
-  /**
-   * Verifier already resolved for this token. Pass it to skip a redundant
-   * TokenVerifier + Config fetch when the caller just resolved it.
-   */
-  resolved?: ResolvedVerifier;
+  feePayer?: TransactionPartialSigner;
 };
+
+export function assertSupportedTransactionLifetime(
+  transaction: Transaction
+): void {
+  if (isTransactionWithDurableNonceLifetime(transaction)) {
+    throw new Error(
+      "getPhygitalWalletSigner does not support durable nonce transactions; use a recent blockhash lifetime"
+    );
+  }
+}
 
 /**
  * Kit modifying signer for a phygital wallet PDA.
@@ -59,24 +61,19 @@ export async function getPhygitalWalletSigner(
   phygitalTokenPda: Address,
   config?: PhygitalWalletSignerConfig
 ): Promise<TransactionModifyingSigner> {
-  const [[walletPda], resolved] = await Promise.all([
+  const [[walletPda], [authorityPda]] = await Promise.all([
     findWalletPda({ phygitalToken: phygitalTokenPda }),
-    config?.resolved ?? resolveVerifier(rpc, phygitalTokenPda, config),
+    findAuthorityAccountPda({ phygitalToken: phygitalTokenPda }),
+  ]);
+  const [authorityAccount, feePayer] = await Promise.all([
+    fetchAuthority(rpc, authorityPda),
+    config?.feePayer ?? createDefaultFeePayer({ fetch: config?.fetch }),
   ]);
 
-  const verifier =
-    config?.resolved && config.getAccessToken
-      ? createVerifierEndpointSigner(resolved.verifierAddress, {
-          endpoint: verifierSignUrl(resolved.endpoint),
-          fetch: config.fetch,
-          getAccessToken: config.getAccessToken,
-        })
-      : resolved.verifier;
-  const { endpoint, configPda, tokenVerifierPda } = resolved;
-
   const executeAccounts = {
-    config: configPda,
-    tokenVerifier: tokenVerifierPda,
+    authority: createNoopSigner(authorityAccount.data.header.authority),
+    feePayer,
+    authorityAccount,
     wallet: walletPda,
     phygitalToken: phygitalTokenPda,
   };
@@ -103,26 +100,16 @@ export async function getPhygitalWalletSigner(
           "getPhygitalWalletSigner requires transactions with a lifetime constraint"
         );
       }
+      assertSupportedTransactionLifetime(transaction);
 
       config?.onPhaseChange?.("preparing");
-
       const wrapped = await modifyAndWrapWalletTransaction({
         rpc,
         transaction: transaction as Transaction & TransactionWithLifetime,
         walletPda,
-        verifier,
         executeAccounts,
         abortSignal: signConfig?.abortSignal,
-        preview: async (bodyInstructions) => {
-          config?.onPhaseChange?.("previewing");
-          await previewWalletIntent({
-            instructions: bodyInstructions,
-            endpoint,
-            fetch: config?.fetch,
-            getAccessToken: config?.getAccessToken,
-            abortSignal: signConfig?.abortSignal,
-          });
-        },
+        onPreview: () => config?.onPhaseChange?.("previewing"),
         authenticate: async (messageHash) => {
           config?.onPhaseChange?.("awaitingPasskey");
           const tap = await authenticatePasskeyForSecp256r1Verify({
@@ -132,16 +119,14 @@ export async function getPhygitalWalletSigner(
           config?.onPhaseChange?.("building");
           return tap;
         },
-        coSign: async (tx) => {
-          config?.onPhaseChange?.("coSigning");
-          const [verifierSignatures] = await verifier.signTransactions(
-            [tx],
-            signConfig
-          );
-          if (!verifierSignatures) {
-            throw new Error("Verifier returned no signature");
+        feePayer: async (tx) => {
+          config?.onPhaseChange?.("feePaying");
+          const [feePayerSignature] =
+            await executeAccounts.feePayer.signTransactions([tx], signConfig);
+          if (!feePayerSignature) {
+            throw new Error("Fee payer returned no signature");
           }
-          return verifierSignatures;
+          return feePayerSignature;
         },
       });
 

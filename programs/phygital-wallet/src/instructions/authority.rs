@@ -10,9 +10,9 @@ use crate::state::{
     Authority, AuthorityHeader, Secp256r1VerifyArgs, SpendCap, AUTHORITY_VERSION,
     WALLET_POLICY_VERSION,
 };
-use crate::utils::phygital_token::locked_controlled;
+use crate::utils::phygital_token::{locked_controlled, wallet_matches_owner};
 use crate::utils::policy::{
-    read_authority_header, reject_durable_nonce, require_canonical_authority,
+    authorize_authority_signer, read_authority_header, reject_durable_nonce,
 };
 use crate::utils::slot_hash::fetch_slot_hash;
 use crate::PROGRAM_WALLET_SEED;
@@ -45,6 +45,15 @@ pub struct SetAuthority<'info> {
         constraint = locked_controlled(&phygital_token) @ PhygitalError::TokenIsCurrentlyUnLocked,
     )]
     pub phygital_token: UncheckedAccount<'info>,
+
+    /// CHECK: canonical wallet PDA whose address and token-owner binding are
+    /// enforced by the seeds and `wallet_matches_owner` constraints.
+    #[account(
+        seeds = [PROGRAM_WALLET_SEED, phygital_token.key().as_ref()],
+        bump,
+        constraint = wallet_matches_owner(&wallet, &phygital_token) @ PhygitalError::WalletOwnerMismatch,
+    )]
+    pub wallet: UncheckedAccount<'info>,
 
     /// `init` (not `init_if_needed`) enforces "only if no authority exists yet".
     #[account(
@@ -95,16 +104,13 @@ pub fn set_authority_handler(
         .message_hash(message_hash)
         .invoke()?;
 
-    let wallet_bump =
-        Pubkey::find_program_address(&[PROGRAM_WALLET_SEED, token_key.as_ref()], ctx.program_id).1;
-
     let account = &mut ctx.accounts.authority_account;
     account.header = AuthorityHeader {
         authority,
         phygital_token: token_key,
         payer: ctx.accounts.payer.key(),
         bump: ctx.bumps.authority_account,
-        wallet_bump,
+        wallet_bump: ctx.bumps.wallet,
         version: AUTHORITY_VERSION,
         // Default to an active empty policy (no caps, baseline programs only): the
         // passkey is confined to the baseline allow-list and control invariants from
@@ -149,11 +155,6 @@ pub struct ClearAuthority<'info> {
 pub fn clear_authority_handler(ctx: Context<ClearAuthority>) -> Result<()> {
     reject_durable_nonce(&ctx.accounts.instructions_sysvar)?;
     let info = ctx.accounts.authority_account.to_account_info();
-    let header = &ctx.accounts.authority_account.header;
-    require_keys_eq!(
-        header.authority,
-        ctx.accounts.authority.key(),
-        PhygitalError::AuthorityMismatch
-    );
-    require_canonical_authority(&info, header, ctx.program_id)
+    authorize_authority_signer(&info, &ctx.accounts.authority.key(), ctx.program_id)?;
+    Ok(())
 }

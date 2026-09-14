@@ -130,27 +130,6 @@ pub(crate) fn read_authority_header(info: &AccountInfo) -> Result<AuthorityHeade
     Ok(*Authority::read_header(&info.try_borrow_data()?)?)
 }
 
-/// Validate that `info` is the canonical authority PDA for the token bound in its
-/// header. Used by the admin/authority paths in place of Anchor `seeds` (whose
-/// self-referential, `?`-using expressions cannot be expressed in the IDL).
-pub(crate) fn require_canonical_authority(
-    info: &AccountInfo,
-    header: &AuthorityHeader,
-    program_id: &Pubkey,
-) -> Result<()> {
-    let canonical = Pubkey::create_program_address(
-        &[
-            AUTHORITY_SEED,
-            header.phygital_token.as_ref(),
-            &[header.bump],
-        ],
-        program_id,
-    )
-    .map_err(|_| error!(PhygitalError::AuthorityTokenMismatch))?;
-    require_keys_eq!(*info.key, canonical, PhygitalError::AuthorityTokenMismatch);
-    Ok(())
-}
-
 /// Validate that `info` is the canonical authority PDA and that `signer` is its
 /// configured authority. Returns the decoded header for any further field checks.
 /// Shared by the admin/authority handlers that authorize an ed25519 owner signer.
@@ -161,36 +140,17 @@ pub(crate) fn authorize_authority_signer(
 ) -> Result<AuthorityHeader> {
     let header = read_authority_header(info)?;
     require_keys_eq!(header.authority, *signer, PhygitalError::AuthorityMismatch);
-    require_canonical_authority(info, &header, program_id)?;
+    let canonical = Pubkey::create_program_address(
+        &[
+            AUTHORITY_SEED,
+            header.phygital_token.as_ref(),
+            &[header.bump],
+        ],
+        program_id,
+    )
+    .map_err(|_| error!(PhygitalError::AuthorityTokenMismatch))?;
+    require_keys_eq!(*info.key, canonical, PhygitalError::AuthorityTokenMismatch);
     Ok(header)
-}
-
-/// Resolve the authority account and whether a spending policy is active.
-///
-/// The accessory tap REQUIRES a present owner: an absent authority account (never
-/// set up, or removed by `clear_authority`, which closes it) disables the tap. This
-/// is what makes "removing the owner disables the accessory" true — the owner is the
-/// escape hatch that (re)enables and constrains the tap. An owner may still turn
-/// spending protections off with `clear_wallet_policy` (policy absent, owner present)
-/// while keeping the tap enabled. Unknown layouts fail closed.
-///
-/// The stored token binding uniquely identifies the canonical PDA, so no address
-/// re-derivation is needed: `set_authority` `init`s exactly one authority account per
-/// token, at the canonical `[AUTHORITY_SEED, token]` PDA, and a program-owned
-/// account's data can only be written by this program. Combined with the caller's
-/// `#[account(owner = crate::ID @ AccessoryDisabled)]` constraint (an absent/closed
-/// PDA is system-owned), any program-owned Authority whose header binds to this token
-/// *is* that canonical PDA. Dropping the `create_program_address` syscall keeps the
-/// hot path cheaper without weakening the guarantee.
-pub(crate) fn resolve_authority(info: &AccountInfo, token_key: &Pubkey) -> Result<(u8, bool)> {
-    let data = info.try_borrow_data()?;
-    let (header, policy_present) = Authority::read(&data)?;
-    require_keys_eq!(
-        header.phygital_token,
-        *token_key,
-        PhygitalError::AuthorityTokenMismatch
-    );
-    Ok((header.wallet_bump, policy_present))
 }
 
 /// Pre-CPI balance snapshot.
@@ -256,7 +216,7 @@ pub(crate) fn check_policy_and_snapshot<'info>(
         };
         // Track for the control invariants (wallet-owned), the SOL fold (is_sol),
         // and/or the per-mint delta (capped).
-        if !wallet_owned && !(spending_limits_active && spendable) {
+        if !(wallet_owned || spending_limits_active && spendable) {
             continue;
         }
         snapshot.tracked.push(TrackedAccount {

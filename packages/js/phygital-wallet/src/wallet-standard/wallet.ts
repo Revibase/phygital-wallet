@@ -8,6 +8,7 @@ import {
   type SolanaRpcApi,
   type Transaction,
   type TransactionModifyingSigner,
+  type TransactionPartialSigner,
   type TransactionWithLifetime,
 } from "@solana/kit";
 import { type SolanaChain } from "@solana/wallet-standard-chains";
@@ -31,6 +32,11 @@ import type {
   WalletVersion,
 } from "@wallet-standard/base";
 import {
+  findPhygitalTokenPda,
+  startAuthentication,
+  verifyResponse,
+} from "phygital-token-sdk";
+import {
   StandardConnect,
   type StandardConnectFeature,
   type StandardConnectMethod,
@@ -45,11 +51,6 @@ import {
 } from "@wallet-standard/features";
 import { PHYGITAL_WALLET_CHAINS } from "../constants.js";
 import { findWalletPda } from "../generated/pdas/wallet.js";
-import {
-  exchangeConnectProof,
-  startPhygitalConnect,
-  SESSION_SKEW_MS,
-} from "../wallet/connect.js";
 import {
   getPhygitalWalletSigner,
   type PhygitalWalletSignerCallbacks,
@@ -85,6 +86,8 @@ export type PhygitalWalletOptions = {
   /** Defaults to mainnet only (`solana:mainnet`). Override only for local testing. */
   chains?: readonly SolanaChain[];
   fetch?: typeof fetch;
+  /** Optional fee payer forwarded to `getPhygitalWalletSigner`. */
+  feePayer?: TransactionPartialSigner;
   onPhaseChange?: PhygitalWalletSignerCallbacks["onPhaseChange"];
 };
 
@@ -98,6 +101,7 @@ export class PhygitalWallet implements Wallet {
   readonly #chains: IdentifierArray;
   readonly #rpc: Rpc<SolanaRpcApi>;
   readonly #fetch?: typeof fetch;
+  readonly #feePayer?: TransactionPartialSigner;
   readonly #onPhaseChange?: PhygitalWalletSignerCallbacks["onPhaseChange"];
 
   #session: PhygitalWalletSession | null = null;
@@ -168,6 +172,7 @@ export class PhygitalWallet implements Wallet {
       ...(options.chains ?? PHYGITAL_WALLET_CHAINS),
     ]) as IdentifierArray;
     this.#fetch = options.fetch;
+    this.#feePayer = options.feePayer;
     this.#onPhaseChange = options.onPhaseChange;
 
     // Eager account so connectors see a connected wallet after refresh.
@@ -225,25 +230,27 @@ export class PhygitalWallet implements Wallet {
       return { accounts: this.accounts };
     }
 
-    const proof = await startPhygitalConnect(this.#rpc, {
-      fetch: this.#fetch,
+    const challenge = globalThis.crypto.randomUUID();
+    const response = await startAuthentication(challenge, this.#rpc);
+    const verified = verifyResponse({
+      expectedMessage: challenge,
+      response,
     });
-    const bearer = await exchangeConnectProof({
-      endpoint: proof.resolved.endpoint,
-      blockhash: proof.blockhash,
-      response: proof.response,
-      fetch: this.#fetch,
-    });
+    if (!verified.isVerified || !verified.secp256r1PublicKey) {
+      throw new Error("Could not verify this phygital accessory");
+    }
+    const phygitalTokenPda = await findPhygitalTokenPda(
+      verified.secp256r1PublicKey
+    );
     const [walletPda] = await findWalletPda({
-      phygitalToken: proof.phygitalToken,
+      phygitalToken: phygitalTokenPda,
     });
     const persistedSession = {
-      phygitalTokenPda: proof.phygitalToken,
+      phygitalTokenPda,
       walletPda,
-      ...bearer,
     } satisfies PhygitalWalletSession;
     this.#adoptSession(persistedSession);
-    const signer = await this.#buildSigner(persistedSession, proof.resolved);
+    const signer = await this.#buildSigner(persistedSession);
     this.#signer = signer;
     this.#signerPromise = Promise.resolve(signer);
     savePhygitalWalletSession(persistedSession);
@@ -281,26 +288,13 @@ export class PhygitalWallet implements Wallet {
     }
   }
 
-  /**
-   * Build a signer for a persisted session. When the bearer lapses the signer
-   * throws instead of silently re-tapping — a surprise NFC prompt mid-action is
-   * bad UX. The consumer reconnects (`standard:connect`) to get a fresh session.
-   */
   #buildSigner(
-    session: PhygitalWalletSession,
-    resolved?: Awaited<ReturnType<typeof startPhygitalConnect>>["resolved"]
+    session: PhygitalWalletSession
   ): Promise<TransactionModifyingSigner> {
-    const getAccessToken = (): string => {
-      if (session.expiresAt - SESSION_SKEW_MS > Date.now()) {
-        return session.accessToken;
-      }
-      throw new Error("Revibase session expired — reconnect the accessory");
-    };
     return getPhygitalWalletSigner(this.#rpc, session.phygitalTokenPda, {
       fetch: this.#fetch,
+      feePayer: this.#feePayer,
       onPhaseChange: this.#onPhaseChange,
-      getAccessToken,
-      ...(resolved ? { resolved } : {}),
     });
   }
 
@@ -347,7 +341,7 @@ export class PhygitalWallet implements Wallet {
     const decoded = transactionDecoder.decode(transactionBytes) as Transaction;
     if (!("lifetimeConstraint" in decoded)) {
       throw new Error(
-        "Revibase wallet requires transactions with a lifetime constraint (blockhash or durable nonce)"
+        "Revibase wallet requires transactions with a lifetime constraint"
       );
     }
 

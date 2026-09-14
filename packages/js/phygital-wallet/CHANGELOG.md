@@ -4,42 +4,43 @@
 
 ### Added
 
-- `startPhygitalConnect(rpc)` → `PhygitalConnectProof` — tap and produce a
-  connect proof (fresh blockhash, WebAuthn assertion, derived token, resolved
-  verifier). The counterpart to `startAuthentication`.
-- `exchangeConnectProof({ endpoint, blockhash, response })` → session bearer.
-  POST a proof to the token's verifier `/connect` (or verify it on your own
-  backend with `verifyConnectProof` from `phygital-verifier-sdk`).
+- `execute_with_authority_using_policies`, used by the SDK to simulate the same
+  policy checks as `execute` without requiring a secp256r1 signature.
+- Optional `feePayer` configuration for `getPhygitalWalletSigner` and
+  `registerPhygitalWallet` / `PhygitalWalletOptions`.
+- Local Wallet Standard authentication using `startAuthentication`,
+  `verifyResponse`, and `findPhygitalTokenPda` from `phygital-token-sdk`.
 
 ### Removed (breaking)
 
-- **`connectPhygitalWallet` and the `PhygitalConnection` type.** Connect is now
-  composed from the primitives above plus `getPhygitalWalletSigner`, mirroring
-  the login flow (`startAuthentication` → `verifyResponse`). Migrate:
+- Verifier connect-proof exchange, bearer sessions, verifier resolution, and
+  the `getAccessToken` signer configuration.
+- Durable nonce support in `getPhygitalWalletSigner`. Use a recent blockhash.
+- The obsolete `wallet/connect.ts` helper.
 
-  ```ts
-  // before
-  const { phygitalToken, signer } = await connectPhygitalWallet(rpc);
+### Changed
 
-  // after
-  const proof = await startPhygitalConnect(rpc);
-  const session = await exchangeConnectProof({
-    endpoint: proof.resolved.endpoint,
-    blockhash: proof.blockhash,
-    response: proof.response,
-  });
-  const signer = await getPhygitalWalletSigner(rpc, proof.phygitalToken, {
-    resolved: proof.resolved,
-    getAccessToken: () => session.accessToken,
-  });
-  ```
+- `getPhygitalWalletSigner` now accepts a phygital token PDA directly, fetches
+  its Authority account for policy preview, discovers the default fee payer
+  from `https://api.revibase.com/getFeePayer`, requests the passkey only after
+  preview succeeds, and obtains the separate fee-payer signature.
+- Wallet Standard persists only the derived token and wallet PDAs under
+  `revibase:wallet-standard:v3`.
+- Signing phases now end with `feePaying` instead of `coSigning`.
 
-  A signer's `getAccessToken` returns the cached bearer and throws once it
-  lapses — see the README ("When the session expires"). It does **not** re-tap
-  on its own (a surprise NFC prompt mid-action is bad UX); the app reconnects on
-  an explicit user action. The Wallet Standard adapter follows the same rule:
-  signing throws on an expired session and the consumer calls `standard:connect`
-  again.
+### Migration
+
+```ts
+// Before: verifier proof + bearer.
+const proof = await startPhygitalConnect(rpc);
+const session = await exchangeConnectProof(/* ... */);
+const signer = await getPhygitalWalletSigner(rpc, proof.phygitalToken, {
+  getAccessToken: () => session.accessToken,
+});
+
+// After: known token PDA. The default fee payer is discovered over HTTP.
+const signer = await getPhygitalWalletSigner(rpc, phygitalTokenPda);
+```
 
 ## 0.2.0
 

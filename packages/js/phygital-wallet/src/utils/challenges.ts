@@ -19,17 +19,8 @@ const slotHashesAddress = SLOT_HASHES_SYSVAR_ADDRESS as Address;
 const EXECUTE_CHALLENGE_PREFIX = new TextEncoder().encode(
   "phygital_wallet:execute:v2"
 );
-const SET_TOKEN_VERIFIER_CHALLENGE_PREFIX = new TextEncoder().encode(
-  "phygital_wallet:set_tv:v1"
-);
-const CLEAR_TOKEN_VERIFIER_CHALLENGE_PREFIX = new TextEncoder().encode(
-  "phygital_wallet:clear_tv:v1"
-);
-const SET_RECOVERY_WALLET_CHALLENGE_PREFIX = new TextEncoder().encode(
-  "phygital_wallet:set_rw:v1"
-);
-const CLEAR_RECOVERY_WALLET_CHALLENGE_PREFIX = new TextEncoder().encode(
-  "phygital_wallet:clear_rw:v1"
+const SET_AUTHORITY_CHALLENGE_PREFIX = new TextEncoder().encode(
+  "phygital_wallet:set_authority:v1"
 );
 
 type SlotChallenge = {
@@ -43,7 +34,8 @@ export type SlotEntry = {
 };
 
 export async function fetchLatestSlotHash(
-  rpc: Rpc<GetAccountInfoApi>
+  rpc: Rpc<GetAccountInfoApi>,
+  abortSignal?: AbortSignal
 ): Promise<SlotEntry> {
   const { value } = await rpc
     .getAccountInfo(slotHashesAddress, {
@@ -51,7 +43,7 @@ export async function fetchLatestSlotHash(
       commitment: "confirmed",
       dataSlice: { offset: 8, length: 40 },
     })
-    .send();
+    .send({ abortSignal });
 
   const data = value?.data;
   if (!data) {
@@ -183,52 +175,6 @@ export function hashExecuteChallenge(
   return sha256(preimage);
 }
 
-function hashSetTokenVerifierChallenge(
-  slotHash: Uint8Array,
-  phygitalToken: Address,
-  verifier: Address,
-  endpoint: string
-): Uint8Array {
-  const tokenBytes = new Uint8Array(addressEncoder.encode(phygitalToken));
-  const verifierBytes = new Uint8Array(addressEncoder.encode(verifier));
-  const endpointBytes = new TextEncoder().encode(endpoint);
-  const preimage = new Uint8Array(
-    SET_TOKEN_VERIFIER_CHALLENGE_PREFIX.length +
-      32 +
-      tokenBytes.length +
-      verifierBytes.length +
-      endpointBytes.length
-  );
-  let offset = 0;
-  preimage.set(SET_TOKEN_VERIFIER_CHALLENGE_PREFIX, offset);
-  offset += SET_TOKEN_VERIFIER_CHALLENGE_PREFIX.length;
-  preimage.set(slotHash, offset);
-  offset += 32;
-  preimage.set(tokenBytes, offset);
-  offset += tokenBytes.length;
-  preimage.set(verifierBytes, offset);
-  offset += verifierBytes.length;
-  preimage.set(endpointBytes, offset);
-  return sha256(preimage);
-}
-
-function hashClearTokenVerifierChallenge(
-  slotHash: Uint8Array,
-  phygitalToken: Address
-): Uint8Array {
-  const tokenBytes = new Uint8Array(addressEncoder.encode(phygitalToken));
-  const preimage = new Uint8Array(
-    CLEAR_TOKEN_VERIFIER_CHALLENGE_PREFIX.length + 32 + tokenBytes.length
-  );
-  let offset = 0;
-  preimage.set(CLEAR_TOKEN_VERIFIER_CHALLENGE_PREFIX, offset);
-  offset += CLEAR_TOKEN_VERIFIER_CHALLENGE_PREFIX.length;
-  preimage.set(slotHash, offset);
-  offset += 32;
-  preimage.set(tokenBytes, offset);
-  return sha256(preimage);
-}
-
 /** SlotHashes + passkey challenge bound to the compact CPI payload. */
 export function buildExecuteChallengeFromSlot(
   slot: SlotEntry,
@@ -245,83 +191,37 @@ export function buildExecuteChallengeFromSlot(
   };
 }
 
-export async function buildSetTokenVerifierChallenge(
-  rpc: Rpc<GetAccountInfoApi>,
-  phygitalToken: Address,
-  verifier: Address,
-  endpoint: string
-): Promise<SlotChallenge> {
-  return withSlotChallenge(rpc, (slotHash) =>
-    hashSetTokenVerifierChallenge(slotHash, phygitalToken, verifier, endpoint)
-  );
-}
-
-export async function buildClearTokenVerifierChallenge(
-  rpc: Rpc<GetAccountInfoApi>,
-  phygitalToken: Address
-): Promise<SlotChallenge> {
-  return withSlotChallenge(rpc, (slotHash) =>
-    hashClearTokenVerifierChallenge(slotHash, phygitalToken)
-  );
-}
-
-function hashSetRecoveryWalletChallenge(
+function hashSetAuthorityChallenge(
   slotHash: Uint8Array,
   phygitalToken: Address,
-  recoveryWallet: Address
+  authority: Address
 ): Uint8Array {
   const tokenBytes = new Uint8Array(addressEncoder.encode(phygitalToken));
-  const recoveryBytes = new Uint8Array(addressEncoder.encode(recoveryWallet));
+  const authorityBytes = new Uint8Array(addressEncoder.encode(authority));
   const preimage = new Uint8Array(
-    SET_RECOVERY_WALLET_CHALLENGE_PREFIX.length +
+    SET_AUTHORITY_CHALLENGE_PREFIX.length +
       32 +
       tokenBytes.length +
-      recoveryBytes.length
+      authorityBytes.length
   );
   let offset = 0;
-  preimage.set(SET_RECOVERY_WALLET_CHALLENGE_PREFIX, offset);
-  offset += SET_RECOVERY_WALLET_CHALLENGE_PREFIX.length;
+  preimage.set(SET_AUTHORITY_CHALLENGE_PREFIX, offset);
+  offset += SET_AUTHORITY_CHALLENGE_PREFIX.length;
   preimage.set(slotHash, offset);
   offset += 32;
   preimage.set(tokenBytes, offset);
   offset += tokenBytes.length;
-  preimage.set(recoveryBytes, offset);
+  preimage.set(authorityBytes, offset);
   return sha256(preimage);
 }
 
-function hashClearRecoveryWalletChallenge(
-  slotHash: Uint8Array,
-  phygitalToken: Address
-): Uint8Array {
-  const tokenBytes = new Uint8Array(addressEncoder.encode(phygitalToken));
-  const preimage = new Uint8Array(
-    CLEAR_RECOVERY_WALLET_CHALLENGE_PREFIX.length + 32 + tokenBytes.length
-  );
-  let offset = 0;
-  preimage.set(CLEAR_RECOVERY_WALLET_CHALLENGE_PREFIX, offset);
-  offset += CLEAR_RECOVERY_WALLET_CHALLENGE_PREFIX.length;
-  preimage.set(slotHash, offset);
-  offset += 32;
-  preimage.set(tokenBytes, offset);
-  return sha256(preimage);
-}
-
-/** SlotHashes + passkey challenge bound to the recovery wallet pubkey. */
-export async function buildSetRecoveryWalletChallenge(
+/** SlotHashes + passkey challenge bound to the authority pubkey. */
+export async function buildSetAuthorityChallenge(
   rpc: Rpc<GetAccountInfoApi>,
   phygitalToken: Address,
-  recoveryWallet: Address
+  authority: Address
 ): Promise<SlotChallenge> {
   return withSlotChallenge(rpc, (slotHash) =>
-    hashSetRecoveryWalletChallenge(slotHash, phygitalToken, recoveryWallet)
-  );
-}
-
-export async function buildClearRecoveryWalletChallenge(
-  rpc: Rpc<GetAccountInfoApi>,
-  phygitalToken: Address
-): Promise<SlotChallenge> {
-  return withSlotChallenge(rpc, (slotHash) =>
-    hashClearRecoveryWalletChallenge(slotHash, phygitalToken)
+    hashSetAuthorityChallenge(slotHash, phygitalToken, authority)
   );
 }

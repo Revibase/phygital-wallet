@@ -27,6 +27,9 @@ function walk(dir) {
 }
 
 function fixSpec(dir, spec) {
+  if (spec === ".") {
+    return "./index.js";
+  }
   if (spec.endsWith(".js")) {
     return spec;
   }
@@ -45,7 +48,7 @@ function fixFile(file) {
   const dir = dirname(file);
   const source = readFileSync(file, "utf8");
   const updated = source.replace(
-    /(from|export \* from) "(\.\.?\/[^"]+)"/g,
+    /(from|export \* from) "(\.|\.\.?\/[^"]+)"/g,
     (match, keyword, spec) => {
       const fixed = fixSpec(dir, spec);
       return fixed === spec ? match : `${keyword} "${fixed}"`;

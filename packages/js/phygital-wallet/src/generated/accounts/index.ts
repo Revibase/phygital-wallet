@@ -6,6 +6,4 @@
  * @see https://github.com/codama-idl/codama
  */
 
-export * from "./config.js";
-export * from "./recoveryWallet.js";
-export * from "./tokenVerifier.js";
+export * from "./authority.js";
