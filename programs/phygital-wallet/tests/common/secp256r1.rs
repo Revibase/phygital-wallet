@@ -56,14 +56,21 @@ impl TestPasskey {
         challenge: [u8; 32],
         rp_id: &str,
     ) -> (Instruction, Secp256r1VerifyArgs) {
+        self.verify_asset_secp256r1_instruction_with_origin(challenge, rp_id, TEST_ORIGIN)
+    }
+
+    /// Like `_with_rp_id`, but with an explicit clientDataJSON `origin`.
+    pub fn verify_asset_secp256r1_instruction_with_origin(
+        &mut self,
+        challenge: [u8; 32],
+        rp_id: &str,
+        origin: &str,
+    ) -> (Instruction, Secp256r1VerifyArgs) {
         let mut client_data_json = Vec::new();
         client_data_json.extend_from_slice(br#"{"type":"webauthn.get","challenge":"#);
-        Self::ccd_to_string(
-            &URL_SAFE_NO_PAD.encode(challenge),
-            &mut client_data_json,
-        );
+        Self::ccd_to_string(&URL_SAFE_NO_PAD.encode(challenge), &mut client_data_json);
         client_data_json.extend_from_slice(br#","origin":"#);
-        Self::ccd_to_string(TEST_ORIGIN, &mut client_data_json);
+        Self::ccd_to_string(origin, &mut client_data_json);
         client_data_json.extend_from_slice(br#","crossOrigin":false}"#);
 
         let client_data_hash: [u8; 32] = Sha256::digest(&client_data_json).into();

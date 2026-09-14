@@ -1,9 +1,7 @@
-pub mod config;
+pub mod authority;
 pub mod execute;
-pub mod recovery_wallet;
-pub mod token_verifier;
+pub mod wallet_policy;
 
-pub use config::*;
+pub use authority::*;
 pub use execute::*;
-pub use recovery_wallet::*;
-pub use token_verifier::*;
+pub use wallet_policy::*;

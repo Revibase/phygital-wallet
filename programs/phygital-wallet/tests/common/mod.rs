@@ -1,26 +1,28 @@
-#![allow(dead_code)] // shared across execute_flow / verifier / cu_hot_path crates
+#![allow(dead_code)] // shared across the integration test crates
 
 mod secp256r1;
 
-pub use secp256r1::{current_slot_entry, TestPasskey, TEST_RP_ID};
+pub use secp256r1::{current_slot_entry, TestPasskey, TEST_ORIGIN, TEST_RP_ID};
 
 use anchor_lang::prelude::*;
+use anchor_lang::solana_program::instruction::{AccountMeta, Instruction};
 use anchor_lang::solana_program::program_pack::Pack;
 use anchor_lang::solana_program::system_instruction;
 use anchor_lang::{InstructionData, ToAccountMetas};
 use anchor_spl::token_2022::spl_token_2022::instruction::{
     approve_checked, burn_checked, close_account, initialize_account3, initialize_mint2, mint_to,
-    transfer_checked,
+    set_authority, transfer_checked, AuthorityType,
 };
 use anchor_spl::token_2022::spl_token_2022::state::{Account as TokenAccountState, Mint};
 use anchor_spl::token_2022::ID as TOKEN_2022_ID;
 use borsh::BorshDeserialize;
 use litesvm::LiteSVM;
-use phygital_wallet::{
-    ADMIN, CONFIG_SEED, PROGRAM_WALLET_SEED, RECOVERY_WALLET_SEED, TOKEN_VERIFIER_SEED,
-    CompactInstruction, Secp256r1VerifyArgs,
-};
 use phygital_token_client::{PhygitalToken, PhygitalTokenType, PHYGITAL_TOKEN_DISCRIMINATOR};
+use phygital_wallet::{
+    CompactInstruction, MintCapArg, Secp256r1VerifyArgs, WalletPolicyArgs, AUTHORITY_SEED,
+    PROGRAM_WALLET_SEED,
+};
+use sha2::{Digest, Sha256};
 use solana_account::Account as SolanaAccount;
 use solana_keypair::Keypair;
 use solana_message::{Message, VersionedMessage};
@@ -30,7 +32,6 @@ use solana_sdk_ids::sysvar::{
 use solana_signature::Signature;
 use solana_signer::Signer;
 use solana_transaction::versioned::VersionedTransaction;
-use sha2::{Digest, Sha256};
 
 pub const TOKEN_SEED: &[u8] = b"token";
 pub const LAMPORTS_PER_SOL: u64 = 1_000_000_000;
@@ -142,15 +143,7 @@ pub fn setup_delegated_payment(
 pub fn setup_locked_execute(
     ctx: &mut TestContext,
     amount: u64,
-) -> (
-    TestPasskey,
-    Keypair,
-    Pubkey,
-    Pubkey,
-    Pubkey,
-    Pubkey,
-    Pubkey,
-) {
+) -> (TestPasskey, Keypair, Pubkey, Pubkey, Pubkey, Pubkey, Pubkey) {
     let (passkey, asset) = setup_locked_asset(ctx);
     let owner = Keypair::new();
     let recipient = Keypair::new().pubkey();
@@ -170,9 +163,6 @@ pub fn setup_locked_execute(
 pub struct TestContext {
     pub svm: LiteSVM,
     pub payer: Keypair,
-    pub verifier: Keypair,
-    /// Hardcoded program admin (`ADMIN`); no secret needed — LiteSVM sigverify is off.
-    pub admin: Pubkey,
     pub program_id: Pubkey,
     pub mint_authority: Keypair,
 }
@@ -197,305 +187,152 @@ impl TestContext {
         );
 
         let payer = Keypair::new();
-        let verifier = Keypair::new();
-        svm.airdrop(&payer.pubkey(), 10 * LAMPORTS_PER_SOL)
+        svm.airdrop(&payer.pubkey(), 100 * LAMPORTS_PER_SOL)
             .expect("airdrop payer");
-        svm.airdrop(&verifier.pubkey(), 10 * LAMPORTS_PER_SOL)
-            .expect("airdrop verifier");
-        svm.airdrop(&ADMIN, LAMPORTS_PER_SOL)
-            .expect("airdrop admin");
 
-        let mut ctx = Self {
+        Self {
             svm,
             payer,
-            verifier,
-            admin: ADMIN,
             program_id,
             mint_authority: Keypair::new(),
-        };
-        ctx.initialize_config(&[ctx.verifier.pubkey()])
-            .expect("initialize config");
-        ctx
+        }
     }
 
-    pub fn config_pda(&self) -> Pubkey {
-        Pubkey::find_program_address(&[CONFIG_SEED], &self.program_id).0
+    // --- PDAs ---
+
+    pub fn wallet(&self, asset: Pubkey) -> Pubkey {
+        Pubkey::find_program_address(&[PROGRAM_WALLET_SEED, asset.as_ref()], &self.program_id).0
     }
 
-    pub fn token_verifier_pda(&self, phygital_token: Pubkey) -> Pubkey {
-        Pubkey::find_program_address(
-            &[TOKEN_VERIFIER_SEED, phygital_token.as_ref()],
-            &self.program_id,
-        )
-        .0
+    pub fn authority_pda(&self, asset: Pubkey) -> Pubkey {
+        Pubkey::find_program_address(&[AUTHORITY_SEED, asset.as_ref()], &self.program_id).0
     }
 
-    pub fn recovery_wallet_pda(&self, phygital_token: Pubkey) -> Pubkey {
-        Pubkey::find_program_address(
-            &[RECOVERY_WALLET_SEED, phygital_token.as_ref()],
-            &self.program_id,
-        )
-        .0
-    }
+    // --- authority admin ---
 
-    pub fn initialize_config(
-        &mut self,
-        initial_verifiers: &[Pubkey],
-    ) -> litesvm::types::TransactionResult {
-        let ix = anchor_lang::solana_program::instruction::Instruction {
-            program_id: self.program_id,
-            accounts: phygital_wallet::accounts::InitializeConfig {
-                admin: self.admin,
-                config: self.config_pda(),
-                system_program: anchor_lang::system_program::ID,
-            }
-            .to_account_metas(None),
-            data: phygital_wallet::instruction::InitializeConfig {
-                initial_verifiers: initial_verifiers.to_vec(),
-            }
-            .data(),
-        };
-        Self::send_instructions(&mut self.svm, &[ix], &[self.admin])
-    }
-
-    pub fn set_token_verifier(
+    /// Passkey-gated: set the token's authority (ed25519).
+    pub fn set_authority(
         &mut self,
         passkey: &mut TestPasskey,
-        phygital_token: Pubkey,
-        new_verifier: Pubkey,
-        endpoint: &str,
-    ) -> litesvm::types::TransactionResult {
-        self.set_token_verifier_with_signer(
-            passkey,
-            phygital_token,
-            new_verifier,
-            endpoint,
-            &self.verifier.insecure_clone(),
-        )
-    }
-
-    pub fn set_token_verifier_with_signer(
-        &mut self,
-        passkey: &mut TestPasskey,
-        phygital_token: Pubkey,
-        new_verifier: Pubkey,
-        endpoint: &str,
-        signer: &Keypair,
+        asset: Pubkey,
+        authority: Pubkey,
     ) -> litesvm::types::TransactionResult {
         let (slot_number, slot_hash) = current_slot_entry(&self.svm);
-        let challenge =
-            phygital_wallet::instructions::token_verifier::build_set_token_verifier_challenge(
-                slot_hash, &phygital_token, &new_verifier, endpoint,
-            );
+        let challenge = phygital_wallet::instructions::authority::build_set_authority_challenge(
+            slot_hash, &asset, &authority,
+        );
         let (secp_ix, verify_args) =
             passkey.verify_asset_secp256r1_instruction_with_rp_id(challenge, TEST_RP_ID);
-        let ix = anchor_lang::solana_program::instruction::Instruction {
+        let ix = Instruction {
             program_id: self.program_id,
-            accounts: phygital_wallet::accounts::SetTokenVerifier {
+            accounts: phygital_wallet::accounts::SetAuthority {
                 payer: self.payer.pubkey(),
-                verifier: signer.pubkey(),
-                config: self.config_pda(),
-                phygital_token,
-                token_verifier: self.token_verifier_pda(phygital_token),
+                phygital_token: asset,
+                authority_account: self.authority_pda(asset),
                 slot_hashes: SLOT_HASHES_SYSVAR_ID,
                 instructions_sysvar: INSTRUCTIONS_SYSVAR_ID,
                 phygital_token_program: phygital_token_client::PHYGITAL_TOKEN_ID,
                 system_program: anchor_lang::system_program::ID,
             }
             .to_account_metas(None),
-            data: phygital_wallet::instruction::SetTokenVerifier {
-                new_verifier,
-                endpoint: endpoint.to_string(),
+            data: phygital_wallet::instruction::SetAuthority {
+                authority,
                 secp256r1_verify_args: verify_args,
                 slot_number,
             }
             .data(),
         };
-        if signer.pubkey() == self.payer.pubkey() {
-            Self::send_instructions(&mut self.svm, &[secp_ix, ix], &[self.payer.pubkey()])
-        } else {
-            Self::send_instructions(
-                &mut self.svm,
-                &[secp_ix, ix],
-                &[self.payer.pubkey(), signer.pubkey()],
-            )
-        }
+        Self::send_instructions(&mut self.svm, &[secp_ix, ix], &[self.payer.pubkey()])
     }
 
-    pub fn clear_token_verifier(
+    /// Authority-signed: clear the token's authority (and its policy).
+    pub fn clear_authority(
         &mut self,
-        passkey: &mut TestPasskey,
-        phygital_token: Pubkey,
+        asset: Pubkey,
+        authority: &Keypair,
     ) -> litesvm::types::TransactionResult {
-        self.clear_token_verifier_with_signer(
-            passkey,
-            phygital_token,
-            &self.verifier.insecure_clone(),
-        )
-    }
-
-    pub fn clear_token_verifier_with_signer(
-        &mut self,
-        passkey: &mut TestPasskey,
-        phygital_token: Pubkey,
-        signer: &Keypair,
-    ) -> litesvm::types::TransactionResult {
-        let (slot_number, slot_hash) = current_slot_entry(&self.svm);
-        let challenge =
-            phygital_wallet::instructions::token_verifier::build_clear_token_verifier_challenge(
-                slot_hash,
-                &phygital_token
-            );
-        let (secp_ix, verify_args) =
-            passkey.verify_asset_secp256r1_instruction_with_rp_id(challenge, TEST_RP_ID);
-        let ix = anchor_lang::solana_program::instruction::Instruction {
+        let ix = Instruction {
             program_id: self.program_id,
-            accounts: phygital_wallet::accounts::ClearTokenVerifier {
-                verifier: signer.pubkey(),
-                config: self.config_pda(),
-                phygital_token,
+            accounts: phygital_wallet::accounts::ClearAuthority {
+                authority: authority.pubkey(),
                 rent_receiver: self.payer.pubkey(),
-                token_verifier: self.token_verifier_pda(phygital_token),
-                slot_hashes: SLOT_HASHES_SYSVAR_ID,
+                authority_account: self.authority_pda(asset),
                 instructions_sysvar: INSTRUCTIONS_SYSVAR_ID,
-                phygital_token_program: phygital_token_client::PHYGITAL_TOKEN_ID,
             }
             .to_account_metas(None),
-            data: phygital_wallet::instruction::ClearTokenVerifier {
-                secp256r1_verify_args: verify_args,
-                slot_number,
-            }
-            .data(),
+            data: phygital_wallet::instruction::ClearAuthority {}.data(),
         };
-        if signer.pubkey() == self.payer.pubkey() {
-            Self::send_instructions(&mut self.svm, &[secp_ix, ix], &[self.payer.pubkey()])
-        } else {
-            Self::send_instructions(
-                &mut self.svm,
-                &[secp_ix, ix],
-                &[self.payer.pubkey(), signer.pubkey()],
-            )
-        }
-    }
-
-    pub fn set_recovery_wallet(
-        &mut self,
-        passkey: &mut TestPasskey,
-        phygital_token: Pubkey,
-        recovery_wallet: Pubkey,
-    ) -> litesvm::types::TransactionResult {
-        self.set_recovery_wallet_with_signer(
-            passkey,
-            phygital_token,
-            recovery_wallet,
-            &self.verifier.insecure_clone(),
+        Self::send_instructions(
+            &mut self.svm,
+            &[ix],
+            &[self.payer.pubkey(), authority.pubkey()],
         )
     }
 
-    pub fn set_recovery_wallet_with_signer(
+    // --- policy admin ---
+
+    pub fn set_wallet_policy(
         &mut self,
-        passkey: &mut TestPasskey,
-        phygital_token: Pubkey,
-        recovery_wallet: Pubkey,
-        signer: &Keypair,
+        asset: Pubkey,
+        authority: &Keypair,
+        args: WalletPolicyArgs,
     ) -> litesvm::types::TransactionResult {
-        let (slot_number, slot_hash) = current_slot_entry(&self.svm);
-        let challenge =
-            phygital_wallet::instructions::recovery_wallet::build_set_recovery_wallet_challenge(
-                slot_hash,
-                &phygital_token,
-                &recovery_wallet,
-            );
-        let (secp_ix, verify_args) =
-            passkey.verify_asset_secp256r1_instruction_with_rp_id(challenge, TEST_RP_ID);
-        let ix = anchor_lang::solana_program::instruction::Instruction {
+        let ix = Instruction {
             program_id: self.program_id,
-            accounts: phygital_wallet::accounts::SetRecoveryWallet {
+            accounts: phygital_wallet::accounts::SetWalletPolicy {
+                rent_receiver: self.payer.pubkey(),
+                authority: authority.pubkey(),
                 payer: self.payer.pubkey(),
-                verifier: signer.pubkey(),
-                config: self.config_pda(),
-                phygital_token,
-                token_verifier: self.token_verifier_pda(phygital_token),
-                recovery_wallet_account: self.recovery_wallet_pda(phygital_token),
-                slot_hashes: SLOT_HASHES_SYSVAR_ID,
+                authority_account: self.authority_pda(asset),
                 instructions_sysvar: INSTRUCTIONS_SYSVAR_ID,
-                phygital_token_program: phygital_token_client::PHYGITAL_TOKEN_ID,
                 system_program: anchor_lang::system_program::ID,
             }
             .to_account_metas(None),
-            data: phygital_wallet::instruction::SetRecoveryWallet {
-                recovery_wallet,
-                secp256r1_verify_args: verify_args,
-                slot_number,
-            }
-            .data(),
+            data: phygital_wallet::instruction::SetWalletPolicy { args }.data(),
         };
-        if signer.pubkey() == self.payer.pubkey() {
-            Self::send_instructions(&mut self.svm, &[secp_ix, ix], &[self.payer.pubkey()])
-        } else {
-            Self::send_instructions(
-                &mut self.svm,
-                &[secp_ix, ix],
-                &[self.payer.pubkey(), signer.pubkey()],
-            )
-        }
-    }
-
-    pub fn clear_recovery_wallet(
-        &mut self,
-        passkey: &mut TestPasskey,
-        phygital_token: Pubkey,
-    ) -> litesvm::types::TransactionResult {
-        self.clear_recovery_wallet_with_signer(
-            passkey,
-            phygital_token,
-            &self.verifier.insecure_clone(),
+        Self::send_instructions(
+            &mut self.svm,
+            &[ix],
+            &[self.payer.pubkey(), authority.pubkey()],
         )
     }
 
-    pub fn clear_recovery_wallet_with_signer(
+    pub fn clear_wallet_policy(
         &mut self,
-        passkey: &mut TestPasskey,
-        phygital_token: Pubkey,
-        signer: &Keypair,
+        asset: Pubkey,
+        authority: &Keypair,
     ) -> litesvm::types::TransactionResult {
-        let (slot_number, slot_hash) = current_slot_entry(&self.svm);
-        let challenge =
-            phygital_wallet::instructions::recovery_wallet::build_clear_recovery_wallet_challenge(
-                slot_hash,
-                &phygital_token,
-            );
-        let (secp_ix, verify_args) =
-            passkey.verify_asset_secp256r1_instruction_with_rp_id(challenge, TEST_RP_ID);
-        let ix = anchor_lang::solana_program::instruction::Instruction {
+        let ix = Instruction {
             program_id: self.program_id,
-            accounts: phygital_wallet::accounts::ClearRecoveryWallet {
-                verifier: signer.pubkey(),
-                config: self.config_pda(),
-                phygital_token,
-                token_verifier: self.token_verifier_pda(phygital_token),
+            accounts: phygital_wallet::accounts::ClearWalletPolicy {
+                authority: authority.pubkey(),
                 rent_receiver: self.payer.pubkey(),
-                recovery_wallet_account: self.recovery_wallet_pda(phygital_token),
-                slot_hashes: SLOT_HASHES_SYSVAR_ID,
+                authority_account: self.authority_pda(asset),
                 instructions_sysvar: INSTRUCTIONS_SYSVAR_ID,
-                phygital_token_program: phygital_token_client::PHYGITAL_TOKEN_ID,
             }
             .to_account_metas(None),
-            data: phygital_wallet::instruction::ClearRecoveryWallet {
-                secp256r1_verify_args: verify_args,
-                slot_number,
-            }
-            .data(),
+            data: phygital_wallet::instruction::ClearWalletPolicy {}.data(),
         };
-        if signer.pubkey() == self.payer.pubkey() {
-            Self::send_instructions(&mut self.svm, &[secp_ix, ix], &[self.payer.pubkey()])
-        } else {
-            Self::send_instructions(
-                &mut self.svm,
-                &[secp_ix, ix],
-                &[self.payer.pubkey(), signer.pubkey()],
-            )
-        }
+        Self::send_instructions(
+            &mut self.svm,
+            &[ix],
+            &[self.payer.pubkey(), authority.pubkey()],
+        )
+    }
+
+    /// Convenience: register an authority + set a policy, returning the authority.
+    pub fn install_policy(
+        &mut self,
+        passkey: &mut TestPasskey,
+        asset: Pubkey,
+        args: WalletPolicyArgs,
+    ) -> Keypair {
+        let authority = Keypair::new();
+        self.set_authority(passkey, asset, authority.pubkey())
+            .expect("set authority");
+        self.set_wallet_policy(asset, &authority, args)
+            .expect("set policy");
+        authority
     }
 
     fn deploy_program(
@@ -521,10 +358,6 @@ impl TestContext {
             .unwrap_or_else(|err| panic!("deploy {name}: {err:?}"));
     }
 
-    pub fn wallet(&self, asset: Pubkey) -> Pubkey {
-        Pubkey::find_program_address(&[PROGRAM_WALLET_SEED, asset.as_ref()], &self.program_id).0
-    }
-
     /// Outermost `Program <id> consumed N of M compute units` from LiteSVM logs.
     pub fn program_compute_units(logs: &[String], program_id: &Pubkey) -> Option<u64> {
         let needle = format!("Program {program_id} consumed ");
@@ -532,6 +365,31 @@ impl TestContext {
             let rest = line.strip_prefix(&needle)?;
             rest.split_whitespace().next()?.parse().ok()
         })
+    }
+
+    /// Our program's OWN CU = outer consumed − Σ(child CPI consumed). Cancels the
+    /// run-to-run swing of the secp256r1 verify CPI, giving a stable figure.
+    pub fn program_self_compute_units(logs: &[String], program_id: &Pubkey) -> Option<u64> {
+        let outer = Self::program_compute_units(logs, program_id)?;
+        let self_needle = format!("Program {program_id} consumed ");
+        let children: u64 = logs
+            .iter()
+            .filter_map(|line| {
+                let idx = line.find(" consumed ")?;
+                if line.starts_with(&self_needle) {
+                    return None; // our own (outer) line
+                }
+                if !line.starts_with("Program ") {
+                    return None;
+                }
+                line[idx + " consumed ".len()..]
+                    .split_whitespace()
+                    .next()?
+                    .parse::<u64>()
+                    .ok()
+            })
+            .sum();
+        Some(outer.saturating_sub(children))
     }
 
     /// Derive the token PDA from the compressed secp256r1 passkey public key.
@@ -581,6 +439,71 @@ impl TestContext {
         mint.pubkey()
     }
 
+    /// Inject the Token-2022 wrapped-SOL native mint at its canonical address so a
+    /// wallet-owned WSOL account can be created and minted into for tests.
+    pub fn create_wsol_mint(&mut self) -> Pubkey {
+        use anchor_lang::solana_program::program_option::COption;
+        let mint = phygital_wallet::WSOL_MINT_2022;
+        let mut data = vec![0u8; Mint::LEN];
+        Mint {
+            mint_authority: COption::Some(self.mint_authority.pubkey()),
+            supply: 0,
+            decimals: 9,
+            is_initialized: true,
+            freeze_authority: COption::None,
+        }
+        .pack_into_slice(&mut data);
+        let rent: Rent = self.svm.get_sysvar();
+        self.svm
+            .set_account(
+                mint,
+                SolanaAccount {
+                    lamports: rent.minimum_balance(Mint::LEN),
+                    data,
+                    owner: TOKEN_2022_ID,
+                    executable: false,
+                    rent_epoch: 0,
+                },
+            )
+            .expect("set wsol mint");
+        mint
+    }
+
+    /// Write a native wrapped-SOL (Token-2022) token account with a balance
+    /// directly. Native mints reject `MintTo`, so a WSOL balance is set, not minted.
+    pub fn create_native_wsol_account(&mut self, owner: Pubkey, amount: u64) -> Pubkey {
+        use anchor_lang::solana_program::program_option::COption;
+        use anchor_spl::token_2022::spl_token_2022::state::AccountState;
+        let account = Keypair::new();
+        let rent: Rent = self.svm.get_sysvar();
+        let reserve = rent.minimum_balance(TokenAccountState::LEN);
+        let mut data = vec![0u8; TokenAccountState::LEN];
+        TokenAccountState {
+            mint: phygital_wallet::WSOL_MINT_2022,
+            owner,
+            amount,
+            delegate: COption::None,
+            state: AccountState::Initialized,
+            is_native: COption::Some(reserve),
+            delegated_amount: 0,
+            close_authority: COption::None,
+        }
+        .pack_into_slice(&mut data);
+        self.svm
+            .set_account(
+                account.pubkey(),
+                SolanaAccount {
+                    lamports: reserve.checked_add(amount).expect("wsol lamports"),
+                    data,
+                    owner: TOKEN_2022_ID,
+                    executable: false,
+                    rent_epoch: 0,
+                },
+            )
+            .expect("set wsol account");
+        account.pubkey()
+    }
+
     pub fn create_token_account(&mut self, owner: Pubkey, mint: Pubkey) -> Pubkey {
         let token_account = Keypair::new();
         let rent: Rent = self.svm.get_sysvar();
@@ -593,9 +516,8 @@ impl TestContext {
             TokenAccountState::LEN as u64,
             &TOKEN_2022_ID,
         );
-        let init_ix =
-            initialize_account3(&TOKEN_2022_ID, &token_account.pubkey(), &mint, &owner)
-                .expect("initialize_account3");
+        let init_ix = initialize_account3(&TOKEN_2022_ID, &token_account.pubkey(), &mint, &owner)
+            .expect("initialize_account3");
         Self::send_instructions(
             &mut self.svm,
             &[create_ix, init_ix],
@@ -732,11 +654,15 @@ impl TestContext {
             .unwrap_or(0)
     }
 
+    pub fn account_exists(&self, address: Pubkey) -> bool {
+        self.svm
+            .get_account(&address)
+            .map(|a| a.lamports > 0 && !a.data.is_empty())
+            .unwrap_or(false)
+    }
+
     pub fn token_balance(&self, token_account: Pubkey) -> u64 {
-        let account = self
-            .svm
-            .get_account(&token_account)
-            .expect("token account");
+        let account = self.svm.get_account(&token_account).expect("token account");
         TokenAccountState::unpack_from_slice(&account.data)
             .expect("unpack token account")
             .amount
@@ -748,6 +674,21 @@ impl TestContext {
         decoded.last_sign_count
     }
 
+    /// Current SVM clock unix timestamp.
+    pub fn now_unix(&self) -> i64 {
+        let clock: Clock = self.svm.get_sysvar();
+        clock.unix_timestamp
+    }
+
+    /// Warp the SVM clock forward by `seconds` (for rolling-window tests).
+    pub fn warp_seconds(&mut self, seconds: i64) {
+        let mut clock: Clock = self.svm.get_sysvar();
+        clock.unix_timestamp += seconds;
+        self.svm.set_sysvar(&clock);
+    }
+
+    // --- compact instruction builders ---
+
     /// Build remaining accounts + compact SPL transfer_checked for execute.
     pub fn spl_transfer_compact(
         &self,
@@ -757,10 +698,7 @@ impl TestContext {
         recipient_token_account: Pubkey,
         amount: u64,
         decimals: u8,
-    ) -> (
-        Vec<anchor_lang::solana_program::instruction::AccountMeta>,
-        Vec<CompactInstruction>,
-    ) {
+    ) -> (Vec<AccountMeta>, Vec<CompactInstruction>) {
         let wallet = self.wallet(asset);
         let transfer_ix = transfer_checked(
             &TOKEN_2022_ID,
@@ -776,12 +714,13 @@ impl TestContext {
 
         // remaining: [token_program, sender, mint, recipient, wallet]
         let remaining = vec![
-            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(TOKEN_2022_ID, false),
-            anchor_lang::solana_program::instruction::AccountMeta::new(sender_token_account, false),
-            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(mint, false),
-            anchor_lang::solana_program::instruction::AccountMeta::new(recipient_token_account, false),
-            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(wallet, false),
+            AccountMeta::new_readonly(TOKEN_2022_ID, false),
+            AccountMeta::new(sender_token_account, false),
+            AccountMeta::new_readonly(mint, false),
+            AccountMeta::new(recipient_token_account, false),
+            AccountMeta::new_readonly(wallet, false),
         ];
+        // TransferChecked accounts: [source, mint, destination, owner].
         let compact = vec![CompactInstruction {
             program_id_index: 0,
             account_indexes: vec![1, 2, 3, 4],
@@ -796,20 +735,14 @@ impl TestContext {
         asset: Pubkey,
         recipient: Pubkey,
         amount: u64,
-    ) -> (
-        Vec<anchor_lang::solana_program::instruction::AccountMeta>,
-        Vec<CompactInstruction>,
-    ) {
+    ) -> (Vec<AccountMeta>, Vec<CompactInstruction>) {
         let wallet = self.wallet(asset);
         let transfer_ix = system_instruction::transfer(&wallet, &recipient, amount);
 
         let remaining = vec![
-            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                anchor_lang::system_program::ID,
-                false,
-            ),
-            anchor_lang::solana_program::instruction::AccountMeta::new(wallet, false),
-            anchor_lang::solana_program::instruction::AccountMeta::new(recipient, false),
+            AccountMeta::new_readonly(anchor_lang::system_program::ID, false),
+            AccountMeta::new(wallet, false),
+            AccountMeta::new(recipient, false),
         ];
         let compact = vec![CompactInstruction {
             program_id_index: 0,
@@ -826,10 +759,7 @@ impl TestContext {
         asset: Pubkey,
         mint: &Pubkey,
         decimals: u8,
-    ) -> (
-        Vec<anchor_lang::solana_program::instruction::AccountMeta>,
-        Vec<CompactInstruction>,
-    ) {
+    ) -> (Vec<AccountMeta>, Vec<CompactInstruction>) {
         let wallet = self.wallet(asset);
         let rent: Rent = self.svm.get_sysvar();
         let rent_lamports = rent.minimum_balance(Mint::LEN);
@@ -845,16 +775,10 @@ impl TestContext {
             .expect("initialize_mint2");
 
         let remaining = vec![
-            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                anchor_lang::system_program::ID,
-                false,
-            ),
-            anchor_lang::solana_program::instruction::AccountMeta::new(wallet, false),
-            anchor_lang::solana_program::instruction::AccountMeta::new(*mint, true),
-            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                TOKEN_2022_ID,
-                false,
-            ),
+            AccountMeta::new_readonly(anchor_lang::system_program::ID, false),
+            AccountMeta::new(wallet, false),
+            AccountMeta::new(*mint, true),
+            AccountMeta::new_readonly(TOKEN_2022_ID, false),
         ];
         let compact = vec![
             CompactInstruction {
@@ -871,357 +795,6 @@ impl TestContext {
         (remaining, compact)
     }
 
-    pub fn execute_ix(
-        &self,
-        asset: Pubkey,
-        compact_instructions: Vec<CompactInstruction>,
-        remaining: Vec<anchor_lang::solana_program::instruction::AccountMeta>,
-        secp256r1_verify_args: Secp256r1VerifyArgs,
-        slot_number: u64,
-        verifier: Pubkey,
-    ) -> anchor_lang::solana_program::instruction::Instruction {
-        let mut accounts = phygital_wallet::accounts::Execute {
-            verifier,
-            config: self.config_pda(),
-            phygital_token: asset,
-            token_verifier: self.token_verifier_pda(asset),
-            wallet: self.wallet(asset),
-            slot_hashes: SLOT_HASHES_SYSVAR_ID,
-            instructions_sysvar: INSTRUCTIONS_SYSVAR_ID,
-            phygital_token_program: phygital_token_client::PHYGITAL_TOKEN_ID,
-        }
-        .to_account_metas(None);
-        accounts.extend(remaining);
-
-        anchor_lang::solana_program::instruction::Instruction {
-            program_id: self.program_id,
-            accounts,
-            data: phygital_wallet::instruction::Execute {
-                compact_instructions,
-                secp256r1_verify_args,
-                slot_number,
-            }
-            .data(),
-        }
-    }
-
-    pub fn recovery_wallet_execute_ix(
-        &self,
-        asset: Pubkey,
-        recovery_wallet: Pubkey,
-        compact_instructions: Vec<CompactInstruction>,
-        remaining: Vec<anchor_lang::solana_program::instruction::AccountMeta>,
-    ) -> anchor_lang::solana_program::instruction::Instruction {
-        let mut accounts = phygital_wallet::accounts::RecoveryWalletExecute {
-            recovery_wallet,
-            phygital_token: asset,
-            recovery_wallet_account: self.recovery_wallet_pda(asset),
-            wallet: self.wallet(asset),
-        }
-        .to_account_metas(None);
-        accounts.extend(remaining);
-
-        anchor_lang::solana_program::instruction::Instruction {
-            program_id: self.program_id,
-            accounts,
-            data: phygital_wallet::instruction::RecoveryWalletExecute {
-                compact_instructions,
-            }
-            .data(),
-        }
-    }
-
-    pub fn send_recovery_wallet_execute(
-        &mut self,
-        asset: Pubkey,
-        recovery: &Keypair,
-        compact_instructions: Vec<CompactInstruction>,
-        remaining: Vec<anchor_lang::solana_program::instruction::AccountMeta>,
-        extra_signers: &[Pubkey],
-    ) -> litesvm::types::TransactionResult {
-        let ix = self.recovery_wallet_execute_ix(
-            asset,
-            recovery.pubkey(),
-            compact_instructions,
-            remaining,
-        );
-        let mut signers = vec![self.payer.pubkey(), recovery.pubkey()];
-        for s in extra_signers {
-            if !signers.contains(s) {
-                signers.push(*s);
-            }
-        }
-        Self::send_instructions(&mut self.svm, &[ix], &signers)
-    }
-
-    pub fn send_recovery_lamport_transfer(
-        &mut self,
-        asset: Pubkey,
-        recovery: &Keypair,
-        recipient: Pubkey,
-        amount: u64,
-    ) -> litesvm::types::TransactionResult {
-        let (remaining, compact) = self.lamport_transfer_compact(asset, recipient, amount);
-        self.send_recovery_wallet_execute(asset, recovery, compact, remaining, &[])
-    }
-
-    pub fn send_execute_spl_transfer(
-        &mut self,
-        asset: Pubkey,
-        mint: Pubkey,
-        sender_token_account: Pubkey,
-        recipient_token_account: Pubkey,
-        amount: u64,
-        passkey: &mut TestPasskey,
-        include_secp_ix: bool,
-    ) -> litesvm::types::TransactionResult {
-        let (remaining, compact) = self.spl_transfer_compact(
-            asset,
-            mint,
-            sender_token_account,
-            recipient_token_account,
-            amount,
-            6,
-        );
-        let verifier = self.verifier.insecure_clone();
-        self.send_execute_inner(
-            asset,
-            compact,
-            remaining,
-            passkey,
-            &[],
-            include_secp_ix,
-            None,
-            None,
-            &verifier,
-            TEST_RP_ID,
-        )
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub fn send_execute_spl_transfer_with_verifier(
-        &mut self,
-        asset: Pubkey,
-        mint: Pubkey,
-        sender_token_account: Pubkey,
-        recipient_token_account: Pubkey,
-        amount: u64,
-        passkey: &mut TestPasskey,
-        include_secp_ix: bool,
-        rp_id: &str,
-        verifier: &Keypair,
-        slot_override: Option<(u64, [u8; 32])>,
-    ) -> litesvm::types::TransactionResult {
-        let (remaining, compact) = self.spl_transfer_compact(
-            asset,
-            mint,
-            sender_token_account,
-            recipient_token_account,
-            amount,
-            6,
-        );
-        self.send_execute_inner(
-            asset,
-            compact,
-            remaining,
-            passkey,
-            &[],
-            include_secp_ix,
-            None,
-            slot_override,
-            verifier,
-            rp_id,
-        )
-    }
-
-    pub fn send_execute_lamport_transfer(
-        &mut self,
-        asset: Pubkey,
-        recipient: Pubkey,
-        amount: u64,
-        passkey: &mut TestPasskey,
-    ) -> litesvm::types::TransactionResult {
-        let (remaining, compact) = self.lamport_transfer_compact(asset, recipient, amount);
-        self.send_execute(asset, compact, remaining, passkey, &[])
-    }
-
-    pub fn send_execute_create_mint(
-        &mut self,
-        asset: Pubkey,
-        passkey: &mut TestPasskey,
-        decimals: u8,
-    ) -> (litesvm::types::TransactionResult, Pubkey) {
-        let mint = Keypair::new();
-        let (remaining, compact) = self.create_mint_compact(asset, &mint.pubkey(), decimals);
-        (
-            self.send_execute(asset, compact, remaining, passkey, &[mint.pubkey()]),
-            mint.pubkey(),
-        )
-    }
-
-    /// Generic execute with passkey challenge for the current slot.
-    pub fn send_execute(
-        &mut self,
-        asset: Pubkey,
-        compact_instructions: Vec<CompactInstruction>,
-        remaining: Vec<anchor_lang::solana_program::instruction::AccountMeta>,
-        passkey: &mut TestPasskey,
-        extra_signers: &[Pubkey],
-    ) -> litesvm::types::TransactionResult {
-        self.send_execute_with_options(
-            asset,
-            compact_instructions,
-            remaining,
-            passkey,
-            extra_signers,
-            true,
-            None,
-            None,
-        )
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub fn send_execute_with_options(
-        &mut self,
-        asset: Pubkey,
-        compact_instructions: Vec<CompactInstruction>,
-        remaining: Vec<anchor_lang::solana_program::instruction::AccountMeta>,
-        passkey: &mut TestPasskey,
-        extra_signers: &[Pubkey],
-        include_secp_ix: bool,
-        challenge_override: Option<[u8; 32]>,
-        slot_override: Option<(u64, [u8; 32])>,
-    ) -> litesvm::types::TransactionResult {
-        // Clone so we can pass `&Keypair` without borrowing `self` across the call.
-        let verifier = self.verifier.insecure_clone();
-        self.send_execute_inner(
-            asset,
-            compact_instructions,
-            remaining,
-            passkey,
-            extra_signers,
-            include_secp_ix,
-            challenge_override,
-            slot_override,
-            &verifier,
-            TEST_RP_ID,
-        )
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    fn send_execute_inner(
-        &mut self,
-        asset: Pubkey,
-        compact_instructions: Vec<CompactInstruction>,
-        remaining: Vec<anchor_lang::solana_program::instruction::AccountMeta>,
-        passkey: &mut TestPasskey,
-        extra_signers: &[Pubkey],
-        include_secp_ix: bool,
-        challenge_override: Option<[u8; 32]>,
-        slot_override: Option<(u64, [u8; 32])>,
-        verifier: &Keypair,
-        rp_id: &str,
-    ) -> litesvm::types::TransactionResult {
-        let (slot_number, slot_hash) =
-            slot_override.unwrap_or_else(|| current_slot_entry(&self.svm));
-        let challenge = challenge_override.unwrap_or_else(|| {
-            let remaining_keys: Vec<_> = remaining.iter().map(|m| m.pubkey).collect();
-            build_execute_challenge(slot_hash, &compact_instructions, &remaining_keys)
-        });
-        let (secp_ix, verify_args) =
-            passkey.verify_asset_secp256r1_instruction_with_rp_id(challenge, rp_id);
-        let execute_ix = self.execute_ix(
-            asset,
-            compact_instructions,
-            remaining,
-            verify_args,
-            slot_number,
-            verifier.pubkey(),
-        );
-
-        let instructions = if include_secp_ix {
-            vec![secp_ix, execute_ix]
-        } else {
-            vec![execute_ix]
-        };
-
-        let mut signers = vec![self.payer.pubkey()];
-        if verifier.pubkey() != self.payer.pubkey() {
-            signers.push(verifier.pubkey());
-        }
-        for s in extra_signers {
-            if !signers.contains(s) {
-                signers.push(*s);
-            }
-        }
-        Self::send_instructions(&mut self.svm, &instructions, &signers)
-    }
-
-    /// Compact burn_checked of `amount` from a wallet-owned token account.
-    pub fn burn_compact(
-        &self,
-        asset: Pubkey,
-        mint: Pubkey,
-        token_account: Pubkey,
-        amount: u64,
-        decimals: u8,
-    ) -> (
-        Vec<anchor_lang::solana_program::instruction::AccountMeta>,
-        Vec<CompactInstruction>,
-    ) {
-        let wallet = self.wallet(asset);
-        let burn_ix = burn_checked(
-            &TOKEN_2022_ID,
-            &token_account,
-            &mint,
-            &wallet,
-            &[],
-            amount,
-            decimals,
-        )
-        .expect("burn_checked");
-        let remaining = vec![
-            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(TOKEN_2022_ID, false),
-            anchor_lang::solana_program::instruction::AccountMeta::new(token_account, false),
-            anchor_lang::solana_program::instruction::AccountMeta::new(mint, false),
-            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(wallet, false),
-        ];
-        let compact = vec![CompactInstruction {
-            program_id_index: 0,
-            account_indexes: vec![1, 2, 3],
-            data: burn_ix.data,
-        }];
-        (remaining, compact)
-    }
-
-    /// Compact close_account — destination receives reclaimed rent lamports.
-    pub fn close_token_account_compact(
-        &self,
-        asset: Pubkey,
-        token_account: Pubkey,
-        destination: Pubkey,
-    ) -> (
-        Vec<anchor_lang::solana_program::instruction::AccountMeta>,
-        Vec<CompactInstruction>,
-    ) {
-        let wallet = self.wallet(asset);
-        let close_ix =
-            close_account(&TOKEN_2022_ID, &token_account, &destination, &wallet, &[])
-                .expect("close_account");
-        let remaining = vec![
-            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(TOKEN_2022_ID, false),
-            anchor_lang::solana_program::instruction::AccountMeta::new(token_account, false),
-            anchor_lang::solana_program::instruction::AccountMeta::new(destination, false),
-            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(wallet, false),
-        ];
-        let compact = vec![CompactInstruction {
-            program_id_index: 0,
-            account_indexes: vec![1, 2, 3],
-            data: close_ix.data,
-        }];
-        (remaining, compact)
-    }
-
     /// Two SPL transfer_checked CPIs in one execute (same mint).
     pub fn dual_spl_transfer_compact(
         &self,
@@ -1233,10 +806,7 @@ impl TestContext {
         amount_a: u64,
         amount_b: u64,
         decimals: u8,
-    ) -> (
-        Vec<anchor_lang::solana_program::instruction::AccountMeta>,
-        Vec<CompactInstruction>,
-    ) {
+    ) -> (Vec<AccountMeta>, Vec<CompactInstruction>) {
         let wallet = self.wallet(asset);
         let ix_a = transfer_checked(
             &TOKEN_2022_ID,
@@ -1263,12 +833,12 @@ impl TestContext {
 
         // 0 token_program, 1 sender, 2 mint, 3 recip_a, 4 recip_b, 5 wallet
         let remaining = vec![
-            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(TOKEN_2022_ID, false),
-            anchor_lang::solana_program::instruction::AccountMeta::new(sender_token, false),
-            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(mint, false),
-            anchor_lang::solana_program::instruction::AccountMeta::new(recipient_a, false),
-            anchor_lang::solana_program::instruction::AccountMeta::new(recipient_b, false),
-            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(wallet, false),
+            AccountMeta::new_readonly(TOKEN_2022_ID, false),
+            AccountMeta::new(sender_token, false),
+            AccountMeta::new_readonly(mint, false),
+            AccountMeta::new(recipient_a, false),
+            AccountMeta::new(recipient_b, false),
+            AccountMeta::new_readonly(wallet, false),
         ];
         let compact = vec![
             CompactInstruction {
@@ -1296,10 +866,7 @@ impl TestContext {
         recipient_token: Pubkey,
         token_amount: u64,
         decimals: u8,
-    ) -> (
-        Vec<anchor_lang::solana_program::instruction::AccountMeta>,
-        Vec<CompactInstruction>,
-    ) {
+    ) -> (Vec<AccountMeta>, Vec<CompactInstruction>) {
         let wallet = self.wallet(asset);
         let sol_ix = system_instruction::transfer(&wallet, &sol_recipient, sol_amount);
         let spl_ix = transfer_checked(
@@ -1316,16 +883,13 @@ impl TestContext {
 
         // 0 system, 1 wallet, 2 sol_recipient, 3 token_program, 4 sender, 5 mint, 6 recip_token
         let remaining = vec![
-            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                anchor_lang::system_program::ID,
-                false,
-            ),
-            anchor_lang::solana_program::instruction::AccountMeta::new(wallet, false),
-            anchor_lang::solana_program::instruction::AccountMeta::new(sol_recipient, false),
-            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(TOKEN_2022_ID, false),
-            anchor_lang::solana_program::instruction::AccountMeta::new(sender_token, false),
-            anchor_lang::solana_program::instruction::AccountMeta::new_readonly(mint, false),
-            anchor_lang::solana_program::instruction::AccountMeta::new(recipient_token, false),
+            AccountMeta::new_readonly(anchor_lang::system_program::ID, false),
+            AccountMeta::new(wallet, false),
+            AccountMeta::new(sol_recipient, false),
+            AccountMeta::new_readonly(TOKEN_2022_ID, false),
+            AccountMeta::new(sender_token, false),
+            AccountMeta::new_readonly(mint, false),
+            AccountMeta::new(recipient_token, false),
         ];
         let compact = vec![
             CompactInstruction {
@@ -1342,9 +906,350 @@ impl TestContext {
         (remaining, compact)
     }
 
+    /// Compact burn_checked of `amount` from a wallet-owned token account.
+    pub fn burn_compact(
+        &self,
+        asset: Pubkey,
+        mint: Pubkey,
+        token_account: Pubkey,
+        amount: u64,
+        decimals: u8,
+    ) -> (Vec<AccountMeta>, Vec<CompactInstruction>) {
+        let wallet = self.wallet(asset);
+        let burn_ix = burn_checked(
+            &TOKEN_2022_ID,
+            &token_account,
+            &mint,
+            &wallet,
+            &[],
+            amount,
+            decimals,
+        )
+        .expect("burn_checked");
+        let remaining = vec![
+            AccountMeta::new_readonly(TOKEN_2022_ID, false),
+            AccountMeta::new(token_account, false),
+            AccountMeta::new(mint, false),
+            AccountMeta::new_readonly(wallet, false),
+        ];
+        let compact = vec![CompactInstruction {
+            program_id_index: 0,
+            account_indexes: vec![1, 2, 3],
+            data: burn_ix.data,
+        }];
+        (remaining, compact)
+    }
+
+    /// Compact SPL `approve_checked` (wallet as owner) — an escape instruction the
+    /// policy must deny. Denial happens pre-CPI, so account ownership is irrelevant.
+    pub fn approve_compact(
+        &self,
+        asset: Pubkey,
+        mint: Pubkey,
+        token_account: Pubkey,
+        delegate: Pubkey,
+        amount: u64,
+        decimals: u8,
+    ) -> (Vec<AccountMeta>, Vec<CompactInstruction>) {
+        let wallet = self.wallet(asset);
+        let ix = approve_checked(
+            &TOKEN_2022_ID,
+            &token_account,
+            &mint,
+            &delegate,
+            &wallet,
+            &[],
+            amount,
+            decimals,
+        )
+        .expect("approve_checked");
+        let remaining = vec![
+            AccountMeta::new_readonly(TOKEN_2022_ID, false),
+            AccountMeta::new(token_account, false),
+            AccountMeta::new_readonly(mint, false),
+            AccountMeta::new_readonly(delegate, false),
+            AccountMeta::new_readonly(wallet, false),
+        ];
+        let compact = vec![CompactInstruction {
+            program_id_index: 0,
+            account_indexes: vec![1, 2, 3, 4],
+            data: ix.data,
+        }];
+        (remaining, compact)
+    }
+
+    /// Compact SPL `set_authority` (change account owner) — an escape instruction.
+    pub fn set_authority_compact(
+        &self,
+        asset: Pubkey,
+        token_account: Pubkey,
+        new_authority: Pubkey,
+    ) -> (Vec<AccountMeta>, Vec<CompactInstruction>) {
+        let wallet = self.wallet(asset);
+        let ix = set_authority(
+            &TOKEN_2022_ID,
+            &token_account,
+            Some(&new_authority),
+            AuthorityType::AccountOwner,
+            &wallet,
+            &[],
+        )
+        .expect("set_authority");
+        let remaining = vec![
+            AccountMeta::new_readonly(TOKEN_2022_ID, false),
+            AccountMeta::new(token_account, false),
+            AccountMeta::new_readonly(wallet, false),
+        ];
+        let compact = vec![CompactInstruction {
+            program_id_index: 0,
+            account_indexes: vec![1, 2],
+            data: ix.data,
+        }];
+        (remaining, compact)
+    }
+
+    /// Compact System `assign` of the wallet PDA to another program — an escape.
+    pub fn assign_compact(
+        &self,
+        asset: Pubkey,
+        new_owner: Pubkey,
+    ) -> (Vec<AccountMeta>, Vec<CompactInstruction>) {
+        let wallet = self.wallet(asset);
+        let ix = system_instruction::assign(&wallet, &new_owner);
+        let remaining = vec![
+            AccountMeta::new_readonly(anchor_lang::system_program::ID, false),
+            AccountMeta::new(wallet, false),
+        ];
+        let compact = vec![CompactInstruction {
+            program_id_index: 0,
+            account_indexes: vec![1],
+            data: ix.data,
+        }];
+        (remaining, compact)
+    }
+
+    /// Compact close_account — destination receives reclaimed rent lamports.
+    pub fn close_token_account_compact(
+        &self,
+        asset: Pubkey,
+        token_account: Pubkey,
+        destination: Pubkey,
+    ) -> (Vec<AccountMeta>, Vec<CompactInstruction>) {
+        let wallet = self.wallet(asset);
+        let close_ix = close_account(&TOKEN_2022_ID, &token_account, &destination, &wallet, &[])
+            .expect("close_account");
+        let remaining = vec![
+            AccountMeta::new_readonly(TOKEN_2022_ID, false),
+            AccountMeta::new(token_account, false),
+            AccountMeta::new(destination, false),
+            AccountMeta::new_readonly(wallet, false),
+        ];
+        let compact = vec![CompactInstruction {
+            program_id_index: 0,
+            account_indexes: vec![1, 2, 3],
+            data: close_ix.data,
+        }];
+        (remaining, compact)
+    }
+
+    // --- execute ---
+
+    /// Passkey-path execute instruction.
+    pub fn execute_ix(
+        &self,
+        asset: Pubkey,
+        compact_instructions: Vec<CompactInstruction>,
+        remaining: Vec<AccountMeta>,
+        secp256r1_verify_args: Secp256r1VerifyArgs,
+        slot_number: u64,
+    ) -> Instruction {
+        let mut accounts = phygital_wallet::accounts::Execute {
+            phygital_token: asset,
+            wallet: self.wallet(asset),
+            authority_account: self.authority_pda(asset),
+            slot_hashes: SLOT_HASHES_SYSVAR_ID,
+            instructions_sysvar: INSTRUCTIONS_SYSVAR_ID,
+            phygital_token_program: phygital_token_client::PHYGITAL_TOKEN_ID,
+        }
+        .to_account_metas(None);
+        accounts.extend(remaining);
+
+        Instruction {
+            program_id: self.program_id,
+            accounts,
+            data: phygital_wallet::instruction::Execute {
+                compact_instructions,
+                secp256r1_verify_args,
+                slot_number,
+            }
+            .data(),
+        }
+    }
+
+    /// Authority-path execute instruction.
+    pub fn execute_authority_ix(
+        &self,
+        asset: Pubkey,
+        authority: Pubkey,
+        compact_instructions: Vec<CompactInstruction>,
+        remaining: Vec<AccountMeta>,
+    ) -> Instruction {
+        let mut accounts = phygital_wallet::accounts::ExecuteWithAuthority {
+            authority,
+            phygital_token: asset,
+            authority_account: self.authority_pda(asset),
+            wallet: self.wallet(asset),
+            instructions_sysvar: INSTRUCTIONS_SYSVAR_ID,
+        }
+        .to_account_metas(None);
+        accounts.extend(remaining);
+
+        Instruction {
+            program_id: self.program_id,
+            accounts,
+            data: phygital_wallet::instruction::ExecuteWithAuthority {
+                compact_instructions,
+            }
+            .data(),
+        }
+    }
+
+    /// Passkey-path execute over the current slot.
+    pub fn send_execute(
+        &mut self,
+        asset: Pubkey,
+        compact_instructions: Vec<CompactInstruction>,
+        remaining: Vec<AccountMeta>,
+        passkey: &mut TestPasskey,
+        extra_signers: &[Pubkey],
+    ) -> litesvm::types::TransactionResult {
+        self.send_execute_opts(
+            asset,
+            compact_instructions,
+            remaining,
+            passkey,
+            extra_signers,
+            true,
+            None,
+            None,
+            TEST_RP_ID,
+            TEST_ORIGIN,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn send_execute_opts(
+        &mut self,
+        asset: Pubkey,
+        compact_instructions: Vec<CompactInstruction>,
+        remaining: Vec<AccountMeta>,
+        passkey: &mut TestPasskey,
+        extra_signers: &[Pubkey],
+        include_secp_ix: bool,
+        challenge_override: Option<[u8; 32]>,
+        slot_override: Option<(u64, [u8; 32])>,
+        rp_id: &str,
+        origin: &str,
+    ) -> litesvm::types::TransactionResult {
+        let (slot_number, slot_hash) =
+            slot_override.unwrap_or_else(|| current_slot_entry(&self.svm));
+        let challenge = challenge_override.unwrap_or_else(|| {
+            let remaining_keys: Vec<_> = remaining.iter().map(|m| m.pubkey).collect();
+            build_execute_challenge(slot_hash, &compact_instructions, &remaining_keys)
+        });
+        let (secp_ix, verify_args) =
+            passkey.verify_asset_secp256r1_instruction_with_origin(challenge, rp_id, origin);
+        let execute_ix = self.execute_ix(
+            asset,
+            compact_instructions,
+            remaining,
+            verify_args,
+            slot_number,
+        );
+        let instructions = if include_secp_ix {
+            vec![secp_ix, execute_ix]
+        } else {
+            vec![execute_ix]
+        };
+        let mut signers = vec![self.payer.pubkey()];
+        for s in extra_signers {
+            if !signers.contains(s) {
+                signers.push(*s);
+            }
+        }
+        Self::send_instructions(&mut self.svm, &instructions, &signers)
+    }
+
+    /// Authority-path execute (no passkey, no policy checks).
+    pub fn send_execute_with_authority(
+        &mut self,
+        asset: Pubkey,
+        compact_instructions: Vec<CompactInstruction>,
+        remaining: Vec<AccountMeta>,
+        authority: &Keypair,
+        extra_signers: &[Pubkey],
+    ) -> litesvm::types::TransactionResult {
+        let execute_ix =
+            self.execute_authority_ix(asset, authority.pubkey(), compact_instructions, remaining);
+        let mut signers = vec![self.payer.pubkey(), authority.pubkey()];
+        for s in extra_signers {
+            if !signers.contains(s) {
+                signers.push(*s);
+            }
+        }
+        Self::send_instructions(&mut self.svm, &[execute_ix], &signers)
+    }
+
+    pub fn send_execute_spl_transfer(
+        &mut self,
+        asset: Pubkey,
+        mint: Pubkey,
+        sender_token_account: Pubkey,
+        recipient_token_account: Pubkey,
+        amount: u64,
+        passkey: &mut TestPasskey,
+    ) -> litesvm::types::TransactionResult {
+        let (remaining, compact) = self.spl_transfer_compact(
+            asset,
+            mint,
+            sender_token_account,
+            recipient_token_account,
+            amount,
+            6,
+        );
+        self.send_execute(asset, compact, remaining, passkey, &[])
+    }
+
+    pub fn send_execute_lamport_transfer(
+        &mut self,
+        asset: Pubkey,
+        recipient: Pubkey,
+        amount: u64,
+        passkey: &mut TestPasskey,
+    ) -> litesvm::types::TransactionResult {
+        let (remaining, compact) = self.lamport_transfer_compact(asset, recipient, amount);
+        self.send_execute(asset, compact, remaining, passkey, &[])
+    }
+
+    pub fn send_execute_create_mint(
+        &mut self,
+        asset: Pubkey,
+        passkey: &mut TestPasskey,
+        decimals: u8,
+    ) -> (litesvm::types::TransactionResult, Pubkey) {
+        let mint = Keypair::new();
+        let (remaining, compact) = self.create_mint_compact(asset, &mint.pubkey(), decimals);
+        (
+            self.send_execute(asset, compact, remaining, passkey, &[mint.pubkey()]),
+            mint.pubkey(),
+        )
+    }
+
+    // --- raw send ---
+
     pub fn send_instruction(
         svm: &mut LiteSVM,
-        instruction: anchor_lang::solana_program::instruction::Instruction,
+        instruction: Instruction,
         signers: &[Pubkey],
     ) -> litesvm::types::TransactionResult {
         Self::send_instructions(svm, &[instruction], signers)
@@ -1352,7 +1257,7 @@ impl TestContext {
 
     pub fn send_instructions(
         svm: &mut LiteSVM,
-        instructions: &[anchor_lang::solana_program::instruction::Instruction],
+        instructions: &[Instruction],
         signers: &[Pubkey],
     ) -> litesvm::types::TransactionResult {
         let blockhash = svm.latest_blockhash();
@@ -1369,6 +1274,25 @@ impl TestContext {
     }
 }
 
+// --- policy arg builders ---
+
+pub fn mint_cap(mint: Pubkey, cap: u64, window_seconds: i64) -> MintCapArg {
+    MintCapArg {
+        mint,
+        cap,
+        window_seconds,
+        ..Default::default()
+    }
+}
+
+pub fn policy_args(mint_caps: Vec<MintCapArg>) -> WalletPolicyArgs {
+    WalletPolicyArgs {
+        sol_cap: None,
+        mint_caps,
+        program_permissions: vec![],
+    }
+}
+
 fn program_artifact_paths(manifest_dir: &std::path::Path, name: &str) -> Vec<std::path::PathBuf> {
     let mut paths = Vec::new();
     if let Ok(cargo_target_dir) = std::env::var("CARGO_TARGET_DIR") {
@@ -1381,9 +1305,6 @@ fn program_artifact_paths(manifest_dir: &std::path::Path, name: &str) -> Vec<std
 fn phygital_token_artifact_paths(manifest_dir: &std::path::Path) -> Vec<std::path::PathBuf> {
     let mut paths = vec![manifest_dir.join("../../phygital_token.so")];
     paths.extend(program_artifact_paths(manifest_dir, "phygital_token"));
-    paths.push(
-        manifest_dir
-            .join("../../../phygital-token/target/deploy/phygital_token.so"),
-    );
+    paths.push(manifest_dir.join("../../../phygital-token/target/deploy/phygital_token.so"));
     paths
 }

@@ -4,33 +4,44 @@ use anchor_lang::prelude::*;
 pub const PROGRAM_WALLET_SEED: &[u8] = b"program_wallet";
 
 #[constant]
-pub const CONFIG_SEED: &[u8] = b"config";
+pub const AUTHORITY_SEED: &[u8] = b"authority";
 
 #[constant]
-pub const TOKEN_VERIFIER_SEED: &[u8] = b"token_verifier";
-
-#[constant]
-pub const RECOVERY_WALLET_SEED: &[u8] = b"recovery_wallet";
-
-/// Maximum number of admin-authorized default verifiers.
-pub const MAX_VERIFIERS: usize = 8;
-
-/// Max length of the token-verifier submit endpoint URL.
-pub const MAX_ENDPOINT_LEN: usize = 128;
 
 /// Execute challenge: `SHA256(prefix || slot_hash || instructions_hash || accounts_hash)`.
 pub const EXECUTE_CHALLENGE_PREFIX: &[u8] = b"phygital_wallet:execute:v2";
 
-/// Set token verifier challenge prefix (plus slot_hash || verifier || endpoint).
-pub const SET_TOKEN_VERIFIER_CHALLENGE_PREFIX: &[u8] = b"phygital_wallet:set_tv:v1";
+/// Set authority: `SHA256(prefix || slot_hash || phygital_token || authority)`.
+pub const SET_AUTHORITY_CHALLENGE_PREFIX: &[u8] = b"phygital_wallet:set_authority:v1";
 
-/// Clear token verifier challenge: `SHA256(prefix || slot_hash)`.
-pub const CLEAR_TOKEN_VERIFIER_CHALLENGE_PREFIX: &[u8] = b"phygital_wallet:clear_tv:v1";
+pub const SPL_TOKEN_PROGRAM_ID: Pubkey = pubkey!("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
+pub const TOKEN_2022_PROGRAM_ID: Pubkey = pubkey!("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
+/// Re-exported from `solana-sdk-ids` so the value has a single source of truth
+/// (shared with `utils::policy`) rather than a hand-typed literal that can drift.
+pub use solana_sdk_ids::system_program::ID as SYSTEM_PROGRAM_ID;
+pub const ASSOCIATED_TOKEN_PROGRAM_ID: Pubkey =
+    pubkey!("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
 
-/// Set recovery wallet: `SHA256(prefix || slot_hash || phygital_token || recovery_wallet)`.
-pub const SET_RECOVERY_WALLET_CHALLENGE_PREFIX: &[u8] = b"phygital_wallet:set_rw:v1";
+/// Baseline direct-CPI programs when no explicit permission overrides a program.
+/// Denied/Restricted entries replace this default. AllInstructions can extend it.
+/// Spending caps and token-control checks are enforced separately.
+#[inline]
+pub fn is_policy_allowed_program(program_id: &Pubkey) -> bool {
+    *program_id == SYSTEM_PROGRAM_ID
+        || *program_id == SPL_TOKEN_PROGRAM_ID
+        || *program_id == TOKEN_2022_PROGRAM_ID
+        || *program_id == ASSOCIATED_TOKEN_PROGRAM_ID
+}
 
-/// Clear recovery wallet: `SHA256(prefix || slot_hash || phygital_token)`.
-pub const CLEAR_RECOVERY_WALLET_CHALLENGE_PREFIX: &[u8] = b"phygital_wallet:clear_rw:v1";
+/// Wrapped-SOL native mints. Both are SOL-equivalent (1 base unit = 1 lamport) and
+/// fold into the native SOL spend cap rather than being separately cappable mints.
+/// Classic SPL Token native mint:
+pub const WSOL_MINT: Pubkey = pubkey!("So11111111111111111111111111111111111111112");
+/// Token-2022 native mint:
+pub const WSOL_MINT_2022: Pubkey = pubkey!("9pan9bMn5HatX4EJdBwg9VgCa7Uz5HL8N1m5D3NdXejP");
 
-pub const ADMIN: Pubkey = pubkey!("G6kBnedts6uAivtY72ToaFHBs1UVbT9udiXmQZgMEjoF");
+/// A wrapped-SOL mint (either token program's native mint).
+#[inline]
+pub fn is_wsol_mint(mint: &Pubkey) -> bool {
+    *mint == WSOL_MINT || *mint == WSOL_MINT_2022
+}

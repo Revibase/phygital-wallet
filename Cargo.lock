@@ -2115,6 +2115,7 @@ dependencies = [
  "rand 0.8.7",
  "sha2 0.10.9",
  "solana-account",
+ "solana-instructions-sysvar",
  "solana-keypair",
  "solana-message",
  "solana-sdk-ids",

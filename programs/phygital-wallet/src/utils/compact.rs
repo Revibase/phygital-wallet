@@ -95,9 +95,10 @@ pub(crate) fn hash_referenced_accounts_infos<'info>(
 ///
 /// Batch size is bounded by Solana transaction size / CU, not a program constant.
 ///
-/// `protected_accounts` (verifier, config, token_verifier, phygital_token, …) may
-/// appear in inner metas only as non-signer / non-writable. Wallet is not
-/// protected — it is the vault signer.
+/// Protected accounts (phygital token and authority PDA) may appear in direct
+/// inner metas only as non-signer/non-writable. The wallet PDA signs the action.
+/// Permissions gate these direct calls; they do not inspect every nested CPI.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn execute_compact_instructions<'info>(
     program_id: &Pubkey,
     wallet: &AccountInfo<'info>,
@@ -106,6 +107,8 @@ pub(crate) fn execute_compact_instructions<'info>(
     protected_accounts: &[&Pubkey],
     remaining_accounts: &[AccountInfo<'info>],
     compact_instructions: &mut [CompactInstruction],
+    // None is the explicit authority/no-policy bypass. Some(empty) is baseline.
+    program_permissions: Option<&[crate::ProgramPermission]>,
 ) -> Result<()> {
     let wallet_owner_before = *wallet.owner;
     let wallet_data_len_before = wallet.data_len();
@@ -136,6 +139,15 @@ pub(crate) fn execute_compact_instructions<'info>(
             phygital_token_client::PHYGITAL_TOKEN_ID,
             PhygitalError::PhygitalTokenCpiNotAllowed
         );
+        if let Some(permissions) = program_permissions {
+            crate::instruction_policy::check_instruction(
+                permissions,
+                &target_program,
+                compact,
+                remaining_accounts,
+                wallet.key,
+            )?;
+        }
 
         metas.clear();
         metas.reserve(compact.account_indexes.len());

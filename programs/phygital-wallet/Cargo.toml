@@ -23,9 +23,10 @@ custom-heap = []
 custom-panic = []
 
 [dependencies]
-anchor-lang = { version = "1.0.2", features = ["init-if-needed"] }
+anchor-lang = "1.0.2"
 bytemuck = { version = "1.21", features = ["derive", "min_const_generics"] }
 phygital-token-client = { version = "1.0.1", features = ["anchor"] }
+solana-instructions-sysvar = "3"
 solana-sdk-ids = "3"
 solana-sha256-hasher = "3"
 
