@@ -17,7 +17,6 @@ import {
 import { useTapVerify } from "@/hooks/token/use-tap-verify";
 import { copy } from "@/lib/copy/phygital";
 import { toUserErrorMessage } from "@/lib/user-errors";
-import { clearClaimDismiss } from "@/lib/wallet/claim-setup-href";
 import { tokenHasLinkedMint } from "@/lib/phygital/token";
 import { queryKeys } from "@/lib/queries";
 import { tokenHref, walletHref } from "@/lib/wallet/token-routes";
@@ -54,9 +53,8 @@ export function TokenNfcApp({ nfcCopy }: { nfcCopy: TokenNfcCopy }) {
   useEffect(() => {
     if (!tokenQuery.data) return;
     const pda = String(tokenQuery.data.address);
-    // Browse-unlock cookie was minted by the app-session exchange.
-    clearClaimDismiss(pda);
-    queryClient.setQueryData(queryKeys.deviceAuth.browseUnlock(pda), true);
+    // Browse-unlock cookie was minted by /accessory/unlock/tap.
+    queryClient.setQueryData(queryKeys.browseUnlock.byToken(pda), true);
     router.replace(
       tokenHasLinkedMint(tokenQuery.data) ? tokenHref(pda) : walletHref(pda)
     );
@@ -68,7 +66,7 @@ export function TokenNfcApp({ nfcCopy }: { nfcCopy: TokenNfcCopy }) {
     if (!connection) return;
     try {
       const { phygitalToken: pda } = connection;
-      queryClient.setQueryData(queryKeys.deviceAuth.browseUnlock(pda), true);
+      queryClient.setQueryData(queryKeys.browseUnlock.byToken(pda), true);
       // Address page redirects unminted → wallet; minted lands on card.
       router.replace(tokenHref(pda));
     } catch (e) {

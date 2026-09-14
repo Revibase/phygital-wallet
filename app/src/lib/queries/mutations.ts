@@ -19,29 +19,12 @@ import type {
   WalletActivityItem,
   WalletPortfolio,
 } from "@/lib/wallet/portfolio-types";
-import type { EffectivePolicy } from "@/lib/wallet/policies-client";
 import {
   FEE_BALANCE_LOW_LAMPORTS,
   lamportsToSolUi,
 } from "@/lib/wallet/network-fee";
 
 import { queryKeys } from "./keys";
-
-/** Mirrors `useRecoveryWallet` query data. */
-export type RecoveryWalletCache = {
-  configured: boolean;
-  recoveryWallet: string | null;
-  payer: string | null;
-};
-
-/** Mirrors `useTokenVerifier` query data. */
-export type TokenVerifierCache = {
-  custom: boolean;
-  verifier: string | null;
-  endpoint: string | null;
-  payer: string | null;
-  usesDefaultPaymaster: boolean;
-};
 
 /** First-page sizes used by `useWalletActivity` (default) and ActivityAllSheet. */
 const ACTIVITY_FIRST_PAGE_LIMITS = [20, 40] as const;
@@ -340,74 +323,6 @@ export function invalidatePhygitalToken(
       return cachedTokenAddress(query.state.data) === tokenAddress;
     },
   });
-}
-
-/**
- * Replace the shared policy cache after PUT/DELETE.
- */
-export function applyWalletPolicy(
-  queryClient: QueryClient,
-  phygitalToken: string,
-  effective: EffectivePolicy
-): void {
-  queryClient.setQueryData(
-    queryKeys.walletPolicy.byToken(phygitalToken),
-    effective
-  );
-}
-
-/**
- * Patch recovery-wallet settings on RPC accept. Returns previous for restore.
- */
-export function applyOptimisticRecoveryWallet(
-  queryClient: QueryClient,
-  token: string,
-  next: RecoveryWalletCache
-): RecoveryWalletCache | undefined {
-  const key = queryKeys.recoveryWallet.byToken(token);
-  const previous = queryClient.getQueryData<RecoveryWalletCache>(key);
-  queryClient.setQueryData(key, next);
-  return previous;
-}
-
-export function restoreRecoveryWalletSnapshot(
-  queryClient: QueryClient,
-  token: string,
-  previous: RecoveryWalletCache | undefined
-): void {
-  const key = queryKeys.recoveryWallet.byToken(token);
-  if (previous === undefined) {
-    queryClient.removeQueries({ queryKey: key });
-    return;
-  }
-  queryClient.setQueryData(key, previous);
-}
-
-/**
- * Patch token-verifier override on RPC accept. Returns previous for restore.
- */
-export function applyOptimisticTokenVerifier(
-  queryClient: QueryClient,
-  token: string,
-  next: TokenVerifierCache
-): TokenVerifierCache | undefined {
-  const key = queryKeys.tokenVerifier.byToken(token);
-  const previous = queryClient.getQueryData<TokenVerifierCache>(key);
-  queryClient.setQueryData(key, next);
-  return previous;
-}
-
-export function restoreTokenVerifierSnapshot(
-  queryClient: QueryClient,
-  token: string,
-  previous: TokenVerifierCache | undefined
-): void {
-  const key = queryKeys.tokenVerifier.byToken(token);
-  if (previous === undefined) {
-    queryClient.removeQueries({ queryKey: key });
-  } else {
-    queryClient.setQueryData(key, previous);
-  }
 }
 
 /** Invalidate DAS / portfolio caches when the active RPC preference changes. */

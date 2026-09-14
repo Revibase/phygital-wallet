@@ -10,21 +10,14 @@ export { queryKeys } from "./keys";
 export {
   applyOptimisticFeeBalance,
   applyOptimisticPortfolioDelta,
-  applyOptimisticRecoveryWallet,
-  applyOptimisticTokenVerifier,
   applyOptimisticWalletActivity,
-  applyWalletPolicy,
   invalidatePhygitalToken,
   invalidateRpcDependentQueries,
   invalidateWalletBalances,
   patchOptimisticWalletActivity,
   restoreFeeBalanceSnapshot,
   restorePortfolioSnapshot,
-  restoreRecoveryWalletSnapshot,
-  restoreTokenVerifierSnapshot,
   restoreWalletActivitySnapshot,
-  type RecoveryWalletCache,
-  type TokenVerifierCache,
   type WalletActivitySnapshot,
 } from "./mutations";
 
@@ -37,26 +30,6 @@ export const queryOptions = {
    * via useResumeQueryRefresh / ownership mutations — not every remount.
    */
   volatile: {
-    staleTime: 30 * SECOND,
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
-  },
-  /**
-   * Device access cookie (~15m; refresh renews silently). Short stale window
-   * avoids remount churn while still refreshing on focus near expiry.
-   */
-  deviceSession: {
-    staleTime: 60 * SECOND,
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
-  },
-  /**
-   * Owned links / link status. Invalidate on link/unlink; otherwise allow a
-   * brief cache so home ↔ token navigation does not always re-GET.
-   */
-  deviceLinks: {
     staleTime: 30 * SECOND,
     refetchOnMount: true,
     refetchOnWindowFocus: true,

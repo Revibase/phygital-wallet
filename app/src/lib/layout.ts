@@ -5,7 +5,7 @@
  * - gallery: minted card detail (room for art + dossier)
  * - home: owned cards/accessories list — phone column → wider desktop
  * - wallet: portfolio chrome — phone stack → desktop rail + main
- * - compact: NFC ceremony / hold / claim — phone-width on all breakpoints
+ * - compact: NFC ceremony / hold — phone-width on all breakpoints
  */
 export const shellLayoutClass = {
   gallery: "max-w-lg md:max-w-3xl lg:max-w-5xl xl:max-w-6xl",

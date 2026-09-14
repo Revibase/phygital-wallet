@@ -6,6 +6,7 @@ use crate::state::{Authority, MintCap, SpendCap, WALLET_POLICY_VERSION};
 use crate::utils::instruction_policy::{
     validate_permissions, ProgramPermission, MAX_PERMISSION_BYTES,
 };
+use crate::utils::phygital_token::locked_controlled;
 use crate::utils::policy::{
     authorize_authority_signer, read_authority_header, reject_durable_nonce,
 };
@@ -68,6 +69,14 @@ pub struct SetWalletPolicy<'info> {
         constraint = rent_receiver.key() != authority_account.key() @ PhygitalError::InvalidAccountData,
     )]
     pub rent_receiver: UncheckedAccount<'info>,
+
+    /// CHECK: owner and locked Controlled state constrained below.
+    #[account(
+        owner = phygital_token_client::PHYGITAL_TOKEN_ID,
+        constraint = locked_controlled(&phygital_token) @ PhygitalError::TokenIsCurrentlyUnLocked,
+        constraint = read_authority_header(&authority_account.to_account_info())?.phygital_token == phygital_token.key(), 
+    )]
+    pub phygital_token: UncheckedAccount<'info>,
 
     /// CHECK: raw account written by hand (resize + bytemuck). Owner, header
     /// version, authority signer and canonical PDA are validated in the handler;
@@ -204,6 +213,14 @@ pub struct ClearWalletPolicy<'info> {
         constraint = rent_receiver.key() != authority_account.key() @ PhygitalError::InvalidAccountData,
     )]
     pub rent_receiver: UncheckedAccount<'info>,
+
+    /// CHECK: owner and locked Controlled state constrained below.
+    #[account(
+        owner = phygital_token_client::PHYGITAL_TOKEN_ID,
+        constraint = locked_controlled(&phygital_token) @ PhygitalError::TokenIsCurrentlyUnLocked,
+        constraint = read_authority_header(&authority_account.to_account_info())?.phygital_token == phygital_token.key(), 
+    )]
+    pub phygital_token: UncheckedAccount<'info>,
 
     /// CHECK: raw account reset by hand. Owner, header version, authority signer
     /// and canonical PDA are validated in the handler (see `SetWalletPolicy`).

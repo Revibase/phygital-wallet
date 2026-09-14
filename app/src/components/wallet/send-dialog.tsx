@@ -15,8 +15,6 @@ import { PolicyDeniedError } from "phygital-wallet-sdk";
 
 import { NavBar } from "@/components/shared/nav-bar";
 import { TokenIcon } from "@/components/shared/token-chip";
-import type { WalletRole } from "@/components/token/token-address-route";
-import { ApprovalSheetBody } from "@/components/wallet/approval-sheet-body";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { FieldLabel, Input } from "@/components/ui/input";
@@ -42,15 +40,7 @@ import { tryParseAddress } from "@/lib/solana/address";
 import { cn, shortAddress } from "@/lib/utils";
 import { toUserErrorMessage } from "@/lib/user-errors";
 import { useFeeBalance } from "@/hooks/wallet/use-fee-balance";
-import { useTokenVerifier } from "@/hooks/wallet/use-token-verifier";
 import { identifyAccessory } from "@/lib/wallet/identify-accessory";
-import { createOneTimeGrant } from "@/lib/wallet/policies-client";
-import { handleOwnerAuthFailure } from "@/lib/wallet/device-sign-in-href";
-import {
-  policyAmountLabel,
-  policyApprovalDetailRows,
-  policySoftDenyBody,
-} from "@/lib/wallet/policy-deny-copy";
 import type { FeeBalance } from "@/lib/wallet/fee-balance-client";
 import type { WalletPortfolio } from "@/lib/wallet/portfolio-types";
 import { sendAssetFromWallet } from "@/lib/wallet/send-asset";
@@ -107,7 +97,6 @@ export function SendDialog({
   onSignPhaseChange,
   onSent,
   onChangeLimits,
-  role = "visitor",
 }: {
   phygitalTokenPda: string;
   walletAddress: string;
@@ -122,7 +111,6 @@ export function SendDialog({
   onSignPhaseChange?: (phase: PhygitalWalletSignPhase | null) => void;
   onSent: () => void;
   onChangeLimits?: (code?: string) => void;
-  role?: WalletRole;
 }) {
   const queryClient = useQueryClient();
   const [asset, setAsset] = useState<SendAssetRef | null>(() =>
@@ -136,26 +124,18 @@ export function SendDialog({
   const [phase, setPhase] = useState<Phase>("form");
   const [busy, setBusy] = useState(false);
   const [hardError, setHardError] = useState<SendHardError | null>(null);
-  const [softDeny, setSoftDeny] = useState<PolicyDeniedError | null>(null);
-  const [visitorPhase, setVisitorPhase] = useState<"denied" | "idle">("idle");
   const sendAbortRef = useRef<AbortController | null>(null);
   const feeBalance = useFeeBalance(phygitalTokenPda);
-  const tokenVerifier = useTokenVerifier(phygitalTokenPda);
-  const usesFeeBalance = tokenVerifier.data?.usesDefaultPaymaster === true;
+  // Always uses the default Revibase paymaster / fee balance now.
+  const usesFeeBalance = true;
   const prefersReducedMotion = useReducedMotion();
   const enter = snapEnter(prefersReducedMotion);
   const amountInputRef = useRef<HTMLInputElement>(null);
-
-  function dismissVisitorSheet() {
-    setSoftDeny(null);
-    setVisitorPhase("idle");
-  }
 
   useEffect(() => {
     setPhase("form");
     setBusy(false);
     setHardError(null);
-    dismissVisitorSheet();
     sendAbortRef.current = null;
     setPickerOpen(false);
     setRecipient("");
@@ -268,8 +248,6 @@ export function SendDialog({
 
     setBusy(true);
     setHardError(null);
-    setSoftDeny(null);
-    setVisitorPhase("idle");
     sendAbortRef.current?.abort();
     const abort = new AbortController();
     sendAbortRef.current = abort;
@@ -301,8 +279,6 @@ export function SendDialog({
           onPhaseChange: (phase) => {
             onSignPhaseChange?.(phase);
             if (isWalletSignCeremonyPhase(phase)) {
-              setSoftDeny(null);
-              setVisitorPhase("idle");
               showHolding();
             }
           },
@@ -380,22 +356,9 @@ export function SendDialog({
         (e instanceof Error && e.name === "AbortError")
       ) {
         setPhase("form");
-        dismissVisitorSheet();
         return;
       }
       if (e instanceof PolicyDeniedError) {
-        if (e.code === "approval_denied") {
-          setSoftDeny(e);
-          setVisitorPhase("denied");
-          setPhase("form");
-          return;
-        }
-        if (e.soft && e.intentHash) {
-          setSoftDeny(e);
-          setVisitorPhase("idle");
-          setPhase("form");
-          return;
-        }
         setPhase("form");
         setHardError({
           code: e.code,
@@ -417,21 +380,6 @@ export function SendDialog({
       if (sendAbortRef.current === abort) {
         sendAbortRef.current = null;
       }
-      setBusy(false);
-    }
-  }
-
-  async function approveOnce() {
-    if (!softDeny?.intentHash) return;
-    setBusy(true);
-    try {
-      await createOneTimeGrant(phygitalTokenPda, softDeny.intentHash);
-      setSoftDeny(null);
-      setVisitorPhase("idle");
-      await runSend();
-    } catch (e) {
-      if (handleOwnerAuthFailure(phygitalTokenPda, e)) return;
-      toast.error(toUserErrorMessage(e));
       setBusy(false);
     }
   }
@@ -792,70 +740,6 @@ export function SendDialog({
                 </GroupedList>
               ) : null}
             </div>
-          </SheetContent>
-        </Sheet>
-
-        <Sheet
-          open={softDeny != null}
-          onOpenChange={(open) => {
-            if (open) return;
-            if (!busy) dismissVisitorSheet();
-          }}
-        >
-          <SheetContent
-            side="bottom"
-            showCloseButton={false}
-            onInteractOutside={(e) => e.preventDefault()}
-            onEscapeKeyDown={(e) => {
-              if (busy) e.preventDefault();
-              else dismissVisitorSheet();
-            }}
-            className="mx-auto max-h-[85vh] max-w-lg overflow-y-auto rounded-t-3xl p-0 md:rounded-3xl"
-          >
-            {softDeny ? (
-              <ApprovalSheetBody
-                title={
-                  role === "owner"
-                    ? copy.wallet.approveSendTitle
-                    : visitorPhase === "denied"
-                    ? copy.wallet.visitorDeniedTitle
-                    : copy.wallet.nearbyPolicyTitle
-                }
-                body={
-                  role === "owner"
-                    ? policySoftDenyBody(softDeny)
-                    : visitorPhase === "denied"
-                    ? copy.wallet.visitorDeniedBody
-                    : copy.wallet.visitorNeedsApprovalBody
-                }
-                hint={
-                  role === "owner" || visitorPhase === "denied"
-                    ? undefined
-                    : copy.wallet.visitorNeedsApprovalHint
-                }
-                amountLabel={
-                  nft
-                    ? asset?.name ?? "1"
-                    : policyAmountLabel(softDeny.details, asset?.symbol) ??
-                      `${amount} ${asset?.symbol ?? ""}`.trim()
-                }
-                recipientLabel={shortAddress(
-                  String(parsedRecipient ?? recipient),
-                  6
-                )}
-                detailRows={policyApprovalDetailRows(softDeny.details, {
-                  omitAmount: true,
-                  omitDestination: true,
-                  omitMint: Boolean(asset?.symbol || softDeny.details?.symbol),
-                  omitTechnical: true,
-                })}
-                busy={busy}
-                mode={role === "owner" ? "owner" : "visitor"}
-                visitorPhase={role === "owner" ? "idle" : visitorPhase}
-                onApprove={() => void approveOnce()}
-                onClose={() => dismissVisitorSheet()}
-              />
-            ) : null}
           </SheetContent>
         </Sheet>
       </m.div>

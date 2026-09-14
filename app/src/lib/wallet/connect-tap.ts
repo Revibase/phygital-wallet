@@ -2,22 +2,12 @@
  * NFC dynamic-URL cold start — app-owned (deliberately not in the consumer SDK,
  * since only the Revibase app ever receives these URLs).
  *
- *   { pk, s, c, n } → resolve the token's verifier → POST {verifier}/connect/tap
- *                   → bearer → POST /auth/app-session → browse cookie
+ *   { pk, s, c, n } → POST /accessory/unlock/tap → browse-unlock cookie
  *
- * The bearer comes from the token's *own* verifier, so it works for `/preview`
- * and `/sign` even when that verifier is a third party, and the app-session
- * exchange can validate it against the on-chain verifier set.
+ * The api worker verifies the chip signature, resolves the token PDA, and sets
+ * the `browse_unlock` cookie. No client-side token resolution or bearer.
  */
-import {
-  fetchPhygitalTokenByIdentifier,
-  findPhygitalTokenPda,
-} from "phygital-token-sdk";
-import { normalizeVerifierApiBase, resolveVerifier } from "phygital-wallet-sdk";
-import type { Address } from "@solana/kit";
-
-import { getSolanaRpc } from "@/lib/solana/rpc";
-import { adoptVerifierSession } from "@/lib/wallet/verifier-session";
+import { queryFetch, readJson } from "@/lib/queries/http";
 
 export type DynamicTapParams = {
   pk: string;
@@ -35,35 +25,24 @@ export type DynamicTapConnection = {
 export async function connectDynamicTap(
   params: DynamicTapParams
 ): Promise<DynamicTapConnection> {
-  const rpc = getSolanaRpc();
-
-  // Resolve the chip's token so we know which verifier to connect to.
-  const account = await fetchPhygitalTokenByIdentifier(rpc, params.pk);
-  if (!account) {
-    throw new Error("No phygital token for this accessory");
-  }
-  const phygitalToken = await findPhygitalTokenPda(account.publicKey);
-
-  const resolved = await resolveVerifier(rpc, phygitalToken);
-  const url = `${normalizeVerifierApiBase(resolved.endpoint)}/connect/tap`;
-
-  const res = await fetch(url, {
+  const res = await queryFetch("/accessory/unlock/tap", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ phygitalToken, ...params }),
+    body: JSON.stringify(params),
   });
-  const body = (await res.json().catch(() => ({}))) as {
-    accessToken?: string;
+  const body = await readJson<{
+    isVerified: boolean;
+    phygitalToken?: string;
     expiresAt?: number;
-    error?: string;
-  };
-  if (!res.ok || !body.accessToken) {
-    throw new Error(body.error ?? "verification failed");
+  }>(res, "verification failed");
+
+  if (!body.isVerified || !body.phygitalToken) {
+    throw new Error("No phygital token for this accessory");
   }
 
-  const { expiresAt } = await adoptVerifierSession(phygitalToken, {
-    accessToken: body.accessToken,
+  return {
+    phygitalToken: body.phygitalToken,
+    identifier: params.pk,
     expiresAt: body.expiresAt ?? Date.now(),
-  });
-  return { phygitalToken, identifier: params.pk, expiresAt };
+  };
 }

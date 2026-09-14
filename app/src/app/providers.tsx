@@ -1,10 +1,15 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { QueryClient } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
+import {
+  HeliusWalletProvider,
+  type HeliusWalletConfig,
+} from "helius-wallet-kit";
 
 import { Toaster } from "@/components/ui/sonner";
+import { isMainnet } from "@/lib/solana/cluster";
 import { useResumeQueryRefresh } from "@/hooks/layout/use-resume-query-refresh";
 import { RpcPreferenceProvider } from "@/hooks/wallet/use-rpc-preference";
 import {
@@ -33,6 +38,12 @@ export function AppProviders({ children }: { children: ReactNode }) {
   );
   const [persister] = useState(() => createQueryPersister());
 
+  // Key-less: the API key stays server-side behind `/api/helius/*`.
+  const heliusConfig = useMemo<HeliusWalletConfig>(
+    () => ({ cluster: isMainnet() ? "mainnet-beta" : "devnet" }),
+    []
+  );
+
   return (
     <PersistQueryClientProvider
       client={queryClient}
@@ -43,15 +54,17 @@ export function AppProviders({ children }: { children: ReactNode }) {
         dehydrateOptions: { shouldDehydrateQuery },
       }}
     >
-      <RpcPreferenceProvider>
-        <ResumeQueryRefresh />
-        {children}
-        <Toaster
-          richColors
-          position="top-center"
-          offset="max(12px, env(safe-area-inset-top))"
-        />
-      </RpcPreferenceProvider>
+      <HeliusWalletProvider config={heliusConfig}>
+        <RpcPreferenceProvider>
+          <ResumeQueryRefresh />
+          {children}
+          <Toaster
+            richColors
+            position="top-center"
+            offset="max(12px, env(safe-area-inset-top))"
+          />
+        </RpcPreferenceProvider>
+      </HeliusWalletProvider>
     </PersistQueryClientProvider>
   );
 }

@@ -8,7 +8,7 @@ import { galleryAnimate, staggerStyle } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 /**
- * Shared Hold ceremony — unlock, verify, claim, send, nearby, fees, policies.
+ * Shared Hold ceremony — unlock, verify, send, nearby, fees, policies.
  * Full-screen focused coach with progress ring affordance on the orb.
  * Atmosphere comes from AppShell’s LuminousAura (do not nest a clipped wash).
  */

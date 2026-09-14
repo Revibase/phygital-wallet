@@ -8,9 +8,7 @@ import { bindVerifiedPasskey } from "@/lib/token/bind-passkey";
  * `verifyResponse`. Pass `expectedPublicKey` after a signed URL so the live tap
  * must be this chip.
  *
- * This is intentionally local-only. Session-bearing connections use the SDK's
- * `startPhygitalConnect` + `exchangeConnectProof`, which own the blockhash
- * challenge and the verifier proof exchange.
+ * This is intentionally local-only and is also the basis of wallet connection.
  */
 export async function authenticateToken(args?: {
   expectedPublicKey?: string;

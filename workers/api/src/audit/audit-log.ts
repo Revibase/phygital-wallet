@@ -29,20 +29,15 @@ export type AuditEvent =
   | "policy_clear"
   | "grant_create"
   | "token_verifier_change"
-  | "recovery_wallet_set"
-  | "owner_unlink";
+  | "recovery_wallet_set";
 
 /**
  * Who performed the action. `accessory` = the physical chip's own credential
  * (a `/connect` proof, a bearer-scoped preview/sign — the token is derived from
- * it, so no human passkey is involved). `owner_device` / `visitor_device` = a
- * person's phone passkey (see `credentialId`). `system` = server-side, e.g. a
- * fee event from the Helius webhook.
+ * it). `system` = server-side, e.g. a fee event from the Helius webhook.
  */
 export type AuditActor =
   | "accessory"
-  | "owner_device"
-  | "visitor_device"
   | "system";
 
 export type AuditEntry = {
@@ -58,8 +53,6 @@ export type AuditEntry = {
   ts?: number;
   // --- everything below is folded into detail_json ---
   code?: string | null;
-  /** Device passkey of the actor — only for owner_device / visitor_device. */
-  credentialId?: string | null;
   verifier?: string | null;
   origin?: string | null;
   ms?: number | null;
@@ -79,7 +72,6 @@ const INSERT_SQL = `INSERT INTO audit_log
 function buildDetail(e: AuditEntry): string | null {
   const detail: Record<string, unknown> = { ...(e.detail ?? {}) };
   if (e.code != null) detail.code = e.code;
-  if (e.credentialId != null) detail.credentialId = e.credentialId;
   if (e.verifier != null) detail.verifier = e.verifier;
   if (e.origin != null) detail.origin = e.origin;
   if (e.ms != null) detail.ms = e.ms;

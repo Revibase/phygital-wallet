@@ -54,31 +54,12 @@ export const queryKeys = {
     all: () => ["verifiedTokens"] as const,
   },
 
-  walletPolicy: {
-    all: () => ["walletPolicy"] as const,
-    byToken: (token: string | null) =>
-      [...queryKeys.walletPolicy.all(), token] as const,
-  },
 
-  walletApprovals: {
-    all: () => ["walletApprovals"] as const,
-    byToken: (token: string | null) =>
-      [...queryKeys.walletApprovals.all(), token] as const,
-  },
 
-  deviceAuth: {
-    all: () => ["deviceAuth"] as const,
-    session: () => [...queryKeys.deviceAuth.all(), "session"] as const,
-    links: () => [...queryKeys.deviceAuth.all(), "links"] as const,
-    linkStatus: (token: string | null) =>
-      [...queryKeys.deviceAuth.all(), "status", token] as const,
-    claimed: (token: string | null) =>
-      [...queryKeys.deviceAuth.all(), "claimed", token] as const,
-    browseUnlock: (token: string | null) =>
-      [...queryKeys.deviceAuth.all(), "browseUnlock", token] as const,
-    /** Session + browse + link + claimed in one round-trip. */
-    gate: (token: string | null) =>
-      [...queryKeys.deviceAuth.all(), "gate", token] as const,
+  browseUnlock: {
+    all: () => ["browseUnlock"] as const,
+    byToken: (token: string | null) =>
+      [...queryKeys.browseUnlock.all(), token] as const,
   },
 
   walletPda: {
@@ -87,16 +68,16 @@ export const queryKeys = {
       [...queryKeys.walletPda.all(), token] as const,
   },
 
-  recoveryWallet: {
-    all: () => ["recoveryWallet"] as const,
+  tokenAuthority: {
+    all: () => ["tokenAuthority"] as const,
     byToken: (token: string | null) =>
-      [...queryKeys.recoveryWallet.all(), token] as const,
+      [...queryKeys.tokenAuthority.all(), token] as const,
   },
 
-  tokenVerifier: {
-    all: () => ["tokenVerifier"] as const,
+  walletPolicy: {
+    all: () => ["walletPolicy"] as const,
     byToken: (token: string | null) =>
-      [...queryKeys.tokenVerifier.all(), token] as const,
+      [...queryKeys.walletPolicy.all(), token] as const,
   },
 
   phygitalToken: {

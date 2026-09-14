@@ -2,8 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { getBase58Decoder } from "@solana/kit";
 
-import { createVerifierSignerBackend } from "./create.js";
-import { SecretsVerifierBackend } from "./secrets.js";
+import { FeePayerSigner } from "./secrets.js";
 
 const b58 = getBase58Decoder();
 
@@ -13,10 +12,10 @@ function keypair() {
   return { seed, pubkey, seedB58: b58.decode(seed) };
 }
 
-describe("SecretsVerifierBackend", () => {
-  it("signs with the matching verifier pubkey", async () => {
+describe("FeePayerSigner", () => {
+  it("signs with the matching fee-payer pubkey", async () => {
     const { seed, pubkey, seedB58 } = keypair();
-    const backend = new SecretsVerifierBackend(
+    const backend = new FeePayerSigner(
       JSON.stringify({ [pubkey]: seedB58 })
     );
     expect(backend.canSign(pubkey)).toBe(true);
@@ -34,7 +33,7 @@ describe("SecretsVerifierBackend", () => {
     const { seedB58 } = keypair();
     const { pubkey: other } = keypair();
     expect(
-      () => new SecretsVerifierBackend(JSON.stringify({ [other]: seedB58 }))
+      () => new FeePayerSigner(JSON.stringify({ [other]: seedB58 }))
     ).toThrow(/pubkey mismatch/);
   });
 
@@ -44,18 +43,8 @@ describe("SecretsVerifierBackend", () => {
       const { pubkey, seedB58 } = keypair();
       map[pubkey] = seedB58;
     }
-    expect(() => new SecretsVerifierBackend(JSON.stringify(map))).toThrow(
+    expect(() => new FeePayerSigner(JSON.stringify(map))).toThrow(
       /at most 8/
     );
-  });
-});
-
-describe("createVerifierSignerBackend", () => {
-  it("rejects kms until implemented", () => {
-    expect(() =>
-      createVerifierSignerBackend({
-        VERIFIER_SIGNER_BACKEND: "kms",
-      })
-    ).toThrow(/not implemented/);
   });
 });

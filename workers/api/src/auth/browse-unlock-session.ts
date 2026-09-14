@@ -1,6 +1,6 @@
 /**
  * Short-lived browse-unlock cookie after NFC tap / accessory Hold.
- * Not the app login session (`revibase_device_session`).
+ * Issued after an authenticated accessory interaction.
  */
 import type { Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";

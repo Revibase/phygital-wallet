@@ -4,27 +4,24 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "predev": "pnpm --filter phygital-wallet-sdk build && pnpm --filter phygital-verifier-sdk build && pnpm --filter phygital-policy build",
+    "predev": "pnpm --filter phygital-wallet-sdk build",
     "dev": "wrangler dev -c wrangler.jsonc -c ../api-signer/wrangler.jsonc",
-    "predeploy": "pnpm --filter phygital-wallet-sdk build && pnpm --filter phygital-verifier-sdk build && pnpm --filter phygital-policy build",
+    "predeploy": "pnpm --filter phygital-wallet-sdk build",
     "deploy": "pnpm --filter api-signer run deploy && wrangler deploy",
     "cf-typegen": "wrangler types --env-interface Env ./worker-env.d.ts",
-    "pretypecheck": "pnpm --filter phygital-wallet-sdk build && pnpm --filter phygital-verifier-sdk build && pnpm --filter phygital-policy build",
+    "pretypecheck": "pnpm --filter phygital-wallet-sdk build",
     "typecheck": "tsc --noEmit",
-    "pretest": "pnpm --filter phygital-wallet-sdk build && pnpm --filter phygital-verifier-sdk build && pnpm --filter phygital-policy build",
+    "pretest": "pnpm --filter phygital-wallet-sdk build",
     "test": "vitest run"
   },
   "dependencies": {
     "@noble/curves": "^2.3.0",
-    "@simplewebauthn/server": "^14.0.0",
     "@solana-program/memo": "^0.13.1",
     "@solana-program/token": "^0.16.0",
     "@solana/kit": "^8.1.0",
     "hono": "^4.9.0",
     "phygital-token-sdk": "^1.0.3",
-    "phygital-verifier-sdk": "workspace:*",
-    "phygital-wallet-sdk": "workspace:*",
-    "phygital-policy": "workspace:*"
+    "phygital-wallet-sdk": "workspace:*"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250726.0",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { TransactionModifyingSigner } from "@solana/kit";
+import { address, type TransactionModifyingSigner } from "@solana/kit";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
@@ -43,12 +43,8 @@ import type { WalletPortfolio } from "@/lib/wallet/portfolio-types";
 import { receiveAssetFromNearbyPayer } from "@/lib/wallet/send-asset";
 import { resolveTokenIconSrc } from "@/lib/tokens/payment-token";
 import { getSolanaRpc } from "@/lib/solana/rpc";
-import { connectVerifierSession } from "@/lib/wallet/connect-accessory";
+import { connectAccessory } from "@/lib/wallet/connect-accessory";
 import { walletPdaForToken } from "@/lib/wallet/pda";
-import {
-  accessTokenFor,
-  setVerifierSession,
-} from "@/lib/wallet/verifier-session";
 import {
   isWalletSignCeremonyPhase,
   walletSignPhaseCopy,
@@ -151,18 +147,13 @@ export function ReceiveNearbySheet({
     setPhase("identifying");
     setBusy(true);
     try {
-      // Tap the payer's accessory and cache its bearer (no app-session cookie —
-      // the payer is authorizing a transfer, not logging in here).
-      const { phygitalToken, proof, session } = await connectVerifierSession();
-      setVerifierSession(phygitalToken, session);
-      const tokenPda = proof.phygitalToken;
+      const { phygitalToken } = await connectAccessory();
+      const tokenPda = address(phygitalToken);
       const walletPda = await walletPdaForToken(tokenPda);
       if (String(walletPda) === recipientWallet) {
         throw new Error(copy.wallet.cantReceiveFromSelf);
       }
       const signer = await getPhygitalWalletSigner(getSolanaRpc(), tokenPda, {
-        resolved: proof.resolved,
-        getAccessToken: accessTokenFor(phygitalToken),
         onPhaseChange: (phase) => {
           setSignPhase(phase);
           if (isWalletSignCeremonyPhase(phase)) setPhase("holding");

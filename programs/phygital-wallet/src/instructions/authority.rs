@@ -134,6 +134,14 @@ pub struct ClearAuthority<'info> {
     /// The passkey can re-enable the tap by running `set_authority` again.
     pub authority: Signer<'info>,
 
+    /// CHECK: owner and locked Controlled state constrained below.
+    #[account(
+        owner = phygital_token_client::PHYGITAL_TOKEN_ID,
+        constraint = locked_controlled(&phygital_token) @ PhygitalError::TokenIsCurrentlyUnLocked,
+        constraint = read_authority_header(&authority_account.to_account_info())?.phygital_token == phygital_token.key(), 
+    )]
+    pub phygital_token: UncheckedAccount<'info>,
+
     /// CHECK: original rent payer; may be any account type.
     #[account(
         mut,

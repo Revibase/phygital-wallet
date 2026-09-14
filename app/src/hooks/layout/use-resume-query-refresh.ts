@@ -32,14 +32,6 @@ export function useResumeQueryRefresh() {
         queryKey: queryKeys.feeBalance.all(),
         refetchType: "active",
       });
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.walletPolicy.all(),
-        refetchType: "active",
-      });
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.walletApprovals.all(),
-        refetchType: "active",
-      });
     }
 
     window.addEventListener("pageshow", onPageShow);

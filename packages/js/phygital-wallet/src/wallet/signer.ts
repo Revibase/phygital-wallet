@@ -20,10 +20,6 @@ import {
 } from "../generated/index.js";
 import { createDefaultFeePayer } from "./feePayer.js";
 
-/**
- * Stages of `modifyAndSignTransactions` for hold / progress UI via
- * {@link PhygitalWalletSignerCallbacks.onPhaseChange}.
- */
 export type PhygitalWalletSignPhase =
   | "preparing"
   | "previewing"
@@ -42,11 +38,11 @@ export type PhygitalWalletSignerConfig = PhygitalWalletSignerCallbacks & {
 };
 
 export function assertSupportedTransactionLifetime(
-  transaction: Transaction
+  transaction: Transaction,
 ): void {
   if (isTransactionWithDurableNonceLifetime(transaction)) {
     throw new Error(
-      "getPhygitalWalletSigner does not support durable nonce transactions; use a recent blockhash lifetime"
+      "getPhygitalWalletSigner does not support durable nonce transactions; use a recent blockhash lifetime",
     );
   }
 }
@@ -59,7 +55,7 @@ export function assertSupportedTransactionLifetime(
 export async function getPhygitalWalletSigner(
   rpc: Rpc<SolanaRpcApi>,
   phygitalTokenPda: Address,
-  config?: PhygitalWalletSignerConfig
+  config?: PhygitalWalletSignerConfig,
 ): Promise<TransactionModifyingSigner> {
   const [[walletPda], [authorityPda]] = await Promise.all([
     findWalletPda({ phygitalToken: phygitalTokenPda }),
@@ -85,19 +81,19 @@ export async function getPhygitalWalletSigner(
 
       if (transactions.length !== 1) {
         throw new Error(
-          "getPhygitalWalletSigner accepts exactly one transaction per sign"
+          "getPhygitalWalletSigner accepts exactly one transaction per sign",
         );
       }
 
       const [transaction] = transactions;
       if (!transaction) {
         throw new Error(
-          "getPhygitalWalletSigner accepts exactly one transaction per sign"
+          "getPhygitalWalletSigner accepts exactly one transaction per sign",
         );
       }
       if (!("lifetimeConstraint" in transaction)) {
         throw new Error(
-          "getPhygitalWalletSigner requires transactions with a lifetime constraint"
+          "getPhygitalWalletSigner requires transactions with a lifetime constraint",
         );
       }
       assertSupportedTransactionLifetime(transaction);

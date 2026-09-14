@@ -7,7 +7,7 @@ import { galleryAnimate } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 /**
- * Sticky bottom action dock — primary CTAs across token, claim, collect, pay.
+ * Sticky bottom action dock — primary CTAs across token, collect, and pay.
  * Safe-area padding lives here so the shell can stay tight at the bottom.
  */
 export function StickyActions({

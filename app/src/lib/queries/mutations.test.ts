@@ -1,21 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 import { QueryClient } from "@tanstack/react-query";
-import type { PaymentsPolicyConfig } from "phygital-policy";
 
 import { queryKeys } from "./index";
 import {
   applyOptimisticFeeBalance,
   applyOptimisticPortfolioDelta,
-  applyOptimisticRecoveryWallet,
-  applyOptimisticTokenVerifier,
   applyOptimisticWalletActivity,
-  applyWalletPolicy,
   invalidatePhygitalToken,
   patchOptimisticWalletActivity,
   restoreFeeBalanceSnapshot,
   restorePortfolioSnapshot,
-  restoreRecoveryWalletSnapshot,
-  restoreTokenVerifierSnapshot,
   restoreWalletActivitySnapshot,
 } from "./mutations";
 import type { FeeBalance } from "@/lib/wallet/fee-balance-client";
@@ -23,10 +17,6 @@ import type {
   WalletActivityItem,
   WalletPortfolio,
 } from "@/lib/wallet/portfolio-types";
-
-const base: PaymentsPolicyConfig = {
-  version: "3",
-};
 
 const portfolio: WalletPortfolio = {
   holdings: [
@@ -55,35 +45,6 @@ const portfolio: WalletPortfolio = {
     },
   ],
 };
-
-describe("applyWalletPolicy", () => {
-  it("replaces cached policy with stored document", () => {
-    const qc = new QueryClient();
-    const key = queryKeys.walletPolicy.byToken("token");
-    qc.setQueryData(key, { policy: base, status: "ok" as const });
-    const nextDoc: PaymentsPolicyConfig = {
-      ...base,
-      mintLimits: [{ mint: "UsdcMint", maxRaw: "50000000" }],
-    };
-    applyWalletPolicy(qc, "token", { policy: nextDoc, status: "ok" });
-    const next = qc.getQueryData<{
-      policy: PaymentsPolicyConfig | null;
-      status: string;
-    }>(key);
-    expect(next?.status).toBe("ok");
-    expect(next?.policy?.mintLimits).toEqual([
-      { mint: "UsdcMint", maxRaw: "50000000" },
-    ]);
-  });
-
-  it("caches none when limits are turned off", () => {
-    const qc = new QueryClient();
-    const key = queryKeys.walletPolicy.byToken("token");
-    qc.setQueryData(key, { policy: base, status: "ok" as const });
-    applyWalletPolicy(qc, "token", { policy: null, status: "none" });
-    expect(qc.getQueryData(key)).toEqual({ policy: null, status: "none" });
-  });
-});
 
 describe("invalidatePhygitalToken", () => {
   it("matches identifier-keyed cache by data.address", () => {
@@ -228,60 +189,6 @@ describe("applyOptimisticFeeBalance / restoreFeeBalanceSnapshot", () => {
     expect(next?.low).toBe(false);
 
     restoreFeeBalanceSnapshot(qc, "token", snapshot);
-    expect(qc.getQueryData(key)).toEqual(previous);
-  });
-});
-
-describe("applyOptimisticRecoveryWallet / restoreRecoveryWalletSnapshot", () => {
-  it("patches and restores recovery wallet cache", () => {
-    const qc = new QueryClient();
-    const key = queryKeys.recoveryWallet.byToken("token");
-    const previous = {
-      configured: false,
-      recoveryWallet: null,
-      payer: null,
-    };
-    qc.setQueryData(key, previous);
-
-    const next = {
-      configured: true,
-      recoveryWallet: "Recovery111111111111111111111111111111111",
-      payer: null,
-    };
-    const snapshot = applyOptimisticRecoveryWallet(qc, "token", next);
-    expect(snapshot).toEqual(previous);
-    expect(qc.getQueryData(key)).toEqual(next);
-
-    restoreRecoveryWalletSnapshot(qc, "token", snapshot);
-    expect(qc.getQueryData(key)).toEqual(previous);
-  });
-});
-
-describe("applyOptimisticTokenVerifier / restoreTokenVerifierSnapshot", () => {
-  it("patches and restores token verifier cache", () => {
-    const qc = new QueryClient();
-    const key = queryKeys.tokenVerifier.byToken("token");
-    const previous = {
-      custom: false,
-      verifier: null,
-      endpoint: null,
-      payer: null,
-      usesDefaultPaymaster: true,
-    };
-    qc.setQueryData(key, previous);
-
-    const next = {
-      custom: true,
-      verifier: "Verifier11111111111111111111111111111111",
-      endpoint: "https://example.com",
-      payer: null,
-      usesDefaultPaymaster: false,
-    };
-    const snapshot = applyOptimisticTokenVerifier(qc, "token", next);
-    expect(snapshot).toEqual(previous);
-    expect(qc.getQueryData(key)).toEqual(next);
-
-    restoreTokenVerifierSnapshot(qc, "token", snapshot);
     expect(qc.getQueryData(key)).toEqual(previous);
   });
 });

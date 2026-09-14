@@ -8,15 +8,12 @@ import {
 
 /** Settings index — full main pane (2-col groups on desktop). */
 export default function WalletSettingsPage() {
-  const { tokenAddress, role, linkStatus, claimed } = useWalletSession();
+  const { tokenAddress } = useWalletSession();
   const { backHome, goSettings } = useWalletNav();
 
   return (
     <SettingsHub
       phygitalTokenPda={tokenAddress}
-      role={role}
-      linkStatus={linkStatus}
-      claimed={claimed}
       onBack={backHome}
       onOpen={(target) => goSettings(target)}
     />

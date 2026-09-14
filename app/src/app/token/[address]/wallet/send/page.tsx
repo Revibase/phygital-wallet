@@ -24,7 +24,7 @@ import { settingsFromDenyCode } from "@/lib/wallet/token-routes";
 import type { PhygitalWalletSignPhase } from "@/lib/wallet/sign-phase-copy";
 
 export default function WalletSendPage() {
-  const { tokenAddress, walletAddress, role } = useWalletSession();
+  const { tokenAddress, walletAddress } = useWalletSession();
   const { backHome, goSettings } = useWalletNav();
   const portfolio = useWalletPortfolio(walletAddress);
   const searchParams = useSearchParams();
@@ -72,7 +72,6 @@ export default function WalletSendPage() {
           portfolio={portfolio.data}
           initialAsset={initialAsset}
           tokensOnly={!searchParams.get("collectible")}
-          role={role}
           onClose={backHome}
           onHoldPhaseChange={(phase, nextRecap) => {
             setHoldPhase(phase);

@@ -34,7 +34,7 @@ describe("decodeMemoText", () => {
 });
 
 describe("findExecuteAccounts", () => {
-  it("reads verifier and phygitalToken via the generated execute decoder", () => {
+  it("reads phygitalToken via the generated execute decoder", () => {
     const data = b58.decode(
       getExecuteInstructionDataEncoder().encode({
         compactInstructions: [],
@@ -52,16 +52,7 @@ describe("findExecuteAccounts", () => {
         instructions: [
           {
             programId: PHYGITAL_WALLET_PROGRAM_ADDRESS,
-            accounts: [
-              VERIFIER,
-              DUMMY,
-              TOP_UP_TOKEN,
-              DUMMY,
-              DUMMY,
-              DUMMY,
-              DUMMY,
-              DUMMY,
-            ],
+            accounts: [TOP_UP_TOKEN, DUMMY, DUMMY, DUMMY, DUMMY, DUMMY],
             data,
           },
           {
@@ -70,7 +61,7 @@ describe("findExecuteAccounts", () => {
           },
         ],
       })
-    ).toEqual({ verifier: VERIFIER, phygitalToken: TOP_UP_TOKEN });
+    ).toEqual({ phygitalToken: TOP_UP_TOKEN });
   });
 
   it("ignores wallet instructions that are not execute", () => {

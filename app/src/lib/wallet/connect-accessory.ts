@@ -1,71 +1,74 @@
 /**
- * Tap → verifier session, and the full Hold → app-session ceremony.
+ * Hold-to-unlock via WebAuthn — prove control of the accessory passkey, then
+ * let the api worker issue the `browse_unlock` cookie.
  *
- *   Hold → startPhygitalConnect (tap, produce proof) → exchangeConnectProof
- *        → bearer, minted by the token's *own* verifier (Revibase's or a third
- *          party's) → optionally POST /auth/app-session for the browse cookie
+ *   POST /accessory/unlock/challenge → startAuthentication(challenge)
+ *     → POST /accessory/unlock/webauthn → browse-unlock cookie
  *
- * The bearer always comes from the token's own verifier, which is why the
- * app-session exchange can verify it against the on-chain verifier set.
+ * The api worker verifies the assertion server-side and resolves the token PDA;
+ * we only enforce that the resolved token matches the one the route expected.
  */
-import {
-  AccessoryMismatchError,
-  exchangeConnectProof,
-  startPhygitalConnect,
-  type PhygitalConnectProof,
-} from "phygital-wallet-sdk";
+import { startAuthentication } from "phygital-token-sdk";
 
+import { queryFetch, readJson } from "@/lib/queries/http";
 import { getSolanaRpc } from "@/lib/solana/rpc";
-import {
-  adoptVerifierSession,
-  type VerifierSession,
-} from "@/lib/wallet/verifier-session";
+
+export class AccessoryMismatchError extends Error {
+  constructor() {
+    super("The tapped accessory does not match the expected phygital token");
+    this.name = "AccessoryMismatchError";
+  }
+}
 
 export type AccessoryConnection = {
   phygitalToken: string;
+  /** ms since epoch — the browse-unlock cookie expiry. */
   expiresAt: number;
 };
 
-/**
- * Low-level tap: produce a connect proof and exchange it at the token's verifier
- * for a bearer. No app-session cookie and no store caching — callers use the
- * returned `proof` (to build a signer) and `session` (to cache) as they need.
- *
- * Throws {@link AccessoryMismatchError} when `expectedPhygitalToken` is given and
- * the tap came from a different accessory, so callers can branch on the type
- * rather than on message text.
- */
-export async function connectVerifierSession(opts?: {
+export async function connectAccessory(opts?: {
   expectedPhygitalToken?: string;
-}): Promise<{
-  phygitalToken: string;
-  proof: PhygitalConnectProof;
-  session: VerifierSession;
-}> {
-  const proof = await startPhygitalConnect(getSolanaRpc());
-  const phygitalToken = String(proof.phygitalToken);
+}): Promise<AccessoryConnection> {
+  const rpc = getSolanaRpc();
+
+  const challengeRes = await queryFetch("/accessory/unlock/challenge", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: "{}",
+  });
+  const { challengeId, challenge } = await readJson<{
+    challengeId: string;
+    challenge: string;
+  }>(challengeRes, "Couldn’t start unlock");
+
+  const response = await startAuthentication(challenge, rpc);
+
+  const verifyRes = await queryFetch("/accessory/unlock/webauthn", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ challengeId, response }),
+  });
+  const body = await readJson<{
+    isVerified: boolean;
+    phygitalToken?: string;
+    expiresAt?: number;
+  }>(verifyRes, "Couldn’t verify this accessory");
+
+  if (!body.isVerified || !body.phygitalToken) {
+    throw new Error("Couldn’t verify this accessory");
+  }
+
   if (
     opts?.expectedPhygitalToken &&
-    opts.expectedPhygitalToken !== phygitalToken
+    opts.expectedPhygitalToken !== body.phygitalToken
   ) {
     throw new AccessoryMismatchError();
   }
-  const session = await exchangeConnectProof({
-    endpoint: proof.resolved.endpoint,
-    blockhash: proof.blockhash,
-    response: proof.response,
-  });
-  return { phygitalToken, proof, session };
+
+  return {
+    phygitalToken: body.phygitalToken,
+    expiresAt: body.expiresAt ?? Date.now(),
+  };
 }
 
-/**
- * Finish a Hold: tap, mint the bearer, cache it for `/preview`+`/sign`, then
- * exchange it for the Revibase app-session cookie. Use this at entry points that
- * log the tapper in.
- */
-export async function completeAccessoryConnection(opts?: {
-  expectedPhygitalToken?: string;
-}): Promise<AccessoryConnection> {
-  const { phygitalToken, session } = await connectVerifierSession(opts);
-  return adoptVerifierSession(phygitalToken, session);
-}
+export const completeAccessoryConnection = connectAccessory;

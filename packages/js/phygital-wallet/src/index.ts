@@ -13,6 +13,8 @@ export {
 } from "./wallet/signer.js";
 
 export { buildSetAuthorityChallenge } from "./utils/challenges.js";
+export { createDefaultFeePayer } from "./wallet/feePayer.js";
+export { PolicyDeniedError } from "./wallet/preview.js";
 
 export { registerPhygitalWallet } from "./wallet-standard/index.js";
 

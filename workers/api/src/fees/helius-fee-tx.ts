@@ -21,10 +21,10 @@ import {
 } from "phygital-wallet-sdk";
 
 import { recordAudit } from "@/audit/audit-log";
-import { isDefaultConfigVerifier } from "@/fees/default-verifier";
+import { isDefaultConfigVerifier } from "@/fees/default-feePayer";
 import { getEnv } from "@/shared/request-context";
 import { tryParseAddress } from "@/shared/solana/address";
-import { tokenSigner } from "@/verifier/token-signer";
+import { tokenSigner } from "@/transactions/token-signer";
 
 type HeliusIx = {
   programId?: string;
@@ -150,7 +150,7 @@ function findMemoPhygitalToken(tx: HeliusTxLike): string | null {
       }
     }
     const fallback = decodeMemoText(
-      typeof ix.parsed === "string" ? ix.parsed : ix.data
+      typeof ix.parsed === "string" ? ix.parsed : ix.data,
     );
     const addr = tryParseAddress(fallback);
     if (addr) return String(addr);
@@ -159,7 +159,6 @@ function findMemoPhygitalToken(tx: HeliusTxLike): string | null {
 }
 
 type ExecuteAccounts = {
-  verifier: string;
   phygitalToken: string;
 };
 
@@ -167,7 +166,7 @@ export function findExecuteAccounts(tx: HeliusTxLike): ExecuteAccounts | null {
   for (const ix of tx.instructions ?? []) {
     if (ix.programId !== PHYGITAL_WALLET_PROGRAM_ADDRESS) continue;
     const kitIx = toKitIx(ix);
-    if (!kitIx || kitIx.accounts.length < 8) continue;
+    if (!kitIx || kitIx.accounts.length < 6) continue;
     try {
       if (
         identifyPhygitalWalletInstruction(kitIx) !==
@@ -176,12 +175,11 @@ export function findExecuteAccounts(tx: HeliusTxLike): ExecuteAccounts | null {
         continue;
       }
       const parsed = parseExecuteInstruction(kitIx);
-      const verifier = String(parsed.accounts.verifier.address);
       const phygitalToken = String(parsed.accounts.phygitalToken.address);
-      if (!tryParseAddress(verifier) || !tryParseAddress(phygitalToken)) {
+      if (!tryParseAddress(phygitalToken)) {
         continue;
       }
-      return { verifier, phygitalToken };
+      return { phygitalToken };
     } catch {
       /* not execute */
     }
@@ -194,7 +192,7 @@ export function findExecuteAccounts(tx: HeliusTxLike): ExecuteAccounts | null {
  * Ledger lives on TokenSigner DO; idempotent by signature.
  */
 async function processHeliusFeeTx(
-  raw: HeliusTxLike
+  raw: HeliusTxLike,
 ): Promise<{ credited: boolean; debited: boolean }> {
   const tx = unwrapHeliusTx(raw);
   const signature = tx.signature?.trim();
@@ -225,8 +223,8 @@ async function processHeliusFeeTx(
     }
   }
 
-  if (execute) {
-    const feePayer = tx.feePayer ?? execute.verifier;
+  if (execute && tx.feePayer) {
+    const feePayer = tx.feePayer;
     const isDefault = await isDefaultConfigVerifier(feePayer);
     if (isDefault) {
       const change = nativeChange(tx, feePayer);
@@ -256,7 +254,7 @@ async function processHeliusFeeTx(
   let debited = false;
   for (const [token, batch] of byToken) {
     const { appliedSignatures } = await tokenSigner(env, token).applyFeeEvents(
-      batch
+      batch,
     );
     if (appliedSignatures.length === 0) continue;
     const applied = new Set(appliedSignatures);
@@ -278,7 +276,7 @@ async function processHeliusFeeTx(
 }
 
 export async function processHeliusWebhookPayload(
-  body: unknown
+  body: unknown,
 ): Promise<{ processed: number; credited: number; debited: number }> {
   const list: HeliusTxLike[] = Array.isArray(body)
     ? (body as HeliusTxLike[])

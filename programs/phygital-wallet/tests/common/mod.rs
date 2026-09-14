@@ -256,6 +256,7 @@ impl TestContext {
             program_id: self.program_id,
             accounts: phygital_wallet::accounts::ClearAuthority {
                 authority: authority.pubkey(),
+                phygital_token: asset, 
                 rent_receiver: self.payer.pubkey(),
                 authority_account: self.authority_pda(asset),
                 instructions_sysvar: INSTRUCTIONS_SYSVAR_ID,
@@ -283,6 +284,7 @@ impl TestContext {
             accounts: phygital_wallet::accounts::SetWalletPolicy {
                 rent_receiver: self.payer.pubkey(),
                 authority: authority.pubkey(),
+                phygital_token: asset,
                 payer: self.payer.pubkey(),
                 authority_account: self.authority_pda(asset),
                 instructions_sysvar: INSTRUCTIONS_SYSVAR_ID,
@@ -308,6 +310,7 @@ impl TestContext {
             accounts: phygital_wallet::accounts::ClearWalletPolicy {
                 authority: authority.pubkey(),
                 rent_receiver: self.payer.pubkey(),
+                phygital_token: asset,
                 authority_account: self.authority_pda(asset),
                 instructions_sysvar: INSTRUCTIONS_SYSVAR_ID,
             }

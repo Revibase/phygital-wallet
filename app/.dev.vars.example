@@ -16,3 +16,5 @@ NEXTJS_ENV=development
 
 # Fee balance top-up accumulator (must match API TOP_UP_ACCUMULATOR)
 # NEXT_PUBLIC_TOP_UP_ACCUMULATOR=
+
+#HELIUS_API_KEY=

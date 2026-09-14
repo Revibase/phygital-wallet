@@ -51,6 +51,7 @@ export function getClearAuthorityDiscriminatorBytes(): ReadonlyUint8Array {
 export type ClearAuthorityInstruction<
   TProgram extends string = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
   TAccountAuthority extends string | AccountMeta<string> = string,
+  TAccountPhygitalToken extends string | AccountMeta<string> = string,
   TAccountRentReceiver extends string | AccountMeta<string> = string,
   TAccountAuthorityAccount extends string | AccountMeta<string> = string,
   TAccountInstructionsSysvar extends string | AccountMeta<string> =
@@ -64,6 +65,9 @@ export type ClearAuthorityInstruction<
         ? ReadonlySignerAccount<TAccountAuthority> &
             AccountSignerMeta<TAccountAuthority>
         : TAccountAuthority,
+      TAccountPhygitalToken extends string
+        ? ReadonlyAccount<TAccountPhygitalToken>
+        : TAccountPhygitalToken,
       TAccountRentReceiver extends string
         ? WritableAccount<TAccountRentReceiver>
         : TAccountRentReceiver,
@@ -108,6 +112,7 @@ export function getClearAuthorityInstructionDataCodec(): FixedSizeCodec<
 
 export type ClearAuthorityInput<
   TAccountAuthority extends string = string,
+  TAccountPhygitalToken extends string = string,
   TAccountRentReceiver extends string = string,
   TAccountAuthorityAccount extends string = string,
   TAccountInstructionsSysvar extends string = string,
@@ -118,6 +123,7 @@ export type ClearAuthorityInput<
    * The passkey can re-enable the tap by running `set_authority` again.
    */
   authority: TransactionSigner<TAccountAuthority>;
+  phygitalToken: Address<TAccountPhygitalToken>;
   rentReceiver: Address<TAccountRentReceiver>;
   /**
    * Canonical PDA + authority signer are validated in the handler (Anchor
@@ -130,6 +136,7 @@ export type ClearAuthorityInput<
 
 export function getClearAuthorityInstruction<
   TAccountAuthority extends string,
+  TAccountPhygitalToken extends string,
   TAccountRentReceiver extends string,
   TAccountAuthorityAccount extends string,
   TAccountInstructionsSysvar extends string,
@@ -137,6 +144,7 @@ export function getClearAuthorityInstruction<
 >(
   input: ClearAuthorityInput<
     TAccountAuthority,
+    TAccountPhygitalToken,
     TAccountRentReceiver,
     TAccountAuthorityAccount,
     TAccountInstructionsSysvar
@@ -145,6 +153,7 @@ export function getClearAuthorityInstruction<
 ): ClearAuthorityInstruction<
   TProgramAddress,
   TAccountAuthority,
+  TAccountPhygitalToken,
   TAccountRentReceiver,
   TAccountAuthorityAccount,
   TAccountInstructionsSysvar
@@ -156,6 +165,7 @@ export function getClearAuthorityInstruction<
   // Original accounts.
   const originalAccounts = {
     authority: { value: input.authority ?? null, isWritable: false },
+    phygitalToken: { value: input.phygitalToken ?? null, isWritable: false },
     rentReceiver: { value: input.rentReceiver ?? null, isWritable: true },
     authorityAccount: {
       value: input.authorityAccount ?? null,
@@ -181,6 +191,7 @@ export function getClearAuthorityInstruction<
   return Object.freeze({
     accounts: [
       getAccountMeta("authority", accounts.authority),
+      getAccountMeta("phygitalToken", accounts.phygitalToken),
       getAccountMeta("rentReceiver", accounts.rentReceiver),
       getAccountMeta("authorityAccount", accounts.authorityAccount),
       getAccountMeta("instructionsSysvar", accounts.instructionsSysvar),
@@ -190,6 +201,7 @@ export function getClearAuthorityInstruction<
   } as ClearAuthorityInstruction<
     TProgramAddress,
     TAccountAuthority,
+    TAccountPhygitalToken,
     TAccountRentReceiver,
     TAccountAuthorityAccount,
     TAccountInstructionsSysvar
@@ -208,14 +220,15 @@ export type ParsedClearAuthorityInstruction<
      * The passkey can re-enable the tap by running `set_authority` again.
      */
     authority: TAccountMetas[0];
-    rentReceiver: TAccountMetas[1];
+    phygitalToken: TAccountMetas[1];
+    rentReceiver: TAccountMetas[2];
     /**
      * Canonical PDA + authority signer are validated in the handler (Anchor
      * `seeds`/`has_one` can't be expressed in the IDL here — they'd need `?` and
      * a self-reference to `authority_account`). `close` refunds `rent_receiver`.
      */
-    authorityAccount: TAccountMetas[2];
-    instructionsSysvar: TAccountMetas[3];
+    authorityAccount: TAccountMetas[3];
+    instructionsSysvar: TAccountMetas[4];
   };
   data: ClearAuthorityInstructionData;
 };
@@ -228,12 +241,12 @@ export function parseClearAuthorityInstruction<
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
 ): ParsedClearAuthorityInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 4) {
+  if (instruction.accounts.length < 5) {
     throw new SolanaError(
       SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
       {
         actualAccountMetas: instruction.accounts.length,
-        expectedAccountMetas: 4,
+        expectedAccountMetas: 5,
       },
     );
   }
@@ -247,6 +260,7 @@ export function parseClearAuthorityInstruction<
     programAddress: instruction.programAddress,
     accounts: {
       authority: getNextAccount(),
+      phygitalToken: getNextAccount(),
       rentReceiver: getNextAccount(),
       authorityAccount: getNextAccount(),
       instructionsSysvar: getNextAccount(),

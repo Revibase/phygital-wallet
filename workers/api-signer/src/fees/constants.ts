@@ -1,5 +1,5 @@
 /**
- * Prepaid fee-balance attempt floor for default-verifier paymaster.
+ * Prepaid fee-balance attempt floor for the fee payer.
  * Not a quote of post-wrap SOL spend — webhook debits actual spend after confirm.
  */
 export const MIN_ATTEMPT_FEE_LAMPORTS = 100_000;
@@ -9,3 +9,6 @@ export const STARTER_FEE_BALANCE_LAMPORTS = 1_000_000;
 
 export const MEMO_PROGRAM_ADDRESS =
   "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr" as const;
+
+export const SYSTEM_PROGRAM_ADDRESS =
+  "11111111111111111111111111111111" as const;

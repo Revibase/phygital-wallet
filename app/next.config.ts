@@ -37,17 +37,9 @@ loadDevVarsIntoProcessEnv();
 const workspaceRoot = path.join(__dirname, "..");
 
 const nextConfig: NextConfig = {
-  transpilePackages: [
-    "phygital-wallet-sdk",
-    "phygital-policy",
-    "phygital-verifier-sdk",
-  ],
+  transpilePackages: ["phygital-wallet-sdk"],
   experimental: {
-    optimizePackageImports: [
-      "phygital-wallet-sdk",
-      "phygital-policy",
-      "phygital-verifier-sdk",
-    ],
+    optimizePackageImports: ["phygital-wallet-sdk"],
   },
   outputFileTracingRoot: workspaceRoot,
   turbopack: {

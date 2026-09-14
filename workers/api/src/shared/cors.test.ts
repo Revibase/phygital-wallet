@@ -18,12 +18,12 @@ describe("isAppBrowserOrigin", () => {
 describe("corsModeForRequest", () => {
   it("uses credentialed CORS for app origins on open paths", () => {
     expect(
-      corsModeForRequest("POST", "/preview", "https://p.revibase.com")
+      corsModeForRequest("GET", "/getFeePayer", "https://p.revibase.com")
     ).toBe("credentialed");
   });
 
   it("uses open CORS for third-party origins on open paths", () => {
-    expect(corsModeForRequest("POST", "/preview", "https://dapp.example")).toBe(
+    expect(corsModeForRequest("GET", "/getFeePayer", "https://dapp.example")).toBe(
       "open"
     );
     expect(corsModeForRequest("POST", "/sign", "https://dapp.example")).toBe(

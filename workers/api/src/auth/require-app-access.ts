@@ -1,36 +1,28 @@
 /**
- * Outer API floor: device session OR browse-unlock (except public allowlist).
- * Owner WebAuthn / tickets / isOwner remain on individual routes.
+ * Outer API floor: browse-unlock, except for explicitly public routes.
  */
 import type { Context } from "hono";
 
 import { readBrowseUnlock } from "@/auth/browse-unlock-session";
-import { readDeviceSession } from "@/auth/device-session";
 import { json } from "@/shared/http";
 
 /**
- * Exempt from the cookie floor: routes that mint app sessions, plus the verifier
- * API — which is not unauthenticated, it authenticates with its own bearer
- * (see `verifier/require-bearer.ts`) rather than the app cookie.
+ * Exempt from the cookie floor: routes that issue the browse-unlock cookie
+ * (accessory verification) or authenticate by their own means (fee-payer
+ * service, HMAC-signed webhooks). These must work with zero cookies.
  */
 const PUBLIC_ROUTES: ReadonlyArray<{ method: string; path: string }> = [
   { method: "GET", path: "/health" },
-  { method: "POST", path: "/connect" },
-  { method: "POST", path: "/connect/tap" },
-  { method: "POST", path: "/preview" },
+  // Accessory unlock — proves control of the accessory, then issues the cookie.
+  { method: "POST", path: "/accessory/unlock/tap" },
+  { method: "POST", path: "/accessory/unlock/challenge" },
+  { method: "POST", path: "/accessory/unlock/webauthn" },
+  { method: "GET", path: "/getFeePayer" },
   { method: "POST", path: "/sign" },
-  { method: "GET", path: "/auth/device/register-options" },
-  { method: "POST", path: "/auth/device" },
-  { method: "GET", path: "/auth/device-session/options" },
-  { method: "POST", path: "/auth/device-session" },
-  { method: "POST", path: "/auth/device-session/refresh" },
-  { method: "GET", path: "/auth/device-session" },
-  { method: "POST", path: "/auth/app-session" },
   { method: "POST", path: "/webhooks/helius" },
   // Wallet tx ingest — authenticated by its own HMAC signature, not the cookie.
   { method: "POST", path: "/webhooks/transactions" },
   // Token landing before tap/Hold — must work with zero cookies.
-  { method: "GET", path: "/auth/device/gate" },
 ];
 
 export function normalizeApiPath(path: string): string {
@@ -49,14 +41,15 @@ export function isPublicApiPath(method: string, path: string): boolean {
 }
 
 /**
- * Open CORS (no cookies): public verifier for third-party integrators.
+ * Open CORS (no cookies): public fee-payer service for third-party integrators.
  * Path-based so OPTIONS preflight matches too.
+ *
+ * The accessory-unlock routes are intentionally absent: they issue a cookie, so
+ * they keep credentialed CORS (scoped to app origins) rather than open CORS.
  */
 export function isOpenCorsPath(_method: string, path: string): boolean {
   const p = normalizeApiPath(path);
-  // `/connect/tap` is intentionally absent: it is scoped to app origins, so it
-  // keeps credentialed CORS rather than being opened to third parties.
-  return p === "/preview" || p === "/sign" || p === "/connect";
+  return p === "/getFeePayer" || p === "/sign";
 }
 
 /**
@@ -72,14 +65,6 @@ export function extractPhygitalTokenFromRequest(
 
   const p = normalizeApiPath(path);
 
-  const policies = /^\/policies\/([^/]+)/.exec(p);
-  if (policies?.[1]) return decodeURIComponent(policies[1]);
-
-  const links = /^\/auth\/device\/links\/([^/]+)/.exec(p);
-  if (links?.[1] && links[1] !== "status") {
-    return decodeURIComponent(links[1]);
-  }
-
   return null;
 }
 
@@ -87,7 +72,6 @@ export type AppAccessInput = {
   method: string;
   path: string;
   queryToken?: string;
-  hasDeviceSession: boolean;
   browseToken: string | null;
 };
 
@@ -96,7 +80,6 @@ export function evaluateAppAccess(
   input: AppAccessInput
 ): "allow" | "deny" | "deny_token_mismatch" {
   if (isPublicApiPath(input.method, input.path)) return "allow";
-  if (input.hasDeviceSession) return "allow";
   if (!input.browseToken) return "deny";
 
   const token = extractPhygitalTokenFromRequest(input.path, input.queryToken);
@@ -110,13 +93,11 @@ export function evaluateAppAccess(
 export async function requireAppAccess(
   c: Context<{ Bindings: Env }>
 ): Promise<Response | null> {
-  const device = await readDeviceSession(c);
   const browse = await readBrowseUnlock(c);
   const decision = evaluateAppAccess({
     method: c.req.method,
     path: c.req.path,
     queryToken: c.req.query("phygitalToken"),
-    hasDeviceSession: Boolean(device),
     browseToken: browse?.phygitalToken ?? null,
   });
 

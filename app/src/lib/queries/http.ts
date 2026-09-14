@@ -5,11 +5,7 @@ import { apiUrl } from "@/lib/api-base";
  * HTTP cache is off — React Query owns freshness.
  * Relative API paths go to `NEXT_PUBLIC_API_BASE_URL`.
  *
- * On 401 session errors, tries one silent refresh (single-flight) then retries
- * the original request once.
  */
-
-let refreshInFlight: Promise<boolean> | null = null;
 
 /** Parse `Retry-After` (delta-seconds or HTTP-date) to a capped delay. */
 export function parseRetryAfterMs(res: Response): number | null {
@@ -26,51 +22,7 @@ export function parseRetryAfterMs(res: Response): number | null {
   return null;
 }
 
-function isRefreshUrl(url: string): boolean {
-  try {
-    const path = new URL(url, "http://local").pathname;
-    return (
-      path === "/auth/device-session/refresh" ||
-      path.endsWith("/auth/device-session/refresh")
-    );
-  } catch {
-    return url.includes("/auth/device-session/refresh");
-  }
-}
-
-async function tryRefreshDeviceSession(): Promise<boolean> {
-  if (refreshInFlight) return refreshInFlight;
-  refreshInFlight = (async () => {
-    try {
-      const res = await fetch(apiUrl("/auth/device-session/refresh"), {
-        method: "POST",
-        credentials: "include",
-        cache: "no-store",
-      });
-      return res.ok;
-    } catch {
-      return false;
-    } finally {
-      refreshInFlight = null;
-    }
-  })();
-  return refreshInFlight;
-}
-
-async function shouldAttemptRefresh(res: Response): Promise<boolean> {
-  if (res.status !== 401) return false;
-  try {
-    const body = (await res.clone().json()) as { code?: string };
-    return (
-      body.code === "device_session_required" ||
-      body.code === "session_required"
-    );
-  } catch {
-    return false;
-  }
-}
-
-export function queryFetch(
+export async function queryFetch(
   input: RequestInfo | URL,
   init?: RequestInit
 ): Promise<Response> {
@@ -81,30 +33,7 @@ export function queryFetch(
       ? apiUrl(input.toString())
       : input;
 
-  const url =
-    typeof resolved === "string"
-      ? resolved
-      : resolved instanceof URL
-      ? resolved.toString()
-      : resolved.url;
-
-  const run = () =>
-    fetch(resolved, {
-      credentials: "include",
-      ...init,
-      cache: "no-store",
-    });
-
-  // Never nest refresh attempts on the refresh call itself.
-  if (isRefreshUrl(url)) return run();
-
-  return (async () => {
-    const first = await run();
-    if (!(await shouldAttemptRefresh(first))) return first;
-    const refreshed = await tryRefreshDeviceSession();
-    if (!refreshed) return first;
-    return run();
-  })();
+  return fetch(resolved, { credentials: "include", ...init, cache: "no-store" });
 }
 
 /** HTTP failure from `readJson` / API clients — carries status for retry policy. */

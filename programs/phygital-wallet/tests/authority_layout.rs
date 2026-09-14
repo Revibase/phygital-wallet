@@ -39,6 +39,7 @@ fn set_policy_ix(
             rent_receiver: ctx.payer.pubkey(),
             authority,
             payer,
+            phygital_token: asset,
             authority_account: ctx.authority_pda(asset),
             instructions_sysvar: solana_sdk_ids::sysvar::instructions::ID,
             system_program: anchor_lang::system_program::ID,
@@ -61,6 +62,7 @@ fn clear_policy_ix(
         program_id: ctx.program_id,
         accounts: phygital_wallet::accounts::ClearWalletPolicy {
             authority,
+            phygital_token: asset,
             authority_account: ctx.authority_pda(asset),
             rent_receiver: receiver,
             instructions_sysvar: solana_sdk_ids::sysvar::instructions::ID,
@@ -426,6 +428,7 @@ fn malformed_tail_can_be_cleared_and_extended_account_can_be_closed_and_recreate
         accounts: phygital_wallet::accounts::ClearAuthority {
             authority: authority.pubkey(),
             rent_receiver: ctx.payer.pubkey(),
+            phygital_token: asset,
             authority_account: pda,
             instructions_sysvar: solana_sdk_ids::sysvar::instructions::ID,
         }

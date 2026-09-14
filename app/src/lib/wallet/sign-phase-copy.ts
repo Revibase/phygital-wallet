@@ -14,7 +14,7 @@ export function isWalletSignCeremonyPhase(
   return (
     phase === "awaitingPasskey" ||
     phase === "building" ||
-    phase === "coSigning" ||
+    phase === "feePaying" ||
     phase === "complete"
   );
 }
@@ -51,7 +51,7 @@ export function walletSignPhaseCopy(phase: PhygitalWalletSignPhase): {
         body: copy.wallet.signBuildingBody,
         pulse: false,
       };
-    case "coSigning":
+    case "feePaying":
       return {
         title: copy.wallet.signCoSigningTitle,
         body: copy.wallet.signCoSigningBody,

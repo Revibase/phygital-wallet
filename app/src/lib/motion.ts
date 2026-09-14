@@ -26,7 +26,7 @@ export function snapEnter(reduced: boolean | null) {
 
 export const STAGGER_STEP_MS = 24;
 export const STAGGER_CAP = 4;
-/** Sticky dock trails content settle on token / claim landings. */
+/** Sticky dock trails content settle on token landings. */
 export const STICKY_ENTER_DELAY_MS = 40;
 
 /** Cap stagger index so grids with many items don't cascade too long. */

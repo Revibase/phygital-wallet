@@ -129,7 +129,7 @@ export async function signAndSendTransaction(
 /**
  * Sign and broadcast. Returns as soon as the RPC accepts the tx so callers can
  * update UI without waiting for `confirmed`. Await `confirmed` when the next
- * step must not run until the tx has landed (e.g. claim).
+ * step must not run until the transaction has landed.
  */
 export async function sendTransaction(params: {
   instructions: Instruction[];

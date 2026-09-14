@@ -219,11 +219,6 @@ export const copy = {
     receiptTime: "Time",
     receiptType: "Type",
     receiptFee: "Network fee",
-    accessAndRecovery: "This phone",
-    accessAndRecoveryHint: "Link",
-    accessAndRecoveryBody:
-      "Your accessory authorizes spends. Linking it to this phone lets you change limits and approve exceptions.",
-    accessClaimHint: "Claim",
     accessRecoveryRow: "Recovery address",
     recoveryWallet: "Recovery address",
     recoveryWalletBody:
@@ -255,68 +250,8 @@ export const copy = {
       "If you lose this accessory, that address can restore funds. It can also move everything — choose a key you fully control.",
     recoveryAckCta: "Add address",
     recoveryAckSkip: "Not now",
-    deviceLoginTitle: "Sign in",
-    deviceLoginBody:
-      "Manage linked accessories and spending limits with Face ID, fingerprint, or your screen lock.",
-    homeSetupPasskeyBody: "Continue, then hold your accessory to claim it.",
-    homeLinkSetupTitle: "Hold to claim",
-    homeLinkSetupBody:
-      "Hold your accessory to the top of your phone to finish claiming.",
-    homeLinkConfirmTitle: "Confirm on this phone",
-    homeLinkConfirmBody:
-      "Use Face ID, fingerprint, or your screen lock to link this accessory to this phone.",
-    homeLinkConfirmCta: "Confirm with Passkey",
-    homeLinkConfirmPending: "Waiting for Face ID, fingerprint, or screen lock…",
-    homeSetupPasskeyClaimTitle: "Make it yours",
-    deviceLinkBody:
-      "Claim this accessory so only this phone can change limits, recovery, and approval.",
-    deviceLinkCta: "Hold to claim",
-    deviceVisitorUnlinkedNotice: "Make this yours",
-    deviceVisitorLinkAction: "Claim",
-    deviceAuthReady: "Signed in on this phone",
-    deviceUnlink: "Unlink this phone",
-    deviceUnlinkConfirmTitle: "Unlink this phone?",
-    deviceUnlinkConfirmBody:
-      "Limits turn off. Anyone who holds the accessory can claim it on their phone.",
-    deviceUnlinkConfirmCta: "Unlink",
-    deviceUnlinkConfirmCancel: "Cancel",
-    deviceUnlinkPolicyWarn: "Limits turn off when you unlink.",
-    deviceUnlinkBefore: "Before you unlink",
-    deviceUnlinkBlockersFooter:
-      "Clear these while this phone is linked. Limits turn off when you unlink.",
-    deviceUnlinkNeedsRecovery: "Clear the recovery address before unlinking.",
-    deviceUnlinkNeedsSigning:
-      "Switch back to the Revibase transaction verifier before unlinking.",
-    deviceUnlinkClearRecoveryCta: "Clear",
-    deviceUnlinkRestoreSigningCta: "Use Revibase",
-    deviceUnlinkStepNeeded: "Required",
-    deviceUnlinked: "Unlinked. Limits are off.",
-    deviceAddAccessory: "Add accessory",
-    claimTitle: "Make it yours",
-    claimBody:
-      "Link this accessory to this phone. Takes about 10 seconds. Only this phone can then change limits, recovery, and approval.",
-    claimCta: "Continue with Passkey",
-    claimNotNow: "Not now",
-    claimHoldToContinue: "Hold to continue",
-    claimDesktopHint:
-      "Open this on your phone to claim with Face ID, fingerprint, or screen lock.",
-    claimTryAgain: "Try again",
-    claimBannerAction: "Claim",
-    claimBannerTitle: "Make this yours",
-    claimSuccessTitle: "Linked to this phone",
-    claimSuccessBody:
-      "Only this phone can change limits, recovery, and approval.",
-    claimSuccessCta: "Continue",
-    claimSignInTitle: "Sign in",
-    claimSignInBody:
-      "Continue to manage limits, recovery, and approval on this phone.",
-    limitsLinkedElsewhereTitle: "Linked to another phone",
-    limitsLinkedElsewhereBody:
-      "Unlink on that phone first, then come back here to claim.",
     limitsStatusOff: "Not set",
     limitsStatusOn: "On",
-    limitsStatusSetup: "Claim",
-    limitsStatusRequiresClaim: "Requires claim",
     limitsStatusInvalid: "Needs fix",
     limitsInvalidBody:
       "Saved limits are invalid. Save again to restore protection.",
@@ -354,10 +289,6 @@ export const copy = {
     customEndpoint: "Verifier URL",
     customVerifier: "Verifier public key",
     verifierPubkey: "Solana address",
-    setupDeviceNotLinked: "Not linked",
-    setupDeviceLinkedElsewhere: "Linked elsewhere",
-    setupDeviceSignIn: "Sign in",
-    setupDeviceLinkedHere: "Linked here",
     policyDefaultSigningOnly:
       "Caps apply to built-in wallet sends. Exception programs are unrestricted.",
     policySection: "Limits",

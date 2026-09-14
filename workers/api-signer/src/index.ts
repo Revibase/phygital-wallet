@@ -1,7 +1,7 @@
 /**
- * Private verifier signer Worker — TokenSigner Durable Object only.
+ * Private fee-payer Worker — TokenSigner Durable Object only.
  *
- * Owns: fee gate, authorizeIntent, ed25519 co-sign, policy/grants/owners.
+ * Owns fee-payer signing and per-token fee-balance accounting.
  * Not publicly routed; callers use TOKEN_SIGNER DO binding from revibase-api.
  */
 export { TokenSigner } from "./token-signer.js";

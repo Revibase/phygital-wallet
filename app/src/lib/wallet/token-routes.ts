@@ -1,26 +1,9 @@
 import { tryParseAddress } from "@/lib/solana/address";
 import type { SettingsTarget } from "@/components/wallet/settings-hub";
 
-/** Settings targets that only owners may open (policy / signing / recovery). */
-export const OWNER_ONLY_SETTINGS = new Set<SettingsTarget>([
-  "sendProtections",
-  "spendingLimits",
-  "extraPrograms",
-  "allowedOrigins",
-  "signing",
-  "recoveryWallet",
-]);
-
 const SETTINGS_TO_SEGMENT: Record<SettingsTarget, string> = {
-  sendProtections: "send-protections",
-  spendingLimits: "spending-limits",
-  extraPrograms: "exceptions",
-  allowedOrigins: "allowed-sites",
-  signing: "signing",
-  recoveryWallet: "recovery",
   rpcConnection: "rpc",
   feeBalance: "fee-balance",
-  access: "access",
 };
 
 const SEGMENT_TO_SETTINGS = new Map<string, SettingsTarget>(
@@ -29,34 +12,6 @@ const SEGMENT_TO_SETTINGS = new Map<string, SettingsTarget>(
 
 /** Single-segment wallet leaves (not receive/collectibles/settings trees). */
 const WALLET_LEAF_SEGMENTS = new Set(["send", "tokens", "activity"]);
-
-export type PolicySetupScreen = "spendingLimits" | "extraPrograms";
-
-const POLICY_SETUP_SCREENS = new Set<string>([
-  "spendingLimits",
-  "extraPrograms",
-]);
-
-export function isPolicySetupScreen(
-  value: string | null | undefined
-): value is PolicySetupScreen {
-  return Boolean(value && POLICY_SETUP_SCREENS.has(value));
-}
-
-/**
- * Owner settings that live under Send protections and only apply once it is on
- * (see `SettingsHub`). Direct navigation to these is redirected to the hub when
- * protections are off.
- */
-const PROTECTIONS_ONLY_SETTINGS = new Set<SettingsTarget>([
-  "spendingLimits",
-  "extraPrograms",
-  "allowedOrigins",
-]);
-
-export function requiresSendProtections(target: SettingsTarget): boolean {
-  return PROTECTIONS_ONLY_SETTINGS.has(target);
-}
 
 export function settingsSegment(target: SettingsTarget): string {
   return SETTINGS_TO_SEGMENT[target];
@@ -67,10 +22,6 @@ export function settingsFromSegment(
 ): SettingsTarget | null {
   if (!segment) return null;
   return SEGMENT_TO_SETTINGS.get(segment) ?? null;
-}
-
-export function isOwnerOnlySettings(target: SettingsTarget): boolean {
-  return OWNER_ONLY_SETTINGS.has(target);
 }
 
 /** Card / token home: `/token/{address}`. */
@@ -105,11 +56,6 @@ export function walletSettingsHref(
 export function settingsFromDenyCode(
   code?: string
 ): SettingsTarget | undefined {
-  if (code === "spend_limit") return "spendingLimits";
-  if (code === "program_not_allowed" || code === "instruction_not_allowed") {
-    return "extraPrograms";
-  }
-  if (code === "origin_not_allowed") return "allowedOrigins";
   if (code === "insufficient_fee_balance") return "feeBalance";
   return undefined;
 }

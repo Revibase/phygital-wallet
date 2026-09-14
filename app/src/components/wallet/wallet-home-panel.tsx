@@ -5,7 +5,6 @@ import { LazyMotion, domAnimation, m, useReducedMotion } from "framer-motion";
 import { ArrowDown, ArrowUp, Clock3, RefreshCcw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CollectiblesGrid } from "@/components/wallet/collectibles-grid";
 import { TokenHoldingRow } from "@/components/wallet/token-holding-row";
@@ -31,7 +30,6 @@ import { snapEnter, snapEnterTransition, easeOut } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 const FIRST_RUN_FLAG = "revibase.first-run.wallet.v1";
-const RECOVERY_ACK_FLAG = "revibase.recovery-ack.v1";
 
 /** Shared Wallet panel — calm home: capped tokens + collectibles, See All. */
 const EMPTY_HOLDINGS: WalletPortfolio["holdings"] = [];
@@ -66,7 +64,6 @@ export function WalletHomePanel({
   visitorNotice,
   onVisitorNotice,
   visitorNoticeAction,
-  onAddRecovery,
   suppressFirstRun = false,
   status = "live",
   className,
@@ -89,13 +86,11 @@ export function WalletHomePanel({
   onChangeRpc?: () => void;
   onRefresh?: () => void;
   lastUpdatedLabel?: string | null;
-  /** Owner: open recovery set/clear from the first-funds ack. */
-  onAddRecovery?: () => void;
   /** Quiet visitor role notice (not linked as owner on this phone). */
   visitorNotice?: string | null;
   visitorNoticeAction?: string;
   onVisitorNotice?: () => void;
-  /** Claim ceremony wins over empty-wallet first-run. */
+  /** A parent ceremony may suppress the empty-wallet first-run. */
   suppressFirstRun?: boolean;
   status?: "live" | "refreshing" | "error";
   className?: string;
@@ -116,12 +111,8 @@ export function WalletHomePanel({
       };
   const [firstRunDismissed, setFirstRunDismissed] =
     useLocalFlag(FIRST_RUN_FLAG);
-  const [recoveryAcked, setRecoveryAcked] = useLocalFlag(RECOVERY_ACK_FLAG);
   const showFirstRun =
     empty && !linkedMint && !firstRunDismissed && !suppressFirstRun;
-  const showRecoveryAck =
-    Boolean(onAddRecovery) && hasFungible && !recoveryAcked;
-
   const tokenPreview = useMemo(() => previewHoldings(holdings), [holdings]);
   const collectiblePreview = useMemo(
     () => previewCollectibles(collectibles, linkedMint),
@@ -452,43 +443,6 @@ export function WalletHomePanel({
           </m.div>
         ) : null}
       </m.div>
-      <Dialog
-        open={showRecoveryAck}
-        onOpenChange={(open) => {
-          if (!open) setRecoveryAcked(true);
-        }}
-      >
-        <DialogContent className="max-w-sm p-6">
-          <div className="space-y-3">
-            <DialogTitle className="text-base font-medium">
-              {copy.wallet.recoveryAckTitle}
-            </DialogTitle>
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              {copy.wallet.recoveryAckBody}
-            </p>
-            <Button
-              type="button"
-              size="lg"
-              className="w-full"
-              onClick={() => {
-                setRecoveryAcked(true);
-                onAddRecovery?.();
-              }}
-            >
-              {copy.wallet.recoveryAckCta}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="lg"
-              className="w-full"
-              onClick={() => setRecoveryAcked(true)}
-            >
-              {copy.wallet.recoveryAckSkip}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </LazyMotion>
   );
 }

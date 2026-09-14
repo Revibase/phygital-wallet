@@ -51,11 +51,10 @@ describe("isPersistedQueryKey", () => {
     expect(isPersistedQueryKey(["walletPortfolio", "owner"])).toBe(true);
     expect(isPersistedQueryKey(["feeBalance", "token"])).toBe(true);
     expect(isPersistedQueryKey(["verifiedTokens"])).toBe(true);
-    expect(isPersistedQueryKey(["walletPolicy", "token"])).toBe(true);
   });
 
   it("skips growing or one-shot caches", () => {
     expect(isPersistedQueryKey(["tapVerify", "pk=1"])).toBe(false);
-    expect(isPersistedQueryKey(["deviceAuth", "session"])).toBe(false);
+    expect(isPersistedQueryKey(["browseUnlock", "token"])).toBe(false);
   });
 });

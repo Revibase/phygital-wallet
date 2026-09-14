@@ -3,14 +3,8 @@
 # Structured Workers Logs verbosity (debug | info | warn | error)
 LOG_LEVEL=debug
 
-# SOLANA_CLUSTER=devnet
-# SOLANA_RPC_URL=https://api.devnet.solana.com
-
-# secrets (default) | kms (not implemented)
-# VERIFIER_SIGNER_BACKEND=secrets
-
-# JSON map: on-chain verifier pubkey → base58 seed or 64-byte keypair (max 8).
-# Map keys are also the default verifier / paymaster set (keep api DEFAULT_VERIFIER_PUBKEYS in sync).
+# JSON map: fee-payer pubkey → base58 seed or 64-byte keypair (max 8).
+# Keep map keys in sync with api DEFAULT_VERIFIER_PUBKEYS.
 # VERIFIER_SECRET_KEYS={"YourVerifierPubkeyBase58":"YourSeedOrKeypairBase58"}
 
 # Fee top-up exemption (same accumulator as API)

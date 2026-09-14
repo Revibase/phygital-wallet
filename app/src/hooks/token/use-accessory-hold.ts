@@ -6,7 +6,7 @@ import { useIsInAppBrowser } from "@/hooks/layout/use-is-in-app-browser";
 import { copy } from "@/lib/copy/phygital";
 import { toUserErrorMessage } from "@/lib/user-errors";
 import { completeAccessoryConnection } from "@/lib/wallet/connect-accessory";
-import { AccessoryMismatchError } from "phygital-wallet-sdk";
+import { AccessoryMismatchError } from "@/lib/wallet/connect-accessory";
 
 /**
  * Shared Hold gate: in-app browser check + accessory WebAuthn + busy/error.

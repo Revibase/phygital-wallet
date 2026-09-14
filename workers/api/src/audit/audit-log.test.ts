@@ -117,34 +117,6 @@ describe("recordAudit", () => {
     expect(detail(runs[0])).toEqual({ code: "invalid_proof" });
   });
 
-  it("writes null detail_json when nothing event-specific is present", async () => {
-    const { db, runs } = fakeD1();
-    await withStore(db, () =>
-      recordAudit({ event: "owner_unlink", phygitalToken: "Tok", ok: true })
-    );
-    expect(row(runs[0]).detail_json).toBeNull();
-  });
-
-  it("puts the visitor passkey in detail_json, not a column", async () => {
-    const { db, runs } = fakeD1();
-    await withStore(db, () =>
-      recordAudit({
-        event: "pending_approval",
-        actor: "visitor_device",
-        credentialId: "cred-visitor",
-        intentHash: "h1",
-        detail: { resolution: "created" },
-      })
-    );
-    const r = row(runs[0]);
-    expect(r.actor).toBe("visitor_device");
-    expect(r.intent_hash).toBe("h1");
-    expect(detail(runs[0])).toEqual({
-      resolution: "created",
-      credentialId: "cred-visitor",
-    });
-  });
-
   it("batches multiple entries in one call", async () => {
     const { db, runs, batches } = fakeD1();
     await withStore(db, () =>

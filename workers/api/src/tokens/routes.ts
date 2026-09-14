@@ -1,12 +1,12 @@
 import { Hono } from "hono";
 
 import { readBrowseUnlock } from "@/auth/browse-unlock-session";
-import { readDeviceSession } from "@/auth/device-session";
+import { getErrorMessage } from "@/shared/errors";
 import { json } from "@/shared/http";
 import { tryParseAddress } from "@/shared/solana/address";
 import { fetchVerifiedTokens } from "@/tokens/verified-tokens";
 import { FEE_BALANCE_LOW_LAMPORTS, lamportsToSolUi } from "@/fees/constants";
-import { tokenSigner } from "@/verifier/token-signer";
+import { tokenSigner } from "@/transactions/token-signer";
 
 /**
  * Server-only token routes (DO fee balance, Jupiter verified catalog).
@@ -20,7 +20,7 @@ tokenRoutes.get("/tokens/fee-balance", async (c) => {
   if (!phygitalToken) {
     return json(
       { error: "Query param phygitalToken must be a valid Solana address" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -28,19 +28,10 @@ tokenRoutes.get("/tokens/fee-balance", async (c) => {
   const browse = await readBrowseUnlock(c);
   const browseOk = browse?.phygitalToken === token;
   if (!browseOk) {
-    const session = await readDeviceSession(c);
-    if (
-      !session ||
-      !(await tokenSigner(c.env, token).isOwner(session.credentialId))
-    ) {
-      return json(
-        {
-          error: "Sign in or unlock this item to continue.",
-          code: "session_required",
-        },
-        { status: 401 }
-      );
-    }
+    return json(
+      { error: "Unlock this item to continue.", code: "session_required" },
+      { status: 401 },
+    );
   }
 
   try {
@@ -52,11 +43,8 @@ tokenRoutes.get("/tokens/fee-balance", async (c) => {
     });
   } catch (error) {
     return json(
-      {
-        error:
-          error instanceof Error ? error.message : "Failed to load fee balance",
-      },
-      { status: 502 }
+      { error: getErrorMessage(error, "Failed to load fee balance") },
+      { status: 502 },
     );
   }
 });
@@ -67,13 +55,8 @@ tokenRoutes.get("/tokens/verified", async (c) => {
     return json({ tokens });
   } catch (error) {
     return json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to load verified tokens",
-      },
-      { status: 502 }
+      { error: getErrorMessage(error, "Failed to load verified tokens") },
+      { status: 502 },
     );
   }
 });

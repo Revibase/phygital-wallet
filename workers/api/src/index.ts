@@ -6,14 +6,13 @@
  */
 import { Hono } from "hono";
 
-import { deviceAuthRoutes } from "@/auth/device-routes";
-import { policyRoutes } from "@/auth/policies-routes";
+import { accessoryUnlockRoutes } from "@/auth/accessory-unlock-routes";
 import { requireAppAccess } from "@/auth/require-app-access";
 import { appCors } from "@/shared/cors";
 import { createLogger } from "@/shared/log";
 import { runWithRequestStore } from "@/shared/request-context";
 import { tokenRoutes } from "@/tokens/routes";
-import { verifierRoutes } from "@/verifier";
+import { transactions } from "@/transactions";
 import { heliusWebhookRoutes } from "@/webhooks/helius";
 import { walletTxRoutes } from "@/webhooks/transactions";
 import {
@@ -31,7 +30,7 @@ app.use("*", async (c, next) => {
       env: c.env,
       waitUntil: (promise) => c.executionCtx.waitUntil(promise),
     },
-    () => next()
+    () => next(),
   );
 });
 
@@ -82,10 +81,9 @@ app.use("*", async (c, next) => {
 
 app.get("/health", (c) => c.json({ ok: true }));
 
+app.route("/", accessoryUnlockRoutes);
 app.route("/", tokenRoutes);
-app.route("/", verifierRoutes);
-app.route("/", policyRoutes);
-app.route("/", deviceAuthRoutes);
+app.route("/", transactions);
 app.route("/", heliusWebhookRoutes);
 app.route("/", walletTxRoutes);
 

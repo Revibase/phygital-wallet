@@ -18,8 +18,8 @@ export type TapVerifyResult = {
 };
 
 /**
- * Exchange the tap proof at the token's own verifier for a session bearer, then
- * for the app-session cookie.
+ * Post the tap proof to the api worker, which verifies it and sets the
+ * browse-unlock cookie for the resolved token.
  */
 async function fetchTapVerification(
   params: URLSearchParams
@@ -48,7 +48,7 @@ async function fetchTapVerification(
 }
 
 /**
- * NFC tap URL params (`pk` / `s` / `c` / `n`) for Asset claim / verify.
+ * NFC tap URL params (`pk` / `s` / `c` / `n`) for accessory verification.
  * Full tap proof is required — there is no owner-only `?pk=` path.
  */
 export function useTapVerify() {
@@ -79,10 +79,10 @@ export function useTapVerify() {
       const result = await fetchTapVerification(
         new URLSearchParams(tapParamsString)
       );
-      // Cookie is set by the app-session exchange; seed RQ so the address page skips GET.
+      // Cookie is set by /accessory/unlock/tap; seed RQ so the address page skips GET.
       if (result.phygitalToken) {
         queryClient.setQueryData(
-          queryKeys.deviceAuth.browseUnlock(result.phygitalToken),
+          queryKeys.browseUnlock.byToken(result.phygitalToken),
           true
         );
       }

@@ -14,7 +14,6 @@ import { useWalletPortfolio } from "@/hooks/wallet/use-wallet-portfolio";
 import { useFeeBalance } from "@/hooks/wallet/use-fee-balance";
 import { useRpcPreference } from "@/hooks/wallet/use-rpc-preference";
 import { copy } from "@/lib/copy/phygital";
-import { isClaimDismissed } from "@/lib/wallet/claim-setup-href";
 
 const timeFormatter = new Intl.DateTimeFormat(undefined, {
   hour: "numeric",
@@ -22,21 +21,10 @@ const timeFormatter = new Intl.DateTimeFormat(undefined, {
 });
 
 export default function WalletHomePage() {
-  const {
-    claimed,
-    tokenAddress,
-    walletAddress,
-    mint,
-    collectible,
-    isOwner,
-    linkedElsewhere,
-    unclaimed,
-    claimedQuiet,
-  } = useWalletSession();
-  const { go, goSettings, goSend, goCard, refresh, requestClaim } =
-    useWalletNav();
+  const { tokenAddress, walletAddress, mint, collectible } = useWalletSession();
+  const { go, goSettings, goSend, goCard, refresh } = useWalletNav();
   const portfolio = useWalletPortfolio(walletAddress);
-  const feeBalance = useFeeBalance(isOwner ? tokenAddress : null);
+  const feeBalance = useFeeBalance(tokenAddress);
   const rpc = useRpcPreference();
 
   const resolvedLabel =
@@ -104,36 +92,6 @@ export default function WalletHomePage() {
         onSeeAllTokens={() => go("tokens")}
         onSeeAllCollectibles={() => go("collectibles")}
         onSeeAllActivity={() => go("activity")}
-        onAddRecovery={isOwner ? () => goSettings("recoveryWallet") : undefined}
-        suppressFirstRun={
-          !isOwner &&
-          unclaimed &&
-          !linkedElsewhere &&
-          !isClaimDismissed(tokenAddress)
-        }
-        visitorNotice={
-          isOwner || linkedElsewhere
-            ? null
-            : unclaimed || claimed === undefined
-            ? copy.wallet.claimBannerTitle
-            : null
-        }
-        visitorNoticeAction={
-          !isOwner &&
-          !linkedElsewhere &&
-          !claimedQuiet &&
-          (unclaimed || claimed === undefined)
-            ? copy.wallet.claimBannerAction
-            : undefined
-        }
-        onVisitorNotice={
-          !isOwner &&
-          !linkedElsewhere &&
-          !claimedQuiet &&
-          (unclaimed || claimed === undefined)
-            ? requestClaim
-            : undefined
-        }
         feeBalanceLow={feeBalance.data?.low}
         onTopUpFees={() => goSettings("feeBalance")}
         customRpcEndpoint={rpc.isCustom ? rpc.displayEndpoint : null}

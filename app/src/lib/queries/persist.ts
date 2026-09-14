@@ -34,7 +34,6 @@ const PERSISTED_QUERY_ROOTS = new Set([
   "walletPortfolio",
   "feeBalance",
   "verifiedTokens",
-  "walletPolicy",
 ]);
 
 function isTaggedBigInt(value: object): value is TaggedBigInt {

@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * Full-viewport ceremony frame for Hold / verify / claim success.
+ * Full-viewport ceremony frame for Hold and verification.
  * Keeps optional chrome (Cancel) out of the flex grow so NfcHoldStatus can center.
  */
 export function CeremonyShell({

@@ -1,5 +1,5 @@
 /**
- * Shared HMAC helpers for device-session + browse-unlock cookies.
+ * HMAC helpers for browse-unlock cookies.
  */
 import { base64UrlToBytes, bytesToBase64Url } from "@/shared/crypto/base64";
 import { getEnv } from "@/shared/request-context";

@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 
+import { OwnerGate } from "@/components/wallet/owner-gate";
 import { SettingsHub } from "@/components/wallet/settings-hub";
 import {
   useWalletNav,
@@ -21,7 +22,7 @@ export default function WalletSettingsLayout({
   children: ReactNode;
 }) {
   const pathname = usePathname();
-  const { tokenAddress, role, linkStatus, claimed } = useWalletSession();
+  const { tokenAddress } = useWalletSession();
   const { backHome, goSettings } = useWalletNav();
 
   const segment = pathname.split("/").pop() ?? "";
@@ -29,19 +30,14 @@ export default function WalletSettingsLayout({
     segment === "settings" ? null : settingsFromSegment(segment);
   const isHub = activeTarget === null;
 
-  if (isHub) {
-    return <div className="flex min-w-0 flex-1 flex-col">{children}</div>;
-  }
-
-  return (
+  const content = isHub ? (
+    <div className="flex min-w-0 flex-1 flex-col">{children}</div>
+  ) : (
     <div className={settingsDesktopClass}>
       <aside className="hidden lg:block lg:sticky lg:top-4 lg:max-h-[calc(100dvh-3rem)] lg:overflow-y-auto">
         <SettingsHub
           variant="panel"
           phygitalTokenPda={tokenAddress}
-          role={role}
-          linkStatus={linkStatus}
-          claimed={claimed}
           activeTarget={activeTarget}
           onBack={backHome}
           onOpen={(target) => goSettings(target)}
@@ -50,4 +46,6 @@ export default function WalletSettingsLayout({
       <div className="flex min-w-0 flex-1 flex-col lg:max-w-xl">{children}</div>
     </div>
   );
+
+  return <OwnerGate phygitalTokenPda={tokenAddress}>{content}</OwnerGate>;
 }

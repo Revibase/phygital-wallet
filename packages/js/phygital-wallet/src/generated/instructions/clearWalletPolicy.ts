@@ -51,6 +51,7 @@ export type ClearWalletPolicyInstruction<
   TProgram extends string = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
   TAccountAuthority extends string | AccountMeta<string> = string,
   TAccountRentReceiver extends string | AccountMeta<string> = string,
+  TAccountPhygitalToken extends string | AccountMeta<string> = string,
   TAccountAuthorityAccount extends string | AccountMeta<string> = string,
   TAccountInstructionsSysvar extends string | AccountMeta<string> =
     "Sysvar1nstructions1111111111111111111111111",
@@ -66,6 +67,9 @@ export type ClearWalletPolicyInstruction<
       TAccountRentReceiver extends string
         ? WritableAccount<TAccountRentReceiver>
         : TAccountRentReceiver,
+      TAccountPhygitalToken extends string
+        ? ReadonlyAccount<TAccountPhygitalToken>
+        : TAccountPhygitalToken,
       TAccountAuthorityAccount extends string
         ? WritableAccount<TAccountAuthorityAccount>
         : TAccountAuthorityAccount,
@@ -108,12 +112,14 @@ export function getClearWalletPolicyInstructionDataCodec(): FixedSizeCodec<
 export type ClearWalletPolicyInput<
   TAccountAuthority extends string = string,
   TAccountRentReceiver extends string = string,
+  TAccountPhygitalToken extends string = string,
   TAccountAuthorityAccount extends string = string,
   TAccountInstructionsSysvar extends string = string,
 > = {
   /** The token's authority (ed25519). */
   authority: TransactionSigner<TAccountAuthority>;
   rentReceiver: Address<TAccountRentReceiver>;
+  phygitalToken: Address<TAccountPhygitalToken>;
   /** and canonical PDA are validated in the handler (see `SetWalletPolicy`). */
   authorityAccount: Address<TAccountAuthorityAccount>;
   instructionsSysvar?: Address<TAccountInstructionsSysvar>;
@@ -122,6 +128,7 @@ export type ClearWalletPolicyInput<
 export function getClearWalletPolicyInstruction<
   TAccountAuthority extends string,
   TAccountRentReceiver extends string,
+  TAccountPhygitalToken extends string,
   TAccountAuthorityAccount extends string,
   TAccountInstructionsSysvar extends string,
   TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
@@ -129,6 +136,7 @@ export function getClearWalletPolicyInstruction<
   input: ClearWalletPolicyInput<
     TAccountAuthority,
     TAccountRentReceiver,
+    TAccountPhygitalToken,
     TAccountAuthorityAccount,
     TAccountInstructionsSysvar
   >,
@@ -137,6 +145,7 @@ export function getClearWalletPolicyInstruction<
   TProgramAddress,
   TAccountAuthority,
   TAccountRentReceiver,
+  TAccountPhygitalToken,
   TAccountAuthorityAccount,
   TAccountInstructionsSysvar
 > {
@@ -148,6 +157,7 @@ export function getClearWalletPolicyInstruction<
   const originalAccounts = {
     authority: { value: input.authority ?? null, isWritable: false },
     rentReceiver: { value: input.rentReceiver ?? null, isWritable: true },
+    phygitalToken: { value: input.phygitalToken ?? null, isWritable: false },
     authorityAccount: {
       value: input.authorityAccount ?? null,
       isWritable: true,
@@ -173,6 +183,7 @@ export function getClearWalletPolicyInstruction<
     accounts: [
       getAccountMeta("authority", accounts.authority),
       getAccountMeta("rentReceiver", accounts.rentReceiver),
+      getAccountMeta("phygitalToken", accounts.phygitalToken),
       getAccountMeta("authorityAccount", accounts.authorityAccount),
       getAccountMeta("instructionsSysvar", accounts.instructionsSysvar),
     ],
@@ -182,6 +193,7 @@ export function getClearWalletPolicyInstruction<
     TProgramAddress,
     TAccountAuthority,
     TAccountRentReceiver,
+    TAccountPhygitalToken,
     TAccountAuthorityAccount,
     TAccountInstructionsSysvar
   >);
@@ -196,9 +208,10 @@ export type ParsedClearWalletPolicyInstruction<
     /** The token's authority (ed25519). */
     authority: TAccountMetas[0];
     rentReceiver: TAccountMetas[1];
+    phygitalToken: TAccountMetas[2];
     /** and canonical PDA are validated in the handler (see `SetWalletPolicy`). */
-    authorityAccount: TAccountMetas[2];
-    instructionsSysvar: TAccountMetas[3];
+    authorityAccount: TAccountMetas[3];
+    instructionsSysvar: TAccountMetas[4];
   };
   data: ClearWalletPolicyInstructionData;
 };
@@ -211,12 +224,12 @@ export function parseClearWalletPolicyInstruction<
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
 ): ParsedClearWalletPolicyInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 4) {
+  if (instruction.accounts.length < 5) {
     throw new SolanaError(
       SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
       {
         actualAccountMetas: instruction.accounts.length,
-        expectedAccountMetas: 4,
+        expectedAccountMetas: 5,
       },
     );
   }
@@ -231,6 +244,7 @@ export function parseClearWalletPolicyInstruction<
     accounts: {
       authority: getNextAccount(),
       rentReceiver: getNextAccount(),
+      phygitalToken: getNextAccount(),
       authorityAccount: getNextAccount(),
       instructionsSysvar: getNextAccount(),
     },

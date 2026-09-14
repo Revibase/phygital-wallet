@@ -73,6 +73,7 @@ export type SetWalletPolicyInstruction<
   TAccountAuthority extends string | AccountMeta<string> = string,
   TAccountPayer extends string | AccountMeta<string> = string,
   TAccountRentReceiver extends string | AccountMeta<string> = string,
+  TAccountPhygitalToken extends string | AccountMeta<string> = string,
   TAccountAuthorityAccount extends string | AccountMeta<string> = string,
   TAccountInstructionsSysvar extends string | AccountMeta<string> =
     "Sysvar1nstructions1111111111111111111111111",
@@ -94,6 +95,9 @@ export type SetWalletPolicyInstruction<
       TAccountRentReceiver extends string
         ? WritableAccount<TAccountRentReceiver>
         : TAccountRentReceiver,
+      TAccountPhygitalToken extends string
+        ? ReadonlyAccount<TAccountPhygitalToken>
+        : TAccountPhygitalToken,
       TAccountAuthorityAccount extends string
         ? WritableAccount<TAccountAuthorityAccount>
         : TAccountAuthorityAccount,
@@ -187,6 +191,7 @@ export type SetWalletPolicyInput<
   TAccountAuthority extends string = string,
   TAccountPayer extends string = string,
   TAccountRentReceiver extends string = string,
+  TAccountPhygitalToken extends string = string,
   TAccountAuthorityAccount extends string = string,
   TAccountInstructionsSysvar extends string = string,
   TAccountSystemProgram extends string = string,
@@ -196,6 +201,7 @@ export type SetWalletPolicyInput<
   /** Pays any additional rent when growing the policy. */
   payer: TransactionSigner<TAccountPayer>;
   rentReceiver: Address<TAccountRentReceiver>;
+  phygitalToken: Address<TAccountPhygitalToken>;
   /**
    * version, authority signer and canonical PDA are validated in the handler;
    * Anchor `seeds`/`has_one` are not used here because their `?`/self-reference
@@ -213,6 +219,7 @@ export function getSetWalletPolicyInstruction<
   TAccountAuthority extends string,
   TAccountPayer extends string,
   TAccountRentReceiver extends string,
+  TAccountPhygitalToken extends string,
   TAccountAuthorityAccount extends string,
   TAccountInstructionsSysvar extends string,
   TAccountSystemProgram extends string,
@@ -222,6 +229,7 @@ export function getSetWalletPolicyInstruction<
     TAccountAuthority,
     TAccountPayer,
     TAccountRentReceiver,
+    TAccountPhygitalToken,
     TAccountAuthorityAccount,
     TAccountInstructionsSysvar,
     TAccountSystemProgram
@@ -232,6 +240,7 @@ export function getSetWalletPolicyInstruction<
   TAccountAuthority,
   TAccountPayer,
   TAccountRentReceiver,
+  TAccountPhygitalToken,
   TAccountAuthorityAccount,
   TAccountInstructionsSysvar,
   TAccountSystemProgram
@@ -245,6 +254,7 @@ export function getSetWalletPolicyInstruction<
     authority: { value: input.authority ?? null, isWritable: false },
     payer: { value: input.payer ?? null, isWritable: true },
     rentReceiver: { value: input.rentReceiver ?? null, isWritable: true },
+    phygitalToken: { value: input.phygitalToken ?? null, isWritable: false },
     authorityAccount: {
       value: input.authorityAccount ?? null,
       isWritable: true,
@@ -279,6 +289,7 @@ export function getSetWalletPolicyInstruction<
       getAccountMeta("authority", accounts.authority),
       getAccountMeta("payer", accounts.payer),
       getAccountMeta("rentReceiver", accounts.rentReceiver),
+      getAccountMeta("phygitalToken", accounts.phygitalToken),
       getAccountMeta("authorityAccount", accounts.authorityAccount),
       getAccountMeta("instructionsSysvar", accounts.instructionsSysvar),
       getAccountMeta("systemProgram", accounts.systemProgram),
@@ -292,6 +303,7 @@ export function getSetWalletPolicyInstruction<
     TAccountAuthority,
     TAccountPayer,
     TAccountRentReceiver,
+    TAccountPhygitalToken,
     TAccountAuthorityAccount,
     TAccountInstructionsSysvar,
     TAccountSystemProgram
@@ -309,14 +321,15 @@ export type ParsedSetWalletPolicyInstruction<
     /** Pays any additional rent when growing the policy. */
     payer: TAccountMetas[1];
     rentReceiver: TAccountMetas[2];
+    phygitalToken: TAccountMetas[3];
     /**
      * version, authority signer and canonical PDA are validated in the handler;
      * Anchor `seeds`/`has_one` are not used here because their `?`/self-reference
      * form is not expressible in the IDL.
      */
-    authorityAccount: TAccountMetas[3];
-    instructionsSysvar: TAccountMetas[4];
-    systemProgram: TAccountMetas[5];
+    authorityAccount: TAccountMetas[4];
+    instructionsSysvar: TAccountMetas[5];
+    systemProgram: TAccountMetas[6];
   };
   data: SetWalletPolicyInstructionData;
 };
@@ -329,12 +342,12 @@ export function parseSetWalletPolicyInstruction<
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
 ): ParsedSetWalletPolicyInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 6) {
+  if (instruction.accounts.length < 7) {
     throw new SolanaError(
       SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
       {
         actualAccountMetas: instruction.accounts.length,
-        expectedAccountMetas: 6,
+        expectedAccountMetas: 7,
       },
     );
   }
@@ -350,6 +363,7 @@ export function parseSetWalletPolicyInstruction<
       authority: getNextAccount(),
       payer: getNextAccount(),
       rentReceiver: getNextAccount(),
+      phygitalToken: getNextAccount(),
       authorityAccount: getNextAccount(),
       instructionsSysvar: getNextAccount(),
       systemProgram: getNextAccount(),

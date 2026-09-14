@@ -4,6 +4,7 @@
 import { Hono } from "hono";
 
 import { processHeliusWebhookPayload } from "@/fees/helius-fee-tx";
+import { getErrorMessage } from "@/shared/errors";
 import { json } from "@/shared/http";
 import { getEnv } from "@/shared/request-context";
 
@@ -40,10 +41,7 @@ heliusWebhookRoutes.post("/webhooks/helius", async (c) => {
   } catch (error) {
     console.error("helius webhook failed", error);
     return json(
-      {
-        error:
-          error instanceof Error ? error.message : "Webhook processing failed",
-      },
+      { error: getErrorMessage(error, "Webhook processing failed") },
       { status: 500 }
     );
   }
