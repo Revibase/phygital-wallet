@@ -2,8 +2,8 @@ use anchor_lang::prelude::*;
 use anchor_lang::Discriminator;
 
 use crate::error::PhygitalError;
-use crate::utils::instruction_policy::ProgramPermission;
 use crate::utils::instruction_policy::decode_permissions;
+use crate::utils::instruction_policy::ProgramPermission;
 
 /// Instruction-arg mirror of `phygital_token_client::Secp256r1VerifyArgs`.
 ///
@@ -212,9 +212,7 @@ impl Authority {
         Ok(end)
     }
 
-    pub fn read_policy(
-        data: &[u8],
-    ) -> Result<(&SpendCap, &[MintCap], Vec<ProgramPermission>)> {
+    pub fn read_policy(data: &[u8]) -> Result<(&SpendCap, &[MintCap], Vec<ProgramPermission>)> {
         let end = Self::parse_layout(data)?;
         let sol = bytemuck::try_from_bytes(&data[Self::SOL_CAP_OFFSET..Self::SOL_CAP_END])
             .map_err(|_| error!(PhygitalError::InvalidAccountData))?;

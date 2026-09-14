@@ -3,7 +3,9 @@ use anchor_lang::prelude::*;
 use crate::constants::is_wsol_mint;
 use crate::error::PhygitalError;
 use crate::state::{Authority, MintCap, SpendCap, WALLET_POLICY_VERSION};
-use crate::utils::instruction_policy::{MAX_PERMISSION_BYTES, ProgramPermission, validate_permissions};
+use crate::utils::instruction_policy::{
+    validate_permissions, ProgramPermission, MAX_PERMISSION_BYTES,
+};
 use crate::utils::policy::{
     authorize_authority_signer, read_authority_header, reject_durable_nonce,
 };

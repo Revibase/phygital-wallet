@@ -190,8 +190,11 @@ pub fn authority_handler<'info>(
     // Validate the authority header by offset (no Borsh round-trip): signer owns
     // it and it is the canonical PDA, then confirm it is bound to this token.
     let authority_info = ctx.accounts.authority_account.to_account_info();
-    let header =
-        authorize_authority_signer(&authority_info, &ctx.accounts.authority.key(), ctx.program_id)?;
+    let header = authorize_authority_signer(
+        &authority_info,
+        &ctx.accounts.authority.key(),
+        ctx.program_id,
+    )?;
     require_keys_eq!(
         header.phygital_token,
         token_key,

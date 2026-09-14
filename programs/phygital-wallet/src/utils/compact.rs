@@ -6,7 +6,7 @@ use solana_sha256_hasher::{hash, hashv};
 use crate::constants::{EXECUTE_CHALLENGE_PREFIX, PROGRAM_WALLET_SEED};
 use crate::error::PhygitalError;
 use crate::state::CompactInstruction;
-use crate::utils::instruction_policy::{ProgramPermission, check_instruction};
+use crate::utils::instruction_policy::{check_instruction, ProgramPermission};
 
 /// Packed compact format used for `instructions_hash`:
 /// ```text
