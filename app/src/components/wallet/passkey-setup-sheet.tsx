@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -20,15 +21,15 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { copy } from "@/lib/copy/phygital";
+import { copy, errorCopy } from "@/lib/copy/phygital";
+import { registerOwnerPasskey } from "@/lib/wallet/register-owner-passkey";
+import { toUserErrorMessage } from "@/lib/user-errors";
 
 const USER_NAME_MIN = 3;
 const USER_NAME_MAX = 32;
 const USER_NAME_RE = /^[a-zA-Z0-9._-]+$/;
 
-function validateUserName(
-  raw: string,
-): { ok: true; userName: string } | { ok: false; reason: string } {
+function validateUserName(raw: string): { ok: true; userName: string } | { ok: false; reason: string } {
   const userName = raw.trim();
   if (userName.length < USER_NAME_MIN) {
     return { ok: false, reason: copy.wallet.usernameInvalid };
@@ -43,7 +44,7 @@ function validateUserName(
 }
 
 export type PasskeySetupChoice =
-  | { mode: "create"; userName: string }
+  | { mode: "create"; userName: string; credentialId: string }
   | { mode: "unlock" }
   | { mode: "cancel" };
 
@@ -66,26 +67,54 @@ export function PasskeySetupProvider({ children }: { children: ReactNode }) {
   const [phase, setPhase] = useState<Phase>(null);
   const [userName, setUserName] = useState("");
   const [userError, setUserError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
 
   const close = useCallback((choice: PasskeySetupChoice) => {
     setPhase((p) => {
       if (p) {
-        // After the sheet unmounts/paints — then WebAuthn or the signer iframe.
+        // After the sheet unmounts/paints — then the signer iframe.
         window.setTimeout(() => p.resolve(choice), 0);
       }
       return null;
     });
     setUserName("");
     setUserError(null);
+    setCreating(false);
   }, []);
 
   const promptSetup = useCallback((): Promise<PasskeySetupChoice> => {
     return new Promise((resolve) => {
       setUserName("");
       setUserError(null);
+      setCreating(false);
       setPhase({ kind: "chooser", resolve });
     });
   }, []);
+
+  const createWithPasskey = useCallback(async () => {
+    const v = validateUserName(userName);
+    if (!v.ok) {
+      setUserError(v.reason);
+      return;
+    }
+    setCreating(true);
+    setUserError(null);
+    try {
+      // WebAuthn create must stay in this click handler (user gesture).
+      const { credentialId } = await registerOwnerPasskey(v.userName);
+      close({ mode: "create", userName: v.userName, credentialId });
+    } catch (err) {
+      if (
+        err instanceof DOMException &&
+        (err.name === "NotAllowedError" || err.name === "AbortError")
+      ) {
+        close({ mode: "cancel" });
+        return;
+      }
+      toast.error(toUserErrorMessage(err, errorCopy.signerFailed.body));
+      setCreating(false);
+    }
+  }, [close, userName]);
 
   const api = useMemo(() => ({ promptSetup }), [promptSetup]);
 
@@ -103,11 +132,11 @@ export function PasskeySetupProvider({ children }: { children: ReactNode }) {
           <DialogHeader>
             <DialogTitle>Set up on this phone</DialogTitle>
             <DialogDescription>
-              Create a passkey-protected wallet on this phone. If you already
-              set one up elsewhere, unlock with that passkey instead.
+              Create a passkey-protected wallet on this phone. If you already set
+              one up elsewhere, unlock with that passkey instead.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="flex-col gap-2.5 mt-4 sm:flex-col">
+          <DialogFooter className="flex-col gap-2.5 sm:flex-col">
             <Button
               type="button"
               size="lg"
@@ -136,12 +165,11 @@ export function PasskeySetupProvider({ children }: { children: ReactNode }) {
       <Dialog
         open={phase?.kind === "username"}
         onOpenChange={(open) => {
-          if (!open) close({ mode: "cancel" });
+          if (!open && !creating) close({ mode: "cancel" });
         }}
       >
         <DialogContent
           showCloseButton={false}
-          // Don’t pop the mobile keyboard until the user taps the field.
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
           <DialogHeader>
@@ -149,9 +177,7 @@ export function PasskeySetupProvider({ children }: { children: ReactNode }) {
             <DialogDescription>{copy.wallet.usernameBody}</DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <Label htmlFor="passkey-username">
-              {copy.wallet.usernameLabel}
-            </Label>
+            <Label htmlFor="passkey-username">{copy.wallet.usernameLabel}</Label>
             <Input
               id="passkey-username"
               autoComplete="username"
@@ -160,19 +186,15 @@ export function PasskeySetupProvider({ children }: { children: ReactNode }) {
               maxLength={USER_NAME_MAX}
               placeholder={copy.wallet.usernamePlaceholder}
               value={userName}
+              disabled={creating}
               onChange={(e) => {
                 setUserName(e.target.value);
                 setUserError(null);
               }}
               onKeyDown={(e) => {
-                if (e.key !== "Enter") return;
+                if (e.key !== "Enter" || creating) return;
                 e.preventDefault();
-                const v = validateUserName(userName);
-                if (!v.ok) {
-                  setUserError(v.reason);
-                  return;
-                }
-                close({ mode: "create", userName: v.userName });
+                void createWithPasskey();
               }}
             />
             {userError ? (
@@ -188,22 +210,17 @@ export function PasskeySetupProvider({ children }: { children: ReactNode }) {
               type="button"
               size="lg"
               className="w-full rounded-full"
-              onClick={() => {
-                const v = validateUserName(userName);
-                if (!v.ok) {
-                  setUserError(v.reason);
-                  return;
-                }
-                close({ mode: "create", userName: v.userName });
-              }}
+              disabled={creating}
+              onClick={() => void createWithPasskey()}
             >
-              Create with passkey
+              {creating ? "Follow the passkey prompt…" : "Create with passkey"}
             </Button>
             <Button
               type="button"
               size="lg"
               variant="outline"
               className="w-full rounded-full"
+              disabled={creating}
               onClick={() => close({ mode: "cancel" })}
             >
               {copy.common.cancel}

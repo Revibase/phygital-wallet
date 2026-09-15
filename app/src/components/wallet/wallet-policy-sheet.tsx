@@ -26,6 +26,7 @@ import {
 import { FieldError, FieldLabel, Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { ClaimedSuccessDialog } from "@/components/wallet/claimed-success-dialog";
 import { useClearWalletPolicy } from "@/hooks/token/use-clear-wallet-policy";
 import { useClaimAccessory } from "@/hooks/token/use-claim-accessory";
@@ -142,7 +143,7 @@ export function WalletPolicySheet({
               type="button"
               size="lg"
               className="w-full"
-              disabled={claim.isPending}
+              disabled={claim.isPending || !claim.holdReady}
               onClick={() =>
                 claim.mutate(undefined, {
                   onSuccess: () => setClaimedOpen(true),
@@ -154,8 +155,10 @@ export function WalletPolicySheet({
               }
             >
               {claim.isPending
-                ? copy.wallet.authorityClaiming
-                : copy.wallet.policyLockedClaimCta}
+                ? copy.wallet.holdCeremonyTitle
+                : claim.holdPreparing
+                  ? copy.common.loading
+                  : copy.wallet.policyLockedClaimCta}
             </Button>
           ) : null}
         </div>
@@ -1112,29 +1115,31 @@ function ProgramPermissionRow({
           {copy.wallet.policyAccessCustom}
         </p>
       ) : (
-        <div className="flex gap-2">
-          {(["allow", "deny"] as const).map((kind) => {
-            const active = draft.kind === kind;
-            return (
-              <Button
-                key={kind}
-                type="button"
-                size="sm"
-                variant={active ? "default" : "outline"}
-                className={cn(
-                  "rounded-full",
-                  active && "font-semibold",
-                  active && kind === "deny" && "bg-destructive text-white",
-                )}
-                onClick={() => onChangeKind(kind)}
-              >
-                {kind === "allow"
-                  ? copy.wallet.policyAccessAllow
-                  : copy.wallet.policyAccessDeny}
-              </Button>
-            );
-          })}
-        </div>
+        <ToggleGroup
+          type="single"
+          value={draft.kind}
+          onValueChange={(next) => {
+            if (next === "allow" || next === "deny") onChangeKind(next);
+          }}
+          variant="outline"
+          size="sm"
+          spacing={2}
+          className="w-full"
+          aria-label={`${copy.wallet.policyAccessAllow} / ${copy.wallet.policyAccessDeny}`}
+        >
+          <ToggleGroupItem
+            value="allow"
+            className="flex-1 rounded-full data-[state=on]:border-transparent data-[state=on]:bg-primary data-[state=on]:font-semibold data-[state=on]:text-primary-foreground"
+          >
+            {copy.wallet.policyAccessAllow}
+          </ToggleGroupItem>
+          <ToggleGroupItem
+            value="deny"
+            className="flex-1 rounded-full data-[state=on]:border-transparent data-[state=on]:bg-destructive data-[state=on]:font-semibold data-[state=on]:text-white"
+          >
+            {copy.wallet.policyAccessDeny}
+          </ToggleGroupItem>
+        </ToggleGroup>
       )}
     </div>
   );
@@ -1148,23 +1153,29 @@ function WindowPills({
   onChange: (windowSeconds: bigint) => void;
 }) {
   return (
-    <div className="flex flex-wrap gap-2 px-1">
-      {POLICY_WINDOW_PRESETS.map((preset) => {
-        const active = preset.seconds === value;
-        return (
-          <Button
-            key={preset.label}
-            type="button"
-            size="sm"
-            variant={active ? "default" : "outline"}
-            className={cn("rounded-full", active && "font-semibold")}
-            onClick={() => onChange(preset.seconds)}
-          >
-            {preset.label}
-          </Button>
-        );
-      })}
-    </div>
+    <ToggleGroup
+      type="single"
+      value={value.toString()}
+      onValueChange={(next) => {
+        if (!next) return;
+        onChange(BigInt(next));
+      }}
+      variant="outline"
+      size="sm"
+      spacing={2}
+      className="flex-wrap px-1"
+      aria-label={copy.wallet.policyWindowLabel}
+    >
+      {POLICY_WINDOW_PRESETS.map((preset) => (
+        <ToggleGroupItem
+          key={preset.label}
+          value={preset.seconds.toString()}
+          className="rounded-full data-[state=on]:border-transparent data-[state=on]:bg-primary data-[state=on]:font-semibold data-[state=on]:text-primary-foreground"
+        >
+          {preset.label}
+        </ToggleGroupItem>
+      ))}
+    </ToggleGroup>
   );
 }
 

@@ -32,6 +32,9 @@ export function webauthnRpId(): string {
 /**
  * Create a discoverable passkey. Returns credential id only (base64url).
  * Any PRF extension output is discarded immediately.
+ *
+ * Must be called from a user gesture (button click) — never from an effect,
+ * timeout, or after an unrelated await that consumes activation.
  */
 export async function registerOwnerPasskey(userName: string): Promise<{
   credentialId: string;

@@ -207,13 +207,13 @@ export const copy = {
     authorityChecking: "Checking ownership…",
     authoritySignInTitle: "Claim this accessory",
     authoritySignInBody:
-      "Continue on this phone, then hold the accessory once to become the owner and turn on everyday payments.",
+      "Set up this phone first. Next you’ll hold the accessory once to become the owner.",
     authoritySignInCta: "Continue",
-    authorityClaimTitle: "Turn on everyday payments",
+    authorityClaimTitle: "Hold to claim",
     authorityClaimBody:
-      "Claim this accessory as yours. You’ll hold it once to confirm — then a tap can send SOL and standard tokens.",
-    authorityClaimCta: "Claim accessory",
-    authorityClaiming: "Claiming…",
+      "Hold your accessory to the top of this phone to become the owner and turn on everyday payments.",
+    authorityClaimCta: "Hold to claim",
+    authorityClaiming: "Hold your accessory…",
     authorityClaimFailed: "Couldn’t claim this item",
     authorityBrowse: "Just browsing",
     /** Wallet home after browse-without-claim. */

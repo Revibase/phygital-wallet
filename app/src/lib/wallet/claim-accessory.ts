@@ -1,15 +1,19 @@
 /**
  * Claim an accessory = on-chain `set_authority`, binding the physical accessory
- * to the signed-in owner (the Helius WaaS wallet).
+ * to the signed-in owner wallet.
  *
  * The accessory passkey (NFC tap) authorizes the instruction; the Revibase
  * paymaster is the fee payer and co-signs via `/sign`. The owner wallet only
  * contributes its address (the new authority) — it does not sign.
  *
+ * WebAuthn must run from a user gesture. Call `prepareClaimAccessory` first
+ * (network only), then `claimAccessory` from a click so `authenticatePasskey…`
+ * is the first await.
+ *
  * `set_authority` uses `init` (not `init_if_needed`), so this only works on an
  * unclaimed accessory. Re-owning requires `clear_authority` first.
  */
-import { address } from "@solana/kit";
+import { address, type Address } from "@solana/kit";
 import {
   authenticatePasskeyForSecp256r1Verify,
   buildSecp256r1VerifyInstruction,
@@ -31,28 +35,42 @@ export class ClaimAccessoryMismatchError extends Error {
   }
 }
 
-/**
- * Claim an unclaimed accessory for `ownerAddress` via a paymaster-sponsored
- * `set_authority`. Prompts the accessory tap, then submits through `/sign`.
- */
-export async function claimAccessory(args: {
+export type PreparedClaim = {
+  phygitalToken: Address;
+  owner: Address;
+  slotNumber: bigint;
+  messageHash: Uint8Array;
+};
+
+/** Network-only prep. Safe to call without a user gesture. */
+export async function prepareClaimAccessory(args: {
   phygitalToken: string;
   ownerAddress: string;
+}): Promise<PreparedClaim> {
+  const rpc = getSolanaRpc();
+  const phygitalToken = address(args.phygitalToken);
+  const owner = address(args.ownerAddress);
+  const { slotNumber, messageHash } = await buildSetAuthorityChallenge(
+    rpc,
+    phygitalToken,
+    owner,
+  );
+  return { phygitalToken, owner, slotNumber, messageHash };
+}
+
+/**
+ * Finish claim from a click/tap handler. Starts WebAuthn immediately — do not
+ * await anything else before calling this.
+ */
+export async function claimAccessory(args: {
+  prepared: PreparedClaim;
   /** Fires after the passkey tap is captured, before building/sending. */
   onTap?: () => void;
 }): Promise<SentTransaction> {
   const rpc = getSolanaRpc();
-  const phygitalToken = address(args.phygitalToken);
-  const owner = address(args.ownerAddress);
+  const { phygitalToken, owner, slotNumber, messageHash } = args.prepared;
 
-  // Challenge bound to (token, new authority) — replay-safe via slot hash.
-  const { slotNumber, messageHash } = await buildSetAuthorityChallenge(
-    rpc,
-    phygitalToken,
-    owner
-  );
-
-  // Tap the accessory passkey over the challenge digest.
+  // First await must be WebAuthn (user gesture).
   const tap = await authenticatePasskeyForSecp256r1Verify({ rpc, messageHash });
   args.onTap?.();
 
@@ -62,7 +80,6 @@ export async function claimAccessory(args: {
     throw new ClaimAccessoryMismatchError();
   }
 
-  // Paymaster is the fee payer + rent payer; it co-signs via /sign.
   const feePayer = await createDefaultFeePayer({ fetch: appVerifierFetch });
   const setAuthorityIx = await getSetAuthorityInstructionAsync({
     payer: feePayer,
@@ -72,8 +89,6 @@ export async function claimAccessory(args: {
     slotNumber,
   });
 
-  // The secp256r1 verify precompile must immediately precede set_authority
-  // (its `secp256r1VerifyArgs` reference it at relative index -1).
   return sendTransaction({
     instructions: [secp256r1VerifyInstruction, setAuthorityIx],
     feePayer,

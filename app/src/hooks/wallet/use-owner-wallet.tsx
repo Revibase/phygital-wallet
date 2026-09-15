@@ -1,7 +1,13 @@
 "use client";
 
+import {
+  createContext,
+  useContext,
+  type ReactNode,
+} from "react";
+import type { TransactionPartialSigner } from "@solana/kit";
+
 import { useSecureSignerWallet } from "@/hooks/wallet/use-secure-signer-wallet";
-import { TransactionPartialSigner, TransactionSigner } from "@solana/kit";
 
 /**
  * App-facing owner-wallet seam. All app code goes through this hook, never a
@@ -19,13 +25,35 @@ export type OwnerWallet = {
   status: "loading" | "unauthenticated" | "authenticated";
   isAuthenticated: boolean;
   isLoading: boolean;
-  /** Sign in (WaaS modal, or create/restore in the secure signer). */
+  /** Sign in (create / unlock via the secure signer). */
   login: () => Promise<void>;
   logout: () => Promise<void>;
   /** Reveal / export this wallet's private key (in a controlled ceremony). */
   exportWallet: () => Promise<void>;
 };
 
+const OwnerWalletContext = createContext<OwnerWallet | null>(null);
+
+/**
+ * Single shared owner-wallet session for the whole app.
+ *
+ * Every consumer must see the same auth state — otherwise signing in on the
+ * token gate never flips `useTokenOwner().isSignedIn`, and the claim CTA never
+ * appears after passkey create.
+ */
+export function OwnerWalletProvider({ children }: { children: ReactNode }) {
+  const wallet = useSecureSignerWallet();
+  return (
+    <OwnerWalletContext.Provider value={wallet}>
+      {children}
+    </OwnerWalletContext.Provider>
+  );
+}
+
 export function useOwnerWallet(): OwnerWallet {
-  return useSecureSignerWallet();
+  const ctx = useContext(OwnerWalletContext);
+  if (!ctx) {
+    throw new Error("useOwnerWallet requires OwnerWalletProvider");
+  }
+  return ctx;
 }

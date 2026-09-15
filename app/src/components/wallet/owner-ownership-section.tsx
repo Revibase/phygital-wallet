@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { GroupedList, GroupedRow } from "@/components/shared/grouped-list";
+import { CeremonyShell } from "@/components/shared/ceremony-shell";
+import { NfcHoldStatus } from "@/components/shared/nfc-hold-status";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -86,7 +88,7 @@ export function OwnerOwnershipSection({
               type="button"
               size="lg"
               className="w-full rounded-full"
-              disabled={claim.isPending}
+              disabled={claim.isPending || !claim.holdReady}
               onClick={() =>
                 claim.mutate(undefined, {
                   onSuccess: () => setClaimedOpen(true),
@@ -98,11 +100,30 @@ export function OwnerOwnershipSection({
               }
             >
               {claim.isPending
-                ? copy.wallet.authorityClaiming
-                : copy.wallet.authorityClaimCta}
+                ? copy.wallet.holdCeremonyTitle
+                : claim.holdPreparing
+                  ? copy.common.loading
+                  : copy.wallet.authorityClaimCta}
             </Button>
+            <p className="mt-2 text-xs text-muted-foreground">
+              {copy.wallet.holdCeremonyBody}
+            </p>
           </div>
         </GroupedList>
+        {claim.isPending ? (
+          <div className="fixed inset-0 z-50 bg-background">
+            <CeremonyShell>
+              <NfcHoldStatus
+                size="lg"
+                pulsing
+                busy
+                progress
+                title={copy.wallet.holdCeremonyTitle}
+                body={copy.wallet.holdCeremonyBody}
+              />
+            </CeremonyShell>
+          </div>
+        ) : null}
         <ClaimedSuccessDialog
           open={claimedOpen}
           onOpenChange={setClaimedOpen}

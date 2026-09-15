@@ -7,6 +7,7 @@ import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client
 import { Toaster } from "@/components/ui/sonner";
 import { PasskeySetupProvider } from "@/components/wallet/passkey-setup-sheet";
 import { useResumeQueryRefresh } from "@/hooks/layout/use-resume-query-refresh";
+import { OwnerWalletProvider } from "@/hooks/wallet/use-owner-wallet";
 import { RpcPreferenceProvider } from "@/hooks/wallet/use-rpc-preference";
 import {
   CACHE_BUSTER,
@@ -46,13 +47,15 @@ export function AppProviders({ children }: { children: ReactNode }) {
     >
       <RpcPreferenceProvider>
         <PasskeySetupProvider>
-          <ResumeQueryRefresh />
-          {children}
-          <Toaster
-            richColors
-            position="top-center"
-            offset="max(12px, env(safe-area-inset-top))"
-          />
+          <OwnerWalletProvider>
+            <ResumeQueryRefresh />
+            {children}
+            <Toaster
+              richColors
+              position="top-center"
+              offset="max(12px, env(safe-area-inset-top))"
+            />
+          </OwnerWalletProvider>
         </PasskeySetupProvider>
       </RpcPreferenceProvider>
     </PersistQueryClientProvider>

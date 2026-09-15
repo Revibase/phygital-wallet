@@ -18,6 +18,7 @@ import { toUserErrorMessage } from "@/lib/user-errors";
 /**
  * After browse-unlock, if this accessory has no on-chain authority, prompt the
  * user to become it. Unsigned users sign in / create an account first.
+ * Claim uses the same Hold ceremony as open/send — accessory NFC, not Face ID.
  * Dismissible so balances can still be browsed; permissions stay locked until claimed.
  */
 export function AccessoryAuthorityPrompt({
@@ -101,19 +102,49 @@ export function AccessoryAuthorityPrompt({
     );
   }
 
+  const holding = claim.isPending;
+  const holdEnabled = claim.holdReady && !holding;
+
   return (
-    <CeremonyShell>
-      <GateMessage
-        icon={icon}
-        title={copy.wallet.authorityClaimTitle}
-        body={copy.wallet.authorityClaimBody}
+    <CeremonyShell
+      leading={
+        holding ? undefined : (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="self-start"
+            onClick={() => setDismissed(true)}
+          >
+            {copy.wallet.authorityBrowse}
+          </Button>
+        )
+      }
+    >
+      <NfcHoldStatus
+        size="lg"
+        pulsing={holding}
+        busy={holding || claim.holdPreparing}
+        progress={holding}
+        title={
+          holding
+            ? copy.wallet.holdCeremonyTitle
+            : copy.wallet.authorityClaimTitle
+        }
+        body={
+          holding
+            ? copy.wallet.holdCeremonyBody
+            : claim.holdPreparing
+              ? copy.wallet.signPreparingBody
+              : copy.wallet.authorityClaimBody
+        }
         action={
-          <div className="flex flex-col gap-2.5">
+          holding ? undefined : (
             <Button
               type="button"
               size="lg"
               className="w-full rounded-full"
-              disabled={claim.isPending}
+              disabled={!holdEnabled}
               onClick={() =>
                 claim.mutate(undefined, {
                   onSuccess: () => setClaimedOpen(true),
@@ -124,21 +155,11 @@ export function AccessoryAuthorityPrompt({
                 })
               }
             >
-              {claim.isPending
-                ? copy.wallet.authorityClaiming
+              {claim.holdPreparing
+                ? copy.common.loading
                 : copy.wallet.authorityClaimCta}
             </Button>
-            <Button
-              type="button"
-              size="lg"
-              variant="ghost"
-              className="w-full rounded-full"
-              disabled={claim.isPending}
-              onClick={() => setDismissed(true)}
-            >
-              {copy.wallet.authorityBrowse}
-            </Button>
-          </div>
+          )
         }
       />
       <ClaimedSuccessDialog

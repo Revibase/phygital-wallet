@@ -9,7 +9,6 @@ import {
   fetchOwnerWalletBlob,
   issueOwnerWalletPutChallenge,
 } from "@/lib/wallet/owner-wallet-blob";
-import { registerOwnerPasskey } from "@/lib/wallet/register-owner-passkey";
 import {
   getSecureSignerClient,
   SecureSignerError,
@@ -160,14 +159,12 @@ export function useSecureSignerWallet(): OwnerWallet {
       return;
     }
 
-    // Create: register passkey on the app, then open the signer for get+PRF.
-    // Kick off backup challenge during OS create so the iframe can open ASAP after.
-    const putChallengePromise = issueChallengeSoft();
-    const { credentialId } = await registerOwnerPasskey(choice.userName);
-    const putChallenge = await putChallengePromise;
+    // Create: passkey was already registered in the setup sheet click handler
+    // (user gesture). Open the signer for get+PRF — that ceremony has its own tap.
+    const putChallenge = await issueChallengeSoft();
     const result = await client.authenticate(null, {
       authMode: "create",
-      credentialId,
+      credentialId: choice.credentialId,
       ...(putChallenge?.challenge
         ? { putChallenge: putChallenge.challenge }
         : {}),

@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Check, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 
 import { NavBar, NavBarBack } from "@/components/shared/nav-bar";
 import { Button } from "@/components/ui/button";
 import { FieldLabel, Input } from "@/components/ui/input";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useRpcPreference } from "@/hooks/wallet/use-rpc-preference";
 import { copy } from "@/lib/copy/phygital";
 import { displayRpcEndpoint } from "@/lib/solana/rpc-preference";
@@ -76,54 +77,62 @@ export function RpcConnectionSheet({ onBack }: { onBack: () => void }) {
       />
       <p className="text-sm text-muted-foreground">{copy.wallet.rpcBody}</p>
 
-      <Button
-        type="button"
-        variant="ghost"
-        onClick={() => useDefault()}
-        className={cn(
-          "h-auto min-h-11 w-full justify-between rounded-2xl bg-muted/25 px-4 py-4 text-left font-normal hover:bg-muted/40",
-          !rpc.isCustom && "ring-1 ring-primary/40"
-        )}
-      >
-        <div className="min-w-0">
-          <p className="text-sm font-medium">{copy.wallet.rpcDefault}</p>
-          <p className="truncate text-xs text-muted-foreground">
-            {displayRpcEndpoint(rpc.defaultRpcUrl)}
-          </p>
-        </div>
-        {!rpc.isCustom ? (
-          <Check className="size-4 shrink-0 text-primary" />
-        ) : null}
-      </Button>
-
-      <Button
-        type="button"
-        variant="ghost"
-        onClick={() => {
+      <RadioGroup
+        value={rpc.isCustom ? "custom" : "default"}
+        onValueChange={(next) => {
+          if (next === "default") {
+            useDefault();
+            return;
+          }
           setDraft(
             rpc.preference.mode === "custom" ? rpc.preference.url : "https://"
           );
           setView("custom");
         }}
-        className={cn(
-          "h-auto min-h-11 w-full justify-between rounded-2xl bg-muted/25 px-4 py-4 text-left font-normal hover:bg-muted/40",
-          rpc.isCustom && "ring-1 ring-primary/40"
-        )}
+        className="gap-2"
+        aria-label={copy.wallet.rpcConnection}
       >
-        <div className="min-w-0">
-          <p className="text-sm font-medium">{copy.wallet.rpcCustom}</p>
-          <p className="truncate text-xs text-muted-foreground">
-            {rpc.isCustom && rpc.displayEndpoint
-              ? rpc.displayEndpoint
-              : copy.wallet.rpcCustomPrompt}
-          </p>
-        </div>
-        {rpc.isCustom ? (
-          <Check className="size-4 shrink-0 text-primary" />
-        ) : (
-          <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-        )}
-      </Button>
+        <label
+          htmlFor="rpc-default"
+          className={cn(
+            "flex min-h-11 w-full cursor-pointer items-center justify-between gap-3 rounded-2xl bg-muted/25 px-4 py-4 text-left hover:bg-muted/40",
+            !rpc.isCustom && "ring-1 ring-primary/40"
+          )}
+        >
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium">{copy.wallet.rpcDefault}</p>
+            <p className="truncate text-xs text-muted-foreground">
+              {displayRpcEndpoint(rpc.defaultRpcUrl)}
+            </p>
+          </div>
+          <RadioGroupItem value="default" id="rpc-default" />
+        </label>
+
+        <label
+          htmlFor="rpc-custom"
+          className={cn(
+            "flex min-h-11 w-full cursor-pointer items-center justify-between gap-3 rounded-2xl bg-muted/25 px-4 py-4 text-left hover:bg-muted/40",
+            rpc.isCustom && "ring-1 ring-primary/40"
+          )}
+        >
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium">{copy.wallet.rpcCustom}</p>
+            <p className="truncate text-xs text-muted-foreground">
+              {rpc.isCustom && rpc.displayEndpoint
+                ? rpc.displayEndpoint
+                : copy.wallet.rpcCustomPrompt}
+            </p>
+          </div>
+          {rpc.isCustom ? (
+            <RadioGroupItem value="custom" id="rpc-custom" />
+          ) : (
+            <>
+              <RadioGroupItem value="custom" id="rpc-custom" className="sr-only" />
+              <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+            </>
+          )}
+        </label>
+      </RadioGroup>
     </div>
   );
 }
