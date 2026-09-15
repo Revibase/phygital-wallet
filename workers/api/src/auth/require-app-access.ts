@@ -22,7 +22,10 @@ const PUBLIC_ROUTES: ReadonlyArray<{ method: string; path: string }> = [
   { method: "POST", path: "/webhooks/helius" },
   // Wallet tx ingest — authenticated by its own HMAC signature, not the cookie.
   { method: "POST", path: "/webhooks/transactions" },
-  // Token landing before tap/Hold — must work with zero cookies.
+  // Owner encrypted-blob backup — GET is hash-only; PUT proves via ed25519.
+  { method: "GET", path: "/owner-wallet/blob" },
+  { method: "POST", path: "/owner-wallet/blob/challenge" },
+  { method: "PUT", path: "/owner-wallet/blob" },
 ];
 
 export function normalizeApiPath(path: string): string {

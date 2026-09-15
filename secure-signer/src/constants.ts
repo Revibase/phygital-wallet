@@ -47,6 +47,12 @@ export const ED25519_PUBKEY_BYTES = 32 as const;
 /** HKDF salt length used inside the blob (random per wallet). */
 export const KDF_SALT_BYTES = 32 as const;
 
+/**
+ * Domain prefix for ed25519 messages proving possession for D1 blob PUT.
+ * Must match workers/api `putChallengeMessage`.
+ */
+export const PUT_CHALLENGE_PREFIX = "revibase.owner-wallet.put.v1" as const;
+
 // ---------------------------------------------------------------------------
 // Portable wallet blob format.
 // ---------------------------------------------------------------------------
@@ -107,3 +113,7 @@ export const CONFIG_MASK_KNOWN_BITS = 0b11111; // bits 0..4
 export const REQUEST_FRESHNESS_WINDOW_MS = 60_000;
 /** Remembered request ids for duplicate detection. Bounded to avoid growth. */
 export const SEEN_REQUEST_IDS_LIMIT = 512;
+/** How long AUTH_START waits for BLOB_PROVIDED after BLOB_NEEDED. */
+export const AUTH_BLOB_WAIT_MS = 60_000;
+/** Brief authenticated confirmation before the parent may hide the overlay. */
+export const AUTH_SUCCESS_MS = 700;

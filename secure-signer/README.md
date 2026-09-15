@@ -72,11 +72,17 @@ hatch by design. See `tx/policy.ts` and the threat model.
 
 ## postMessage API
 
-Request → result: `GET_PUBLIC_KEY`, `CREATE_KEY`, `IMPORT_KEY`,
-`SIGN_TRANSACTION`, `EXPORT_ENCRYPTED_WALLET`, `EXPORT_PRIVATE_KEY`. All requests
-carry `{ protocolVersion: 1, requestId }`; blobs are base64url, transactions
-base64. Errors are generic `{ type: "ERROR", requestId, code }`. Unknown/malformed
-input fails closed. The signer posts `{ type: "SIGNER_READY" }` on load.
+Request → result: `AUTH_START` → `AUTH_COMPLETE`, `GET_PUBLIC_KEY`, `CREATE_KEY`,
+`IMPORT_KEY`, `SIGN_TRANSACTION`, `EXPORT_ENCRYPTED_WALLET`, `EXPORT_PRIVATE_KEY`.
+Mid-flow: `BLOB_NEEDED` (signer → parent) / `BLOB_PROVIDED` (parent → signer) for
+discoverable restore when no local ciphertext is available.
+
+All requests carry `{ protocolVersion: 1, requestId, timestamp? }`; blobs are
+base64url, transactions base64. Errors are generic `{ type: "ERROR", requestId, code }`.
+Unknown/malformed input fails closed. The signer posts `{ type: "SIGNER_READY" }` on load.
+
+`AUTH_START` opens the in-iframe chooser (Sign in / Create account). Prefer it over
+calling `CREATE_KEY` / `IMPORT_KEY` directly from the parent login path.
 
 ## Parent integration seam
 

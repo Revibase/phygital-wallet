@@ -4,7 +4,7 @@
  * Pure module (no crypto, no DOM, no mutable state) so it is exhaustively unit-
  * testable and fuzzable (§37, §38). Everything crossing from the parent is
  * attacker-controlled (§44); this layer proves a message is structurally one of
- * our six operations and nothing more. Semantic/crypto checks happen downstream.
+ * our operations and nothing more. Semantic/crypto checks happen downstream.
  */
 
 import {
@@ -27,7 +27,8 @@ export type ErrorCode =
   | "DECRYPTION_FAILED"
   | "WALLET_MISMATCH"
   | "REPLAY_REJECTED"
-  | "INTERNAL_ERROR";
+  | "INTERNAL_ERROR"
+  | "BLOB_UNAVAILABLE";
 
 export const REQUEST_TYPES = [
   "GET_PUBLIC_KEY",
@@ -36,18 +37,22 @@ export const REQUEST_TYPES = [
   "SIGN_TRANSACTION",
   "EXPORT_ENCRYPTED_WALLET",
   "EXPORT_PRIVATE_KEY",
+  "AUTH_START",
+  "BLOB_PROVIDED",
 ] as const;
 export type RequestType = (typeof REQUEST_TYPES)[number];
 
-/** Maps a request type to its success-response type. */
-export const RESULT_TYPE: Record<RequestType, string> = {
-  GET_PUBLIC_KEY: "GET_PUBLIC_KEY_RESULT",
-  CREATE_KEY: "CREATE_KEY_RESULT",
-  IMPORT_KEY: "IMPORT_KEY_RESULT",
-  SIGN_TRANSACTION: "SIGN_TRANSACTION_RESULT",
-  EXPORT_ENCRYPTED_WALLET: "EXPORT_ENCRYPTED_WALLET_RESULT",
-  EXPORT_PRIVATE_KEY: "EXPORT_PRIVATE_KEY_RESULT",
-};
+/** Maps a request type to its success-response type (BLOB_PROVIDED is a reply). */
+export const RESULT_TYPE: Record<Exclude<RequestType, "BLOB_PROVIDED">, string> =
+  {
+    GET_PUBLIC_KEY: "GET_PUBLIC_KEY_RESULT",
+    CREATE_KEY: "CREATE_KEY_RESULT",
+    IMPORT_KEY: "IMPORT_KEY_RESULT",
+    SIGN_TRANSACTION: "SIGN_TRANSACTION_RESULT",
+    EXPORT_ENCRYPTED_WALLET: "EXPORT_ENCRYPTED_WALLET_RESULT",
+    EXPORT_PRIVATE_KEY: "EXPORT_PRIVATE_KEY_RESULT",
+    AUTH_START: "AUTH_COMPLETE",
+  };
 
 interface Common {
   protocolVersion: number;
@@ -64,6 +69,8 @@ export type InboundRequest = Common &
     | { type: "SIGN_TRANSACTION"; encryptedWalletBlob: string; transaction: string }
     | { type: "EXPORT_ENCRYPTED_WALLET"; encryptedWalletBlob: string }
     | { type: "EXPORT_PRIVATE_KEY"; encryptedWalletBlob: string }
+    | { type: "AUTH_START"; encryptedWalletBlob?: string; putChallenge?: string }
+    | { type: "BLOB_PROVIDED"; encryptedWalletBlob?: string; errorCode?: ErrorCode }
   );
 
 export type ValidationResult =
@@ -72,15 +79,78 @@ export type ValidationResult =
 
 // Allowed top-level keys per type. Any extra key => INVALID_MESSAGE (§9 strict).
 const ALLOWED_KEYS: Record<RequestType, ReadonlySet<string>> = {
-  GET_PUBLIC_KEY: new Set(["type", "protocolVersion", "requestId", "timestamp", "encryptedWalletBlob"]),
+  GET_PUBLIC_KEY: new Set([
+    "type",
+    "protocolVersion",
+    "requestId",
+    "timestamp",
+    "encryptedWalletBlob",
+  ]),
   CREATE_KEY: new Set(["type", "protocolVersion", "requestId", "timestamp"]),
-  IMPORT_KEY: new Set(["type", "protocolVersion", "requestId", "timestamp", "encryptedWalletBlob"]),
-  SIGN_TRANSACTION: new Set(["type", "protocolVersion", "requestId", "timestamp", "encryptedWalletBlob", "transaction"]),
-  EXPORT_ENCRYPTED_WALLET: new Set(["type", "protocolVersion", "requestId", "timestamp", "encryptedWalletBlob"]),
-  EXPORT_PRIVATE_KEY: new Set(["type", "protocolVersion", "requestId", "timestamp", "encryptedWalletBlob"]),
+  IMPORT_KEY: new Set([
+    "type",
+    "protocolVersion",
+    "requestId",
+    "timestamp",
+    "encryptedWalletBlob",
+  ]),
+  SIGN_TRANSACTION: new Set([
+    "type",
+    "protocolVersion",
+    "requestId",
+    "timestamp",
+    "encryptedWalletBlob",
+    "transaction",
+  ]),
+  EXPORT_ENCRYPTED_WALLET: new Set([
+    "type",
+    "protocolVersion",
+    "requestId",
+    "timestamp",
+    "encryptedWalletBlob",
+  ]),
+  EXPORT_PRIVATE_KEY: new Set([
+    "type",
+    "protocolVersion",
+    "requestId",
+    "timestamp",
+    "encryptedWalletBlob",
+  ]),
+  AUTH_START: new Set([
+    "type",
+    "protocolVersion",
+    "requestId",
+    "timestamp",
+    "encryptedWalletBlob",
+    "putChallenge",
+  ]),
+  BLOB_PROVIDED: new Set([
+    "type",
+    "protocolVersion",
+    "requestId",
+    "timestamp",
+    "encryptedWalletBlob",
+    "errorCode",
+  ]),
 };
 
 const REQUEST_ID_RE = /^[A-Za-z0-9_-]{8,128}$/;
+const ERROR_CODES = new Set<string>([
+  "INVALID_MESSAGE",
+  "UNSUPPORTED_PROTOCOL",
+  "UNSUPPORTED_VERSION",
+  "MALFORMED_TRANSACTION",
+  "INVALID_WALLET_BLOB",
+  "UNSUPPORTED_CREDENTIAL",
+  "POLICY_REJECTED",
+  "USER_CANCELLED",
+  "AUTHENTICATION_FAILED",
+  "DECRYPTION_FAILED",
+  "WALLET_MISMATCH",
+  "REPLAY_REJECTED",
+  "INTERNAL_ERROR",
+  "BLOB_UNAVAILABLE",
+]);
 // base64 expands 3 bytes -> 4 chars; +4 slack for padding.
 const b64Cap = (bytes: number) => Math.ceil((bytes * 4) / 3) + 4;
 
@@ -113,16 +183,25 @@ export function validateInbound(data: unknown): ValidationResult {
   if (!isPlainObject(data)) return { ok: false, code: "INVALID_MESSAGE" };
 
   const requestId = data["requestId"];
-  const rid = typeof requestId === "string" && REQUEST_ID_RE.test(requestId)
-    ? requestId
-    : undefined;
+  const rid =
+    typeof requestId === "string" && REQUEST_ID_RE.test(requestId)
+      ? requestId
+      : undefined;
 
   if (data["protocolVersion"] !== PROTOCOL_VERSION) {
-    return { ok: false, code: "UNSUPPORTED_PROTOCOL", ...(rid ? { requestId: rid } : {}) };
+    return {
+      ok: false,
+      code: "UNSUPPORTED_PROTOCOL",
+      ...(rid ? { requestId: rid } : {}),
+    };
   }
   const type = data["type"];
   if (typeof type !== "string" || !REQUEST_TYPES.includes(type as RequestType)) {
-    return { ok: false, code: "INVALID_MESSAGE", ...(rid ? { requestId: rid } : {}) };
+    return {
+      ok: false,
+      code: "INVALID_MESSAGE",
+      ...(rid ? { requestId: rid } : {}),
+    };
   }
   if (!rid) return { ok: false, code: "INVALID_MESSAGE" };
 
@@ -145,28 +224,121 @@ export function validateInbound(data: unknown): ValidationResult {
   };
 
   const blob = data["encryptedWalletBlob"];
-  const needsBlob = rtype !== "CREATE_KEY";
-  if (needsBlob && !validString(blob, b64Cap(MAX_BLOB_BYTES))) {
-    return { ok: false, code: "INVALID_WALLET_BLOB", requestId: rid };
-  }
 
   switch (rtype) {
     case "CREATE_KEY":
       return { ok: true, request: { ...common, type: "CREATE_KEY" } };
+    case "AUTH_START": {
+      if (blob !== undefined && !validString(blob, b64Cap(MAX_BLOB_BYTES))) {
+        return { ok: false, code: "INVALID_WALLET_BLOB", requestId: rid };
+      }
+      const putChallenge = data["putChallenge"];
+      if (
+        putChallenge !== undefined &&
+        !validString(putChallenge, 128)
+      ) {
+        return { ok: false, code: "INVALID_MESSAGE", requestId: rid };
+      }
+      return {
+        ok: true,
+        request: {
+          ...common,
+          type: "AUTH_START",
+          ...(typeof blob === "string" ? { encryptedWalletBlob: blob } : {}),
+          ...(typeof putChallenge === "string" ? { putChallenge } : {}),
+        },
+      };
+    }
+    case "BLOB_PROVIDED": {
+      const errorCode = data["errorCode"];
+      if (
+        errorCode !== undefined &&
+        (typeof errorCode !== "string" || !ERROR_CODES.has(errorCode))
+      ) {
+        return { ok: false, code: "INVALID_MESSAGE", requestId: rid };
+      }
+      if (blob !== undefined && !validString(blob, b64Cap(MAX_BLOB_BYTES))) {
+        return { ok: false, code: "INVALID_WALLET_BLOB", requestId: rid };
+      }
+      // Exactly one of blob or errorCode should be present for a useful reply;
+      // both missing is allowed (treated as BLOB_UNAVAILABLE by the handler).
+      return {
+        ok: true,
+        request: {
+          ...common,
+          type: "BLOB_PROVIDED",
+          ...(typeof blob === "string" ? { encryptedWalletBlob: blob } : {}),
+          ...(typeof errorCode === "string"
+            ? { errorCode: errorCode as ErrorCode }
+            : {}),
+        },
+      };
+    }
     case "GET_PUBLIC_KEY":
-      return { ok: true, request: { ...common, type: "GET_PUBLIC_KEY", encryptedWalletBlob: blob as string } };
+      if (!validString(blob, b64Cap(MAX_BLOB_BYTES))) {
+        return { ok: false, code: "INVALID_WALLET_BLOB", requestId: rid };
+      }
+      return {
+        ok: true,
+        request: {
+          ...common,
+          type: "GET_PUBLIC_KEY",
+          encryptedWalletBlob: blob as string,
+        },
+      };
     case "IMPORT_KEY":
-      return { ok: true, request: { ...common, type: "IMPORT_KEY", encryptedWalletBlob: blob as string } };
+      if (!validString(blob, b64Cap(MAX_BLOB_BYTES))) {
+        return { ok: false, code: "INVALID_WALLET_BLOB", requestId: rid };
+      }
+      return {
+        ok: true,
+        request: {
+          ...common,
+          type: "IMPORT_KEY",
+          encryptedWalletBlob: blob as string,
+        },
+      };
     case "EXPORT_ENCRYPTED_WALLET":
-      return { ok: true, request: { ...common, type: "EXPORT_ENCRYPTED_WALLET", encryptedWalletBlob: blob as string } };
+      if (!validString(blob, b64Cap(MAX_BLOB_BYTES))) {
+        return { ok: false, code: "INVALID_WALLET_BLOB", requestId: rid };
+      }
+      return {
+        ok: true,
+        request: {
+          ...common,
+          type: "EXPORT_ENCRYPTED_WALLET",
+          encryptedWalletBlob: blob as string,
+        },
+      };
     case "EXPORT_PRIVATE_KEY":
-      return { ok: true, request: { ...common, type: "EXPORT_PRIVATE_KEY", encryptedWalletBlob: blob as string } };
+      if (!validString(blob, b64Cap(MAX_BLOB_BYTES))) {
+        return { ok: false, code: "INVALID_WALLET_BLOB", requestId: rid };
+      }
+      return {
+        ok: true,
+        request: {
+          ...common,
+          type: "EXPORT_PRIVATE_KEY",
+          encryptedWalletBlob: blob as string,
+        },
+      };
     case "SIGN_TRANSACTION": {
+      if (!validString(blob, b64Cap(MAX_BLOB_BYTES))) {
+        return { ok: false, code: "INVALID_WALLET_BLOB", requestId: rid };
+      }
       const tx = data["transaction"];
       if (!validString(tx, b64Cap(MAX_TX_BYTES))) {
         return { ok: false, code: "MALFORMED_TRANSACTION", requestId: rid };
       }
-      return { ok: true, request: { ...common, type: "SIGN_TRANSACTION", encryptedWalletBlob: blob as string, transaction: tx as string } };
+      return {
+        ok: true,
+        request: {
+          ...common,
+          type: "SIGN_TRANSACTION",
+          encryptedWalletBlob: blob as string,
+          transaction: tx as string,
+        },
+      };
     }
   }
 }

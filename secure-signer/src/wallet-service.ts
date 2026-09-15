@@ -46,24 +46,36 @@ export interface PrfResult {
  * an existing one. Both are triggered by an explicit in-signer user gesture (§10,
  * §24) and must fail closed if the authenticator lacks PRF (§11 — never weaken).
  */
+export interface PrfCreateOptions {
+  /** Password-manager visible account name (user.name / displayName). */
+  userName: string;
+}
+
 export interface PrfProvider {
-  create(rpId: string): Promise<PrfResult>;
+  create(rpId: string, opts: PrfCreateOptions): Promise<PrfResult>;
   get(rpId: string, credentialId: Uint8Array): Promise<Uint8Array>;
 }
 
 export interface CreatedWallet {
   publicKey: Uint8Array;
   blob: Uint8Array;
+  /** Present when `messageToSign` was provided (e.g. D1 PUT proof). */
+  signature?: Uint8Array;
 }
 
 /** Generate a fresh keypair inside the signer and wrap it into a portable blob. */
-export async function createWallet(prf: PrfProvider, rpId: string): Promise<CreatedWallet> {
-  const seed = generateEd25519Seed(); // CSPRNG; parent never supplies randomness (§10)
-  const publicKey = ed25519PublicKey(seed);
+export async function createWallet(
+  prf: PrfProvider,
+  rpId: string,
+  opts: { userName: string; messageToSign?: Uint8Array },
+): Promise<CreatedWallet> {
   let prfOutput: Uint8Array | undefined;
+  let seed: Uint8Array | undefined;
   try {
-    const enrolled = await prf.create(rpId);
+    const enrolled = await prf.create(rpId, { userName: opts.userName });
     prfOutput = enrolled.prfOutput;
+    seed = generateEd25519Seed(); // CSPRNG; parent never supplies randomness (§10)
+    const publicKey = ed25519PublicKey(seed);
     const kdfSalt = randomBytes(KDF_SALT_BYTES);
     const iv = randomBytes(AES_GCM_IV_BYTES);
     const key = await deriveWrappingKey(prfOutput, kdfSalt);
@@ -76,6 +88,13 @@ export async function createWallet(prf: PrfProvider, rpId: string): Promise<Crea
       iv,
       ciphertext,
     });
+    if (opts.messageToSign) {
+      return {
+        publicKey,
+        blob,
+        signature: ed25519Sign(opts.messageToSign, seed),
+      };
+    }
     return { publicKey, blob };
   } finally {
     scrub(seed, prfOutput); // best-effort (§30, §42)
@@ -109,24 +128,35 @@ export async function decryptWallet(
     throw new ServiceError("AUTHENTICATION_FAILED");
   }
   try {
-    const key = await deriveWrappingKey(prfOutput, parsed.kdfSalt);
-    const aad = buildAad(parsed, rpId);
-    let seed: Uint8Array;
-    try {
-      seed = await aesGcmDecrypt(key, parsed.iv, parsed.ciphertext, aad);
-    } catch {
-      // Uniform failure — never a decryption oracle (§31).
-      throw new ServiceError("DECRYPTION_FAILED");
-    }
-    const publicKey = ed25519PublicKey(seed);
-    if (!bytesEqual(publicKey, parsed.publicKey)) {
-      scrub(seed);
-      throw new ServiceError("WALLET_MISMATCH");
-    }
-    return { seed, publicKey };
+    return await unwrapWallet(prfOutput, parsed, rpId);
   } finally {
     scrub(prfOutput);
   }
+}
+
+/**
+ * Unwrap with an already-evaluated PRF (e.g. discoverable assertion held only
+ * until the parent returns a blob). Caller must scrub `prfOutput`.
+ */
+export async function unwrapWallet(
+  prfOutput: Uint8Array,
+  parsed: ParsedWalletBlob,
+  rpId: string
+): Promise<{ seed: Uint8Array; publicKey: Uint8Array }> {
+  const key = await deriveWrappingKey(prfOutput, parsed.kdfSalt);
+  const aad = buildAad(parsed, rpId);
+  let seed: Uint8Array;
+  try {
+    seed = await aesGcmDecrypt(key, parsed.iv, parsed.ciphertext, aad);
+  } catch {
+    throw new ServiceError("DECRYPTION_FAILED");
+  }
+  const publicKey = ed25519PublicKey(seed);
+  if (!bytesEqual(publicKey, parsed.publicKey)) {
+    scrub(seed);
+    throw new ServiceError("WALLET_MISMATCH");
+  }
+  return { seed, publicKey };
 }
 
 /** Sign message bytes with the decrypted seed, then scrub the seed. */

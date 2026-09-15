@@ -8,7 +8,7 @@ function shortenAddress(address: string): string {
 }
 
 /**
- * Owner sign-in control (Helius WaaS). Signed out → opens the auth modal;
+ * Owner sign-in control. Signed out → opens the secure-signer sheet;
  * signed in → shows the truncated address and signs out on click.
  */
 export function OwnerConnectButton({ className }: { className?: string }) {

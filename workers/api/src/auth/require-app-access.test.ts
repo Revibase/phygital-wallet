@@ -16,6 +16,9 @@ describe("API access", () => {
     expect(isPublicApiPath("GET", "/getFeePayer")).toBe(true);
     expect(isPublicApiPath("POST", "/sign")).toBe(true);
     expect(isPublicApiPath("GET", "/health")).toBe(true);
+    expect(isPublicApiPath("GET", "/owner-wallet/blob")).toBe(true);
+    expect(isPublicApiPath("POST", "/owner-wallet/blob/challenge")).toBe(true);
+    expect(isPublicApiPath("PUT", "/owner-wallet/blob")).toBe(true);
     expect(isPublicApiPath("GET", "/tokens/verified")).toBe(false);
   });
 

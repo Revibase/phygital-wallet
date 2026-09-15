@@ -67,7 +67,21 @@ describe("SignerState", () => {
       createdAt: 0,
     });
     expect(
-      s.consumeAuthorization({ operation: "PRIVATE_EXPORT_PENDING", requestId: "r1", messageDigest: digest })
+      s.consumeAuthorization({
+        operation: "PRIVATE_EXPORT_PENDING",
+        requestId: "r1",
+        messageDigest: digest,
+      }),
     ).toBeNull();
+  });
+
+  it("allows BLOB_PROVIDED continuation for the active AUTH request id", () => {
+    const s = new SignerState();
+    expect(s.begin("AUTH_PENDING", "auth-req-1")).toBe(true);
+    s.remember("auth-req-1");
+    expect(
+      s.checkFreshnessAndReplay("auth-req-1", undefined, { continuation: true }),
+    ).toBeNull();
+    expect(s.checkFreshnessAndReplay("auth-req-1")).toBe("REPLAY_REJECTED");
   });
 });

@@ -56,4 +56,32 @@ describe("validateInbound", () => {
     const r = validateInbound({ ...base, type: "SIGN_TRANSACTION", encryptedWalletBlob: "AAAA", transaction: tx });
     expect(r).toMatchObject({ ok: false });
   });
+
+  it("accepts AUTH_START with and without blob", () => {
+    expect(validateInbound({ ...base, type: "AUTH_START" }).ok).toBe(true);
+    expect(
+      validateInbound({
+        ...base,
+        type: "AUTH_START",
+        encryptedWalletBlob: "AAAA",
+      }).ok,
+    ).toBe(true);
+  });
+
+  it("accepts BLOB_PROVIDED with blob or errorCode", () => {
+    expect(
+      validateInbound({
+        ...base,
+        type: "BLOB_PROVIDED",
+        encryptedWalletBlob: "AAAA",
+      }).ok,
+    ).toBe(true);
+    expect(
+      validateInbound({
+        ...base,
+        type: "BLOB_PROVIDED",
+        errorCode: "BLOB_UNAVAILABLE",
+      }).ok,
+    ).toBe(true);
+  });
 });

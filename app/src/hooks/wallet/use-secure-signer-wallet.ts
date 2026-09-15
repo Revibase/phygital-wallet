@@ -3,6 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { OwnerWallet } from "@/hooks/wallet/use-owner-wallet";
+import {
+  backupOwnerWalletBlob,
+  fetchOwnerWalletBlob,
+  issueOwnerWalletPutChallenge,
+} from "@/lib/wallet/owner-wallet-blob";
 import { getSecureSignerClient } from "@/lib/wallet/secure-signer-client";
 import { createSecureSignerSigner } from "@/lib/wallet/secure-signer-signer";
 
@@ -11,8 +16,8 @@ import { createSecureSignerSigner } from "@/lib/wallet/secure-signer-signer";
  *
  * There is no persistent server session (per-op WebAuthn by design), so the
  * "session" is simply: we hold the encrypted blob (portable ciphertext) and the
- * verified public key. The blob is stored per-device in localStorage — it is
- * non-secret and can later be synced to a backend for cross-device use.
+ * verified public key. The blob is cached in localStorage and backed up to D1
+ * after auth (PUT requires an ed25519 proof signed inside the signer).
  */
 const BLOB_KEY = "revibase.owner.blob";
 const PUBKEY_KEY = "revibase.owner.pubkey";
@@ -66,21 +71,49 @@ export function useSecureSignerWallet(): OwnerWallet {
       address: pk,
       status: pk ? "authenticated" : "unauthenticated",
     });
+    // Warm the signer iframe so Sign in is not cold.
+    try {
+      getSecureSignerClient().preload();
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   const login = useCallback(async () => {
     const client = getSecureSignerClient();
     const existing = readLS(BLOB_KEY);
-    let publicKey: string;
-    if (existing) {
-      ({ publicKey } = await client.importKey(existing));
-    } else {
-      const created = await client.createKey();
-      publicKey = created.publicKey;
-      writeLS(BLOB_KEY, created.encryptedWalletBlob);
+
+    let putChallenge: { challengeId: string; challenge: string } | null = null;
+    try {
+      putChallenge = await issueOwnerWalletPutChallenge();
+    } catch {
+      /* backup is best-effort — auth still proceeds */
     }
-    writeLS(PUBKEY_KEY, publicKey);
-    setSession({ address: publicKey, status: "authenticated" });
+
+    const result = await client.authenticate(existing, {
+      putChallenge: putChallenge?.challenge,
+      resolveBlob: async (credentialId) => {
+        const local = readLS(BLOB_KEY);
+        if (local) return local;
+        try {
+          return await fetchOwnerWalletBlob(credentialId);
+        } catch {
+          return null;
+        }
+      },
+    });
+    writeLS(BLOB_KEY, result.encryptedWalletBlob);
+    writeLS(PUBKEY_KEY, result.publicKey);
+    setSession({ address: result.publicKey, status: "authenticated" });
+
+    if (putChallenge && result.putSignature) {
+      void backupOwnerWalletBlob({
+        encryptedWalletBlob: result.encryptedWalletBlob,
+        publicKey: result.publicKey,
+        challengeId: putChallenge.challengeId,
+        signature: result.putSignature,
+      }).catch(() => {});
+    }
   }, []);
 
   const logout = useCallback(async () => {

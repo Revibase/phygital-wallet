@@ -11,6 +11,7 @@ import { requireAppAccess } from "@/auth/require-app-access";
 import { appCors } from "@/shared/cors";
 import { createLogger } from "@/shared/log";
 import { runWithRequestStore } from "@/shared/request-context";
+import { ownerWalletRoutes } from "@/owner-wallet/routes";
 import { tokenRoutes } from "@/tokens/routes";
 import { transactions } from "@/transactions";
 import { heliusWebhookRoutes } from "@/webhooks/helius";
@@ -82,6 +83,7 @@ app.use("*", async (c, next) => {
 app.get("/health", (c) => c.json({ ok: true }));
 
 app.route("/", accessoryUnlockRoutes);
+app.route("/", ownerWalletRoutes);
 app.route("/", tokenRoutes);
 app.route("/", transactions);
 app.route("/", heliusWebhookRoutes);

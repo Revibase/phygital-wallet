@@ -54,14 +54,20 @@ export class BrowserPrfProvider implements PrfProvider {
    * only reliably returned at assertion time). Requires transient user activation
    * — call from a click handler inside the signer UI.
    */
-  async create(rpId: string): Promise<PrfResult> {
+  async create(rpId: string, opts: { userName: string }): Promise<PrfResult> {
     const salt = await prfSalt();
+    // Opaque handle — not derived from the display name (names can be reused).
     const userId = globalThis.crypto.getRandomValues(new Uint8Array(16));
+    const userName = opts.userName;
     const cred = (await navigator.credentials.create({
       publicKey: {
         challenge: buf(randomChallenge()),
         rp: { id: rpId, name: "Secure Signer" },
-        user: { id: buf(userId), name: "secure-signer", displayName: "Secure Signer Wallet" },
+        user: {
+          id: buf(userId),
+          name: userName,
+          displayName: userName,
+        },
         pubKeyCredParams: [
           { type: "public-key", alg: -7 }, // ES256
           { type: "public-key", alg: -257 }, // RS256
@@ -98,5 +104,28 @@ export class BrowserPrfProvider implements PrfProvider {
     })) as PublicKeyCredential | null;
     if (!assertion) throw new WebAuthnUnsupported("assertion returned null");
     return extractPrf(assertion);
+  }
+
+  /**
+   * Discoverable assertion (empty allowCredentials) for "Sign in" on a device
+   * with no local/parent blob. Returns credentialId + PRF; the ciphertext still
+   * has to come from the parent/KV.
+   */
+  async getDiscoverable(rpId: string): Promise<PrfResult> {
+    const salt = await prfSalt();
+    const assertion = (await navigator.credentials.get({
+      publicKey: {
+        challenge: buf(randomChallenge()),
+        rpId,
+        userVerification: "required",
+        timeout: 120_000,
+        extensions: { prf: { eval: { first: buf(salt) } } } as AuthenticationExtensionsClientInputs,
+      },
+    })) as PublicKeyCredential | null;
+    if (!assertion) throw new WebAuthnUnsupported("assertion returned null");
+    return {
+      credentialId: new Uint8Array(assertion.rawId),
+      prfOutput: extractPrf(assertion),
+    };
   }
 }
