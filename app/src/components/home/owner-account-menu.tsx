@@ -5,8 +5,13 @@ import { KeyRound, LogOut } from "lucide-react";
 import { toast } from "sonner";
 
 import { GroupedList, GroupedRow } from "@/components/shared/grouped-list";
-import { ModalSheet } from "@/components/shared/modal-sheet";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useOwnerWallet } from "@/hooks/wallet/use-owner-wallet";
 import { copy } from "@/lib/copy/phygital";
 import { toUserErrorMessage } from "@/lib/user-errors";
@@ -42,12 +47,11 @@ export function OwnerAccountMenu({ className }: { className?: string }) {
         {address ? shortAddress(address) : copy.home.account}
       </Button>
 
-      <ModalSheet
-        open={open}
-        onClose={() => setOpen(false)}
-        title={copy.home.account}
-      >
-        <div className="rounded-3xl border border-border/60 bg-card p-4 shadow-xl">
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>{copy.home.account}</DialogTitle>
+          </DialogHeader>
           <GroupedList>
             <GroupedRow
               leading={<KeyRound className="size-4" />}
@@ -70,8 +74,8 @@ export function OwnerAccountMenu({ className }: { className?: string }) {
               {copy.home.accountSignOut}
             </GroupedRow>
           </GroupedList>
-        </div>
-      </ModalSheet>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

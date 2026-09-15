@@ -12,7 +12,6 @@ import { address as toAddress } from "@solana/kit";
 
 import { NavBar, NavBarBack } from "@/components/shared/nav-bar";
 import { GroupedRow } from "@/components/shared/grouped-list";
-import { ModalSheet } from "@/components/shared/modal-sheet";
 import { TokenIcon } from "@/components/shared/token-chip";
 import { Button } from "@/components/ui/button";
 import {
@@ -1181,15 +1180,11 @@ function TokenPickerSheet({
   onPick: (token: PaymentToken) => void;
 }) {
   return (
-    <ModalSheet
-      open={open}
-      onClose={onClose}
-      title={copy.wallet.policyPickToken}
-    >
-      <div className="flex flex-col gap-3 rounded-3xl border border-border/60 bg-card p-4 shadow-xl">
-        <h2 className="px-1 text-lg font-semibold">
-          {copy.wallet.policyPickToken}
-        </h2>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+      <DialogContent showCloseButton={false}>
+        <DialogHeader>
+          <DialogTitle>{copy.wallet.policyPickToken}</DialogTitle>
+        </DialogHeader>
         {tokens.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">
             {copy.wallet.policyNoTokensToAdd}
@@ -1213,8 +1208,8 @@ function TokenPickerSheet({
             ))}
           </ul>
         )}
-      </div>
-    </ModalSheet>
+      </DialogContent>
+    </Dialog>
   );
 }
 

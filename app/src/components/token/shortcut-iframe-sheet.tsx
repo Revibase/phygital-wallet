@@ -3,8 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ExternalLink, X } from "lucide-react";
 
-import { ModalSheet } from "@/components/shared/modal-sheet";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { copy } from "@/lib/copy/phygital";
 import { openShortcutExternal } from "@/lib/tokens/open-shortcut";
 import { cn } from "@/lib/utils";
@@ -63,63 +67,63 @@ export function ShortcutIframeSheet({
   }, [uri]);
 
   return (
-    <ModalSheet
+    <Dialog
       open={open}
-      onClose={onClose}
-      title={label}
-      className="max-w-none p-0 sm:max-w-3xl"
-      align="bottom"
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
     >
-      <div
-        className={cn(
-          "flex h-[min(92dvh,48rem)] w-full flex-col",
-          "rounded-t-2xl border border-border/60 bg-background shadow-xl sm:rounded-2xl"
-        )}
+      <DialogContent
+        showCloseButton={false}
+        className="max-h-[min(92dvh,48rem)] max-w-none gap-0 overflow-hidden p-0 sm:max-w-3xl"
+        onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border/50 px-4 py-3">
-          <p className="min-w-0 truncate text-sm font-medium text-foreground">
-            {label}
-          </p>
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="ghost"
-            onClick={onClose}
-            aria-label={copy.common.close}
-          >
-            <X className="size-4" />
-          </Button>
-        </div>
+        <div className="flex h-[min(92dvh,48rem)] w-full flex-col">
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border/50 px-4 py-3">
+            <DialogTitle className="min-w-0 truncate text-sm font-medium text-foreground">
+              {label}
+            </DialogTitle>
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              onClick={onClose}
+              aria-label={copy.common.close}
+            >
+              <X className="size-4" />
+            </Button>
+          </div>
 
-        <div className="relative min-h-0 flex-1 bg-muted/20">
-          {!loaded && !blocked ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-muted-foreground">
-              <Spinner className="size-6" aria-hidden />
-              <p className="text-xs">{copy.shortcut.loading}</p>
-            </div>
-          ) : null}
+          <div className="relative min-h-0 flex-1 bg-muted/20">
+            {!loaded && !blocked ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                <Spinner className="size-6" aria-hidden />
+                <p className="text-xs">{copy.shortcut.loading}</p>
+              </div>
+            ) : null}
 
-          {blocked ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center">
-              <p className="text-sm text-muted-foreground">
-                {copy.shortcut.embedBlocked}
-              </p>
-              <Button type="button" variant="default" onClick={onOpenExternal}>
-                {copy.shortcut.openInBrowser}
-                <ExternalLink className="size-4" aria-hidden />
-              </Button>
-            </div>
-          ) : (
-            <iframe
-              title={label}
-              src={uri}
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
-              className={cn("size-full border-0", !loaded && "opacity-0")}
-              onLoad={onLoad}
-            />
-          )}
+            {blocked ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center">
+                <p className="text-sm text-muted-foreground">
+                  {copy.shortcut.embedBlocked}
+                </p>
+                <Button type="button" variant="default" onClick={onOpenExternal}>
+                  {copy.shortcut.openInBrowser}
+                  <ExternalLink className="size-4" aria-hidden />
+                </Button>
+              </div>
+            ) : (
+              <iframe
+                title={label}
+                src={uri}
+                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
+                className={cn("size-full border-0", !loaded && "opacity-0")}
+                onLoad={onLoad}
+              />
+            )}
+          </div>
         </div>
-      </div>
-    </ModalSheet>
+      </DialogContent>
+    </Dialog>
   );
 }
