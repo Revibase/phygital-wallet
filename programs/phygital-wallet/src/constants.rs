@@ -4,7 +4,7 @@ use anchor_lang::prelude::*;
 pub const PROGRAM_WALLET_SEED: &[u8] = b"program_wallet";
 
 #[constant]
-pub const AUTHORITY_SEED: &[u8] = b"authority";
+pub const AUTHORITY_SEED: &[u8] = b"authority:v1";
 
 #[constant]
 pub const EXECUTE_CHALLENGE_PREFIX: &[u8] = b"phygital_wallet:execute:v3";

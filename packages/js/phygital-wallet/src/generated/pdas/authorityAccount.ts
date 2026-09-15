@@ -29,7 +29,9 @@ export async function findAuthorityAccountPda(
     programAddress,
     seeds: [
       getBytesEncoder().encode(
-        new Uint8Array([97, 117, 116, 104, 111, 114, 105, 116, 121]),
+        new Uint8Array([
+          97, 117, 116, 104, 111, 114, 105, 116, 121, 58, 118, 49,
+        ]),
       ),
       getAddressEncoder().encode(seeds.phygitalToken),
     ],
