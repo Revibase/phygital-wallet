@@ -81,7 +81,8 @@ All requests carry `{ protocolVersion: 1, requestId, timestamp? }`; blobs are
 base64url, transactions base64. Errors are generic `{ type: "ERROR", requestId, code }`.
 Unknown/malformed input fails closed. The signer posts `{ type: "SIGNER_READY" }` on load.
 
-`AUTH_START` opens the in-iframe chooser (Sign in / Create account). Prefer it over
+`AUTH_START` opens the in-iframe chooser (Create a passkey / Unlock with passkey),
+or skips straight to unlock when a wallet blob is already on this device. Prefer it over
 calling `CREATE_KEY` / `IMPORT_KEY` directly from the parent login path.
 
 ## Parent integration seam

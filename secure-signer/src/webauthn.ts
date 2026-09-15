@@ -39,7 +39,11 @@ function randomChallenge(): Uint8Array {
 const buf = (b: Uint8Array): BufferSource => b as unknown as BufferSource;
 
 function extractPrf(cred: PublicKeyCredential): Uint8Array {
-  const results = (cred.getClientExtensionResults() as { prf?: { results?: { first?: ArrayBuffer } } }).prf;
+  const results = (
+    cred.getClientExtensionResults() as {
+      prf?: { results?: { first?: ArrayBuffer } };
+    }
+  ).prf;
   const first = results?.results?.first;
   if (!first) {
     // Authenticator/browser did not evaluate PRF -> unrecoverable material. Fail.
@@ -62,7 +66,7 @@ export class BrowserPrfProvider implements PrfProvider {
     const cred = (await navigator.credentials.create({
       publicKey: {
         challenge: buf(randomChallenge()),
-        rp: { id: rpId, name: "Secure Signer" },
+        rp: { id: rpId, name: userName },
         user: {
           id: buf(userId),
           name: userName,
@@ -72,12 +76,18 @@ export class BrowserPrfProvider implements PrfProvider {
           { type: "public-key", alg: -7 }, // ES256
           { type: "public-key", alg: -257 }, // RS256
         ],
-        authenticatorSelection: { residentKey: "required", userVerification: "required" },
+        authenticatorSelection: {
+          residentKey: "required",
+          userVerification: "required",
+        },
         timeout: 120_000,
-        extensions: { prf: { eval: { first: buf(salt) } } } as AuthenticationExtensionsClientInputs,
+        extensions: {
+          prf: { eval: { first: buf(salt) } },
+        } as AuthenticationExtensionsClientInputs,
       },
     })) as PublicKeyCredential | null;
-    if (!cred) throw new WebAuthnUnsupported("credential creation returned null");
+    if (!cred)
+      throw new WebAuthnUnsupported("credential creation returned null");
 
     const credentialId = new Uint8Array(cred.rawId);
     // Some platforms return PRF at create time; if not, do a follow-up get().
@@ -99,7 +109,9 @@ export class BrowserPrfProvider implements PrfProvider {
         allowCredentials: [{ type: "public-key", id: buf(credentialId) }],
         userVerification: "required",
         timeout: 120_000,
-        extensions: { prf: { eval: { first: buf(salt) } } } as AuthenticationExtensionsClientInputs,
+        extensions: {
+          prf: { eval: { first: buf(salt) } },
+        } as AuthenticationExtensionsClientInputs,
       },
     })) as PublicKeyCredential | null;
     if (!assertion) throw new WebAuthnUnsupported("assertion returned null");
@@ -119,7 +131,9 @@ export class BrowserPrfProvider implements PrfProvider {
         rpId,
         userVerification: "required",
         timeout: 120_000,
-        extensions: { prf: { eval: { first: buf(salt) } } } as AuthenticationExtensionsClientInputs,
+        extensions: {
+          prf: { eval: { first: buf(salt) } },
+        } as AuthenticationExtensionsClientInputs,
       },
     })) as PublicKeyCredential | null;
     if (!assertion) throw new WebAuthnUnsupported("assertion returned null");

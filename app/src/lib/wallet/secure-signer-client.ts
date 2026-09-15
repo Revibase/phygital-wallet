@@ -48,8 +48,8 @@ function applyOverlayLayout(overlay: HTMLDivElement, frame: HTMLIFrameElement): 
     ? "position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.4);display:none;align-items:flex-end;justify-content:stretch;padding:0;"
     : "position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;padding:24px;";
   frame.style.cssText = mobile
-    ? "width:100%;height:min(560px,88vh);border:0;border-radius:16px 16px 0 0;background:transparent;box-shadow:0 -8px 40px rgba(0,0,0,.18);"
-    : "width:min(400px,100%);height:min(520px,90vh);border:0;border-radius:16px;background:transparent;box-shadow:0 20px 60px rgba(0,0,0,.28);";
+    ? "width:100%;height:min(560px,88vh);border:0;border-radius:24px 24px 0 0;background:transparent;box-shadow:0 -8px 40px rgba(0,0,0,.18);"
+    : "width:min(400px,100%);height:min(520px,90vh);border:0;border-radius:24px;background:transparent;box-shadow:0 20px 60px rgba(26,31,30,.18);";
 }
 
 class SecureSignerClient {
@@ -58,6 +58,37 @@ class SecureSignerClient {
   private ready: Promise<void> | null = null;
   private readonly pending = new Map<string, Pending>();
   private mediaQuery: MediaQueryList | null = null;
+
+  private waitForReady(frame: HTMLIFrameElement): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        window.removeEventListener("message", onReady);
+        reject(new SecureSignerError("INTERNAL_ERROR"));
+      }, READY_TIMEOUT_MS);
+      const onReady = (event: MessageEvent) => {
+        if (event.origin !== SECURE_SIGNER_ORIGIN) return;
+        if (event.source !== frame.contentWindow) return;
+        const data = event.data as Record<string, unknown>;
+        if (data?.["type"] === "SIGNER_READY") {
+          clearTimeout(timer);
+          window.removeEventListener("message", onReady);
+          resolve();
+        }
+      };
+      window.addEventListener("message", onReady);
+    });
+  }
+
+  /**
+   * Reload the signer iframe after an aborted/failed interactive ceremony.
+   * Without this, a dismissed overlay can leave AUTH_PENDING stuck so the next
+   * Sign in fails with INTERNAL_ERROR.
+   */
+  private remountSigner(): void {
+    if (!this.iframe) return;
+    this.ready = this.waitForReady(this.iframe);
+    this.iframe.src = `${SECURE_SIGNER_ORIGIN}/?r=${Date.now()}`;
+  }
 
   private ensureMounted(): void {
     if (this.iframe) return;
@@ -84,23 +115,7 @@ class SecureSignerClient {
     };
     this.mediaQuery.addEventListener("change", onLayout);
 
-    this.ready = new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => {
-        window.removeEventListener("message", onReady);
-        reject(new SecureSignerError("INTERNAL_ERROR"));
-      }, READY_TIMEOUT_MS);
-      const onReady = (event: MessageEvent) => {
-        if (event.origin !== SECURE_SIGNER_ORIGIN) return;
-        if (event.source !== frame.contentWindow) return;
-        const data = event.data as Record<string, unknown>;
-        if (data?.["type"] === "SIGNER_READY") {
-          clearTimeout(timer);
-          window.removeEventListener("message", onReady);
-          resolve();
-        }
-      };
-      window.addEventListener("message", onReady);
-    });
+    this.ready = this.waitForReady(frame);
 
     window.addEventListener("message", (event) => this.onMessage(event));
   }
@@ -213,6 +228,9 @@ class SecureSignerClient {
     this.iframe!.contentWindow!.postMessage(message, SECURE_SIGNER_ORIGIN);
     try {
       return await result;
+    } catch (err) {
+      if (interactive) this.remountSigner();
+      throw err;
     } finally {
       if (interactive) this.hide();
     }

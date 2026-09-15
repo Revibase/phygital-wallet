@@ -6,6 +6,7 @@
 import { PolicyDeniedError } from "phygital-wallet-sdk";
 
 import { copy, errorCopy } from "@/lib/copy/phygital";
+import { SecureSignerError } from "@/lib/wallet/secure-signer-client";
 
 const DEFAULT_ERROR_BODY: string = errorCopy.fallback.body;
 const DEFAULT_ERROR: UserFacingError = errorCopy.fallback;
@@ -159,6 +160,16 @@ export function toUserErrorMessage(
   error: unknown,
   fallback: string = DEFAULT_ERROR_BODY
 ): string {
+  if (error instanceof SecureSignerError) {
+    if (error.code === "USER_CANCELLED") return errorCopy.signerCancelled.body;
+    if (
+      error.code === "UNSUPPORTED_CREDENTIAL" ||
+      error.code === "AUTHENTICATION_FAILED"
+    ) {
+      return errorCopy.signerUnsupported.body;
+    }
+    return errorCopy.signerFailed.body;
+  }
   if (error instanceof PolicyDeniedError) {
     if (error.code === "spend_limit") {
       const limit =

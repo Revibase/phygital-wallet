@@ -207,8 +207,8 @@ export const copy = {
     authorityChecking: "Checking ownership…",
     authoritySignInTitle: "Claim this accessory",
     authoritySignInBody:
-      "Sign in on this phone, then hold the accessory once to become the owner and turn on everyday payments.",
-    authoritySignInCta: "Sign in",
+      "Continue on this phone, then hold the accessory once to become the owner and turn on everyday payments.",
+    authoritySignInCta: "Continue",
     authorityClaimTitle: "Turn on everyday payments",
     authorityClaimBody:
       "Claim this accessory as yours. You’ll hold it once to confirm — then a tap can send SOL and standard tokens.",
@@ -223,8 +223,8 @@ export const copy = {
     otherOwnerBanner: "Owned by another account on this phone.",
     otherOwnerBannerAction: "Details",
     ownershipLabel: "Ownership",
-    ownershipSignIn: "Sign in",
-    ownershipSignInSubtitle: "Sign in to claim or manage this accessory.",
+    ownershipSignIn: "Continue",
+    ownershipSignInSubtitle: "Continue to claim or manage this accessory.",
     ownershipClaimFooter:
       "Claiming sets you as the owner and turns on everyday payments: a tap can send SOL and standard tokens; other apps stay blocked until you allow them.",
     ownershipOtherTitle: "Owned by another account",
@@ -301,7 +301,7 @@ export const copy = {
     policyTurnOffConfirmTitle: "Turn off accessory protections?",
     policyTurnOffConfirmBody:
       "Removes spending limits and the built-in payment-only rules. A tap won’t be checked until you restore everyday payments. Your owner key stays.",
-    policySignInToEdit: "Sign in as the owner to change permissions.",
+    policySignInToEdit: "Continue as the owner to change permissions.",
     policyTokenLimits: "Spendable assets",
     policyTokenLimitsHint:
       "Only assets you list can leave with a tap. Add SOL above and any tokens here — up to 8 tokens.",
@@ -460,8 +460,8 @@ export const copy = {
     approveSendBodyUnexpected:
       "This transaction couldn’t be checked against your settings.",
     approveSendSignInBody:
-      "Sign in as the owner to approve once, then try again.",
-    approveSendSignInCta: "Sign in",
+      "Unlock as the owner to approve once, then try again.",
+    approveSendSignInCta: "Continue",
     approveSendSignInNotNow: "Not now",
     approveSendAmount: "Amount",
     approveSendDestination: "To",
@@ -574,8 +574,8 @@ export const copy = {
   home: {
     welcomeTitle: "Your accessories, one place",
     welcomeBody:
-      "Sign in to manage what you own — or open an accessory you’re holding.",
-    welcomeSignIn: "Sign in",
+      "Set up this phone to manage what you own — or open an accessory you’re holding.",
+    welcomeSignIn: "Continue",
     welcomeHaveAccessory: "I have an accessory",
     emptyTitle: "No accessories yet",
     emptyBody: "Hold an accessory to open it, then claim it to see it here.",
@@ -690,6 +690,18 @@ export const errorCopy = {
   accessoryLocked: {
     title: "Locked",
     body: "Claim this accessory before a tap can send.",
+  },
+  signerCancelled: {
+    title: "Cancelled",
+    body: "Setup was cancelled. Try again when you’re ready.",
+  },
+  signerUnsupported: {
+    title: "Passkey not supported",
+    body: "This browser or device can’t create a synced passkey. Try Safari or Chrome on a phone that supports passkeys.",
+  },
+  signerFailed: {
+    title: "Couldn’t continue",
+    body: "Something went wrong unlocking this phone. Try again.",
   },
   sessionEnded: {
     title: "Timed out",

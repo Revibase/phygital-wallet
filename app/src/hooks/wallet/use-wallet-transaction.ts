@@ -3,11 +3,14 @@
 import { useCallback, useRef, useState } from "react";
 import type { Instruction } from "@solana/kit";
 import type { PolicyDeniedError } from "phygital-wallet-sdk";
+import { toast } from "sonner";
 
 import { useOwnerWallet } from "@/hooks/wallet/use-owner-wallet";
 import { useTokenAuthority } from "@/hooks/token/use-token-authority";
+import { errorCopy } from "@/lib/copy/phygital";
 import type { SentTransaction } from "@/lib/solana/tx";
 import { sendViaAuthority } from "@/lib/wallet/execute-with-authority";
+import { toUserErrorMessage } from "@/lib/user-errors";
 import {
   runWalletTransaction,
   type PolicyDenialDecision,
@@ -101,7 +104,9 @@ export function useWalletTransaction(
     decideRef.current = null;
     setModal(CLOSED);
     decide?.("rejected");
-    void login();
+    void login().catch((err) =>
+      toast.error(toUserErrorMessage(err, errorCopy.signerFailed.body)),
+    );
   }, [login]);
 
   const sendWithAuthority = useCallback(

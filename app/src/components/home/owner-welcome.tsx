@@ -9,7 +9,7 @@ import { useTapToOpen } from "@/hooks/token/use-tap-to-open";
 import { copy } from "@/lib/copy/phygital";
 
 /**
- * Signed-out home: set up / sign in to the embedded wallet (primary), or open
+ * Signed-out home: continue into secure setup / unlock (primary), or open
  * an accessory you're holding by tapping it (secondary).
  */
 export function OwnerWelcome() {

@@ -12,7 +12,7 @@ import { ClaimedSuccessDialog } from "@/components/wallet/claimed-success-dialog
 import { useClaimAccessory } from "@/hooks/token/use-claim-accessory";
 import { useTokenOwner } from "@/hooks/token/use-token-owner";
 import { useOwnerWallet } from "@/hooks/wallet/use-owner-wallet";
-import { copy } from "@/lib/copy/phygital";
+import { copy, errorCopy } from "@/lib/copy/phygital";
 import { toUserErrorMessage } from "@/lib/user-errors";
 
 /**
@@ -75,7 +75,13 @@ export function AccessoryAuthorityPrompt({
                 size="lg"
                 className="w-full rounded-full"
                 disabled={ownerLoading}
-                onClick={() => void login()}
+                onClick={() =>
+                  void login().catch((err) =>
+                    toast.error(
+                      toUserErrorMessage(err, errorCopy.signerFailed.body),
+                    ),
+                  )
+                }
               >
                 {copy.wallet.authoritySignInCta}
               </Button>

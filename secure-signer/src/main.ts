@@ -25,7 +25,7 @@ import {
 import { digestHex, SignerState } from "./state.js";
 import { decodeV1Transaction } from "./tx/decode-v1.js";
 import { evaluatePolicy } from "./tx/policy.js";
-import { BrowserPrfProvider, currentRpId } from "./webauthn.js";
+import { BrowserPrfProvider, currentRpId, WebAuthnUnsupported } from "./webauthn.js";
 import {
   createWallet,
   decryptWallet,
@@ -307,7 +307,11 @@ async function handleAuth(
   // Corrupt remote from parent is ignored (treated as missing), not fatal.
   const hasWallet = !!(local || remote);
 
-  const choice = await ui.confirmChooser(hasWallet);
+  // Local wallet already on this phone → skip the create/unlock chooser so
+  // parent "Continue" doesn't immediately re-ask the same decision.
+  const choice = local
+    ? "signin"
+    : await ui.confirmChooser(hasWallet);
   if (choice === "cancel") return fail(requestId, "USER_CANCELLED");
 
   if (choice === "create") {
@@ -315,24 +319,22 @@ async function handleAuth(
     if (!account) return fail(requestId, "USER_CANCELLED");
     const busy = beginBusy(requestId, "Follow your device’s passkey prompt…");
     try {
-      let created: Awaited<ReturnType<typeof createWallet>>;
+      // Parse PUT challenge BEFORE WebAuthn — never retry createWallet after a
+      // failed enrollment (would re-prompt and orphan the first credential).
+      let messageToSign: Uint8Array | undefined;
       if (putChallengeB64) {
         try {
-          created = await createWallet(prf, rpId, {
-            userName: account.userName,
-            messageToSign: putChallengeMessage(
-              base64ToBytes(putChallengeB64, 64, "url"),
-            ),
-          });
+          messageToSign = putChallengeMessage(
+            base64ToBytes(putChallengeB64, 64, "url"),
+          );
         } catch {
-          if (busy.wasDismissed()) return;
-          created = await createWallet(prf, rpId, {
-            userName: account.userName,
-          });
+          /* backup proof is best-effort — still create the wallet */
         }
-      } else {
-        created = await createWallet(prf, rpId, { userName: account.userName });
       }
+      const created = await createWallet(prf, rpId, {
+        userName: account.userName,
+        messageToSign,
+      });
       if (busy.wasDismissed()) return;
       const { publicKey, blob, signature } = created;
       writeLocalBlob(blob);
@@ -401,7 +403,7 @@ async function handleAuth(
     busy.clear();
     if (busy.wasDismissed()) return;
     const again = await ui.showRecoverable(
-      "No wallet was found on this device. Create an account, or try again if you cancelled the passkey prompt.",
+      "No wallet was found on this device. Create a passkey, or try again if you cancelled the prompt.",
     );
     if (again === "retry") {
       return handleAuth(requestId, rpId, remoteBlobB64, putChallengeB64);
@@ -436,7 +438,7 @@ async function handleAuth(
     busy.clear();
     if (busy.wasDismissed()) return;
     const again = await ui.showRecoverable(
-      "No backup wallet was found for this passkey on this app. Create an account on this device, or sign in where the wallet was created.",
+      "No backup wallet was found for this passkey on this app. Create a passkey on this device, or unlock where the wallet was created.",
     );
     if (again === "retry") {
       return handleAuth(requestId, rpId, remoteBlobB64, putChallengeB64);
@@ -730,6 +732,13 @@ async function handleExportPrivateKey(
 
 function codeOf(e: unknown): ErrorCode {
   if (e instanceof ServiceError) return e.code;
+  if (e instanceof WebAuthnUnsupported) return "UNSUPPORTED_CREDENTIAL";
+  if (
+    e instanceof DOMException &&
+    (e.name === "NotAllowedError" || e.name === "AbortError")
+  ) {
+    return "USER_CANCELLED";
+  }
   return "INTERNAL_ERROR";
 }
 

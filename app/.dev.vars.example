@@ -18,4 +18,4 @@ NEXTJS_ENV=development
 # NEXT_PUBLIC_TOP_UP_ACCUMULATOR=
 
 # Origin of the secure-signer iframe (the owner-wallet signing surface)
-# NEXT_PUBLIC_SECURE_SIGNER_ORIGIN=http://localhost:3000
+# NEXT_PUBLIC_SECURE_SIGNER_ORIGIN=http://localhost:5173

@@ -178,26 +178,34 @@ export function renderError(message: string, onDismiss?: () => void): void {
   );
 }
 
-export function confirmChooser(hasLocalWallet: boolean): Promise<"signin" | "create" | "cancel"> {
+export function confirmChooser(hasWallet: boolean): Promise<"signin" | "create" | "cancel"> {
   return new Promise((resolve) => {
     const done = (v: "signin" | "create" | "cancel") => {
       detachEscape();
       resolve(v);
     };
+    const createBtn = button(
+      hasWallet ? "Create a new passkey" : "Create a passkey",
+      hasWallet ? "ghost" : "primary",
+      () => done("create"),
+    );
+    const unlockBtn = button(
+      hasWallet ? "Unlock with passkey" : "I already have a passkey",
+      hasWallet ? "primary" : "ghost",
+      () => done("signin"),
+    );
     screen(
-      "Sign in",
+      "Set up on this phone",
       [
         el("p", {
           class: "subtitle",
-          text: hasLocalWallet
-            ? "A wallet on this device can be unlocked with your passkey."
-            : "Use your passkey to unlock an existing wallet, or create a new one.",
+          text: hasWallet
+            ? "Unlock the wallet on this phone with your passkey, or create a new one."
+            : "Create a passkey-protected wallet on this phone. If you already set one up elsewhere, unlock with that passkey instead.",
         }),
       ],
-      [
-        button("Create account", "ghost", () => done("create")),
-        button("Sign in", "primary", () => done("signin")),
-      ],
+      // Primary action last (thumb-friendly sheet).
+      hasWallet ? [createBtn, unlockBtn] : [unlockBtn, createBtn],
       { dismissible: true, onDismiss: () => done("cancel") },
     );
   });
@@ -241,25 +249,25 @@ export function confirmCreate(
 
     const body: Node[] = [
       el("p", {
-        text: "Pick a username for this passkey. You’ll see it in your password manager.",
+        text: "Choose a username for your passkey. You’ll see it in your password manager.",
       }),
       input,
       error,
       el("p", {
         class: "muted",
-        text: "A signing key is created here and locked with your passkey. Keep a synced copy — without it, this wallet cannot be recovered.",
+        text: "Your signing key stays on this phone, locked with the passkey. Use a synced passkey so you can recover on another device.",
       }),
     ];
     if (existingWallet) {
       body.unshift(
         el("p", {
           class: "warn",
-          text: "This device already has a wallet. Creating a new one does not delete the old key, but this app will switch to the new one.",
+          text: "This phone already has a wallet. Creating a new one doesn’t delete the old key, but Revibase will switch to the new one.",
         }),
       );
     }
     screen(
-      "Create account",
+      "Create a passkey",
       body,
       [
         button("Cancel", "ghost", () => done(null)),
@@ -278,10 +286,10 @@ export function confirmImport(): Promise<boolean> {
       resolve(v);
     };
     screen(
-      "Sign in",
+      "Unlock with passkey",
       [
         el("p", {
-          text: "Authenticate with your passkey to unlock this wallet.",
+          text: "Use your passkey to unlock this wallet on this phone.",
         }),
       ],
       [
@@ -330,9 +338,13 @@ export function showSuccess(publicKey: string, created: boolean): Promise<void> 
       resolve();
     };
     screen(
-      created ? "Account created" : "Signed in",
+      created ? "Passkey ready" : "Wallet unlocked",
       [
-        el("p", { text: created ? "Your wallet is ready." : "Wallet unlocked." }),
+        el("p", {
+          text: created
+            ? "Your wallet is set up on this phone."
+            : "You’re back in — returning to the app.",
+        }),
         el("p", { class: "mono muted", text: shorten(publicKey) }),
       ],
       [],
