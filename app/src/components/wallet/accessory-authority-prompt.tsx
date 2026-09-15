@@ -103,7 +103,6 @@ export function AccessoryAuthorityPrompt({
   }
 
   const holding = claim.isPending;
-  const holdEnabled = claim.holdReady && !holding;
 
   return (
     <CeremonyShell
@@ -124,7 +123,7 @@ export function AccessoryAuthorityPrompt({
       <NfcHoldStatus
         size="lg"
         pulsing={holding}
-        busy={holding || claim.holdPreparing}
+        busy={holding}
         progress={holding}
         title={
           holding
@@ -134,9 +133,7 @@ export function AccessoryAuthorityPrompt({
         body={
           holding
             ? copy.wallet.holdCeremonyBody
-            : claim.holdPreparing
-              ? copy.wallet.signPreparingBody
-              : copy.wallet.authorityClaimBody
+            : copy.wallet.authorityClaimBody
         }
         action={
           holding ? undefined : (
@@ -144,7 +141,6 @@ export function AccessoryAuthorityPrompt({
               type="button"
               size="lg"
               className="w-full rounded-full"
-              disabled={!holdEnabled}
               onClick={() =>
                 claim.mutate(undefined, {
                   onSuccess: () => setClaimedOpen(true),
@@ -155,9 +151,7 @@ export function AccessoryAuthorityPrompt({
                 })
               }
             >
-              {claim.holdPreparing
-                ? copy.common.loading
-                : copy.wallet.authorityClaimCta}
+              {copy.wallet.authorityClaimCta}
             </Button>
           )
         }

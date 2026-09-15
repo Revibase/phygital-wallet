@@ -88,7 +88,7 @@ export function OwnerOwnershipSection({
               type="button"
               size="lg"
               className="w-full rounded-full"
-              disabled={claim.isPending || !claim.holdReady}
+              disabled={claim.isPending}
               onClick={() =>
                 claim.mutate(undefined, {
                   onSuccess: () => setClaimedOpen(true),
@@ -101,9 +101,7 @@ export function OwnerOwnershipSection({
             >
               {claim.isPending
                 ? copy.wallet.holdCeremonyTitle
-                : claim.holdPreparing
-                  ? copy.common.loading
-                  : copy.wallet.authorityClaimCta}
+                : copy.wallet.authorityClaimCta}
             </Button>
             <p className="mt-2 text-xs text-muted-foreground">
               {copy.wallet.holdCeremonyBody}

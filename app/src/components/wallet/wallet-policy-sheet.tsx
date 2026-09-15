@@ -143,7 +143,7 @@ export function WalletPolicySheet({
               type="button"
               size="lg"
               className="w-full"
-              disabled={claim.isPending || !claim.holdReady}
+              disabled={claim.isPending}
               onClick={() =>
                 claim.mutate(undefined, {
                   onSuccess: () => setClaimedOpen(true),
@@ -156,9 +156,7 @@ export function WalletPolicySheet({
             >
               {claim.isPending
                 ? copy.wallet.holdCeremonyTitle
-                : claim.holdPreparing
-                  ? copy.common.loading
-                  : copy.wallet.policyLockedClaimCta}
+                : copy.wallet.policyLockedClaimCta}
             </Button>
           ) : null}
         </div>

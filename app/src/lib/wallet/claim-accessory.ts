@@ -6,9 +6,9 @@
  * paymaster is the fee payer and co-signs via `/sign`. The owner wallet only
  * contributes its address (the new authority) — it does not sign.
  *
- * WebAuthn must run from a user gesture. Call `prepareClaimAccessory` first
- * (network only), then `claimAccessory` from a click so `authenticatePasskey…`
- * is the first await.
+ * Slot-hash challenges expire quickly — fetch them on click via
+ * `prepareClaimAccessory`, then `claimAccessory` (WebAuthn + send). Do not
+ * prefetch the challenge.
  *
  * `set_authority` uses `init` (not `init_if_needed`), so this only works on an
  * unclaimed accessory. Re-owning requires `clear_authority` first.
@@ -42,7 +42,7 @@ export type PreparedClaim = {
   messageHash: Uint8Array;
 };
 
-/** Network-only prep. Safe to call without a user gesture. */
+/** Fresh slot-hash challenge. Call on click — do not prefetch. */
 export async function prepareClaimAccessory(args: {
   phygitalToken: string;
   ownerAddress: string;
@@ -59,8 +59,7 @@ export async function prepareClaimAccessory(args: {
 }
 
 /**
- * Finish claim from a click/tap handler. Starts WebAuthn immediately — do not
- * await anything else before calling this.
+ * Finish claim after `prepareClaimAccessory` in the same click handler.
  */
 export async function claimAccessory(args: {
   prepared: PreparedClaim;
@@ -70,7 +69,6 @@ export async function claimAccessory(args: {
   const rpc = getSolanaRpc();
   const { phygitalToken, owner, slotNumber, messageHash } = args.prepared;
 
-  // First await must be WebAuthn (user gesture).
   const tap = await authenticatePasskeyForSecp256r1Verify({ rpc, messageHash });
   args.onTap?.();
 
@@ -93,5 +91,7 @@ export async function claimAccessory(args: {
     instructions: [secp256r1VerifyInstruction, setAuthorityIx],
     feePayer,
     fetchBlockhash: true,
+    // Direct paymaster path (no wallet wrap) — v1 needs explicit CU / data limits.
+    applyResourceLimits: true,
   });
 }

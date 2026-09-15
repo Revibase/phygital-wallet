@@ -58,7 +58,7 @@ let _estimateAndSetResourceLimits: ReturnType<
 /** Simulate to fill the v1 compute-unit + loaded-accounts-data-size limits. */
 function estimateAndSetResourceLimits() {
   _estimateAndSetResourceLimits ??= estimateAndSetResourceLimitsFactory(
-    estimateResourceLimitsFactory({ rpc: getSolanaRpc() })
+    estimateResourceLimitsFactory({ rpc: getSolanaRpc() }),
   );
   return _estimateAndSetResourceLimits;
 }
@@ -127,18 +127,18 @@ export async function buildUnsignedTransaction(params: {
     createTransactionMessage({ version: TRANSACTION_VERSION }),
     (m) => setTransactionMessageFeePayerSigner(params.feePayer, m),
     (m) => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
-    (m) => appendTransactionMessageInstructions(params.instructions, m)
+    (m) => appendTransactionMessageInstructions(params.instructions, m),
   );
 }
 
 /** Sign an unsigned message and broadcast. */
 export async function signAndSendTransaction(
   unsigned: UnsignedTransactionMessage,
-  config?: { abortSignal?: AbortSignal }
+  config?: { abortSignal?: AbortSignal },
 ): Promise<SentTransaction> {
   const signedTransaction = await signTransactionMessageWithSigners(
     unsigned,
-    config
+    config,
   );
   assertIsTransactionWithBlockhashLifetime(signedTransaction);
 
