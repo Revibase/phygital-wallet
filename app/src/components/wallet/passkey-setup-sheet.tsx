@@ -60,7 +60,10 @@ export function PasskeySetupProvider({ children }: { children: ReactNode }) {
 
   const close = useCallback((choice: PasskeySetupChoice) => {
     setPhase((p) => {
-      p?.resolve(choice);
+      if (p) {
+        // After the sheet unmounts/paints — then WebAuthn or the signer iframe.
+        window.setTimeout(() => p.resolve(choice), 0);
+      }
       return null;
     });
     setUserName("");

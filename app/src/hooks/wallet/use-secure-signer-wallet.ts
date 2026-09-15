@@ -56,6 +56,23 @@ function requireBlob(): string {
   return blob;
 }
 
+/** Backup challenge is best-effort — never block the signer ceremony on it. */
+async function issueChallengeSoft(timeoutMs = 2_500): Promise<{
+  challengeId: string;
+  challenge: string;
+} | null> {
+  try {
+    return await Promise.race([
+      issueOwnerWalletPutChallenge(),
+      new Promise<null>((resolve) => {
+        window.setTimeout(() => resolve(null), timeoutMs);
+      }),
+    ]);
+  } catch {
+    return null;
+  }
+}
+
 type Session = { address: string | null; status: OwnerWallet["status"] };
 
 export function useSecureSignerWallet(): OwnerWallet {
@@ -108,19 +125,14 @@ export function useSecureSignerWallet(): OwnerWallet {
     const client = getSecureSignerClient();
     const existing = readLS(BLOB_KEY);
 
-    const issueChallenge = async () => {
-      try {
-        return await issueOwnerWalletPutChallenge();
-      } catch {
-        return null;
-      }
-    };
-
     const unlock = async (blob: string | null) => {
-      const putChallenge = await issueChallenge();
+      // Short wait only — never stall the unlock sheet on a slow API.
+      const putChallenge = await issueChallengeSoft(400);
       const result = await client.authenticate(blob, {
         authMode: "unlock",
-        putChallenge: putChallenge?.challenge,
+        ...(putChallenge?.challenge
+          ? { putChallenge: putChallenge.challenge }
+          : {}),
         resolveBlob: async (credentialId) => {
           const local = readLS(BLOB_KEY);
           if (local) return local;
@@ -148,12 +160,17 @@ export function useSecureSignerWallet(): OwnerWallet {
       return;
     }
 
+    // Create: register passkey on the app, then open the signer for get+PRF.
+    // Kick off backup challenge during OS create so the iframe can open ASAP after.
+    const putChallengePromise = issueChallengeSoft();
     const { credentialId } = await registerOwnerPasskey(choice.userName);
-    const putChallenge = await issueChallenge();
+    const putChallenge = await putChallengePromise;
     const result = await client.authenticate(null, {
       authMode: "create",
       credentialId,
-      putChallenge: putChallenge?.challenge,
+      ...(putChallenge?.challenge
+        ? { putChallenge: putChallenge.challenge }
+        : {}),
     });
     await finishAuth(result, putChallenge?.challengeId);
   }, [finishAuth, promptSetup]);
@@ -190,6 +207,19 @@ export function useSecureSignerWallet(): OwnerWallet {
       await login();
     } catch (err) {
       if (err instanceof SecureSignerError && err.code === "USER_CANCELLED") {
+        return;
+      }
+      // OS passkey create/get dismissed — not an app failure.
+      if (
+        err instanceof DOMException &&
+        (err.name === "NotAllowedError" || err.name === "AbortError")
+      ) {
+        return;
+      }
+      if (
+        err instanceof Error &&
+        /passkey creation was cancelled/i.test(err.message)
+      ) {
         return;
       }
       throw err;

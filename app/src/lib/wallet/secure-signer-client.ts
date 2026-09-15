@@ -27,6 +27,7 @@ export type AuthResult = {
 export class SecureSignerError extends Error {
   constructor(public readonly code: string) {
     super(code);
+    this.name = "SecureSignerError";
   }
 }
 
@@ -64,8 +65,9 @@ class SecureSignerClient {
   private iframe: HTMLIFrameElement | null = null;
   private overlay: HTMLDivElement | null = null;
   private ready: Promise<void> | null = null;
-  private readonly pending = new Map<string, Pending>();
   private mediaQuery: MediaQueryList | null = null;
+  private listening = false;
+  private readonly pending = new Map<string, Pending>();
 
   private waitForReady(frame: HTMLIFrameElement): Promise<void> {
     return new Promise<void>((resolve, reject) => {
@@ -98,6 +100,40 @@ class SecureSignerClient {
     this.iframe.src = `${SECURE_SIGNER_ORIGIN}/?r=${Date.now()}`;
   }
 
+  /** Await readiness; remount once if a prior preload/ready attempt failed. */
+  private async ensureReady(): Promise<void> {
+    this.ensureMounted();
+    try {
+      await this.ready;
+    } catch {
+      this.remountSigner();
+      await this.ready;
+    }
+  }
+
+  /** Cancel every in-flight request (backdrop / Escape from the parent). */
+  private cancelAllPending(code = "USER_CANCELLED"): void {
+    for (const [id, p] of this.pending) {
+      clearTimeout(p.timer);
+      this.pending.delete(id);
+      p.reject(new SecureSignerError(code));
+    }
+  }
+
+  private onOverlayPointerDown = (event: MouseEvent): void => {
+    if (event.target !== this.overlay) return;
+    // request() catch/finally remounts + hides
+    this.cancelAllPending();
+  };
+
+  private onDocumentKeyDown = (event: KeyboardEvent): void => {
+    if (event.key !== "Escape") return;
+    if (!this.overlay || this.overlay.style.display === "none") return;
+    if (this.pending.size === 0) return;
+    event.preventDefault();
+    this.cancelAllPending();
+  };
+
   private ensureMounted(): void {
     if (this.iframe) return;
     const overlay = document.createElement("div");
@@ -106,12 +142,10 @@ class SecureSignerClient {
     frame.src = `${SECURE_SIGNER_ORIGIN}/`;
     frame.title = "Secure signer";
     // get is required for unlock/sign; create runs on the app (shared RP ID).
-    frame.setAttribute(
-      "allow",
-      `publickey-credentials-get ${SECURE_SIGNER_ORIGIN}`,
-    );
+    frame.setAttribute("allow", "publickey-credentials-get");
     applyOverlayLayout(overlay, frame);
     overlay.appendChild(frame);
+    overlay.addEventListener("mousedown", this.onOverlayPointerDown);
     document.body.appendChild(overlay);
     this.iframe = frame;
     this.overlay = overlay;
@@ -124,7 +158,11 @@ class SecureSignerClient {
 
     this.ready = this.waitForReady(frame);
 
-    window.addEventListener("message", (event) => this.onMessage(event));
+    if (!this.listening) {
+      this.listening = true;
+      window.addEventListener("message", (event) => this.onMessage(event));
+      document.addEventListener("keydown", this.onDocumentKeyDown);
+    }
   }
 
   private onMessage(event: MessageEvent): void {
@@ -188,6 +226,7 @@ class SecureSignerClient {
       this.overlay.style.display = "flex";
     }
   }
+
   private hide(): void {
     if (this.overlay) this.overlay.style.display = "none";
   }
@@ -195,7 +234,9 @@ class SecureSignerClient {
   /** Warm the iframe so the first interactive ceremony is not cold. */
   preload(): void {
     this.ensureMounted();
-    void this.ready?.catch(() => {});
+    void this.ready?.catch(() => {
+      /* allow ensureReady() to remount on first interactive use */
+    });
   }
 
   private async request(
@@ -208,8 +249,14 @@ class SecureSignerClient {
     },
   ): Promise<Record<string, unknown>> {
     this.ensureMounted();
-    await this.ready;
+    // Show immediately so create→signer handoff never looks stuck while loading.
     if (interactive) this.show();
+    try {
+      await this.ensureReady();
+    } catch (err) {
+      if (interactive) this.hide();
+      throw err;
+    }
     const requestId = randomRequestId();
     const message = {
       type,

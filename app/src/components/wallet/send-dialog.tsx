@@ -142,7 +142,6 @@ export function SendDialog({
   const usesFeeBalance = true;
   const prefersReducedMotion = useReducedMotion();
   const enter = snapEnter(prefersReducedMotion);
-  const amountInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setPhase("form");
@@ -164,14 +163,6 @@ export function SendDialog({
     setAsset(next);
     setAmount(isCollectibleSendKind(next.kind) ? "1" : "");
   }, [portfolio, initialAsset, tokensOnly, asset]);
-
-  useEffect(() => {
-    if (initialAsset && isCollectibleSendKind(initialAsset.kind)) return;
-    const id = window.requestAnimationFrame(() =>
-      amountInputRef.current?.focus()
-    );
-    return () => window.cancelAnimationFrame(id);
-  }, [initialAsset]);
 
   const nft = asset ? isCollectibleSendKind(asset.kind) : false;
   const balanceUi = useMemo(() => {
@@ -481,7 +472,6 @@ export function SendDialog({
           ) : (
             <>
               <Input
-                ref={amountInputRef}
                 variant="hero"
                 inputMode="decimal"
                 placeholder="0"

@@ -299,6 +299,11 @@ async function enrollFromParentCredential(opts: {
   credentialIdB64: string;
   putChallengeB64?: string;
 }): Promise<void> {
+  // Parent create used up user activation; require an in-iframe tap before get.
+  if (!(await ui.confirmFinishCreate())) {
+    return fail(opts.requestId, "USER_CANCELLED");
+  }
+
   const busy = beginBusy(
     opts.requestId,
     "Confirm with your passkey to finish setup…",
@@ -343,6 +348,17 @@ async function enrollFromParentCredential(opts: {
     });
   } catch (e) {
     if (busy.wasDismissed()) return;
+    const code = codeOf(e);
+    if (code === "AUTHENTICATION_FAILED" || code === "UNSUPPORTED_CREDENTIAL") {
+      const again = await ui.showRecoverable(
+        "Passkey confirmation didn’t work. Try again, or cancel and create a new passkey.",
+      );
+      if (again === "retry") {
+        busy.clear();
+        return enrollFromParentCredential(opts);
+      }
+      return fail(opts.requestId, "USER_CANCELLED");
+    }
     throw e;
   } finally {
     busy.clear();

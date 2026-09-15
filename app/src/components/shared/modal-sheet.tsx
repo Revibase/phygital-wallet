@@ -47,7 +47,11 @@ export function ModalSheet({
     if (!open || !panelRef.current) return;
     const panel = panelRef.current;
     const focusables = panel.querySelectorAll<HTMLElement>(FOCUSABLE);
-    focusables[0]?.focus();
+
+    // Keep focus inside the sheet without jumping into text fields (mobile
+    // keyboards). Prefer the panel itself; Tab still reaches inputs.
+    if (!panel.hasAttribute("tabindex")) panel.tabIndex = -1;
+    panel.focus({ preventScroll: true });
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {

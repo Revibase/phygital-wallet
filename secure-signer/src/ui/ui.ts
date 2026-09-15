@@ -113,11 +113,6 @@ function screen(
     sheet.appendChild(el("div", { class: "actions" }, actions));
   }
   root.appendChild(sheet);
-
-  const focusable = sheet.querySelector<HTMLElement>(
-    "input, textarea, button:not(.close-btn)",
-  );
-  focusable?.focus();
 }
 
 function button(
@@ -190,6 +185,33 @@ export function confirmImport(): Promise<boolean> {
       [
         el("p", {
           text: "Use your passkey to unlock this wallet on this phone.",
+        }),
+      ],
+      [
+        button("Cancel", "ghost", () => done(false)),
+        button("Continue with passkey", "primary", () => done(true)),
+      ],
+      { dismissible: true, onDismiss: () => done(false) },
+    );
+  });
+}
+
+/** After the app created a passkey — iframe needs a tap for WebAuthn get+PRF. */
+export function confirmFinishCreate(): Promise<boolean> {
+  return new Promise((resolve) => {
+    const done = (v: boolean) => {
+      detachEscape();
+      resolve(v);
+    };
+    screen(
+      "Finish setup",
+      [
+        el("p", {
+          text: "Confirm with the passkey you just created to lock your wallet key on this phone.",
+        }),
+        el("p", {
+          class: "muted",
+          text: "Your signing key never leaves this secure window.",
         }),
       ],
       [
@@ -388,7 +410,6 @@ export function confirmSignTransaction(
         dismissible: true,
         onDismiss: () => done(false),
       });
-      input.focus();
       return;
     }
 
@@ -457,7 +478,6 @@ export function confirmExportPrivateKey(): Promise<boolean> {
       [button("Cancel", "ghost", () => done(false)), proceed],
       { dismissible: true, onDismiss: () => done(false) },
     );
-    input.focus();
   });
 }
 
