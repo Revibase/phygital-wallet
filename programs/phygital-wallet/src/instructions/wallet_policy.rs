@@ -8,7 +8,7 @@ use crate::utils::instruction_policy::{
 };
 use crate::utils::phygital_token::locked_controlled;
 use crate::utils::policy::{
-    authorize_authority_signer, read_authority_header, reject_durable_nonce,
+    authorize_authority_signer, read_authority_header, reject_durable_nonce, require_top_level,
 };
 use crate::utils::spending_limit::{new_spend_cap, preserve_spend_cap};
 
@@ -96,6 +96,7 @@ pub fn set_wallet_policy_handler(
     ctx: Context<SetWalletPolicy>,
     args: WalletPolicyArgs,
 ) -> Result<()> {
+    require_top_level()?;
     reject_durable_nonce(&ctx.accounts.instructions_sysvar)?;
 
     for (i, cap) in args.mint_caps.iter().enumerate() {
@@ -233,6 +234,7 @@ pub struct ClearWalletPolicy<'info> {
 }
 
 pub fn clear_wallet_policy_handler(ctx: Context<ClearWalletPolicy>) -> Result<()> {
+    require_top_level()?;
     reject_durable_nonce(&ctx.accounts.instructions_sysvar)?;
     let info = ctx.accounts.authority_account.to_account_info();
     let receiver = ctx.accounts.rent_receiver.to_account_info();

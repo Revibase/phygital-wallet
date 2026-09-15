@@ -9,7 +9,9 @@ pub const AUTHORITY_SEED: &[u8] = b"authority";
 #[constant]
 
 /// Execute challenge: `SHA256(prefix || slot_hash || instructions_hash || accounts_hash)`.
-pub const EXECUTE_CHALLENGE_PREFIX: &[u8] = b"phygital_wallet:execute:v2";
+/// `accounts_hash` binds each referenced remaining-account pubkey plus its
+/// signer/writable flags so privilege elevation after signing fails closed.
+pub const EXECUTE_CHALLENGE_PREFIX: &[u8] = b"phygital_wallet:execute:v3";
 
 /// Set authority: `SHA256(prefix || slot_hash || phygital_token || authority)`.
 pub const SET_AUTHORITY_CHALLENGE_PREFIX: &[u8] = b"phygital_wallet:set_authority:v1";

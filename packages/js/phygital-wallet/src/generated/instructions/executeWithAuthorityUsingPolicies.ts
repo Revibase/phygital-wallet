@@ -61,6 +61,8 @@ export type ExecuteWithAuthorityUsingPoliciesInstruction<
   TAccountPhygitalToken extends string | AccountMeta<string> = string,
   TAccountAuthorityAccount extends string | AccountMeta<string> = string,
   TAccountWallet extends string | AccountMeta<string> = string,
+  TAccountInstructionsSysvar extends string | AccountMeta<string> =
+    "Sysvar1nstructions1111111111111111111111111",
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
@@ -79,6 +81,9 @@ export type ExecuteWithAuthorityUsingPoliciesInstruction<
       TAccountWallet extends string
         ? WritableAccount<TAccountWallet>
         : TAccountWallet,
+      TAccountInstructionsSysvar extends string
+        ? ReadonlyAccount<TAccountInstructionsSysvar>
+        : TAccountInstructionsSysvar,
       ...TRemainingAccounts,
     ]
   >;
@@ -127,12 +132,14 @@ export type ExecuteWithAuthorityUsingPoliciesInput<
   TAccountPhygitalToken extends string = string,
   TAccountAuthorityAccount extends string = string,
   TAccountWallet extends string = string,
+  TAccountInstructionsSysvar extends string = string,
 > = {
   authority: TransactionSigner<TAccountAuthority>;
   phygitalToken: Address<TAccountPhygitalToken>;
   /** Writable because successful execution may charge spending counters. */
   authorityAccount: Address<TAccountAuthorityAccount>;
   wallet: Address<TAccountWallet>;
+  instructionsSysvar?: Address<TAccountInstructionsSysvar>;
   compactInstructions: ExecuteWithAuthorityUsingPoliciesInstructionDataArgs["compactInstructions"];
 };
 
@@ -141,13 +148,15 @@ export function getExecuteWithAuthorityUsingPoliciesInstruction<
   TAccountPhygitalToken extends string,
   TAccountAuthorityAccount extends string,
   TAccountWallet extends string,
+  TAccountInstructionsSysvar extends string,
   TProgramAddress extends Address = typeof PHYGITAL_WALLET_PROGRAM_ADDRESS,
 >(
   input: ExecuteWithAuthorityUsingPoliciesInput<
     TAccountAuthority,
     TAccountPhygitalToken,
     TAccountAuthorityAccount,
-    TAccountWallet
+    TAccountWallet,
+    TAccountInstructionsSysvar
   >,
   config?: { programAddress?: TProgramAddress },
 ): ExecuteWithAuthorityUsingPoliciesInstruction<
@@ -155,7 +164,8 @@ export function getExecuteWithAuthorityUsingPoliciesInstruction<
   TAccountAuthority,
   TAccountPhygitalToken,
   TAccountAuthorityAccount,
-  TAccountWallet
+  TAccountWallet,
+  TAccountInstructionsSysvar
 > {
   // Program address.
   const programAddress =
@@ -170,6 +180,10 @@ export function getExecuteWithAuthorityUsingPoliciesInstruction<
       isWritable: true,
     },
     wallet: { value: input.wallet ?? null, isWritable: true },
+    instructionsSysvar: {
+      value: input.instructionsSysvar ?? null,
+      isWritable: false,
+    },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
@@ -179,6 +193,12 @@ export function getExecuteWithAuthorityUsingPoliciesInstruction<
   // Original args.
   const args = { ...input };
 
+  // Resolve default values.
+  if (!accounts.instructionsSysvar.value) {
+    accounts.instructionsSysvar.value =
+      "Sysvar1nstructions1111111111111111111111111" as Address<"Sysvar1nstructions1111111111111111111111111">;
+  }
+
   const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
@@ -186,6 +206,7 @@ export function getExecuteWithAuthorityUsingPoliciesInstruction<
       getAccountMeta("phygitalToken", accounts.phygitalToken),
       getAccountMeta("authorityAccount", accounts.authorityAccount),
       getAccountMeta("wallet", accounts.wallet),
+      getAccountMeta("instructionsSysvar", accounts.instructionsSysvar),
     ],
     data: getExecuteWithAuthorityUsingPoliciesInstructionDataEncoder().encode(
       args as ExecuteWithAuthorityUsingPoliciesInstructionDataArgs,
@@ -196,7 +217,8 @@ export function getExecuteWithAuthorityUsingPoliciesInstruction<
     TAccountAuthority,
     TAccountPhygitalToken,
     TAccountAuthorityAccount,
-    TAccountWallet
+    TAccountWallet,
+    TAccountInstructionsSysvar
   >);
 }
 
@@ -211,6 +233,7 @@ export type ParsedExecuteWithAuthorityUsingPoliciesInstruction<
     /** Writable because successful execution may charge spending counters. */
     authorityAccount: TAccountMetas[2];
     wallet: TAccountMetas[3];
+    instructionsSysvar: TAccountMetas[4];
   };
   data: ExecuteWithAuthorityUsingPoliciesInstructionData;
 };
@@ -223,12 +246,12 @@ export function parseExecuteWithAuthorityUsingPoliciesInstruction<
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
 ): ParsedExecuteWithAuthorityUsingPoliciesInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 4) {
+  if (instruction.accounts.length < 5) {
     throw new SolanaError(
       SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
       {
         actualAccountMetas: instruction.accounts.length,
-        expectedAccountMetas: 4,
+        expectedAccountMetas: 5,
       },
     );
   }
@@ -245,6 +268,7 @@ export function parseExecuteWithAuthorityUsingPoliciesInstruction<
       phygitalToken: getNextAccount(),
       authorityAccount: getNextAccount(),
       wallet: getNextAccount(),
+      instructionsSysvar: getNextAccount(),
     },
     data: getExecuteWithAuthorityUsingPoliciesInstructionDataDecoder().decode(
       instruction.data,

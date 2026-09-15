@@ -1,5 +1,4 @@
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::instruction::{get_stack_height, TRANSACTION_LEVEL_STACK_HEIGHT};
 use phygital_token_client::VerifyCpiBuilder;
 use solana_sdk_ids::sysvar::instructions::ID as INSTRUCTIONS_SYSVAR_ID;
 use solana_sdk_ids::sysvar::slot_hashes::ID as SLOT_HASHES_SYSVAR_ID;
@@ -13,7 +12,7 @@ use crate::utils::compact::{
 use crate::utils::phygital_token::{locked_controlled, wallet_matches_owner};
 use crate::utils::policy::{
     authorize_authority_signer, charge_policy_deltas, check_policy_and_snapshot,
-    reject_durable_nonce,
+    reject_durable_nonce, require_canonical_authority_address, require_top_level,
 };
 use crate::utils::slot_hash::fetch_slot_hash;
 
@@ -66,22 +65,24 @@ pub fn handler<'info>(
     secp256r1_verify_args: Secp256r1VerifyArgs,
     slot_number: u64,
 ) -> Result<()> {
-    // Top-level only — reject auth via CPI wrappers.
-    require!(
-        get_stack_height() == TRANSACTION_LEVEL_STACK_HEIGHT,
-        PhygitalError::ExecuteViaCpiNotAllowed
-    );
+    require_top_level()?;
 
     let token_key = ctx.accounts.phygital_token.key();
     let authority_data = ctx.accounts.authority_account.try_borrow_data()?;
     let (header, policy_present) = Authority::read(&authority_data)?;
+    let header = *header;
+    drop(authority_data);
+    require_canonical_authority_address(
+        ctx.accounts.authority_account.key,
+        &header,
+        ctx.program_id,
+    )?;
     require_keys_eq!(
         header.phygital_token,
         token_key,
         PhygitalError::AuthorityTokenMismatch
     );
     let wallet_bump = header.wallet_bump;
-    drop(authority_data);
 
     let slot_hash = fetch_slot_hash(&ctx.accounts.slot_hashes, slot_number)?;
     let instructions_hash = hash_compact_instructions(&compact_instructions)?;
@@ -174,18 +175,10 @@ pub fn authority_handler<'info>(
     ctx: Context<'info, ExecuteWithAuthority<'info>>,
     mut compact_instructions: Vec<CompactInstruction>,
 ) -> Result<()> {
-    // Top-level only — reject auth via CPI wrappers.
-    require!(
-        get_stack_height() == TRANSACTION_LEVEL_STACK_HEIGHT,
-        PhygitalError::ExecuteViaCpiNotAllowed
-    );
-
-    // No durable nonces anywhere in the program.
+    require_top_level()?;
     reject_durable_nonce(&ctx.accounts.instructions_sysvar)?;
 
     let token_key = ctx.accounts.phygital_token.key();
-    // Validate the authority header by offset (no Borsh round-trip): signer owns
-    // it and it is the canonical PDA, then confirm it is bound to this token.
     let authority_info = ctx.accounts.authority_account.to_account_info();
     let header = authorize_authority_signer(
         &authority_info,
@@ -240,29 +233,35 @@ pub struct ExecuteWithAuthorityUsingPolicies<'info> {
         constraint = wallet_matches_owner(&wallet, &phygital_token) @ PhygitalError::WalletOwnerMismatch,
     )]
     pub wallet: UncheckedAccount<'info>,
+
+    /// CHECK: validated as the instructions sysvar address
+    #[account(address = INSTRUCTIONS_SYSVAR_ID)]
+    pub instructions_sysvar: UncheckedAccount<'info>,
 }
 
 pub fn authority_with_policies_handler<'info>(
     ctx: Context<'info, ExecuteWithAuthorityUsingPolicies<'info>>,
     mut compact_instructions: Vec<CompactInstruction>,
 ) -> Result<()> {
-    require!(
-        get_stack_height() == TRANSACTION_LEVEL_STACK_HEIGHT,
-        PhygitalError::ExecuteViaCpiNotAllowed
-    );
+    require_top_level()?;
+    reject_durable_nonce(&ctx.accounts.instructions_sysvar)?;
     let token_key = ctx.accounts.phygital_token.key();
     let authority_info = ctx.accounts.authority_account.to_account_info();
-    let header = authorize_authority_signer(
-        &authority_info,
-        &ctx.accounts.authority.key(),
-        ctx.program_id,
-    )?;
+    let data = authority_info.try_borrow_data()?;
+    let (header, policy_present) = Authority::read(&data)?;
+    let header = *header;
+    drop(data);
+    require_canonical_authority_address(authority_info.key, &header, ctx.program_id)?;
+    require_keys_eq!(
+        header.authority,
+        ctx.accounts.authority.key(),
+        PhygitalError::AuthorityMismatch
+    );
     require_keys_eq!(
         header.phygital_token,
         token_key,
         PhygitalError::AuthorityTokenMismatch
     );
-    let policy_present = Authority::read(&authority_info.try_borrow_data()?)?.1;
 
     let snapshot = if policy_present {
         Some(check_policy_and_snapshot(

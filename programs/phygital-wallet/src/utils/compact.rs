@@ -66,27 +66,41 @@ pub(crate) fn hash_execute_challenge(
     .to_bytes()
 }
 
-/// Hot-path `accounts_hash` from remaining `AccountInfo` keys (no pubkey Vec).
+/// Privilege flags packed into `accounts_hash`: bit0 = signer, bit1 = writable.
+#[inline]
+pub(crate) fn account_privilege_byte(is_signer: bool, is_writable: bool) -> u8 {
+    u8::from(is_signer) | (u8::from(is_writable) << 1)
+}
+
+/// Static slices for `hashv` (avoids contiguous pubkey copies on the hot path).
+const PRIVILEGE_SLICES: [&[u8]; 4] = [&[0], &[1], &[2], &[3]];
+
+/// Hot-path `accounts_hash` from remaining `AccountInfo` keys and privilege flags.
+/// Elevating signer/writable after the passkey signs changes this digest.
 pub(crate) fn hash_referenced_accounts_infos<'info>(
     remaining: &[AccountInfo<'info>],
     instructions: &[CompactInstruction],
 ) -> Result<[u8; 32]> {
-    let mut parts: Vec<&[u8]> = Vec::with_capacity(
-        instructions
-            .iter()
-            .map(|ix| 1 + ix.account_indexes.len())
-            .sum(),
-    );
+    let entry_count: usize = instructions
+        .iter()
+        .map(|ix| 1 + ix.account_indexes.len())
+        .sum();
+    let mut parts: Vec<&[u8]> = Vec::with_capacity(entry_count.saturating_mul(2));
     for ix in instructions {
         let program = remaining
             .get(ix.program_id_index as usize)
             .ok_or_else(|| error!(PhygitalError::InvalidAccountIndex))?;
         parts.push(program.key.as_ref());
+        parts.push(PRIVILEGE_SLICES[account_privilege_byte(program.is_signer, program.is_writable)
+            as usize]);
         for &idx in &ix.account_indexes {
             let ai = remaining
                 .get(idx as usize)
                 .ok_or_else(|| error!(PhygitalError::InvalidAccountIndex))?;
             parts.push(ai.key.as_ref());
+            parts.push(
+                PRIVILEGE_SLICES[account_privilege_byte(ai.is_signer, ai.is_writable) as usize],
+            );
         }
     }
     Ok(hashv(&parts).to_bytes())

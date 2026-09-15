@@ -1,4 +1,5 @@
 use anchor_lang::prelude::*;
+use anchor_lang::solana_program::instruction::{get_stack_height, TRANSACTION_LEVEL_STACK_HEIGHT};
 use solana_instructions_sysvar::load_instruction_at_checked;
 use solana_sdk_ids::system_program::ID as SYSTEM_PROGRAM_ID;
 
@@ -42,6 +43,15 @@ pub(crate) fn reject_durable_nonce(instructions_sysvar: &AccountInfo) -> Result<
     {
         return err!(PhygitalError::DurableNonceNotAllowed);
     }
+    Ok(())
+}
+
+/// Block invoking sensitive instructions via CPI wrappers (wallet-adapter phishing).
+pub(crate) fn require_top_level() -> Result<()> {
+    require!(
+        get_stack_height() == TRANSACTION_LEVEL_STACK_HEIGHT,
+        PhygitalError::ExecuteViaCpiNotAllowed
+    );
     Ok(())
 }
 
@@ -130,16 +140,12 @@ pub(crate) fn read_authority_header(info: &AccountInfo) -> Result<AuthorityHeade
     Ok(*Authority::read_header(&info.try_borrow_data()?)?)
 }
 
-/// Validate that `info` is the canonical authority PDA and that `signer` is its
-/// configured authority. Returns the decoded header for any further field checks.
-/// Shared by the admin/authority handlers that authorize an ed25519 owner signer.
-pub(crate) fn authorize_authority_signer(
-    info: &AccountInfo,
-    signer: &Pubkey,
+/// Confirm `key` is the canonical authority PDA for `header`.
+pub(crate) fn require_canonical_authority_address(
+    key: &Pubkey,
+    header: &AuthorityHeader,
     program_id: &Pubkey,
-) -> Result<AuthorityHeader> {
-    let header = read_authority_header(info)?;
-    require_keys_eq!(header.authority, *signer, PhygitalError::AuthorityMismatch);
+) -> Result<()> {
     let canonical = Pubkey::create_program_address(
         &[
             AUTHORITY_SEED,
@@ -149,7 +155,31 @@ pub(crate) fn authorize_authority_signer(
         program_id,
     )
     .map_err(|_| error!(PhygitalError::AuthorityTokenMismatch))?;
-    require_keys_eq!(*info.key, canonical, PhygitalError::AuthorityTokenMismatch);
+    require_keys_eq!(*key, canonical, PhygitalError::AuthorityTokenMismatch);
+    Ok(())
+}
+
+/// Confirm `info` is the canonical authority PDA for its header token binding.
+/// Header-only (no policy-tail decode) so admin recovery stays available.
+pub(crate) fn assert_canonical_authority_pda(
+    info: &AccountInfo,
+    program_id: &Pubkey,
+) -> Result<AuthorityHeader> {
+    let header = read_authority_header(info)?;
+    require_canonical_authority_address(info.key, &header, program_id)?;
+    Ok(header)
+}
+
+/// Validate that `info` is the canonical authority PDA and that `signer` is its
+/// configured authority. Returns the decoded header for any further field checks.
+/// Shared by the admin/authority handlers that authorize an ed25519 owner signer.
+pub(crate) fn authorize_authority_signer(
+    info: &AccountInfo,
+    signer: &Pubkey,
+    program_id: &Pubkey,
+) -> Result<AuthorityHeader> {
+    let header = assert_canonical_authority_pda(info, program_id)?;
+    require_keys_eq!(header.authority, *signer, PhygitalError::AuthorityMismatch);
     Ok(header)
 }
 

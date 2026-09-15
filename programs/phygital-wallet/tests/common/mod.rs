@@ -35,7 +35,7 @@ use solana_transaction::versioned::VersionedTransaction;
 
 pub const TOKEN_SEED: &[u8] = b"token";
 pub const LAMPORTS_PER_SOL: u64 = 1_000_000_000;
-const EXECUTE_CHALLENGE_PREFIX: &[u8] = b"phygital_wallet:execute:v2";
+const EXECUTE_CHALLENGE_PREFIX: &[u8] = b"phygital_wallet:execute:v3";
 
 /// Offline pack — mirrors on-chain `instructions_hash` preimage layout.
 pub fn pack_compact_instructions(instructions: &[CompactInstruction]) -> Vec<u8> {
@@ -58,20 +58,26 @@ pub fn hash_compact_instructions(instructions: &[CompactInstruction]) -> [u8; 32
     Sha256::digest(&pack_compact_instructions(instructions)).into()
 }
 
-/// Offline `accounts_hash` over remaining pubkeys (tests have no AccountInfo).
+fn account_privilege_byte(is_signer: bool, is_writable: bool) -> u8 {
+    u8::from(is_signer) | (u8::from(is_writable) << 1)
+}
+
+/// Offline `accounts_hash` over remaining AccountMetas (pubkey + privilege flags).
 pub fn hash_referenced_accounts(
-    remaining_keys: &[Pubkey],
+    remaining: &[AccountMeta],
     instructions: &[CompactInstruction],
 ) -> [u8; 32] {
     let mut buf = Vec::new();
     for ix in instructions {
-        let program = remaining_keys
+        let program = remaining
             .get(ix.program_id_index as usize)
             .expect("program_id_index");
-        buf.extend_from_slice(program.as_ref());
+        buf.extend_from_slice(program.pubkey.as_ref());
+        buf.push(account_privilege_byte(program.is_signer, program.is_writable));
         for &idx in &ix.account_indexes {
-            let key = remaining_keys.get(idx as usize).expect("account index");
-            buf.extend_from_slice(key.as_ref());
+            let meta = remaining.get(idx as usize).expect("account index");
+            buf.extend_from_slice(meta.pubkey.as_ref());
+            buf.push(account_privilege_byte(meta.is_signer, meta.is_writable));
         }
     }
     Sha256::digest(&buf).into()
@@ -90,14 +96,14 @@ pub fn hash_execute_challenge(
     Sha256::digest(&preimage).into()
 }
 
-/// Offline execute challenge over remaining pubkeys (tests have no AccountInfo).
+/// Offline execute challenge over remaining AccountMetas.
 pub fn build_execute_challenge(
     slot_hash: [u8; 32],
     compact_instructions: &[CompactInstruction],
-    remaining_keys: &[Pubkey],
+    remaining: &[AccountMeta],
 ) -> [u8; 32] {
     let instructions_hash = hash_compact_instructions(compact_instructions);
-    let accounts_hash = hash_referenced_accounts(remaining_keys, compact_instructions);
+    let accounts_hash = hash_referenced_accounts(remaining, compact_instructions);
     hash_execute_challenge(&slot_hash, &instructions_hash, &accounts_hash)
 }
 
@@ -1065,6 +1071,26 @@ impl TestContext {
 
     // --- execute ---
 
+    /// OR remaining-account privileges with outer execute named accounts and
+    /// known tx signers so `accounts_hash` matches on-chain AccountInfo flags.
+    pub fn elevate_remaining_for_execute(
+        &self,
+        asset: Pubkey,
+        remaining: &mut [AccountMeta],
+        extra_signers: &[Pubkey],
+    ) {
+        let wallet = self.wallet(asset);
+        let authority = self.authority_pda(asset);
+        for meta in remaining.iter_mut() {
+            if meta.pubkey == wallet || meta.pubkey == asset || meta.pubkey == authority {
+                meta.is_writable = true;
+            }
+            if meta.pubkey == self.payer.pubkey() || extra_signers.contains(&meta.pubkey) {
+                meta.is_signer = true;
+            }
+        }
+    }
+
     /// Passkey-path execute instruction.
     pub fn execute_ix(
         &self,
@@ -1137,6 +1163,7 @@ impl TestContext {
             phygital_token: asset,
             authority_account: self.authority_pda(asset),
             wallet: self.wallet(asset),
+            instructions_sysvar: INSTRUCTIONS_SYSVAR_ID,
         }
         .to_account_metas(None);
         accounts.extend(remaining);
@@ -1179,7 +1206,7 @@ impl TestContext {
         &mut self,
         asset: Pubkey,
         compact_instructions: Vec<CompactInstruction>,
-        remaining: Vec<AccountMeta>,
+        mut remaining: Vec<AccountMeta>,
         passkey: &mut TestPasskey,
         extra_signers: &[Pubkey],
         include_secp_ix: bool,
@@ -1190,9 +1217,9 @@ impl TestContext {
     ) -> litesvm::types::TransactionResult {
         let (slot_number, slot_hash) =
             slot_override.unwrap_or_else(|| current_slot_entry(&self.svm));
+        self.elevate_remaining_for_execute(asset, &mut remaining, extra_signers);
         let challenge = challenge_override.unwrap_or_else(|| {
-            let remaining_keys: Vec<_> = remaining.iter().map(|m| m.pubkey).collect();
-            build_execute_challenge(slot_hash, &compact_instructions, &remaining_keys)
+            build_execute_challenge(slot_hash, &compact_instructions, &remaining)
         });
         let (secp_ix, verify_args) =
             passkey.verify_asset_secp256r1_instruction_with_origin(challenge, rp_id, origin);

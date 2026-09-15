@@ -42,8 +42,9 @@ pub mod phygital_wallet {
         )
     }
 
-    /// Owner-signed: remove owner controls and policy. The wallet and accessory
-    /// remain usable without wallet policy; this is not a freeze or browser logout.
+    /// Owner-signed: remove owner controls and the entire wallet policy by closing
+    /// the authority account. Disables the accessory tap until `set_authority`
+    /// runs again; does not freeze or empty the wallet.
     pub fn clear_authority(ctx: Context<ClearAuthority>) -> Result<()> {
         instructions::authority::clear_authority_handler(ctx)
     }

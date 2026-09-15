@@ -47,9 +47,9 @@ check the token account's data as well. Predicates validate bytes, not full prot
 semantics; use the correct schema and expected account relationships.
 
 Signer/writable checks use the actual privileges passed to CPI, including the
-wallet PDA signature. Privileges currently come from the outer account infos and
-can be elevated by another instruction in the transaction; rules reject mismatches
-rather than silently downgrading them.
+wallet PDA signature. The passkey execute challenge binds those flags into
+`accounts_hash` (`execute:v3`), so elevating signer/writable after signing fails
+the accessory proof rather than silently widening the CPI.
 
 ### Example: restrict System transfers to a merchant
 
@@ -210,10 +210,16 @@ proof. An owner that wants to keep the tap enabled but drop spending limits uses
 `clear_authority` to a button named “Disconnect” — it removes owner control and
 disables tapping until a new owner is set.
 
-`clear_authority` uses Anchor decoding of the full account. For an undecodable tail,
-use `clear_wallet_policy` first; unlike owner execution and policy clearing, closing
-the authority is not a header-only repair path. Policy clearing also requires enough
-lamports for the current base rent. No automatic layout/rent migration is supplied.
+`clear_authority` closes the authority account from the header only (same recovery
+posture as `clear_wallet_policy`), so unsupported or malformed policy tails cannot
+brick owner removal. Closing deletes the entire account — owner key and any inline
+wallet policy — and refunds rent to the original authority payer. Policy clearing
+also requires enough lamports for the current base rent when shrinking in place.
+No automatic layout/rent migration is supplied.
+
+Sensitive instructions (`execute*`, `set_authority`, `clear_authority`,
+`set_wallet_policy`, `clear_wallet_policy`) must be top-level in the transaction
+(`require_top_level`); CPI wrappers are rejected.
 
 ## Account layout and versioning
 

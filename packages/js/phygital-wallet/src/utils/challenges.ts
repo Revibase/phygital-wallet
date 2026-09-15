@@ -2,6 +2,9 @@ import {
   getAddressEncoder,
   getBase64Encoder,
   getU64Decoder,
+  isSignerRole,
+  isWritableRole,
+  type AccountMeta,
   type Address,
   type GetAccountInfoApi,
   type Rpc,
@@ -17,7 +20,7 @@ const u64Decoder = getU64Decoder();
 const slotHashesAddress = SLOT_HASHES_SYSVAR_ADDRESS as Address;
 
 const EXECUTE_CHALLENGE_PREFIX = new TextEncoder().encode(
-  "phygital_wallet:execute:v2"
+  "phygital_wallet:execute:v3"
 );
 const SET_AUTHORITY_CHALLENGE_PREFIX = new TextEncoder().encode(
   "phygital_wallet:set_authority:v1"
@@ -31,6 +34,13 @@ type SlotChallenge = {
 export type SlotEntry = {
   slotNumber: bigint;
   slotHash: Uint8Array;
+};
+
+/** Remaining-account entry for `accounts_hash` (pubkey + privilege flags). */
+type ChallengeAccount = {
+  address: Address;
+  isSigner: boolean;
+  isWritable: boolean;
 };
 
 export async function fetchLatestSlotHash(
@@ -105,10 +115,31 @@ export function packCompactInstructions(
   return out;
 }
 
+function privilegeByte(isSigner: boolean, isWritable: boolean): number {
+  return (isSigner ? 1 : 0) | (isWritable ? 2 : 0);
+}
+
+function toChallengeAccount(account: AccountMeta | Address): ChallengeAccount {
+  if (typeof account === "string") {
+    return { address: account, isSigner: false, isWritable: false };
+  }
+  return {
+    address: account.address,
+    isSigner: isSignerRole(account.role),
+    isWritable: isWritableRole(account.role),
+  };
+}
+
+/**
+ * `accounts_hash` over remaining accounts: each referenced entry contributes
+ * `pubkey (32) || privilege_byte (1)` where bit0=signer and bit1=writable.
+ * Privilege packing is program wire format (not Kit `AccountRole` bit order).
+ */
 export function hashReferencedAccounts(
-  remainingKeys: readonly Address[],
+  remainingAccounts: readonly (AccountMeta | Address)[],
   instructions: readonly CompactInstructionArgs[]
 ): Uint8Array {
+  const accounts = remainingAccounts.map(toChallengeAccount);
   const encoded = new Map<Address, Uint8Array>();
   const encode = (key: Address) => {
     let bytes = encoded.get(key);
@@ -119,46 +150,47 @@ export function hashReferencedAccounts(
     return bytes;
   };
 
-  const parts: Uint8Array[] = [];
-  let total = 0;
+  let size = 0;
+  for (const ix of instructions) {
+    size += 33 * (1 + ix.accountIndexes.length);
+  }
+  const buf = new Uint8Array(size);
+  let offset = 0;
+
+  const pushAccount = (account: ChallengeAccount) => {
+    const keyBytes = encode(account.address);
+    buf.set(keyBytes, offset);
+    offset += keyBytes.length;
+    buf[offset++] = privilegeByte(account.isSigner, account.isWritable);
+  };
 
   for (const ix of instructions) {
-    const program = remainingKeys[ix.programIdIndex];
+    const program = accounts[ix.programIdIndex];
     if (program === undefined) {
       throw new Error(`Invalid program_id_index ${ix.programIdIndex}`);
     }
-    const programBytes = encode(program);
-    parts.push(programBytes);
-    total += programBytes.length;
+    pushAccount(program);
 
     for (const idx of ix.accountIndexes) {
-      const key = remainingKeys[idx];
-      if (key === undefined) {
+      const account = accounts[idx];
+      if (account === undefined) {
         throw new Error(`Invalid account index ${idx}`);
       }
-      const keyBytes = encode(key);
-      parts.push(keyBytes);
-      total += keyBytes.length;
+      pushAccount(account);
     }
   }
 
-  const buf = new Uint8Array(total);
-  let offset = 0;
-  for (const part of parts) {
-    buf.set(part, offset);
-    offset += part.length;
-  }
   return sha256(buf);
 }
 
 export function hashExecuteChallenge(
   slotHash: Uint8Array,
   compactInstructions: readonly CompactInstructionArgs[],
-  remainingKeys: readonly Address[]
+  remainingAccounts: readonly (AccountMeta | Address)[]
 ): Uint8Array {
   const instructionsHash = sha256(packCompactInstructions(compactInstructions));
   const accountsHash = hashReferencedAccounts(
-    remainingKeys,
+    remainingAccounts,
     compactInstructions
   );
   const preimage = new Uint8Array(
@@ -179,14 +211,14 @@ export function hashExecuteChallenge(
 export function buildExecuteChallengeFromSlot(
   slot: SlotEntry,
   compactInstructions: readonly CompactInstructionArgs[],
-  remainingKeys: readonly Address[]
+  remainingAccounts: readonly (AccountMeta | Address)[]
 ): SlotChallenge {
   return {
     slotNumber: slot.slotNumber,
     messageHash: hashExecuteChallenge(
       slot.slotHash,
       compactInstructions,
-      remainingKeys
+      remainingAccounts
     ),
   };
 }

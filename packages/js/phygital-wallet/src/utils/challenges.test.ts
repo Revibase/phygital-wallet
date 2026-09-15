@@ -1,4 +1,4 @@
-import { address, getAddressEncoder } from "@solana/kit";
+import { AccountRole, address, getAddressEncoder } from "@solana/kit";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { describe, expect, it } from "vitest";
 
@@ -109,6 +109,29 @@ describe("challenge hashes", () => {
     ];
     expect(hashReferencedAccounts([program, alice, bob], compact)).not.toEqual(
       hashReferencedAccounts([program, bob, alice], compact)
+    );
+  });
+
+  it("accounts hash changes when privilege flags change", () => {
+    const program = address("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
+    const alice = address("11111111111111111111111111111112");
+    const compact: CompactInstructionArgs[] = [
+      {
+        programIdIndex: 0,
+        accountIndexes: new Uint8Array([1]),
+        data: new Uint8Array([9]),
+      },
+    ];
+    const readonly = [
+      { address: program, role: AccountRole.READONLY },
+      { address: alice, role: AccountRole.READONLY },
+    ];
+    const writable = [
+      { address: program, role: AccountRole.READONLY },
+      { address: alice, role: AccountRole.WRITABLE },
+    ];
+    expect(hashReferencedAccounts(readonly, compact)).not.toEqual(
+      hashReferencedAccounts(writable, compact)
     );
   });
 

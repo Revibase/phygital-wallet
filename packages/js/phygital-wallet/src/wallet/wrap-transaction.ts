@@ -45,7 +45,10 @@ import { getExecuteInstruction } from "../generated/instructions/execute.js";
 import { getExecuteWithAuthorityUsingPoliciesInstruction } from "../generated/instructions/executeWithAuthorityUsingPolicies.js";
 import type { CompactInstructionArgs } from "../generated/types/compactInstruction.js";
 import type { Secp256r1VerifyArgsArgs } from "../generated/types/secp256r1VerifyArgs.js";
-import { compileWalletInstructions } from "./compile.js";
+import {
+  compileWalletInstructions,
+  elevateRemainingForExecuteChallenge,
+} from "./compile.js";
 import {
   buildExecuteChallengeFromSlot,
   fetchLatestSlotHash,
@@ -443,17 +446,34 @@ async function prepareWrappedWalletTransaction(input: {
   };
 }
 
-/** Sync: compact-compile + challenge hash (no RPC). */
+/** Elevate remaining metas for outer execute named accounts + fee payer. */
+function elevateForExecuteAccounts(
+  remainingAccounts: readonly AccountMeta[],
+  executeAccounts: WalletExecuteAccounts,
+): AccountMeta[] {
+  return elevateRemainingForExecuteChallenge(remainingAccounts, {
+    writableAddresses: [
+      executeAccounts.wallet,
+      executeAccounts.phygitalToken,
+      executeAccounts.authorityAccount.address,
+    ],
+    signerAddresses: [executeAccounts.feePayer.address],
+  });
+}
+
+/** Sync: challenge hash over already-elevated remaining accounts (no RPC). */
 function buildPendingWalletWrap(
   prepared: PreparedWalletWrap,
-  walletPda: Address,
   slot: SlotEntry,
-  compiled = compileWalletInstructions(prepared.bodyInstructions, walletPda),
+  compiled: {
+    compactInstructions: CompactInstructionArgs[];
+    remainingAccounts: AccountMeta[];
+  },
 ): PendingWalletWrap {
   const { slotNumber, messageHash } = buildExecuteChallengeFromSlot(
     slot,
     compiled.compactInstructions,
-    compiled.remainingAccounts.map((account) => account.address),
+    compiled.remainingAccounts,
   );
 
   return {
@@ -531,12 +551,16 @@ export async function modifyAndWrapWalletTransaction(input: {
     prepared.bodyInstructions,
     input.walletPda,
   );
+  const remainingAccounts = elevateForExecuteAccounts(
+    earlyCompiled.remainingAccounts,
+    input.executeAccounts,
+  );
 
   input.onPreview?.();
   const previewMessage = buildPolicyPreviewMessage({
     prepared,
     compactInstructions: earlyCompiled.compactInstructions,
-    remainingAccounts: earlyCompiled.remainingAccounts,
+    remainingAccounts,
     executeAccounts: input.executeAccounts,
   });
 
@@ -549,7 +573,7 @@ export async function modifyAndWrapWalletTransaction(input: {
       {
         prepared,
         compactInstructions: earlyCompiled.compactInstructions,
-        remainingAccounts: earlyCompiled.remainingAccounts,
+        remainingAccounts,
         executeAccounts: input.executeAccounts,
       },
       input.abortSignal,
@@ -560,12 +584,10 @@ export async function modifyAndWrapWalletTransaction(input: {
       .send({ abortSignal: input.abortSignal })
       .then(({ value }) => value),
   ]);
-  const pending = buildPendingWalletWrap(
-    prepared,
-    input.walletPda,
-    slot,
-    earlyCompiled,
-  );
+  const pending = buildPendingWalletWrap(prepared, slot, {
+    compactInstructions: earlyCompiled.compactInstructions,
+    remainingAccounts,
+  });
 
   input.abortSignal?.throwIfAborted();
   const passkeyTap = await input.authenticate(pending.messageHash);

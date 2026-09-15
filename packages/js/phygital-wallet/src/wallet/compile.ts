@@ -2,6 +2,9 @@ import {
   AccountRole,
   downgradeRoleToNonSigner,
   isSignerRole,
+  mergeRoles,
+  upgradeRoleToSigner,
+  upgradeRoleToWritable,
   type AccountMeta,
   type Address,
   type Instruction,
@@ -15,23 +18,23 @@ const DENIED_PROGRAMS = new Set<string>([
   PHYGITAL_TOKEN_PROGRAM_ADDRESS,
 ]);
 
-function remainingAccountKey(meta: AccountMeta): string {
-  return `${meta.address}:${meta.role}`;
-}
-
 function getOrInsertRemainingAccount(
   remainingAccounts: AccountMeta[],
-  indexByKey: Map<string, number>,
+  indexByAddress: Map<string, number>,
   meta: AccountMeta
 ): number {
-  const key = remainingAccountKey(meta);
-  const existing = indexByKey.get(key);
+  const existing = indexByAddress.get(meta.address);
   if (existing !== undefined) {
+    const current = remainingAccounts[existing]!;
+    const merged = mergeRoles(current.role, meta.role);
+    if (merged !== current.role) {
+      remainingAccounts[existing] = { address: current.address, role: merged };
+    }
     return existing;
   }
   const index = remainingAccounts.length;
   remainingAccounts.push(meta);
-  indexByKey.set(key, index);
+  indexByAddress.set(meta.address, index);
   return index;
 }
 
@@ -48,7 +51,35 @@ function downgradeWalletSignerRole(
   };
 }
 
-/** Kit instructions → compact execute format; downgrades wallet PDA signer roles. */
+/**
+ * OR remaining-account privileges with outer `execute` named accounts / fee payer
+ * so the challenge `accounts_hash` matches on-chain `AccountInfo` flags.
+ */
+export function elevateRemainingForExecuteChallenge(
+  remainingAccounts: readonly AccountMeta[],
+  opts: {
+    writableAddresses?: readonly Address[];
+    signerAddresses?: readonly Address[];
+  }
+): AccountMeta[] {
+  const writable = new Set(opts.writableAddresses ?? []);
+  const signers = new Set(opts.signerAddresses ?? []);
+  if (writable.size === 0 && signers.size === 0) {
+    return [...remainingAccounts];
+  }
+  return remainingAccounts.map((meta) => {
+    let role = meta.role;
+    if (signers.has(meta.address)) role = upgradeRoleToSigner(role);
+    if (writable.has(meta.address)) role = upgradeRoleToWritable(role);
+    return role === meta.role ? meta : { address: meta.address, role };
+  });
+}
+
+/**
+ * Kit instructions → compact execute format; downgrades wallet PDA signer roles.
+ * Remaining accounts are keyed by address with Kit `mergeRoles` so hashed flags
+ * match Solana message-level elevation (including outer execute writables).
+ */
 export function compileWalletInstructions(
   instructions: readonly Instruction[],
   walletPda: Address
@@ -61,7 +92,7 @@ export function compileWalletInstructions(
   }
 
   const remainingAccounts: AccountMeta[] = [];
-  const indexByKey = new Map<string, number>();
+  const indexByAddress = new Map<string, number>();
   const compactInstructions: CompactInstructionArgs[] = [];
 
   for (const instruction of instructions) {
@@ -74,7 +105,7 @@ export function compileWalletInstructions(
 
     const programIndex = getOrInsertRemainingAccount(
       remainingAccounts,
-      indexByKey,
+      indexByAddress,
       { address: programAddress, role: AccountRole.READONLY }
     );
 
@@ -82,7 +113,7 @@ export function compileWalletInstructions(
     for (const account of instruction.accounts ?? []) {
       const processed = downgradeWalletSignerRole(account, walletPda);
       accountIndexes.push(
-        getOrInsertRemainingAccount(remainingAccounts, indexByKey, processed)
+        getOrInsertRemainingAccount(remainingAccounts, indexByAddress, processed)
       );
     }
 
@@ -93,5 +124,10 @@ export function compileWalletInstructions(
     });
   }
 
-  return { remainingAccounts, compactInstructions };
+  return {
+    remainingAccounts: elevateRemainingForExecuteChallenge(remainingAccounts, {
+      writableAddresses: [walletPda],
+    }),
+    compactInstructions,
+  };
 }

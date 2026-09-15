@@ -118,17 +118,17 @@ export type ClearAuthorityInput<
   TAccountInstructionsSysvar extends string = string,
 > = {
   /**
-   * Current owner key. Clearing removes the policy and disables the accessory tap
-   * (a tap requires a present owner); it does not close the wallet holding funds.
-   * The passkey can re-enable the tap by running `set_authority` again.
+   * Current owner key. Clearing closes the authority account (and any inline
+   * wallet policy), refunds rent, and disables the accessory tap. It does not
+   * close the wallet holding funds. The passkey can re-enable the tap by running
+   * `set_authority` again.
    */
   authority: TransactionSigner<TAccountAuthority>;
   phygitalToken: Address<TAccountPhygitalToken>;
   rentReceiver: Address<TAccountRentReceiver>;
   /**
-   * Canonical PDA + authority signer are validated in the handler (Anchor
-   * `seeds`/`has_one` can't be expressed in the IDL here — they'd need `?` and
-   * a self-reference to `authority_account`). `close` refunds `rent_receiver`.
+   * tails cannot brick owner removal. Canonical PDA + authority signer are
+   * validated in the handler.
    */
   authorityAccount: Address<TAccountAuthorityAccount>;
   instructionsSysvar?: Address<TAccountInstructionsSysvar>;
@@ -215,17 +215,17 @@ export type ParsedClearAuthorityInstruction<
   programAddress: Address<TProgram>;
   accounts: {
     /**
-     * Current owner key. Clearing removes the policy and disables the accessory tap
-     * (a tap requires a present owner); it does not close the wallet holding funds.
-     * The passkey can re-enable the tap by running `set_authority` again.
+     * Current owner key. Clearing closes the authority account (and any inline
+     * wallet policy), refunds rent, and disables the accessory tap. It does not
+     * close the wallet holding funds. The passkey can re-enable the tap by running
+     * `set_authority` again.
      */
     authority: TAccountMetas[0];
     phygitalToken: TAccountMetas[1];
     rentReceiver: TAccountMetas[2];
     /**
-     * Canonical PDA + authority signer are validated in the handler (Anchor
-     * `seeds`/`has_one` can't be expressed in the IDL here — they'd need `?` and
-     * a self-reference to `authority_account`). `close` refunds `rent_receiver`.
+     * tails cannot brick owner removal. Canonical PDA + authority signer are
+     * validated in the handler.
      */
     authorityAccount: TAccountMetas[3];
     instructionsSysvar: TAccountMetas[4];

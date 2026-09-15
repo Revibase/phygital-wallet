@@ -181,10 +181,10 @@ fn passkey_execute_replay_rejected() {
     ctx.set_authority(&mut passkey, asset, Keypair::new().pubkey())
         .expect("set owner");
 
-    let (remaining, compact) = ctx.spl_transfer_compact(asset, mint, sender, recipient_token, 1, 6);
+    let (mut remaining, compact) = ctx.spl_transfer_compact(asset, mint, sender, recipient_token, 1, 6);
     let (slot_number, slot_hash) = current_slot_entry(&ctx.svm);
-    let remaining_keys: Vec<_> = remaining.iter().map(|m| m.pubkey).collect();
-    let challenge = build_execute_challenge(slot_hash, &compact, &remaining_keys);
+    ctx.elevate_remaining_for_execute(asset, &mut remaining, &[]);
+    let challenge = build_execute_challenge(slot_hash, &compact, &remaining);
     let (secp_ix, verify_args) =
         passkey.verify_asset_secp256r1_instruction_with_rp_id(challenge, TEST_RP_ID);
 
@@ -291,4 +291,82 @@ fn authority_execute_wrong_key_fails() {
         err,
         &["AuthorityMismatch", "6018", "ConstraintSeeds", "2006"],
     );
+}
+
+/// Elevating signer/writable flags after the passkey signs must fail the challenge.
+#[test]
+fn privilege_elevation_breaks_passkey_challenge() {
+    let mut ctx = TestContext::new();
+    let amount = 1_000_000u64;
+    let (mut passkey, _owner, _recipient, asset, mint, sender, recipient_token) =
+        setup_locked_execute(&mut ctx, amount);
+    ctx.set_authority(&mut passkey, asset, Keypair::new().pubkey())
+        .expect("set owner");
+
+    let (mut remaining, compact) =
+        ctx.spl_transfer_compact(asset, mint, sender, recipient_token, 1, 6);
+    // Sign against read-only destination (after normal outer-account elevation),
+    // then elevate destination writable in the submitted metas.
+    let dest_idx = remaining
+        .iter()
+        .position(|m| m.pubkey == recipient_token)
+        .expect("recipient token meta");
+    ctx.elevate_remaining_for_execute(asset, &mut remaining, &[]);
+    remaining[dest_idx].is_writable = false;
+    let (slot_number, slot_hash) = current_slot_entry(&ctx.svm);
+    let challenge = build_execute_challenge(slot_hash, &compact, &remaining);
+    let (secp_ix, verify_args) =
+        passkey.verify_asset_secp256r1_instruction_with_rp_id(challenge, TEST_RP_ID);
+
+    remaining[dest_idx].is_writable = true;
+    let exec_ix = ctx.execute_ix(asset, compact, remaining, verify_args, slot_number);
+    let err = TestContext::send_instructions(
+        &mut ctx.svm,
+        &[secp_ix, exec_ix],
+        &[ctx.payer.pubkey()],
+    )
+    .expect_err("elevated writable must invalidate challenge");
+    // Verify CPI rejects the mismatched message hash (not a successful spend).
+    let _ = err;
+    assert_eq!(ctx.token_balance(recipient_token), 0);
+}
+
+/// Durable nonce is rejected on the authority+policies path (same as bypass path).
+#[test]
+fn durable_nonce_rejected_on_authority_policies_path() {
+    let mut ctx = TestContext::new();
+    let amount = 1_000_000u64;
+    let (mut passkey, _owner, _recipient, asset, mint, sender, recipient_token) =
+        setup_locked_execute(&mut ctx, amount);
+    let authority =
+        ctx.install_policy(&mut passkey, asset, policy_args(vec![mint_cap(mint, amount, 0)]));
+
+    let nonce = Keypair::new();
+    let rent: anchor_lang::prelude::Rent = ctx.svm.get_sysvar();
+    let nonce_lamports = rent.minimum_balance(80).max(2_000_000);
+    let create_ixs = system_instruction::create_nonce_account(
+        &ctx.payer.pubkey(),
+        &nonce.pubkey(),
+        &ctx.payer.pubkey(),
+        nonce_lamports,
+    );
+    TestContext::send_instructions(
+        &mut ctx.svm,
+        &create_ixs,
+        &[ctx.payer.pubkey(), nonce.pubkey()],
+    )
+    .expect("create nonce");
+
+    let (remaining, compact) =
+        ctx.spl_transfer_compact(asset, mint, sender, recipient_token, amount, 6);
+    let exec_ix =
+        ctx.execute_authority_using_policies_ix(asset, authority.pubkey(), compact, remaining);
+    let advance = system_instruction::advance_nonce_account(&nonce.pubkey(), &ctx.payer.pubkey());
+    let err = TestContext::send_instructions(
+        &mut ctx.svm,
+        &[advance, exec_ix],
+        &[ctx.payer.pubkey(), authority.pubkey()],
+    )
+    .expect_err("durable nonce must be rejected");
+    assert_tx_err(err, &["DurableNonceNotAllowed", "6011"]);
 }

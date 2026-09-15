@@ -12,7 +12,7 @@ use crate::state::{
 };
 use crate::utils::phygital_token::{locked_controlled, wallet_matches_owner};
 use crate::utils::policy::{
-    authorize_authority_signer, read_authority_header, reject_durable_nonce,
+    authorize_authority_signer, read_authority_header, reject_durable_nonce, require_top_level,
 };
 use crate::utils::slot_hash::fetch_slot_hash;
 use crate::PROGRAM_WALLET_SEED;
@@ -86,6 +86,7 @@ pub fn set_authority_handler(
     secp256r1_verify_args: Secp256r1VerifyArgs,
     slot_number: u64,
 ) -> Result<()> {
+    require_top_level()?;
     require!(
         authority != Pubkey::default(),
         PhygitalError::InvalidAuthority
@@ -129,16 +130,17 @@ pub fn set_authority_handler(
 
 #[derive(Accounts)]
 pub struct ClearAuthority<'info> {
-    /// Current owner key. Clearing removes the policy and disables the accessory tap
-    /// (a tap requires a present owner); it does not close the wallet holding funds.
-    /// The passkey can re-enable the tap by running `set_authority` again.
+    /// Current owner key. Clearing closes the authority account (and any inline
+    /// wallet policy), refunds rent, and disables the accessory tap. It does not
+    /// close the wallet holding funds. The passkey can re-enable the tap by running
+    /// `set_authority` again.
     pub authority: Signer<'info>,
 
     /// CHECK: owner and locked Controlled state constrained below.
     #[account(
         owner = phygital_token_client::PHYGITAL_TOKEN_ID,
         constraint = locked_controlled(&phygital_token) @ PhygitalError::TokenIsCurrentlyUnLocked,
-        constraint = read_authority_header(&authority_account.to_account_info())?.phygital_token == phygital_token.key(), 
+        constraint = read_authority_header(&authority_account.to_account_info())?.phygital_token == phygital_token.key(),
     )]
     pub phygital_token: UncheckedAccount<'info>,
 
@@ -146,14 +148,15 @@ pub struct ClearAuthority<'info> {
     #[account(
         mut,
         address = read_authority_header(&authority_account.to_account_info())?.payer @ PhygitalError::AuthorityPayerMismatch,
+        constraint = rent_receiver.key() != authority_account.key() @ PhygitalError::InvalidAccountData,
     )]
     pub rent_receiver: UncheckedAccount<'info>,
 
-    /// Canonical PDA + authority signer are validated in the handler (Anchor
-    /// `seeds`/`has_one` can't be expressed in the IDL here — they'd need `?` and
-    /// a self-reference to `authority_account`). `close` refunds `rent_receiver`.
-    #[account(mut, close = rent_receiver)]
-    pub authority_account: Account<'info, Authority>,
+    /// CHECK: closed by hand from the header only so unsupported/malformed policy
+    /// tails cannot brick owner removal. Canonical PDA + authority signer are
+    /// validated in the handler.
+    #[account(mut)]
+    pub authority_account: UncheckedAccount<'info>,
 
     /// CHECK: instructions sysvar
     #[account(address = INSTRUCTIONS_SYSVAR_ID)]
@@ -161,8 +164,22 @@ pub struct ClearAuthority<'info> {
 }
 
 pub fn clear_authority_handler(ctx: Context<ClearAuthority>) -> Result<()> {
+    require_top_level()?;
     reject_durable_nonce(&ctx.accounts.instructions_sysvar)?;
     let info = ctx.accounts.authority_account.to_account_info();
+    let receiver = ctx.accounts.rent_receiver.to_account_info();
+    // Header-only: closing must remain available for unknown policy versions and
+    // malformed tails (same recovery posture as `clear_wallet_policy`).
     authorize_authority_signer(&info, &ctx.accounts.authority.key(), ctx.program_id)?;
+
+    let lamports = info.lamports();
+    let receiver_balance = receiver
+        .lamports()
+        .checked_add(lamports)
+        .ok_or_else(|| error!(PhygitalError::InvalidAccountData))?;
+    **info.try_borrow_mut_lamports()? = 0;
+    **receiver.try_borrow_mut_lamports()? = receiver_balance;
+    info.assign(&anchor_lang::system_program::ID);
+    info.resize(0)?;
     Ok(())
 }

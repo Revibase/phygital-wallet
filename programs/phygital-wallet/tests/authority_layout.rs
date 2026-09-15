@@ -406,19 +406,17 @@ fn more_than_eight_mints_survive_tail_decode_and_charge() {
 }
 
 #[test]
-fn malformed_tail_can_be_cleared_and_extended_account_can_be_closed_and_recreated() {
+fn malformed_or_unsupported_tail_can_be_closed_by_clear_authority() {
     let mut ctx = TestContext::new();
     let (mut passkey, asset) = setup_locked_asset(&mut ctx);
     let authority = ctx.install_policy(&mut passkey, asset, policy_args(vec![]));
     let pda = ctx.authority_pda(asset);
+
+    // Truncated permission tail — closable without clear_wallet_policy first.
     let mut account = ctx.svm.get_account(&pda).unwrap();
     account.data.truncate(Authority::BASE_LEN + 1);
     ctx.svm.set_account(pda, account).unwrap();
-    ctx.clear_wallet_policy(asset, &authority).unwrap();
-    ctx.set_wallet_policy(asset, &authority, policy_args(vec![]))
-        .unwrap();
 
-    // Use a separate fee payer so the refund assertion is independent of fees.
     let fee_payer = Keypair::new();
     ctx.svm.airdrop(&fee_payer.pubkey(), 1_000_000_000).unwrap();
     let original_balance = ctx.lamports(ctx.payer.pubkey());
@@ -439,6 +437,17 @@ fn malformed_tail_can_be_cleared_and_extended_account_can_be_closed_and_recreate
         .unwrap();
     assert_eq!(ctx.lamports(ctx.payer.pubkey()), original_balance + refund);
     assert!(!ctx.account_exists(pda));
+
+    // Recreate, then close again with an unsupported policy_version marker.
+    let authority2 = Keypair::new();
+    ctx.set_authority(&mut passkey, asset, authority2.pubkey())
+        .unwrap();
+    let mut account = ctx.svm.get_account(&pda).unwrap();
+    account.data[8 + core::mem::offset_of!(AuthorityHeader, policy_version)] = 255;
+    ctx.svm.set_account(pda, account).unwrap();
+    ctx.clear_authority(asset, &authority2).unwrap();
+    assert!(!ctx.account_exists(pda));
+
     ctx.set_authority(&mut passkey, asset, Keypair::new().pubkey())
         .unwrap();
     assert_eq!(

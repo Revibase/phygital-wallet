@@ -47,6 +47,21 @@ describe("compileWalletInstructions", () => {
     expect(walletMeta?.role).toBe(AccountRole.WRITABLE);
   });
 
+  it("elevates read-only wallet PDA to writable for outer execute", () => {
+    const instructions = [
+      mockInstruction(SYSTEM_PROGRAM, [
+        { address: WALLET_PDA, role: AccountRole.READONLY },
+        { address: RECIPIENT, role: AccountRole.WRITABLE },
+      ]),
+    ];
+
+    const compiled = compileWalletInstructions(instructions, WALLET_PDA);
+    const walletMeta = compiled.remainingAccounts.find(
+      (m) => m.address === WALLET_PDA
+    );
+    expect(walletMeta?.role).toBe(AccountRole.WRITABLE);
+  });
+
   it("keeps non-wallet signers as signers in remaining accounts", () => {
     const instructions = [
       mockInstruction(SYSTEM_PROGRAM, [
