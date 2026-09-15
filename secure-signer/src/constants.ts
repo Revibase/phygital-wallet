@@ -23,6 +23,28 @@ export const EXPECTED_PARENT_ORIGIN: string =
   (import.meta.env?.VITE_PARENT_ORIGIN as string | undefined) ??
   "http://localhost:3000";
 
+/**
+ * Shared WebAuthn RP ID with the parent app. Create runs on the app origin;
+ * get+PRF runs in this iframe. Must match `NEXT_PUBLIC_WEBAUTHN_RP_ID`.
+ */
+export function resolveRpId(hostname: string, envRpId?: string): string {
+  const fromEnv = envRpId?.trim();
+  if (fromEnv) return fromEnv;
+  if (hostname === "localhost" || hostname === "127.0.0.1") return "localhost";
+  if (hostname === "revibase.com" || hostname.endsWith(".revibase.com")) {
+    return "revibase.com";
+  }
+  return hostname;
+}
+
+export const RP_ID: string = resolveRpId(
+  typeof globalThis !== "undefined" && "location" in globalThis
+    ? (globalThis as { location?: { hostname: string } }).location?.hostname ??
+        "localhost"
+    : "localhost",
+  import.meta.env?.VITE_RP_ID as string | undefined,
+);
+
 // ---------------------------------------------------------------------------
 // Fixed cryptographic parameters (IMPLEMENTATION-FIXED, never from the blob).
 // A portable wallet blob authenticates these via AAD but does NOT carry them,

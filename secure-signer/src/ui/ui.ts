@@ -15,7 +15,6 @@ import {
   highRiskWarning,
   instructionLabel,
 } from "../tx/sign-risk.js";
-import { validateUserName } from "../user-name.js";
 
 const app = (): HTMLElement => {
   const root = document.getElementById("app");
@@ -110,7 +109,9 @@ function screen(
   sheet.appendChild(header);
 
   sheet.appendChild(el("div", { class: "body" }, body));
-  if (actions.length) sheet.appendChild(el("div", { class: "actions" }, actions));
+  if (actions.length) {
+    sheet.appendChild(el("div", { class: "actions" }, actions));
+  }
   root.appendChild(sheet);
 
   const focusable = sheet.querySelector<HTMLElement>(
@@ -176,107 +177,6 @@ export function renderError(message: string, onDismiss?: () => void): void {
       ? { dismissible: true, onDismiss }
       : {},
   );
-}
-
-export function confirmChooser(hasWallet: boolean): Promise<"signin" | "create" | "cancel"> {
-  return new Promise((resolve) => {
-    const done = (v: "signin" | "create" | "cancel") => {
-      detachEscape();
-      resolve(v);
-    };
-    const createBtn = button(
-      hasWallet ? "Create a new passkey" : "Create a passkey",
-      hasWallet ? "ghost" : "primary",
-      () => done("create"),
-    );
-    const unlockBtn = button(
-      hasWallet ? "Unlock with passkey" : "I already have a passkey",
-      hasWallet ? "primary" : "ghost",
-      () => done("signin"),
-    );
-    screen(
-      "Set up on this phone",
-      [
-        el("p", {
-          class: "subtitle",
-          text: hasWallet
-            ? "Unlock the wallet on this phone with your passkey, or create a new one."
-            : "Create a passkey-protected wallet on this phone. If you already set one up elsewhere, unlock with that passkey instead.",
-        }),
-      ],
-      // Primary action last (thumb-friendly sheet).
-      hasWallet ? [createBtn, unlockBtn] : [unlockBtn, createBtn],
-      { dismissible: true, onDismiss: () => done("cancel") },
-    );
-  });
-}
-
-export function confirmCreate(
-  existingWallet: boolean,
-): Promise<{ userName: string } | null> {
-  return new Promise((resolve) => {
-    const done = (v: { userName: string } | null) => {
-      detachEscape();
-      resolve(v);
-    };
-    const input = el("input", { class: "input" });
-    input.type = "text";
-    input.autocomplete = "username";
-    input.spellcheck = false;
-    input.maxLength = 32;
-    input.placeholder = "Choose a username";
-    input.setAttribute("aria-label", "Username");
-    const error = el("p", { class: "field-error" });
-    error.hidden = true;
-
-    const proceed = button("Create with passkey", "primary", () => {
-      const result = validateUserName(input.value);
-      if (!result.ok) {
-        error.textContent = result.reason;
-        error.hidden = false;
-        input.focus();
-        return;
-      }
-      done({ userName: result.userName });
-    });
-
-    input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        proceed.click();
-      }
-    });
-
-    const body: Node[] = [
-      el("p", {
-        text: "Choose a username for your passkey. You’ll see it in your password manager.",
-      }),
-      input,
-      error,
-      el("p", {
-        class: "muted",
-        text: "Your signing key stays on this phone, locked with the passkey. Use a synced passkey so you can recover on another device.",
-      }),
-    ];
-    if (existingWallet) {
-      body.unshift(
-        el("p", {
-          class: "warn",
-          text: "This phone already has a wallet. Creating a new one doesn’t delete the old key, but Revibase will switch to the new one.",
-        }),
-      );
-    }
-    screen(
-      "Create a passkey",
-      body,
-      [
-        button("Cancel", "ghost", () => done(null)),
-        proceed,
-      ],
-      { dismissible: true, onDismiss: () => done(null) },
-    );
-    input.focus();
-  });
 }
 
 export function confirmImport(): Promise<boolean> {

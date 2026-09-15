@@ -9,6 +9,7 @@
 
 import {
   MAX_BLOB_BYTES,
+  MAX_CREDENTIAL_ID_BYTES,
   MAX_MESSAGE_BYTES,
   MAX_TX_BYTES,
   PROTOCOL_VERSION,
@@ -32,7 +33,6 @@ export type ErrorCode =
 
 export const REQUEST_TYPES = [
   "GET_PUBLIC_KEY",
-  "CREATE_KEY",
   "IMPORT_KEY",
   "SIGN_TRANSACTION",
   "EXPORT_ENCRYPTED_WALLET",
@@ -46,7 +46,6 @@ export type RequestType = (typeof REQUEST_TYPES)[number];
 export const RESULT_TYPE: Record<Exclude<RequestType, "BLOB_PROVIDED">, string> =
   {
     GET_PUBLIC_KEY: "GET_PUBLIC_KEY_RESULT",
-    CREATE_KEY: "CREATE_KEY_RESULT",
     IMPORT_KEY: "IMPORT_KEY_RESULT",
     SIGN_TRANSACTION: "SIGN_TRANSACTION_RESULT",
     EXPORT_ENCRYPTED_WALLET: "EXPORT_ENCRYPTED_WALLET_RESULT",
@@ -64,12 +63,11 @@ interface Common {
 export type InboundRequest = Common &
   (
     | { type: "GET_PUBLIC_KEY"; encryptedWalletBlob: string }
-    | { type: "CREATE_KEY" }
     | { type: "IMPORT_KEY"; encryptedWalletBlob: string }
     | { type: "SIGN_TRANSACTION"; encryptedWalletBlob: string; transaction: string }
     | { type: "EXPORT_ENCRYPTED_WALLET"; encryptedWalletBlob: string }
     | { type: "EXPORT_PRIVATE_KEY"; encryptedWalletBlob: string }
-    | { type: "AUTH_START"; encryptedWalletBlob?: string; putChallenge?: string }
+    | { type: "AUTH_START"; encryptedWalletBlob?: string; putChallenge?: string; authMode?: "create" | "unlock"; credentialId?: string }
     | { type: "BLOB_PROVIDED"; encryptedWalletBlob?: string; errorCode?: ErrorCode }
   );
 
@@ -86,7 +84,6 @@ const ALLOWED_KEYS: Record<RequestType, ReadonlySet<string>> = {
     "timestamp",
     "encryptedWalletBlob",
   ]),
-  CREATE_KEY: new Set(["type", "protocolVersion", "requestId", "timestamp"]),
   IMPORT_KEY: new Set([
     "type",
     "protocolVersion",
@@ -123,6 +120,8 @@ const ALLOWED_KEYS: Record<RequestType, ReadonlySet<string>> = {
     "timestamp",
     "encryptedWalletBlob",
     "putChallenge",
+    "authMode",
+    "credentialId",
   ]),
   BLOB_PROVIDED: new Set([
     "type",
@@ -226,8 +225,6 @@ export function validateInbound(data: unknown): ValidationResult {
   const blob = data["encryptedWalletBlob"];
 
   switch (rtype) {
-    case "CREATE_KEY":
-      return { ok: true, request: { ...common, type: "CREATE_KEY" } };
     case "AUTH_START": {
       if (blob !== undefined && !validString(blob, b64Cap(MAX_BLOB_BYTES))) {
         return { ok: false, code: "INVALID_WALLET_BLOB", requestId: rid };
@@ -239,6 +236,21 @@ export function validateInbound(data: unknown): ValidationResult {
       ) {
         return { ok: false, code: "INVALID_MESSAGE", requestId: rid };
       }
+      const authMode = data["authMode"];
+      if (
+        authMode !== undefined &&
+        authMode !== "create" &&
+        authMode !== "unlock"
+      ) {
+        return { ok: false, code: "INVALID_MESSAGE", requestId: rid };
+      }
+      const credentialId = data["credentialId"];
+      if (
+        credentialId !== undefined &&
+        !validString(credentialId, b64Cap(MAX_CREDENTIAL_ID_BYTES))
+      ) {
+        return { ok: false, code: "INVALID_MESSAGE", requestId: rid };
+      }
       return {
         ok: true,
         request: {
@@ -246,6 +258,10 @@ export function validateInbound(data: unknown): ValidationResult {
           type: "AUTH_START",
           ...(typeof blob === "string" ? { encryptedWalletBlob: blob } : {}),
           ...(typeof putChallenge === "string" ? { putChallenge } : {}),
+          ...(authMode === "create" || authMode === "unlock"
+            ? { authMode }
+            : {}),
+          ...(typeof credentialId === "string" ? { credentialId } : {}),
         },
       };
     }

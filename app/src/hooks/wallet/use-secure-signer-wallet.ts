@@ -2,22 +2,26 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { usePasskeySetup } from "@/components/wallet/passkey-setup-sheet";
 import type { OwnerWallet } from "@/hooks/wallet/use-owner-wallet";
 import {
   backupOwnerWalletBlob,
   fetchOwnerWalletBlob,
   issueOwnerWalletPutChallenge,
 } from "@/lib/wallet/owner-wallet-blob";
-import { getSecureSignerClient } from "@/lib/wallet/secure-signer-client";
+import { registerOwnerPasskey } from "@/lib/wallet/register-owner-passkey";
+import {
+  getSecureSignerClient,
+  SecureSignerError,
+} from "@/lib/wallet/secure-signer-client";
 import { createSecureSignerSigner } from "@/lib/wallet/secure-signer-signer";
 
 /**
  * `OwnerWallet` backed by the secure-signer iframe (see `secure-signer/`).
  *
- * There is no persistent server session (per-op WebAuthn by design), so the
- * "session" is simply: we hold the encrypted blob (portable ciphertext) and the
- * verified public key. The blob is cached in localStorage and backed up to D1
- * after auth (PUT requires an ed25519 proof signed inside the signer).
+ * Create: passkey is registered on the **app** (shared RP ID). The signer iframe
+ * only runs get+PRF and wraps the ed25519 seed — parent never sees key material.
+ * Unlock / sign: iframe only.
  */
 const BLOB_KEY = "revibase.owner.blob";
 const PUBKEY_KEY = "revibase.owner.pubkey";
@@ -55,23 +59,44 @@ function requireBlob(): string {
 type Session = { address: string | null; status: OwnerWallet["status"] };
 
 export function useSecureSignerWallet(): OwnerWallet {
-  // Start "loading" on the server and first client render to avoid a hydration
-  // mismatch, then resolve from localStorage after mount (external-system sync).
+  const { promptSetup } = usePasskeySetup();
   const [session, setSession] = useState<Session>({
     address: null,
     status: "loading",
   });
   const { address, status } = session;
 
+  const finishAuth = useCallback(
+    async (
+      result: {
+        publicKey: string;
+        encryptedWalletBlob: string;
+        putSignature?: string;
+      },
+      putChallengeId?: string | null,
+    ) => {
+      writeLS(BLOB_KEY, result.encryptedWalletBlob);
+      writeLS(PUBKEY_KEY, result.publicKey);
+      setSession({ address: result.publicKey, status: "authenticated" });
+      if (putChallengeId && result.putSignature) {
+        void backupOwnerWalletBlob({
+          encryptedWalletBlob: result.encryptedWalletBlob,
+          publicKey: result.publicKey,
+          challengeId: putChallengeId,
+          signature: result.putSignature,
+        }).catch(() => {});
+      }
+    },
+    [],
+  );
+
   useEffect(() => {
     const pk = readLS(PUBKEY_KEY);
-    // SSR-safe: hydrate this session from device storage only after mount.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSession({
       address: pk,
       status: pk ? "authenticated" : "unauthenticated",
     });
-    // Warm the signer iframe so Sign in is not cold.
     try {
       getSecureSignerClient().preload();
     } catch {
@@ -83,41 +108,57 @@ export function useSecureSignerWallet(): OwnerWallet {
     const client = getSecureSignerClient();
     const existing = readLS(BLOB_KEY);
 
-    let putChallenge: { challengeId: string; challenge: string } | null = null;
-    try {
-      putChallenge = await issueOwnerWalletPutChallenge();
-    } catch {
-      /* backup is best-effort — auth still proceeds */
+    const issueChallenge = async () => {
+      try {
+        return await issueOwnerWalletPutChallenge();
+      } catch {
+        return null;
+      }
+    };
+
+    const unlock = async (blob: string | null) => {
+      const putChallenge = await issueChallenge();
+      const result = await client.authenticate(blob, {
+        authMode: "unlock",
+        putChallenge: putChallenge?.challenge,
+        resolveBlob: async (credentialId) => {
+          const local = readLS(BLOB_KEY);
+          if (local) return local;
+          try {
+            return await fetchOwnerWalletBlob(credentialId);
+          } catch {
+            return null;
+          }
+        },
+      });
+      await finishAuth(result, putChallenge?.challengeId);
+    };
+
+    if (existing) {
+      await unlock(existing);
+      return;
     }
 
-    const result = await client.authenticate(existing, {
+    const choice = await promptSetup();
+    if (choice.mode === "cancel") {
+      throw new SecureSignerError("USER_CANCELLED");
+    }
+    if (choice.mode === "unlock") {
+      await unlock(null);
+      return;
+    }
+
+    const { credentialId } = await registerOwnerPasskey(choice.userName);
+    const putChallenge = await issueChallenge();
+    const result = await client.authenticate(null, {
+      authMode: "create",
+      credentialId,
       putChallenge: putChallenge?.challenge,
-      resolveBlob: async (credentialId) => {
-        const local = readLS(BLOB_KEY);
-        if (local) return local;
-        try {
-          return await fetchOwnerWalletBlob(credentialId);
-        } catch {
-          return null;
-        }
-      },
     });
-    writeLS(BLOB_KEY, result.encryptedWalletBlob);
-    writeLS(PUBKEY_KEY, result.publicKey);
-    setSession({ address: result.publicKey, status: "authenticated" });
-
-    if (putChallenge && result.putSignature) {
-      void backupOwnerWalletBlob({
-        encryptedWalletBlob: result.encryptedWalletBlob,
-        publicKey: result.publicKey,
-        challengeId: putChallenge.challengeId,
-        signature: result.putSignature,
-      }).catch(() => {});
-    }
-  }, []);
+    await finishAuth(result, putChallenge?.challengeId);
+  }, [finishAuth, promptSetup]);
 
   const logout = useCallback(async () => {
-    // Clear the session (cached pubkey) but KEEP the blob — it is the wallet.
     writeLS(PUBKEY_KEY, null);
     setSession({ address: null, status: "unauthenticated" });
   }, []);
@@ -144,12 +185,23 @@ export function useSecureSignerWallet(): OwnerWallet {
     await getSecureSignerClient().exportPrivateKey(requireBlob());
   }, []);
 
+  const loginWrapped = useCallback(async () => {
+    try {
+      await login();
+    } catch (err) {
+      if (err instanceof SecureSignerError && err.code === "USER_CANCELLED") {
+        return;
+      }
+      throw err;
+    }
+  }, [login]);
+
   return {
     address,
     status,
     isAuthenticated: status === "authenticated",
     isLoading: status === "loading",
-    login,
+    login: loginWrapped,
     logout,
     exportWallet,
     signer,

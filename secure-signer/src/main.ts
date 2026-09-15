@@ -12,7 +12,7 @@ import "./styles.css";
 import { getAddressDecoder, getBase58Decoder } from "@solana/kit";
 import { pickForAuth, pickForSensitiveOp } from "./blob-merge.js";
 import { readLocalBlob, writeLocalBlob } from "./blob-store.js";
-import { EXPECTED_PARENT_ORIGIN, MAX_TX_BYTES, PUT_CHALLENGE_PREFIX } from "./constants.js";
+import { EXPECTED_PARENT_ORIGIN, MAX_CREDENTIAL_ID_BYTES, MAX_TX_BYTES, PUT_CHALLENGE_PREFIX } from "./constants.js";
 import { base64ToBytes, bytesEqual, bytesToBase64, utf8ToBytes } from "./encoding.js";
 import { ed25519Sign } from "./crypto.js";
 import {
@@ -27,8 +27,8 @@ import { decodeV1Transaction } from "./tx/decode-v1.js";
 import { evaluatePolicy } from "./tx/policy.js";
 import { BrowserPrfProvider, currentRpId, WebAuthnUnsupported } from "./webauthn.js";
 import {
-  createWallet,
   decryptWallet,
+  enrollExistingCredential,
   parseBlob,
   ServiceError,
   signAndScrub,
@@ -231,7 +231,6 @@ async function handle(request: InboundRequest): Promise<void> {
   // Sensitive, interactive flows — one at a time (§15, §33).
   const opFor = {
     AUTH_START: "AUTH_PENDING",
-    CREATE_KEY: "CREATE_PENDING",
     IMPORT_KEY: "IMPORT_PENDING",
     SIGN_TRANSACTION: "SIGN_PENDING",
     EXPORT_PRIVATE_KEY: "PRIVATE_EXPORT_PENDING",
@@ -255,10 +254,9 @@ async function handle(request: InboundRequest): Promise<void> {
           rpId,
           request.encryptedWalletBlob,
           request.putChallenge,
+          request.authMode,
+          request.credentialId,
         );
-        break;
-      case "CREATE_KEY":
-        await handleCreate(request.requestId, rpId);
         break;
       case "IMPORT_KEY":
         await handleImport(
@@ -296,70 +294,87 @@ async function handle(request: InboundRequest): Promise<void> {
   }
 }
 
+async function enrollFromParentCredential(opts: {
+  requestId: string;
+  credentialIdB64: string;
+  putChallengeB64?: string;
+}): Promise<void> {
+  const busy = beginBusy(
+    opts.requestId,
+    "Confirm with your passkey to finish setup…",
+  );
+  try {
+    let messageToSign: Uint8Array | undefined;
+    if (opts.putChallengeB64) {
+      try {
+        messageToSign = putChallengeMessage(
+          base64ToBytes(opts.putChallengeB64, 64, "url"),
+        );
+      } catch {
+        /* best-effort */
+      }
+    }
+    const credentialId = base64ToBytes(
+      opts.credentialIdB64,
+      MAX_CREDENTIAL_ID_BYTES,
+      "url",
+    );
+    const created = await enrollExistingCredential(
+      prf,
+      currentRpId(),
+      credentialId,
+      {
+        ...(messageToSign ? { messageToSign } : {}),
+      },
+    );
+    if (busy.wasDismissed()) return;
+    writeLocalBlob(created.blob);
+    const pk = toBase58Pubkey(created.publicKey);
+    const putSignature = created.signature
+      ? bytesToBase64(created.signature, "url")
+      : undefined;
+    await ui.showSuccess(pk, true);
+    if (busy.wasDismissed()) return;
+    ok(opts.requestId, RESULT_TYPE.AUTH_START, {
+      publicKey: pk,
+      encryptedWalletBlob: bytesToBase64(created.blob, "url"),
+      created: true,
+      ...authCompleteExtra(putSignature),
+    });
+  } catch (e) {
+    if (busy.wasDismissed()) return;
+    throw e;
+  } finally {
+    busy.clear();
+  }
+}
+
 async function handleAuth(
   requestId: string,
   rpId: string,
   remoteBlobB64: string | undefined,
   putChallengeB64: string | undefined,
+  authMode: "create" | "unlock" | undefined,
+  credentialIdB64: string | undefined,
 ): Promise<void> {
   const local = readLocalBlob();
   const remote = parseRemoteBlob(remoteBlobB64);
   // Corrupt remote from parent is ignored (treated as missing), not fatal.
-  const hasWallet = !!(local || remote);
 
-  // Local wallet already on this phone → skip the create/unlock chooser so
-  // parent "Continue" doesn't immediately re-ask the same decision.
-  const choice = local
-    ? "signin"
-    : await ui.confirmChooser(hasWallet);
-  if (choice === "cancel") return fail(requestId, "USER_CANCELLED");
-
-  if (choice === "create") {
-    const account = await ui.confirmCreate(!!local);
-    if (!account) return fail(requestId, "USER_CANCELLED");
-    const busy = beginBusy(requestId, "Follow your device’s passkey prompt…");
-    try {
-      // Parse PUT challenge BEFORE WebAuthn — never retry createWallet after a
-      // failed enrollment (would re-prompt and orphan the first credential).
-      let messageToSign: Uint8Array | undefined;
-      if (putChallengeB64) {
-        try {
-          messageToSign = putChallengeMessage(
-            base64ToBytes(putChallengeB64, 64, "url"),
-          );
-        } catch {
-          /* backup proof is best-effort — still create the wallet */
-        }
-      }
-      const created = await createWallet(prf, rpId, {
-        userName: account.userName,
-        ...(messageToSign ? { messageToSign } : {}),
-      });
-      if (busy.wasDismissed()) return;
-      const { publicKey, blob, signature } = created;
-      writeLocalBlob(blob);
-      const pk = toBase58Pubkey(publicKey);
-      const putSignature = signature
-        ? bytesToBase64(signature, "url")
-        : undefined;
-      await ui.showSuccess(pk, true);
-      if (busy.wasDismissed()) return;
-      ok(requestId, RESULT_TYPE.AUTH_START, {
-        publicKey: pk,
-        encryptedWalletBlob: bytesToBase64(blob, "url"),
-        created: true,
-        ...authCompleteExtra(putSignature),
-      });
-    } catch (e) {
-      if (busy.wasDismissed()) return;
-      throw e;
-    } finally {
-      busy.clear();
+  // Passkey create happens on the app (shared RP ID). Parent must send credentialId.
+  if (authMode === "create") {
+    if (!credentialIdB64) {
+      return fail(requestId, "INVALID_MESSAGE");
     }
+    await enrollFromParentCredential({
+      requestId,
+      credentialIdB64,
+      ...(putChallengeB64 ? { putChallengeB64 } : {}),
+    });
     return;
   }
 
-  // Sign in
+  // Unlock (explicit or default)
   const pick = pickForAuth(local?.parsed ?? null, remote?.parsed ?? null);
 
   if (pick.kind === "conflict") {
@@ -406,7 +421,14 @@ async function handleAuth(
       "No wallet was found on this device. Create a passkey, or try again if you cancelled the prompt.",
     );
     if (again === "retry") {
-      return handleAuth(requestId, rpId, remoteBlobB64, putChallengeB64);
+      return handleAuth(
+        requestId,
+        rpId,
+        remoteBlobB64,
+        putChallengeB64,
+        "unlock",
+        undefined,
+      );
     }
     return fail(requestId, "BLOB_UNAVAILABLE");
   }
@@ -441,7 +463,14 @@ async function handleAuth(
       "No backup wallet was found for this passkey on this app. Create a passkey on this device, or unlock where the wallet was created.",
     );
     if (again === "retry") {
-      return handleAuth(requestId, rpId, remoteBlobB64, putChallengeB64);
+      return handleAuth(
+        requestId,
+        rpId,
+        remoteBlobB64,
+        putChallengeB64,
+        "unlock",
+        undefined,
+      );
     }
     return fail(requestId, reply.errorCode ?? "BLOB_UNAVAILABLE");
   }
@@ -528,29 +557,6 @@ async function unlockAndComplete(
       return fail(requestId, "USER_CANCELLED");
     }
     throw e;
-  } finally {
-    busy.clear();
-  }
-}
-
-async function handleCreate(requestId: string, rpId: string): Promise<void> {
-  const local = readLocalBlob();
-  const account = await ui.confirmCreate(!!local);
-  if (!account) return fail(requestId, "USER_CANCELLED");
-  const busy = beginBusy(requestId, "Follow your device’s passkey prompt…");
-  try {
-    const { publicKey, blob } = await createWallet(prf, rpId, {
-      userName: account.userName,
-    });
-    if (busy.wasDismissed()) return;
-    writeLocalBlob(blob);
-    const pk = toBase58Pubkey(publicKey);
-    await ui.showSuccess(pk, true);
-    if (busy.wasDismissed()) return;
-    ok(requestId, RESULT_TYPE.CREATE_KEY, {
-      publicKey: pk,
-      encryptedWalletBlob: bytesToBase64(blob, "url"),
-    });
   } finally {
     busy.clear();
   }

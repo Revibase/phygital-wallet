@@ -70,20 +70,52 @@ export async function createWallet(
   opts: { userName: string; messageToSign?: Uint8Array },
 ): Promise<CreatedWallet> {
   let prfOutput: Uint8Array | undefined;
-  let seed: Uint8Array | undefined;
   try {
     const enrolled = await prf.create(rpId, { userName: opts.userName });
     prfOutput = enrolled.prfOutput;
+    return await wrapNewSeed(prfOutput, enrolled.credentialId, rpId, opts);
+  } finally {
+    scrub(prfOutput);
+  }
+}
+
+/**
+ * Parent already created the passkey (shared RP ID). Evaluate PRF via get() and
+ * wrap a new seed — key material never touched the parent origin.
+ */
+export async function enrollExistingCredential(
+  prf: PrfProvider,
+  rpId: string,
+  credentialId: Uint8Array,
+  opts: { messageToSign?: Uint8Array } = {},
+): Promise<CreatedWallet> {
+  let prfOutput: Uint8Array | undefined;
+  try {
+    prfOutput = await prf.get(rpId, credentialId);
+    return await wrapNewSeed(prfOutput, credentialId, rpId, opts);
+  } finally {
+    scrub(prfOutput);
+  }
+}
+
+async function wrapNewSeed(
+  prfOutput: Uint8Array,
+  credentialId: Uint8Array,
+  rpId: string,
+  opts: { messageToSign?: Uint8Array },
+): Promise<CreatedWallet> {
+  let seed: Uint8Array | undefined;
+  try {
     seed = generateEd25519Seed(); // CSPRNG; parent never supplies randomness (§10)
     const publicKey = ed25519PublicKey(seed);
     const kdfSalt = randomBytes(KDF_SALT_BYTES);
     const iv = randomBytes(AES_GCM_IV_BYTES);
     const key = await deriveWrappingKey(prfOutput, kdfSalt);
-    const aad = buildAad({ publicKey, credentialId: enrolled.credentialId, kdfSalt }, rpId);
+    const aad = buildAad({ publicKey, credentialId, kdfSalt }, rpId);
     const ciphertext = await aesGcmEncrypt(key, iv, seed, aad);
     const blob = encodeWalletBlob({
       publicKey,
-      credentialId: enrolled.credentialId,
+      credentialId,
       kdfSalt,
       iv,
       ciphertext,
@@ -97,7 +129,7 @@ export async function createWallet(
     }
     return { publicKey, blob };
   } finally {
-    scrub(seed, prfOutput); // best-effort (§30, §42)
+    scrub(seed);
   }
 }
 

@@ -58,7 +58,7 @@ describe("fuzz: decoders fail safely on arbitrary bytes", () => {
   });
 
   it("validateInbound never throws on arbitrary objects", () => {
-    const types = ["CREATE_KEY", "SIGN_TRANSACTION", "??", 5, null];
+    const types = ["AUTH_START", "SIGN_TRANSACTION", "??", 5, null];
     for (let i = 0; i < ITER; i++) {
       const data: Record<string, unknown> = {
         type: types[Math.floor(Math.random() * types.length)],

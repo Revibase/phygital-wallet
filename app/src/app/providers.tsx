@@ -5,6 +5,7 @@ import { QueryClient } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 
 import { Toaster } from "@/components/ui/sonner";
+import { PasskeySetupProvider } from "@/components/wallet/passkey-setup-sheet";
 import { useResumeQueryRefresh } from "@/hooks/layout/use-resume-query-refresh";
 import { RpcPreferenceProvider } from "@/hooks/wallet/use-rpc-preference";
 import {
@@ -44,13 +45,15 @@ export function AppProviders({ children }: { children: ReactNode }) {
       }}
     >
       <RpcPreferenceProvider>
-        <ResumeQueryRefresh />
-        {children}
-        <Toaster
-          richColors
-          position="top-center"
-          offset="max(12px, env(safe-area-inset-top))"
-        />
+        <PasskeySetupProvider>
+          <ResumeQueryRefresh />
+          {children}
+          <Toaster
+            richColors
+            position="top-center"
+            offset="max(12px, env(safe-area-inset-top))"
+          />
+        </PasskeySetupProvider>
       </RpcPreferenceProvider>
     </PersistQueryClientProvider>
   );

@@ -19,3 +19,7 @@ NEXTJS_ENV=development
 
 # Origin of the secure-signer iframe (the owner-wallet signing surface)
 # NEXT_PUBLIC_SECURE_SIGNER_ORIGIN=http://localhost:5173
+
+# Shared WebAuthn RP ID (app create + signer get). Local default: localhost.
+# Production: revibase.com
+# NEXT_PUBLIC_WEBAUTHN_RP_ID=localhost

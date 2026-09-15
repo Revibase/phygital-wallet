@@ -5,8 +5,8 @@ const rid = "abcd1234efgh";
 const base = { protocolVersion: 1, requestId: rid };
 
 describe("validateInbound", () => {
-  it("accepts CREATE_KEY", () => {
-    const r = validateInbound({ ...base, type: "CREATE_KEY" });
+  it("accepts AUTH_START", () => {
+    const r = validateInbound({ ...base, type: "AUTH_START" });
     expect(r.ok).toBe(true);
   });
 
@@ -16,7 +16,7 @@ describe("validateInbound", () => {
   });
 
   it("rejects wrong protocol version", () => {
-    const r = validateInbound({ ...base, protocolVersion: 2, type: "CREATE_KEY" });
+    const r = validateInbound({ ...base, protocolVersion: 2, type: "AUTH_START" });
     expect(r).toMatchObject({ ok: false, code: "UNSUPPORTED_PROTOCOL" });
   });
 
@@ -26,7 +26,7 @@ describe("validateInbound", () => {
   });
 
   it("rejects unknown extra fields (strict schema)", () => {
-    const r = validateInbound({ ...base, type: "CREATE_KEY", evil: 1 });
+    const r = validateInbound({ ...base, type: "AUTH_START", evil: 1 });
     expect(r).toMatchObject({ ok: false, code: "INVALID_MESSAGE" });
   });
 
@@ -36,7 +36,7 @@ describe("validateInbound", () => {
   });
 
   it("rejects a bad requestId", () => {
-    const r = validateInbound({ protocolVersion: 1, requestId: "short", type: "CREATE_KEY" });
+    const r = validateInbound({ protocolVersion: 1, requestId: "short", type: "AUTH_START" });
     expect(r).toMatchObject({ ok: false, code: "INVALID_MESSAGE" });
   });
 
@@ -64,6 +64,17 @@ describe("validateInbound", () => {
         ...base,
         type: "AUTH_START",
         encryptedWalletBlob: "AAAA",
+      }).ok,
+    ).toBe(true);
+  });
+
+  it("accepts AUTH_START create with credentialId", () => {
+    expect(
+      validateInbound({
+        ...base,
+        type: "AUTH_START",
+        authMode: "create",
+        credentialId: "AAAA",
       }).ok,
     ).toBe(true);
   });

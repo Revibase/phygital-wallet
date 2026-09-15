@@ -1,13 +1,14 @@
 :root {
-  color-scheme: light dark;
+  /* Match the app: always pearl — never follow OS dark (app locks color-scheme: light). */
+  color-scheme: light;
   --bg: transparent;
-  /* Align with Revibase app: pearl sheet, charcoal text, teal primary (#00C2B8). */
+  --page: #f7f4ef;
   --sheet: #f7f4ef;
   --fg: #1a1f1e;
   --muted: #5c6663;
   --line: rgba(26, 31, 30, 0.12);
   --primary: #00c2b8;
-  --primary-fg: #f7f4ef;
+  --primary-fg: #ffffff;
   --danger: #c41e3a;
   --warn: #9a6700;
   --focus: #00c2b8;
@@ -20,20 +21,6 @@
     "Segoe UI",
     system-ui,
     sans-serif;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --sheet: #1a1f1e;
-    --fg: #f7f4ef;
-    --muted: #9aa3a0;
-    --line: rgba(247, 244, 239, 0.12);
-    --primary: #00c2b8;
-    --primary-fg: #1a1f1e;
-    --danger: #ff453a;
-    --warn: #ffd60a;
-    --focus: #00c2b8;
-  }
 }
 
 * {
@@ -156,6 +143,20 @@ body {
   margin: 0 0 10px;
   line-height: 1.45;
   font-size: 0.95rem;
+}
+
+.brand-lockup {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  margin: 8px 0 20px;
+}
+
+.brand-mark {
+  width: 40px;
+  height: 40px;
+  color: var(--primary);
 }
 
 .muted {
@@ -295,7 +296,7 @@ body {
   padding: 12px 14px;
   border-radius: 12px;
   border: 1px solid var(--line);
-  background: transparent;
+  background: #fff;
   color: var(--fg);
   font-size: 1rem;
 }
@@ -315,7 +316,7 @@ body {
   width: 28px;
   height: 28px;
   border: 2px solid var(--line);
-  border-top-color: var(--fg);
+  border-top-color: var(--primary);
   border-radius: 50%;
   margin: 8px 0 16px;
 }

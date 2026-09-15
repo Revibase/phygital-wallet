@@ -5,6 +5,7 @@ import { decodeWalletBlob } from "./wallet-format.js";
 import {
   createWallet,
   decryptWallet,
+  enrollExistingCredential,
   parseBlob,
   ServiceError,
   signAndScrub,
@@ -44,6 +45,19 @@ describe("wallet-service pipeline", () => {
     expect(ed25519.verify(sig, msg, publicKey)).toBe(true);
     // seed scrubbed after sign
     expect(seed.every((b) => b === 0)).toBe(true);
+  });
+
+  it("enrollExistingCredential matches create→decrypt for the same passkey", async () => {
+    const prf = new MockPrf("authenticator-A");
+    const created = await createWallet(prf, RP, { userName: "alice" });
+    const parsed = parseBlob(created.blob);
+    const again = await enrollExistingCredential(prf, RP, parsed.credentialId);
+    // New seed/wallet, but same credential id binding
+    expect([...parseBlob(again.blob).credentialId]).toEqual([
+      ...parsed.credentialId,
+    ]);
+    const { publicKey } = await decryptWallet(prf, RP, parseBlob(again.blob));
+    expect([...publicKey]).toEqual([...again.publicKey]);
   });
 
   it("fails to decrypt with a different authenticator (wrong passkey)", async () => {

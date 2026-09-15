@@ -80,6 +80,7 @@ no seed/multi-credential backup in v1 (accepted decision).
 2. **v1 emission dependency** — `@solana/kit@8.1.0` decodes only ≤ v0. The signer
    parses v1 with its own decoder, but the parent's tx-build path must emit v1
    (needs a v1-capable kit) before the end-to-end seam is live on mainnet.
-3. **Enrollment in a cross-origin iframe** — credential *creation* is less widely
-   supported than assertion; a top-level popup fallback on the signer origin may
-   be required on some browsers.
+3. **Shared RP ID enrollment** — passkeys are created on the **app** origin
+   (`rpId` = `revibase.com` / `localhost`) so Safari can register. The signer
+   iframe only runs `get` + PRF and wraps the ed25519 seed. The parent must never
+   receive PRF output or seed material.

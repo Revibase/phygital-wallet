@@ -64,7 +64,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: "Permissions-Policy",
-            value: `publickey-credentials-get=(self "${signerOrigin}"), publickey-credentials-create=(self "${signerOrigin}")`,
+            value: `publickey-credentials-get=(self "${signerOrigin}"), publickey-credentials-create=(self)`,
           },
         ],
       },

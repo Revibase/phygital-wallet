@@ -7,7 +7,8 @@
  * verified on every inbound message; results/errors go only to the signer origin.
  *
  * This client holds NO key material — it exchanges public keys, ciphertext blobs,
- * and signatures only.
+ * and signatures only. Passkey *create* runs on the app (shared RP ID); the
+ * signer performs get+PRF and wraps the seed.
  */
 
 import { SECURE_SIGNER_ORIGIN } from "@/lib/wallet/owner-backend";
@@ -15,6 +16,13 @@ import { SECURE_SIGNER_ORIGIN } from "@/lib/wallet/owner-backend";
 const PROTOCOL_VERSION = 1;
 const REQUEST_TIMEOUT_MS = 120_000;
 const READY_TIMEOUT_MS = 20_000;
+
+export type AuthResult = {
+  publicKey: string;
+  encryptedWalletBlob: string;
+  created: boolean;
+  putSignature?: string;
+};
 
 export class SecureSignerError extends Error {
   constructor(public readonly code: string) {
@@ -82,7 +90,7 @@ class SecureSignerClient {
   /**
    * Reload the signer iframe after an aborted/failed interactive ceremony.
    * Without this, a dismissed overlay can leave AUTH_PENDING stuck so the next
-   * Sign in fails with INTERNAL_ERROR.
+   * ceremony fails with INTERNAL_ERROR.
    */
   private remountSigner(): void {
     if (!this.iframe) return;
@@ -97,11 +105,10 @@ class SecureSignerClient {
     const frame = document.createElement("iframe");
     frame.src = `${SECURE_SIGNER_ORIGIN}/`;
     frame.title = "Secure signer";
-    // Delegate WebAuthn to the signer origin (paired with the app's
-    // Permissions-Policy response header — see next.config).
+    // get is required for unlock/sign; create runs on the app (shared RP ID).
     frame.setAttribute(
       "allow",
-      `publickey-credentials-get ${SECURE_SIGNER_ORIGIN}; publickey-credentials-create ${SECURE_SIGNER_ORIGIN}`,
+      `publickey-credentials-get ${SECURE_SIGNER_ORIGIN}`,
     );
     applyOverlayLayout(overlay, frame);
     overlay.appendChild(frame);
@@ -127,7 +134,6 @@ class SecureSignerClient {
     const requestId = data?.["requestId"];
     if (typeof requestId !== "string") return;
 
-    // Mid-flow: signer needs the encrypted blob for a discoverable passkey.
     if (data["type"] === "BLOB_NEEDED") {
       const p = this.pending.get(requestId);
       if (!p?.onBlobNeeded) {
@@ -237,26 +243,24 @@ class SecureSignerClient {
   }
 
   /**
-   * High-level sign-in / create ceremony (chooser lives in the signer).
-   * Optional parent blob is a backup candidate; the signer decides merge policy.
+   * Unlock, or finish create after the app registered a passkey (`credentialId`).
    */
   async authenticate(
     encryptedWalletBlob?: string | null,
     opts?: {
-      /** Resolve a blob for a discoverable credential (D1 / local). */
       resolveBlob?: (credentialId: string) => string | null | Promise<string | null>;
-      /** Server PUT challenge (base64url) — signed during unlock/create. */
       putChallenge?: string;
+      authMode?: "create" | "unlock";
+      /** Required when authMode is create (parent-registered passkey). */
+      credentialId?: string;
     },
-  ): Promise<{
-    publicKey: string;
-    encryptedWalletBlob: string;
-    created: boolean;
-    putSignature?: string;
-  }> {
-    const payload: Record<string, unknown> = {};
+  ): Promise<AuthResult> {
+    const payload: Record<string, unknown> = {
+      authMode: opts?.authMode ?? "unlock",
+    };
     if (encryptedWalletBlob) payload.encryptedWalletBlob = encryptedWalletBlob;
     if (opts?.putChallenge) payload.putChallenge = opts.putChallenge;
+    if (opts?.credentialId) payload.credentialId = opts.credentialId;
     const r = await this.request(
       "AUTH_START",
       "AUTH_COMPLETE",
@@ -275,29 +279,6 @@ class SecureSignerClient {
       created: Boolean(r["created"]),
       ...(typeof r["putSignature"] === "string"
         ? { putSignature: String(r["putSignature"]) }
-        : {}),
-    };
-  }
-
-  async createKey(): Promise<{ publicKey: string; encryptedWalletBlob: string }> {
-    const r = await this.request("CREATE_KEY", "CREATE_KEY_RESULT", {}, true);
-    return {
-      publicKey: String(r["publicKey"]),
-      encryptedWalletBlob: String(r["encryptedWalletBlob"]),
-    };
-  }
-
-  async importKey(blob: string): Promise<{ publicKey: string; encryptedWalletBlob?: string }> {
-    const r = await this.request(
-      "IMPORT_KEY",
-      "IMPORT_KEY_RESULT",
-      { encryptedWalletBlob: blob },
-      true,
-    );
-    return {
-      publicKey: String(r["publicKey"]),
-      ...(typeof r["encryptedWalletBlob"] === "string"
-        ? { encryptedWalletBlob: String(r["encryptedWalletBlob"]) }
         : {}),
     };
   }

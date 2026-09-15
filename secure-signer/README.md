@@ -72,7 +72,7 @@ hatch by design. See `tx/policy.ts` and the threat model.
 
 ## postMessage API
 
-Request → result: `AUTH_START` → `AUTH_COMPLETE`, `GET_PUBLIC_KEY`, `CREATE_KEY`,
+Request → result: `AUTH_START` → `AUTH_COMPLETE`, `GET_PUBLIC_KEY`,
 `IMPORT_KEY`, `SIGN_TRANSACTION`, `EXPORT_ENCRYPTED_WALLET`, `EXPORT_PRIVATE_KEY`.
 Mid-flow: `BLOB_NEEDED` (signer → parent) / `BLOB_PROVIDED` (parent → signer) for
 discoverable restore when no local ciphertext is available.
@@ -81,9 +81,14 @@ All requests carry `{ protocolVersion: 1, requestId, timestamp? }`; blobs are
 base64url, transactions base64. Errors are generic `{ type: "ERROR", requestId, code }`.
 Unknown/malformed input fails closed. The signer posts `{ type: "SIGNER_READY" }` on load.
 
-`AUTH_START` opens the in-iframe chooser (Create a passkey / Unlock with passkey),
-or skips straight to unlock when a wallet blob is already on this device. Prefer it over
-calling `CREATE_KEY` / `IMPORT_KEY` directly from the parent login path.
+`AUTH_START` unlocks in the iframe, or completes create when the parent sends
+`authMode: "create"` + `credentialId` (passkey registered on the app with the
+shared RP ID).
+
+**Passkey create:** runs on the **app** (top-level, Safari-safe) with
+`rpId` = `revibase.com` (prod) or `localhost` (dev). The signer then prompts
+once more for PRF and wraps the wallet key — the app never sees PRF/seed.
+Unlock / sign stay in the iframe.
 
 ## Parent integration seam
 

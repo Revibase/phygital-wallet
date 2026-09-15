@@ -12,16 +12,16 @@
  * blob.
  */
 
-import { PRF_INPUT_LABEL } from "./constants.js";
+import { PRF_INPUT_LABEL, RP_ID } from "./constants.js";
 import { sha256 } from "./crypto.js";
 import { utf8ToBytes } from "./encoding.js";
 import type { PrfProvider, PrfResult } from "./wallet-service.js";
 
 export class WebAuthnUnsupported extends Error {}
 
-/** The registrable RP id for this signer origin. */
+/** Shared RP ID (app create + iframe get). Prefer `RP_ID` / `VITE_RP_ID`. */
 export function currentRpId(): string {
-  return globalThis.location?.hostname ?? "localhost";
+  return RP_ID;
 }
 
 async function prfSalt(): Promise<Uint8Array> {

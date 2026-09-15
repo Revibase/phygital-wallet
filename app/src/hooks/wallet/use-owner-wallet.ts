@@ -10,6 +10,7 @@ import { TransactionPartialSigner, TransactionSigner } from "@solana/kit";
  * The "owner" is the identity that claims an accessory (on-chain `set_authority`)
  * and gates owner-only routes. It is backed by the self-hosted secure-signer
  * iframe (see `secure-signer/`), which holds the owner ed25519 key non-custodially.
+ * Passkeys are registered on the app (shared RP ID); PRF + key wrap stay in the signer.
  */
 export type OwnerWallet = {
   /** Base58 Solana address of the wallet, or null when signed out. */
