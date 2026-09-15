@@ -12,7 +12,7 @@ pnpm install
 cp app/.dev.vars.example app/.dev.vars
 cp api/.dev.vars.example api/.dev.vars
 # Set the same POLICY_SESSION_SECRET in both .dev.vars files
-# (Next middleware verifies device-session + browse-unlock cookies).
+# (Next middleware verifies browse-unlock cookies with this HMAC).
 # Use NEXT_PUBLIC_API_BASE_URL=http://localhost:8787 so cookies share the host.
 # Terminal A — API Worker
 pnpm --filter api dev
@@ -20,7 +20,9 @@ pnpm --filter api dev
 pnpm --filter app dev
 ```
 
-Wallet routes under `/token/:address/wallet/**` are gated by `src/middleware.ts`
-(valid browse-unlock for that address, or a valid device-session cookie).
-Owner-only settings leaves (send protections, limits, exceptions,
-signing, recovery) require a device-session cookie.
+`/token/:address/**` (card, wallet, settings hub + leaves) is gated by
+`src/middleware.ts` — valid browse-unlock cookie for that address. Missing
+unlock redirects to `/token/:address/unlock` (Hold). Home accessory cards
+navigate to `/token/:address` and rely on the same gate. The cookie is issued
+by the API after NFC tap or Hold and verified locally with `POLICY_SESSION_SECRET`.
+Owner actions (claim, policy edit) still use the signed-in owner wallet on the client.

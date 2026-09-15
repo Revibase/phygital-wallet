@@ -53,12 +53,16 @@ function randomRequestId(): string {
 
 function applyOverlayLayout(overlay: HTMLDivElement, frame: HTMLIFrameElement): void {
   const mobile = window.matchMedia("(max-width: 639px)").matches;
+  // Do not set `display` here — show()/hide() own visibility. Resetting it on
+  // media-query changes would hide an open ceremony.
+  // pointer-events:auto is required — Radix dialogs set body { pointer-events:none }
+  // and may mark siblings inert; without this the iframe paints but ignores clicks.
   overlay.style.cssText = mobile
-    ? "position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.4);display:none;align-items:flex-end;justify-content:stretch;padding:0;"
-    : "position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;padding:24px;";
+    ? "position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.4);align-items:flex-end;justify-content:stretch;padding:0;pointer-events:auto;"
+    : "position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.4);align-items:center;justify-content:center;padding:24px;pointer-events:auto;";
   frame.style.cssText = mobile
-    ? "width:100%;height:min(560px,88vh);border:0;border-radius:24px 24px 0 0;background:transparent;box-shadow:0 -8px 40px rgba(0,0,0,.18);"
-    : "width:min(400px,100%);height:min(520px,90vh);border:0;border-radius:24px;background:transparent;box-shadow:0 20px 60px rgba(26,31,30,.18);";
+    ? "width:100%;height:min(560px,88vh);border:0;border-radius:24px 24px 0 0;background:#f7f4ef;box-shadow:0 -8px 40px rgba(0,0,0,.18);pointer-events:auto;"
+    : "width:min(400px,100%);height:min(520px,90vh);border:0;border-radius:24px;background:#f7f4ef;box-shadow:0 20px 60px rgba(26,31,30,.18);pointer-events:auto;";
 }
 
 class SecureSignerClient {
@@ -144,6 +148,7 @@ class SecureSignerClient {
     // get is required for unlock/sign; create runs on the app (shared RP ID).
     frame.setAttribute("allow", "publickey-credentials-get");
     applyOverlayLayout(overlay, frame);
+    overlay.style.display = "none";
     overlay.appendChild(frame);
     overlay.addEventListener("mousedown", this.onOverlayPointerDown);
     document.body.appendChild(overlay);
@@ -152,7 +157,14 @@ class SecureSignerClient {
 
     this.mediaQuery = window.matchMedia("(max-width: 639px)");
     const onLayout = () => {
-      if (this.overlay && this.iframe) applyOverlayLayout(this.overlay, this.iframe);
+      if (!this.overlay || !this.iframe) return;
+      const visible = this.overlay.style.display === "flex";
+      applyOverlayLayout(this.overlay, this.iframe);
+      this.overlay.style.display = visible ? "flex" : "none";
+      if (visible) {
+        this.overlay.style.pointerEvents = "auto";
+        this.iframe.style.pointerEvents = "auto";
+      }
     };
     this.mediaQuery.addEventListener("change", onLayout);
 
@@ -221,10 +233,18 @@ class SecureSignerClient {
   }
 
   private show(): void {
-    if (this.overlay && this.iframe) {
-      applyOverlayLayout(this.overlay, this.iframe);
-      this.overlay.style.display = "flex";
-    }
+    if (!this.overlay || !this.iframe) return;
+    applyOverlayLayout(this.overlay, this.iframe);
+    // Drop any inert/aria-hidden Radix may have stamped while a Sheet was open,
+    // then re-append so we win paint + hit-testing over lingering portals.
+    this.overlay.removeAttribute("inert");
+    this.overlay.removeAttribute("aria-hidden");
+    this.iframe.removeAttribute("inert");
+    this.iframe.removeAttribute("aria-hidden");
+    document.body.appendChild(this.overlay);
+    this.overlay.style.display = "flex";
+    this.overlay.style.pointerEvents = "auto";
+    this.iframe.style.pointerEvents = "auto";
   }
 
   private hide(): void {

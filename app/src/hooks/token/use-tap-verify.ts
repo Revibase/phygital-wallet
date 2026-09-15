@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useSearchParams } from "next/navigation";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
 import { queryKeys, queryOptions } from "@/lib/queries";
 import { connectDynamicTap } from "@/lib/wallet/connect-tap";
@@ -22,7 +22,7 @@ export type TapVerifyResult = {
  * browse-unlock cookie for the resolved token.
  */
 async function fetchTapVerification(
-  params: URLSearchParams
+  params: URLSearchParams,
 ): Promise<TapVerifyResult> {
   const pk = params.get("pk");
   const s = params.get("s");
@@ -53,7 +53,6 @@ async function fetchTapVerification(
  */
 export function useTapVerify() {
   const params = useSearchParams();
-  const queryClient = useQueryClient();
 
   const pk = params.get("pk");
   const s = params.get("s");
@@ -68,26 +67,15 @@ export function useTapVerify() {
         ...(c ? { c } : {}),
         ...(n ? { n } : {}),
       }).toString(),
-    [pk, s, c, n]
+    [pk, s, c, n],
   );
 
   const hasTapProof = Boolean(pk && s && c && n);
 
   const verifyQuery = useQuery<TapVerifyResult, Error>({
     queryKey: queryKeys.tapVerify.byParams(tapParamsString),
-    queryFn: async () => {
-      const result = await fetchTapVerification(
-        new URLSearchParams(tapParamsString)
-      );
-      // Cookie is set by /accessory/unlock/tap; seed RQ so the address page skips GET.
-      if (result.phygitalToken) {
-        queryClient.setQueryData(
-          queryKeys.browseUnlock.byToken(result.phygitalToken),
-          true
-        );
-      }
-      return result;
-    },
+    queryFn: async () =>
+      fetchTapVerification(new URLSearchParams(tapParamsString)),
     enabled: hasTapProof,
     // One-shot proof — cache success; never refetch.
     ...queryOptions.immutable,
@@ -98,12 +86,12 @@ export function useTapVerify() {
   const verify: TapVerifyStatus = !hasTapProof
     ? "failed"
     : verifyQuery.data?.status === "verified"
-    ? "verified"
-    : verifyQuery.isPending
-    ? "pending"
-    : verifyQuery.isError
-    ? "failed"
-    : "pending";
+      ? "verified"
+      : verifyQuery.isPending
+        ? "pending"
+        : verifyQuery.isError
+          ? "failed"
+          : "pending";
 
   const verifyPending =
     hasTapProof && verify === "pending" && !verifyQuery.data;

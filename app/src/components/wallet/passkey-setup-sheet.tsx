@@ -79,8 +79,9 @@ export function PasskeySetupProvider({ children }: { children: ReactNode }) {
   const close = useCallback((choice: PasskeySetupChoice) => {
     setPhase((p) => {
       if (p) {
-        // After the sheet unmounts/paints — then the signer iframe.
-        window.setTimeout(() => p.resolve(choice), 0);
+        // Wait for Radix Sheet exit + remove-scroll/inert cleanup before the
+        // secure-signer overlay mounts — otherwise the iframe paints inert.
+        window.setTimeout(() => p.resolve(choice), 320);
       }
       return null;
     });

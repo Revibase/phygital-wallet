@@ -1,5 +1,7 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+
 import { InAppBrowserGate } from "@/components/shared/in-app-browser-gate";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -8,13 +10,16 @@ import { OwnerAccountMenu } from "@/components/home/owner-account-menu";
 import { useTapToOpen } from "@/hooks/token/use-tap-to-open";
 import { useOwnedAccessories } from "@/hooks/wallet/use-owned-accessories";
 import { copy } from "@/lib/copy/phygital";
+import { tokenHref } from "@/lib/wallet/token-routes";
 
 /**
- * Signed-in home: every accessory the owner controls. Cards open on a matching
- * accessory tap (the browse-unlock cookie the Hold mints gates the wallet
- * routes); the account menu handles export / sign-out.
+ * Signed-in home: every accessory the owner controls.
+ * Known cards navigate to `/token/:address` — middleware admits if the
+ * browse-unlock cookie is valid, otherwise redirects to Hold (`…/unlock`).
+ * “Open another” still Holds first (token unknown until the tap).
  */
 export function OwnerDashboard({ owner }: { owner: string }) {
+  const router = useRouter();
   const accessories = useOwnedAccessories(owner);
   const tap = useTapToOpen();
 
@@ -73,8 +78,7 @@ export function OwnerDashboard({ owner }: { owner: string }) {
               <li key={token}>
                 <OwnerAccessoryCard
                   phygitalToken={token}
-                  busy={tap.openingToken === token}
-                  onOpen={(t) => void tap.open(t)}
+                  onOpen={(t) => router.push(tokenHref(t))}
                 />
               </li>
             ))}

@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 
 import { InAppBrowserGate } from "@/components/shared/in-app-browser-gate";
 import { CeremonyShell } from "@/components/shared/ceremony-shell";
@@ -18,7 +17,6 @@ import { useTapVerify } from "@/hooks/token/use-tap-verify";
 import { copy } from "@/lib/copy/phygital";
 import { toUserErrorMessage } from "@/lib/user-errors";
 import { tokenHasLinkedMint } from "@/lib/phygital/token";
-import { queryKeys } from "@/lib/queries";
 import { tokenHref, walletHref } from "@/lib/wallet/token-routes";
 
 export type TokenNfcCopy = {
@@ -28,10 +26,10 @@ export type TokenNfcCopy = {
 
 /**
  * Cold `/token` — luminous boot on NFC tap, or Hold ceremony.
+ * Tap/Hold mint the browse-unlock cookie; middleware gates `/token/[address]/**`.
  */
 export function TokenNfcApp({ nfcCopy }: { nfcCopy: TokenNfcCopy }) {
   const router = useRouter();
-  const queryClient = useQueryClient();
   const { hasTapProof, verify, verifyPending, result, verifyError } =
     useTapVerify();
   const accessory = useAccessoryHold();
@@ -53,12 +51,11 @@ export function TokenNfcApp({ nfcCopy }: { nfcCopy: TokenNfcCopy }) {
   useEffect(() => {
     if (!tokenQuery.data) return;
     const pda = String(tokenQuery.data.address);
-    // Browse-unlock cookie was minted by /accessory/unlock/tap.
-    queryClient.setQueryData(queryKeys.browseUnlock.byToken(pda), true);
+    // Cookie already set by /accessory/unlock/tap — middleware will admit this.
     router.replace(
-      tokenHasLinkedMint(tokenQuery.data) ? tokenHref(pda) : walletHref(pda)
+      tokenHasLinkedMint(tokenQuery.data) ? tokenHref(pda) : walletHref(pda),
     );
-  }, [tokenQuery.data, router, queryClient]);
+  }, [tokenQuery.data, router]);
 
   async function holdToOpen() {
     setHoldError(null);
@@ -66,8 +63,6 @@ export function TokenNfcApp({ nfcCopy }: { nfcCopy: TokenNfcCopy }) {
     if (!connection) return;
     try {
       const { phygitalToken: pda } = connection;
-      queryClient.setQueryData(queryKeys.browseUnlock.byToken(pda), true);
-      // Address page redirects unminted → wallet; minted lands on card.
       router.replace(tokenHref(pda));
     } catch (e) {
       setHoldError(toUserErrorMessage(e));

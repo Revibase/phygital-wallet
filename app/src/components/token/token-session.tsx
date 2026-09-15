@@ -26,7 +26,7 @@ export function TokenSessionProvider({
 export function useTokenSession(): TokenSessionValue {
   const ctx = useContext(TokenSessionContext);
   if (!ctx) {
-    throw new Error("useTokenSession requires TokenAddressRoute unlock");
+    throw new Error("useTokenSession requires unlocked TokenAddressRoute");
   }
   return ctx;
 }

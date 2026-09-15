@@ -54,14 +54,6 @@ export const queryKeys = {
     all: () => ["verifiedTokens"] as const,
   },
 
-
-
-  browseUnlock: {
-    all: () => ["browseUnlock"] as const,
-    byToken: (token: string | null) =>
-      [...queryKeys.browseUnlock.all(), token] as const,
-  },
-
   walletPda: {
     all: () => ["walletPda"] as const,
     byToken: (token: string | null) =>

@@ -30,6 +30,11 @@ export function tokenHref(phygitalToken: string): string {
   return `/token/${encodeURIComponent(phygitalToken)}`;
 }
 
+/** Hold-to-unlock when browse-unlock cookie is missing. */
+export function tokenUnlockHref(phygitalToken: string): string {
+  return `${tokenHref(phygitalToken)}/unlock`;
+}
+
 /**
  * Wallet routes: `/token/{address}/wallet` or deeper segments.
  * Examples: `walletHref(addr)`, `walletHref(addr, "activity")`,

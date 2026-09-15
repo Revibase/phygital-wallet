@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { RevibaseMark } from "@/components/brand/revibase-mark";
@@ -16,17 +16,21 @@ import { copy } from "@/lib/copy/phygital";
 
 /**
  * Client layout for `/token/[address]/**`.
- * Possession unlock runs here; leaf pages never paint without a session.
+ * Unlock (`…/unlock`) is the Hold escape hatch — middleware-gated routes wrap
+ * leaf pages in an unlocked session. Leaf pages never paint without middleware
+ * having verified the browse-unlock cookie.
  */
 export function TokenAddressLayout({ children }: { children: ReactNode }) {
   const params = useParams();
+  const pathname = usePathname();
   const raw =
     typeof params.address === "string"
       ? params.address
       : Array.isArray(params.address)
-      ? params.address[0]
-      : "";
+        ? params.address[0]
+        : "";
   const address = tryParseAddress(raw);
+  const isUnlock = /\/unlock\/?$/.test(pathname);
 
   if (!address) {
     return (
@@ -38,6 +42,10 @@ export function TokenAddressLayout({ children }: { children: ReactNode }) {
         />
       </TokenRouteShell>
     );
+  }
+
+  if (isUnlock) {
+    return <>{children}</>;
   }
 
   return (

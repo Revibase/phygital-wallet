@@ -9,6 +9,8 @@
  *   POST /accessory/unlock/webauthn   { challengeId, response } — WebAuthn tap
  *
  * All three are public (they run before any cookie exists); see PUBLIC_ROUTES.
+ * Next.js middleware verifies the cookie locally (same HMAC secret) — no
+ * client-side session GET.
  */
 import { Hono } from "hono";
 

@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 
 import { RouteBoot } from "@/components/layout/route-boot";
 
-/** Client-only so wallet UI never SSR past the browse unlock gate. */
+/** Client-only token tree; middleware already verified browse-unlock. */
 const TokenAddressLayout = dynamic(
   () =>
     import("@/components/token/token-address-layout").then(

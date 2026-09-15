@@ -10,8 +10,8 @@ import { cn, shortAddress } from "@/lib/utils";
 
 /**
  * One accessory tile on the owner dashboard. Resolves display metadata
- * (phygital token PDA → linked `mint` → DAS collectible) and, on click, asks
- * the parent to run the tap ceremony for this token.
+ * (phygital token PDA → linked `mint` → DAS collectible). Click navigates to
+ * `/token/:address`; middleware enforces browse-unlock (or redirects to Hold).
  */
 export const OwnerAccessoryCard = memo(function OwnerAccessoryCard({
   phygitalToken,
