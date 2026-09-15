@@ -188,6 +188,77 @@ export const copy = {
     holdToTopUp: "Hold to top up",
     topUpPending: "Top-up sent. Balance updates shortly.",
     topUpSuccess: "Top-up submitted",
+    // Spending policy (wallet policy)
+    policy: "Spending limits",
+    policyHint:
+      "Choose what a single tap is allowed to spend. If this item is lost or stolen, these limits cap what’s at risk.",
+    policyNone: "No spending limits",
+    policyNoneBody:
+      "Right now a tap can spend any amount from this item. Add a limit so a lost or stolen item can only spend what you allow.",
+    /** The allow-list surprise, stated plainly — shown wherever limits are set. */
+    policyAllowlistNote:
+      "Once you set any limit, a tap can only spend the assets listed here. Anything not listed is blocked until you add it.",
+    policySolLabel: "SOL",
+    /** Remaining allowance until the reset date (recurring window). */
+    policyLeftUntil: (amount: string, date: string) =>
+      `${amount} SOL left · resets ${date}`,
+    /** Remaining allowance for a one-time (lifetime) budget. */
+    policyLeftLifetime: (amount: string) => `${amount} SOL left · one-time`,
+    policyResetsOn: (date: string) => `Resets ${date}`,
+    policyNoReset: "One-time — doesn’t reset",
+    policyAssetsSummary: (count: number) =>
+      `${count} asset limit${count === 1 ? "" : "s"}`,
+    // Pre-save preview of what a tap will be allowed to do
+    policyPreviewTitle: "After saving, a tap can:",
+    policyPreviewNoLimits:
+      "Spend any amount of any asset — nothing is limited.",
+    policyPreviewSpend: (amount: string, phrase: string) =>
+      `Spend up to ${amount}, ${phrase}`,
+    policyPreviewBlocked: "Everything else is blocked",
+    policyPreviewApps: (n: number) =>
+      `${n} advanced app rule${n === 1 ? "" : "s"} applied`,
+    policyWindowDay: "Every day",
+    policyWindowWeek: "Every week",
+    policyWindowMonth: "Every month",
+    policyWindowLifetime: "One-time",
+    policyAmountLabel: "SOL a tap can spend",
+    policyWindowLabel: "Renew this limit",
+    policyEdit: "Edit limits",
+    policySet: "Set a limit",
+    policySave: "Save limits",
+    policySaved: "Spending limits saved",
+    policyRemove: "Remove all limits",
+    policyRemoved: "Spending limits removed",
+    policyRemoveConfirmTitle: "Remove all limits?",
+    policyRemoveConfirmBody:
+      "A tap will be able to spend any amount again, including assets that are blocked now. You can set new limits at any time.",
+    policySignInToEdit: "Sign in as the owner to change limits.",
+    policyTokenLimits: "Other assets it can spend",
+    policyTokenLimitsHint:
+      "Add any other asset a tap is allowed to spend, each with its own limit. Up to 8.",
+    policyAddToken: "Add an asset",
+    policyPickToken: "Choose an asset",
+    policyNoTokensToAdd: "No more assets to add",
+    policyRemoveTokenAria: (symbol: string) => `Remove ${symbol} limit`,
+    policyTokenAmountLabel: (symbol: string) => `${symbol} a tap can spend`,
+    // Advanced — app/program permissions
+    policyAdvanced: "Advanced",
+    policyAdvancedHint:
+      "Most people don’t need this. Control which apps a tap is allowed to use.",
+    policyPrograms: "App permissions",
+    policyProgramsHint:
+      "By default a tap can only move standard tokens. Allow a specific app, or block one you don’t want.",
+    policyProgramsNone: "Only standard token apps allowed",
+    policyProgramsBaseline:
+      "Standard token transfers are always allowed. These rules only affect other apps.",
+    policyAddProgram: "Add",
+    policyProgramIdPlaceholder: "App address",
+    policyProgramInvalid: "Enter a valid app address",
+    policyProgramDuplicate: "That app is already listed",
+    policyAccessAllow: "Allow",
+    policyAccessDeny: "Block",
+    policyAccessCustom: "Custom rules",
+    policyRemoveProgramAria: (id: string) => `Remove ${id}`,
     interfaceNft: "NFT",
     interfacePnft: "pNFT",
     interfaceCnft: "cNFT",
@@ -257,7 +328,6 @@ export const copy = {
       "Saved limits are invalid. Save again to restore protection.",
     limitsTurnOff: "Turn off spend caps",
     limitsTurnedOff: "Spend caps off",
-    policyRemoved: "Send protections off",
     openApprovalContinue: "Approved — they can hold to finish",
     nearbyPolicyTitle: "Needs approval",
     nearbyPolicyBody:

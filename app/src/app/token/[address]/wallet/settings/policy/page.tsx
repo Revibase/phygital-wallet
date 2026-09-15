@@ -1,0 +1,19 @@
+"use client";
+
+import {
+  useWalletNav,
+  useWalletSession,
+} from "@/components/wallet/wallet-route-shell";
+import { WalletPolicySheet } from "@/components/wallet/wallet-policy-sheet";
+
+/**
+ * Spend-policy panel. Publicly viewable behind the browse-unlock cookie (the
+ * wallet route floor); the editor within only appears for the on-chain owner.
+ */
+export default function WalletPolicyPage() {
+  const { tokenAddress } = useWalletSession();
+  const { backSettings } = useWalletNav();
+  return (
+    <WalletPolicySheet phygitalTokenPda={tokenAddress} onBack={backSettings} />
+  );
+}

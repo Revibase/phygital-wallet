@@ -123,6 +123,31 @@ fn rolling_window_resets() {
     assert_eq!(ctx.token_balance(recipient_token), 200);
 }
 
+/// The reset boundary is aligned to the Unix-epoch grid, not to save time: a daily
+/// cap saved mid-day refills at the next 00:00 UTC boundary, not 24h after saving.
+#[test]
+fn window_resets_on_epoch_grid_not_save_time() {
+    let mut ctx = TestContext::new();
+    // Save 13_600s into a day (100_000 = 86_400 + 13_600). Grid boundary = 172_800.
+    ctx.set_unix_timestamp(100_000);
+    let (mut passkey, asset, mint, sender, recipient_token) = setup(&mut ctx, 1_000_000);
+    ctx.install_policy(
+        &mut passkey,
+        asset,
+        policy_args(vec![mint_cap(mint, 100, 86_400)]),
+    );
+
+    ctx.send_execute_spl_transfer(asset, mint, sender, recipient_token, 100, &mut passkey)
+        .expect("first fills the window");
+
+    // Reach the next epoch-grid boundary (172_800): only +72_800 from save, well
+    // short of a full 86_400s. Save-time anchoring would still be exhausted here.
+    ctx.warp_seconds(72_800);
+    ctx.send_execute_spl_transfer(asset, mint, sender, recipient_token, 100, &mut passkey)
+        .expect("refills on the epoch-grid boundary, not save + window");
+    assert_eq!(ctx.token_balance(recipient_token), 200);
+}
+
 /// A charge at exactly one interval from the anchor refills (`elapsed >= window`).
 #[test]
 fn interval_refills_at_exact_boundary() {

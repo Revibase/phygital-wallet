@@ -57,14 +57,14 @@ a supported setting. An app must make this difference clear before saving.
 
 ## When does my allowance reset?
 
-A “24-hour allowance” follows intervals anchored when settings were saved. It is
-not a midnight reset and does not total all spending in the preceding 24 hours.
-Unused allowance does not accumulate into a larger allowance.
+A “24-hour allowance” follows fixed intervals aligned to the clock grid, not to
+the moment you saved. A daily limit resets at 00:00 UTC; a weekly limit resets on
+a fixed weekday; a “monthly” limit is a fixed 30 days. It does not total all
+spending in the preceding 24 hours, and unused allowance does not accumulate.
 
-For example, settings saved at 10:00 anchor the next interval around 10:00 the next
-day. The allowance refills on the first positive spend **at or after** that boundary
-second. The app should show a reset time, not just “daily.” A limit with no reset
-interval lasts until owner settings change it.
+The allowance refills on the first positive spend **at or after** the next grid
+boundary. The app shows the actual next reset date, not just “daily.” A limit with
+no reset interval lasts until owner settings change it.
 
 **Saving a policy setting keeps the usage of any allowance you left unchanged.**
 Editing an application permission, or saving the same limits again, no longer refills

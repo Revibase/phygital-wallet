@@ -7,10 +7,7 @@ import type {
   TransactionPartialSigner,
   TransactionWithLifetime,
 } from "@solana/kit";
-import {
-  createNoopSigner,
-  isTransactionWithDurableNonceLifetime,
-} from "@solana/kit";
+import { isTransactionWithDurableNonceLifetime } from "@solana/kit";
 import { authenticatePasskeyForSecp256r1Verify } from "phygital-token-sdk";
 import { modifyAndWrapWalletTransaction } from "./wrap-transaction.js";
 import {
@@ -67,7 +64,7 @@ export async function getPhygitalWalletSigner(
   ]);
 
   const executeAccounts = {
-    authority: createNoopSigner(authorityAccount.data.header.authority),
+    authority: authorityAccount.data.header.authority,
     feePayer,
     authorityAccount,
     wallet: walletPda,

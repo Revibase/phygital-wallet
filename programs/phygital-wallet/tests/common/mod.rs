@@ -691,6 +691,13 @@ impl TestContext {
         self.svm.set_sysvar(&clock);
     }
 
+    /// Set the SVM clock to an absolute unix timestamp (for epoch-grid tests).
+    pub fn set_unix_timestamp(&mut self, unix_timestamp: i64) {
+        let mut clock: Clock = self.svm.get_sysvar();
+        clock.unix_timestamp = unix_timestamp;
+        self.svm.set_sysvar(&clock);
+    }
+
     // --- compact instruction builders ---
 
     /// Build remaining accounts + compact SPL transfer_checked for execute.

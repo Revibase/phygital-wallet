@@ -2,6 +2,8 @@ import {
   appendTransactionMessageInstructions,
   assertIsTransactionWithBlockhashLifetime,
   createTransactionMessage,
+  estimateAndSetResourceLimitsFactory,
+  estimateResourceLimitsFactory,
   getSignatureFromTransaction,
   pipe,
   sendTransactionWithoutConfirmingFactory,
@@ -22,6 +24,16 @@ import { getSolanaRpc, getSolanaRpcSubscriptions } from "./rpc";
 
 const CONFIRM_TIMEOUT_MS = 60_000;
 
+/**
+ * Every app transaction is a version 1 transaction message. Unlike legacy / v0,
+ * a v1 message with an unset compute-unit limit or loaded-accounts-data-size
+ * limit is budgeted **zero** (not the v0 200k/instruction fallback) and fails at
+ * execution — so both limits must be set explicitly. The wallet passkey path
+ * sets them inside the SDK wrap (`modifyAndWrapWalletTransaction`); direct sends
+ * (paymaster-signed authority txs) set them here via `applyResourceLimits`.
+ */
+const TRANSACTION_VERSION = 1 as const;
+
 /** Placeholder lifetime; wallet modify path refreshes blockhash after NFC. */
 const PROVISIONAL_BLOCKHASH = {
   blockhash: "11111111111111111111111111111111" as Blockhash,
@@ -37,6 +49,18 @@ function sendWithoutConfirming() {
     rpc: getSolanaRpc(),
   });
   return _sendWithoutConfirming;
+}
+
+let _estimateAndSetResourceLimits: ReturnType<
+  typeof estimateAndSetResourceLimitsFactory
+> | null = null;
+
+/** Simulate to fill the v1 compute-unit + loaded-accounts-data-size limits. */
+function estimateAndSetResourceLimits() {
+  _estimateAndSetResourceLimits ??= estimateAndSetResourceLimitsFactory(
+    estimateResourceLimitsFactory({ rpc: getSolanaRpc() })
+  );
+  return _estimateAndSetResourceLimits;
 }
 
 type ConfirmableTransaction = Parameters<
@@ -84,7 +108,7 @@ export type UnsignedTransactionMessage = Parameters<
   typeof signTransactionMessageWithSigners
 >[0];
 
-/** Build an unsigned v0 message (blockhash + fee payer + instructions). */
+/** Build an unsigned v1 message (blockhash + fee payer + instructions). */
 export async function buildUnsignedTransaction(params: {
   instructions: Instruction[];
   feePayer: TransactionSigner;
@@ -100,7 +124,7 @@ export async function buildUnsignedTransaction(params: {
       : (await getSolanaRpc().getLatestBlockhash().send()).value;
 
   return pipe(
-    createTransactionMessage({ version: 0 }),
+    createTransactionMessage({ version: TRANSACTION_VERSION }),
     (m) => setTransactionMessageFeePayerSigner(params.feePayer, m),
     (m) => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
     (m) => appendTransactionMessageInstructions(params.instructions, m)
@@ -136,9 +160,22 @@ export async function sendTransaction(params: {
   feePayer: TransactionSigner;
   fetchBlockhash?: boolean;
   abortSignal?: AbortSignal;
+  /**
+   * Simulate to fill the v1 compute-unit + loaded-accounts-data-size limits
+   * (required — an unset v1 limit is budgeted zero and fails on-chain). Pass
+   * true for direct sends. Leave false for the wallet passkey path, whose SDK
+   * wrap sets these itself after the accessory tap.
+   * @default false
+   */
+  applyResourceLimits?: boolean;
 }): Promise<SentTransaction> {
   const unsigned = await buildUnsignedTransaction(params);
-  return signAndSendTransaction(unsigned, {
+  const prepared = params.applyResourceLimits
+    ? await estimateAndSetResourceLimits()(unsigned, {
+        abortSignal: params.abortSignal,
+      })
+    : unsigned;
+  return signAndSendTransaction(prepared, {
     abortSignal: params.abortSignal,
   });
 }

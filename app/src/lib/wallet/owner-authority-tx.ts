@@ -60,5 +60,6 @@ export async function sendOwnerAuthorityTransaction(args: {
     instructions: Array.isArray(built) ? built : [built],
     feePayer,
     fetchBlockhash: true,
+    applyResourceLimits: true,
   });
 }

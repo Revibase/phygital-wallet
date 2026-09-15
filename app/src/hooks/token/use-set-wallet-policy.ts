@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import type { ProgramPermissionArgs } from "phygital-wallet-sdk";
 
 import { useOwnerWallet } from "@/hooks/wallet/use-owner-wallet";
 import { queryKeys } from "@/lib/queries";
@@ -22,6 +23,7 @@ export function useSetWalletPolicy(phygitalToken: string) {
     mutationFn: async (input: {
       solCap?: SolCapInput | null;
       mintCaps?: MintCapInput[];
+      programPermissions?: ProgramPermissionArgs[];
     }) => {
       if (!isAuthenticated || !address) {
         throw new Error("Sign in to update spending limits");
@@ -31,6 +33,7 @@ export function useSetWalletPolicy(phygitalToken: string) {
         owner: { address, signTransaction },
         solCap: input.solCap,
         mintCaps: input.mintCaps,
+        programPermissions: input.programPermissions,
       });
       await sent.confirmed;
       return { signature: sent.signature };

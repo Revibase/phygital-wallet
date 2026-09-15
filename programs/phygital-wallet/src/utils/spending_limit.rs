@@ -1,9 +1,28 @@
-//! Fixed-interval allowances for accessory execution, anchored at policy save.
-//! Not a trailing time window or a calendar-day allowance.
-//! Per-use is the aggregate measured decrease charged against a cap in one execute.
+//! Fixed-interval allowances for accessory execution, anchored to the Unix-epoch
+//! grid (not to policy-save time). A window of length `w` resets at multiples of
+//! `w` since the epoch: daily caps reset at 00:00 UTC, and any two accessories
+//! with the same window share the same boundaries regardless of when they were
+//! saved. Not a trailing time window or a civil-calendar allowance (a weekly cap
+//! resets on the epoch's weekday, a "monthly" cap every 30 days — it does not
+//! track calendar months). Per-use is the aggregate measured decrease charged
+//! against a cap in one execute.
 use anchor_lang::prelude::*;
 
 use crate::{error::PhygitalError, state::SpendCap};
+
+/// Snap a timestamp down to the start of its current window on the epoch grid
+/// (`now - (now mod window_seconds)`). Zero windows (lifetime budgets) never
+/// reset, so their anchor is irrelevant and left at `now`.
+pub(crate) fn align_to_window(now: i64, window_seconds: i64) -> Result<i64> {
+    if window_seconds <= 0 {
+        return Ok(now);
+    }
+    let offset = now
+        .checked_rem(window_seconds)
+        .ok_or_else(|| error!(PhygitalError::InvalidPolicyArgs))?;
+    now.checked_sub(offset)
+        .ok_or_else(|| error!(PhygitalError::InvalidPolicyArgs))
+}
 
 pub(crate) fn new_spend_cap(cap: u64, window_seconds: i64, now: i64) -> Result<SpendCap> {
     require!(
@@ -13,7 +32,7 @@ pub(crate) fn new_spend_cap(cap: u64, window_seconds: i64, now: i64) -> Result<S
     Ok(SpendCap {
         cap,
         remaining: cap,
-        last_reset: now,
+        last_reset: align_to_window(now, window_seconds)?,
         window_seconds,
     })
 }

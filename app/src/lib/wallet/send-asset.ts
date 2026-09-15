@@ -1,5 +1,6 @@
 import {
   address,
+  createNoopSigner,
   type Address,
   type Instruction,
   type TransactionSigner,
@@ -102,6 +103,37 @@ export async function receiveAssetFromNearbyPayer(args: {
     signer: args.signer,
     walletSigner: args.walletSigner,
   });
+}
+
+/**
+ * Body instructions for a wallet send, decoupled from the signer, so the same
+ * transfer can be re-executed via the authority fallback (`sendViaAuthority`)
+ * when policy denies the passkey path. Built against a no-op signer at the
+ * wallet PDA — `compileWalletInstructions` downgrades that signer role anyway.
+ */
+export async function buildSendAssetInstructions(args: {
+  phygitalTokenPda: Address | string;
+  recipient: Address | string;
+  amountUi: string;
+  asset: SendAssetFields;
+}): Promise<{ walletPda: Address; instructions: Instruction[] }> {
+  const tokenPda = address(String(args.phygitalTokenPda));
+  const recipient = address(String(args.recipient));
+  const walletPda = await walletPdaForToken(tokenPda);
+  const walletSigner = createNoopSigner(walletPda);
+
+  const instructions = await buildSendInstructions({
+    kind: args.asset.kind,
+    mint: args.asset.mint,
+    decimals: args.asset.decimals,
+    tokenProgram: args.asset.tokenProgram,
+    amountUi: args.amountUi,
+    walletSigner,
+    walletPda,
+    recipient,
+  });
+
+  return { walletPda, instructions };
 }
 
 async function buildSendInstructions(args: {

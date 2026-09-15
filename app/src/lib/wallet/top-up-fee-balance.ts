@@ -1,4 +1,10 @@
-import { address, type Address } from "@solana/kit";
+import {
+  address,
+  createNoopSigner,
+  type Address,
+  type Instruction,
+  type TransactionSigner,
+} from "@solana/kit";
 import { getTransferSolInstruction } from "@solana-program/system";
 import {
   getPhygitalWalletSigner,
@@ -9,6 +15,7 @@ import { getSolanaRpc } from "@/lib/solana/rpc";
 import { sendTransaction } from "@/lib/solana/tx";
 import { uiAmountToRaw } from "@/lib/tokens/amount";
 import { getMemoInstruction } from "@/lib/wallet/memo";
+import { walletPdaForToken } from "@/lib/wallet/pda";
 import { appVerifierFetch } from "@/lib/wallet/verifier-fee-payer";
 
 function getTopUpAccumulator(): Address {
@@ -30,28 +37,59 @@ export async function topUpFeeBalance(args: {
 }): Promise<{ signature: string; confirmed: Promise<void> }> {
   const rpc = getSolanaRpc();
   const tokenPda = address(String(args.phygitalTokenPda));
-  const accumulator = getTopUpAccumulator();
   args.signer?.onPhaseChange?.("preparing");
   const walletSigner = await getPhygitalWalletSigner(rpc, tokenPda, {
     ...args.signer,
     fetch: appVerifierFetch,
   });
 
+  return sendTransaction({
+    instructions: buildTopUpTransferInstructions({
+      source: walletSigner,
+      tokenPda,
+      amountUi: args.amountUi,
+    }),
+    feePayer: walletSigner,
+    fetchBlockhash: false,
+  });
+}
+
+/** SOL → accumulator + memo instructions, decoupled from the signer. */
+function buildTopUpTransferInstructions(args: {
+  source: TransactionSigner;
+  tokenPda: Address;
+  amountUi: string;
+}): Instruction[] {
   const lamports = uiAmountToRaw(args.amountUi, 9);
   if (lamports <= 0n) {
     throw new Error("Top-up amount must be greater than zero");
   }
+  return [
+    getTransferSolInstruction({
+      source: args.source,
+      destination: getTopUpAccumulator(),
+      amount: lamports,
+    }),
+    getMemoInstruction(String(args.tokenPda)),
+  ];
+}
 
-  return sendTransaction({
-    instructions: [
-      getTransferSolInstruction({
-        source: walletSigner,
-        destination: accumulator,
-        amount: lamports,
-      }),
-      getMemoInstruction(String(tokenPda)),
-    ],
-    feePayer: walletSigner,
-    fetchBlockhash: false,
-  });
+/**
+ * Body instructions for a fee top-up, decoupled from the signer, for the
+ * authority fallback (`sendViaAuthority`) when policy denies the passkey path.
+ */
+export async function buildTopUpInstructions(args: {
+  phygitalTokenPda: Address | string;
+  amountUi: string;
+}): Promise<{ walletPda: Address; instructions: Instruction[] }> {
+  const tokenPda = address(String(args.phygitalTokenPda));
+  const walletPda = await walletPdaForToken(tokenPda);
+  return {
+    walletPda,
+    instructions: buildTopUpTransferInstructions({
+      source: createNoopSigner(walletPda),
+      tokenPda,
+      amountUi: args.amountUi,
+    }),
+  };
 }

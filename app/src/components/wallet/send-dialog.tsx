@@ -11,7 +11,6 @@ import {
 } from "framer-motion";
 import { ChevronDown, Nfc } from "lucide-react";
 import { toast } from "sonner";
-import { PolicyDeniedError } from "phygital-wallet-sdk";
 
 import { NavBar } from "@/components/shared/nav-bar";
 import { TokenIcon } from "@/components/shared/token-chip";
@@ -43,7 +42,12 @@ import { useFeeBalance } from "@/hooks/wallet/use-fee-balance";
 import { identifyAccessory } from "@/lib/wallet/identify-accessory";
 import type { FeeBalance } from "@/lib/wallet/fee-balance-client";
 import type { WalletPortfolio } from "@/lib/wallet/portfolio-types";
-import { sendAssetFromWallet } from "@/lib/wallet/send-asset";
+import {
+  buildSendAssetInstructions,
+  sendAssetFromWallet,
+} from "@/lib/wallet/send-asset";
+import { useWalletTransaction } from "@/hooks/wallet/use-wallet-transaction";
+import { WalletApprovalModal } from "@/components/wallet/wallet-approval-modal";
 import {
   isWalletSignCeremonyPhase,
   type PhygitalWalletSignPhase,
@@ -69,6 +73,13 @@ import { GroupedList, GroupedRow } from "@/components/shared/grouped-list";
 type Phase = "form" | "holding";
 
 type SendHardError = { message: string; code: string | null };
+
+type SendSnapshot = {
+  signature: string;
+  feeBefore: FeeBalance | undefined;
+  activityBefore: WalletActivitySnapshot;
+  portfolioBefore: WalletPortfolio | undefined;
+};
 
 function defaultAsset(
   portfolio: WalletPortfolio | undefined,
@@ -113,6 +124,7 @@ export function SendDialog({
   onChangeLimits?: (code?: string) => void;
 }) {
   const queryClient = useQueryClient();
+  const walletTx = useWalletTransaction(phygitalTokenPda);
   const [asset, setAsset] = useState<SendAssetRef | null>(() =>
     defaultAsset(portfolio, initialAsset, tokensOnly)
   );
@@ -253,143 +265,136 @@ export function SendDialog({
     sendAbortRef.current = abort;
     const recap = recapForSend();
     const amountUi = nft ? "1" : amount;
-    let submittedSignature: string | null = null;
-    let portfolioBefore: WalletPortfolio | undefined;
-    let activityBefore: WalletActivitySnapshot | undefined;
-    let feeBefore: FeeBalance | undefined;
+    const recipient = parsedRecipient;
+    const assetFields = {
+      kind: asset.kind,
+      mint: asset.mint,
+      decimals: asset.decimals,
+      tokenProgram: asset.tokenProgram,
+    };
 
     const showHolding = () => {
       setPhase("holding");
       onHoldPhaseChange("holding", recap);
     };
 
-    try {
-      const { signature, confirmed } = await sendAssetFromWallet({
-        phygitalTokenPda,
-        recipient: parsedRecipient,
-        amountUi,
-        asset: {
-          kind: asset.kind,
-          mint: asset.mint,
-          decimals: asset.decimals,
-          tokenProgram: asset.tokenProgram,
-        },
-        abortSignal: abort.signal,
-        signer: {
-          onPhaseChange: (phase) => {
-            onSignPhaseChange?.(phase);
-            if (isWalletSignCeremonyPhase(phase)) {
-              showHolding();
-            }
-          },
-        },
-      });
-
-      submittedSignature = signature;
-      showHolding();
-      if (usesFeeBalance) {
-        feeBefore = applyOptimisticFeeBalance(queryClient, {
-          token: phygitalTokenPda,
-          amountUi: lamportsToSolUi(MIN_ATTEMPT_FEE_LAMPORTS),
-          direction: "out",
-        });
-      }
-      activityBefore = applyOptimisticWalletActivity(queryClient, {
-        id: signature,
-        walletAddress,
-        kind: "sent",
-        title: nft ? copy.wallet.sent : `Sent ${asset.symbol}`,
-        subtitle: String(parsedRecipient),
-        amountLabel: nft ? asset.name : `-${amount}`,
-        statusLabel: null,
-        timestamp: Math.floor(Date.now() / 1000),
-        signature,
-        mint: asset.mint,
-        balanceDeltas: [
-          {
-            mint: asset.mint,
-            direction: "out",
+    const outcome = await walletTx.run<SendSnapshot>({
+      send: async (mode) => {
+        if (mode === "authority") {
+          const { instructions } = await buildSendAssetInstructions({
+            phygitalTokenPda,
+            recipient,
             amountUi,
+            asset: assetFields,
+          });
+          return walletTx.sendWithAuthority(instructions, abort.signal);
+        }
+        return sendAssetFromWallet({
+          phygitalTokenPda,
+          recipient,
+          amountUi,
+          asset: assetFields,
+          abortSignal: abort.signal,
+          signer: {
+            onPhaseChange: (phase) => {
+              onSignPhaseChange?.(phase);
+              if (isWalletSignCeremonyPhase(phase)) showHolding();
+            },
           },
-        ],
-        pending: true,
-        source: "local",
-      });
-      portfolioBefore = applyOptimisticPortfolioDelta(queryClient, {
-        owner: walletAddress,
-        mint: asset.mint,
-        amountUi,
-        direction: "out",
-        removeCollectible: nft,
-      });
-
-      onHoldPhaseChange("success", recapForSend(signature));
-      onSignPhaseChange?.(null);
-      toast.success(copy.wallet.sent);
-      onSent();
-
-      void confirmed.then(
-        () => {
+        });
+      },
+      optimistic: {
+        apply: (signature) => {
+          showHolding();
+          const feeBefore = usesFeeBalance
+            ? applyOptimisticFeeBalance(queryClient, {
+                token: phygitalTokenPda,
+                amountUi: lamportsToSolUi(MIN_ATTEMPT_FEE_LAMPORTS),
+                direction: "out",
+              })
+            : undefined;
+          const activityBefore = applyOptimisticWalletActivity(queryClient, {
+            id: signature,
+            walletAddress,
+            kind: "sent",
+            title: nft ? copy.wallet.sent : `Sent ${asset.symbol}`,
+            subtitle: String(recipient),
+            amountLabel: nft ? asset.name : `-${amount}`,
+            statusLabel: null,
+            timestamp: Math.floor(Date.now() / 1000),
+            signature,
+            mint: asset.mint,
+            balanceDeltas: [{ mint: asset.mint, direction: "out", amountUi }],
+            pending: true,
+            source: "local",
+          });
+          const portfolioBefore = applyOptimisticPortfolioDelta(queryClient, {
+            owner: walletAddress,
+            mint: asset.mint,
+            amountUi,
+            direction: "out",
+            removeCollectible: nft,
+          });
+          return { signature, feeBefore, activityBefore, portfolioBefore };
+        },
+        confirm: (snap) => {
           patchOptimisticWalletActivity(queryClient, {
             owner: walletAddress,
-            id: signature,
+            id: snap.signature,
             patch: { pending: false },
           });
         },
-        (err) => {
-          restoreFeeBalanceSnapshot(queryClient, phygitalTokenPda, feeBefore);
-          restorePortfolioSnapshot(queryClient, walletAddress, portfolioBefore);
-          restoreWalletActivitySnapshot(queryClient, activityBefore);
-          toast.error(toUserErrorMessage(err));
-        }
-      );
-    } catch (e) {
-      if (submittedSignature) {
-        restoreFeeBalanceSnapshot(queryClient, phygitalTokenPda, feeBefore);
-        restorePortfolioSnapshot(queryClient, walletAddress, portfolioBefore);
-        restoreWalletActivitySnapshot(queryClient, activityBefore);
-      }
+        rollback: (snap) => {
+          restoreFeeBalanceSnapshot(queryClient, phygitalTokenPda, snap.feeBefore);
+          restorePortfolioSnapshot(
+            queryClient,
+            walletAddress,
+            snap.portfolioBefore
+          );
+          restoreWalletActivitySnapshot(queryClient, snap.activityBefore);
+        },
+      },
+      onSent: (signature) => {
+        onHoldPhaseChange("success", recapForSend(signature));
+        onSignPhaseChange?.(null);
+        toast.success(copy.wallet.sent);
+        onSent();
+      },
+      onFundingDenial: (e) => {
+        setPhase("form");
+        setHardError({ code: e.code, message: copy.wallet.feeBalanceInsufficient });
+        invalidateWalletBalances(queryClient, { tokens: [phygitalTokenPda] });
+      },
+      onConfirmError: (err) => {
+        toast.error(toUserErrorMessage(err));
+      },
+      onError: (e) => {
+        setPhase("form");
+        onSignPhaseChange?.(null);
+        onHoldPhaseChange(null);
+        toast.error(toUserErrorMessage(e));
+      },
+    });
+
+    if (outcome.status !== "sent") {
+      // Aborted / rejected (visitor / owner denied) / error — drop back to the
+      // form. Funding denials keep their own inline error (set above).
+      setPhase("form");
       onSignPhaseChange?.(null);
       onHoldPhaseChange(null);
-      if (
-        (e instanceof DOMException && e.name === "AbortError") ||
-        (e instanceof Error && e.name === "AbortError")
-      ) {
-        setPhase("form");
-        return;
-      }
-      if (e instanceof PolicyDeniedError) {
-        setPhase("form");
-        setHardError({
-          code: e.code,
-          message:
-            e.code === "insufficient_fee_balance"
-              ? copy.wallet.feeBalanceInsufficient
-              : toUserErrorMessage(e),
-        });
-        if (e.code === "insufficient_fee_balance") {
-          invalidateWalletBalances(queryClient, {
-            tokens: [phygitalTokenPda],
-          });
-        }
-        return;
-      }
-      setPhase("form");
-      toast.error(toUserErrorMessage(e));
-    } finally {
-      if (sendAbortRef.current === abort) {
-        sendAbortRef.current = null;
-      }
-      setBusy(false);
     }
+
+    if (sendAbortRef.current === abort) sendAbortRef.current = null;
+    setBusy(false);
   }
 
   const holdings = portfolio?.holdings ?? [];
   const collectibles = tokensOnly ? [] : portfolio?.collectibles ?? [];
 
   if (phase === "holding") {
-    // Parent swaps to SendHoldStage for the NFC ceremony.
-    return null;
+    // Parent swaps to SendHoldStage for the NFC ceremony; the approval modal
+    // still needs to surface over it if policy denies mid-ceremony.
+    return <WalletApprovalModal approval={walletTx.approval} tokenSymbol={asset?.symbol} />;
   }
 
   const form = (
@@ -746,5 +751,13 @@ export function SendDialog({
     </LazyMotion>
   );
 
-  return form;
+  return (
+    <>
+      {form}
+      <WalletApprovalModal
+        approval={walletTx.approval}
+        tokenSymbol={asset?.symbol}
+      />
+    </>
+  );
 }

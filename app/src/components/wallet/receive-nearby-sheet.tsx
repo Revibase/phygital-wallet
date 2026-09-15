@@ -41,6 +41,10 @@ import { policySoftDenyBody } from "@/lib/wallet/policy-deny-copy";
 import { ALL_LIST_SEARCH_THRESHOLD } from "@/lib/wallet/portfolio-preview";
 import type { WalletPortfolio } from "@/lib/wallet/portfolio-types";
 import { receiveAssetFromNearbyPayer } from "@/lib/wallet/send-asset";
+import {
+  isFundingDenial,
+  runWalletTransaction,
+} from "@/lib/wallet/wallet-transaction";
 import { resolveTokenIconSrc } from "@/lib/tokens/payment-token";
 import { getSolanaRpc } from "@/lib/solana/rpc";
 import { connectAccessory } from "@/lib/wallet/connect-accessory";
@@ -190,114 +194,120 @@ export function ReceiveNearbySheet({
 
   async function runReceive() {
     if (!from || !asset || !amountOk) return;
+    const payer = from;
     setBusy(true);
     setHardError(null);
     setHandoffDeny(null);
     setSignPhase(null);
-    let submittedSignature: string | null = null;
-    let recipientBefore: WalletPortfolio | undefined;
-    let payerBefore: WalletPortfolio | undefined;
-    let activityBefore: WalletActivitySnapshot | undefined;
-    try {
-      const { signature, confirmed } = await receiveAssetFromNearbyPayer({
-        payerPhygitalTokenPda: from.tokenPda,
-        expectedPayerWallet: from.walletPda,
-        recipientWallet,
-        amountUi: amount,
-        asset: {
-          kind: asset.kind,
-          mint: asset.mint,
-          decimals: asset.decimals,
-          tokenProgram: asset.tokenProgram,
-        },
-        walletSigner: from.signer,
-      });
-      submittedSignature = signature;
-      setPhase("holding");
-      activityBefore = applyOptimisticWalletActivity(queryClient, {
-        id: signature,
-        walletAddress: recipientWallet,
-        kind: "received",
-        title: `Received ${asset.symbol}`,
-        subtitle: from.walletPda,
-        amountLabel: `+${amount}`,
-        statusLabel: null,
-        timestamp: Math.floor(Date.now() / 1000),
-        signature,
-        mint: asset.mint,
-        balanceDeltas: [
-          {
+
+    // Nearby receive is always a visitor flow — the recipient is not the payer
+    // accessory's authority — so a policy denial routes to the QR handoff, not
+    // an authority-approval fallback.
+    const toHandoff = (error: PolicyDeniedError) => {
+      setPhase("handoff");
+      setHandoffDeny(error);
+      if (isFundingDenial(error)) {
+        invalidateWalletBalances(queryClient, { tokens: [payer.tokenPda] });
+      }
+    };
+
+    type ReceiveSnapshot = {
+      signature: string;
+      recipientBefore: WalletPortfolio | undefined;
+      payerBefore: WalletPortfolio | undefined;
+      activityBefore: WalletActivitySnapshot;
+    };
+
+    const outcome = await runWalletTransaction<ReceiveSnapshot>({
+      send: () =>
+        receiveAssetFromNearbyPayer({
+          payerPhygitalTokenPda: payer.tokenPda,
+          expectedPayerWallet: payer.walletPda,
+          recipientWallet,
+          amountUi: amount,
+          asset: {
+            kind: asset.kind,
             mint: asset.mint,
-            direction: "in",
-            amountUi: amount,
+            decimals: asset.decimals,
+            tokenProgram: asset.tokenProgram,
           },
-        ],
-        pending: true,
-        source: "local",
-      });
-      recipientBefore = applyOptimisticPortfolioDelta(queryClient, {
-        owner: recipientWallet,
-        mint: asset.mint,
-        amountUi: amount,
-        direction: "in",
-      });
-      payerBefore = applyOptimisticPortfolioDelta(queryClient, {
-        owner: from.walletPda,
-        mint: asset.mint,
-        amountUi: amount,
-        direction: "out",
-      });
-
-      setPhase("success");
-      setSignPhase(null);
-      toast.success(copy.wallet.received);
-      onReceived();
-
-      void confirmed.then(
-        () => {
+          walletSigner: payer.signer,
+        }),
+      optimistic: {
+        apply: (signature) => {
+          setPhase("holding");
+          const activityBefore = applyOptimisticWalletActivity(queryClient, {
+            id: signature,
+            walletAddress: recipientWallet,
+            kind: "received",
+            title: `Received ${asset.symbol}`,
+            subtitle: payer.walletPda,
+            amountLabel: `+${amount}`,
+            statusLabel: null,
+            timestamp: Math.floor(Date.now() / 1000),
+            signature,
+            mint: asset.mint,
+            balanceDeltas: [{ mint: asset.mint, direction: "in", amountUi: amount }],
+            pending: true,
+            source: "local",
+          });
+          const recipientBefore = applyOptimisticPortfolioDelta(queryClient, {
+            owner: recipientWallet,
+            mint: asset.mint,
+            amountUi: amount,
+            direction: "in",
+          });
+          const payerBefore = applyOptimisticPortfolioDelta(queryClient, {
+            owner: payer.walletPda,
+            mint: asset.mint,
+            amountUi: amount,
+            direction: "out",
+          });
+          return { signature, recipientBefore, payerBefore, activityBefore };
+        },
+        confirm: (snap) => {
           patchOptimisticWalletActivity(queryClient, {
             owner: recipientWallet,
-            id: signature,
+            id: snap.signature,
             patch: { pending: false },
           });
         },
-        (err) => {
+        rollback: (snap) => {
           restorePortfolioSnapshot(
             queryClient,
             recipientWallet,
-            recipientBefore
+            snap.recipientBefore
           );
-          if (from) {
-            restorePortfolioSnapshot(queryClient, from.walletPda, payerBefore);
-          }
-          restoreWalletActivitySnapshot(queryClient, activityBefore);
-          toast.error(toUserErrorMessage(err));
-        }
-      );
-    } catch (e) {
+          restorePortfolioSnapshot(queryClient, payer.walletPda, snap.payerBefore);
+          restoreWalletActivitySnapshot(queryClient, snap.activityBefore);
+        },
+      },
+      onSent: () => {
+        setPhase("success");
+        setSignPhase(null);
+        toast.success(copy.wallet.received);
+        onReceived();
+      },
+      onFundingDenial: toHandoff,
+      resolvePolicyDenial: async (error) => {
+        toHandoff(error);
+        return "rejected";
+      },
+      onConfirmError: (err) => {
+        toast.error(toUserErrorMessage(err));
+      },
+      onError: (e) => {
+        setSignPhase(null);
+        setPhase("summary");
+        toast.error(toUserErrorMessage(e));
+      },
+    });
+
+    if (outcome.status === "aborted") {
       setSignPhase(null);
-      if (submittedSignature) {
-        restorePortfolioSnapshot(queryClient, recipientWallet, recipientBefore);
-        if (from) {
-          restorePortfolioSnapshot(queryClient, from.walletPda, payerBefore);
-        }
-        restoreWalletActivitySnapshot(queryClient, activityBefore);
-      }
-      if (e instanceof PolicyDeniedError) {
-        setPhase("handoff");
-        setHandoffDeny(e);
-        if (e.code === "insufficient_fee_balance") {
-          invalidateWalletBalances(queryClient, {
-            tokens: [from.tokenPda],
-          });
-        }
-        return;
-      }
       setPhase("summary");
-      toast.error(toUserErrorMessage(e));
-    } finally {
-      setBusy(false);
     }
+    setBusy(false);
   }
 
   if (phase === "identifying" || phase === "holding" || phase === "success") {

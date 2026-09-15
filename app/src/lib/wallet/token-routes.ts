@@ -4,6 +4,7 @@ import type { SettingsTarget } from "@/components/wallet/settings-hub";
 const SETTINGS_TO_SEGMENT: Record<SettingsTarget, string> = {
   rpcConnection: "rpc",
   feeBalance: "fee-balance",
+  walletPolicy: "policy",
 };
 
 const SEGMENT_TO_SETTINGS = new Map<string, SettingsTarget>(

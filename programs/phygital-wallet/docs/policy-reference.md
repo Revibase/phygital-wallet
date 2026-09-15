@@ -127,9 +127,12 @@ Before the batch, snapshot tracked balances; afterwards, charge actual losses:
   within the batch nets out. Wallet-funded rent counts toward native SOL loss.
 - Token losses are summed across source accounts; transfers between wallet-owned
   token accounts consume the mint allowance too.
-- A positive window is a fixed interval anchored when policy is saved, not a
-  trailing window or calendar day. A zero window never resets automatically.
-  Zero configured caps are invalid; omitting a cap is not the same as blocking it.
+- A positive window is a fixed interval aligned to the Unix-epoch grid
+  (`last_reset = now - now % window_seconds`), not anchored to save time and not a
+  trailing window. Daily caps reset at 00:00 UTC; weekly caps on the epoch weekday;
+  a “monthly” 30-day window does not track civil months. A zero window never resets
+  automatically. Zero configured caps are invalid; omitting a cap is not the same
+  as blocking it.
 
 Surviving wallet-owned token accounts must retain their owner, mint and close
 authority. No wallet-owned token account may retain a nonzero delegated amount.
@@ -162,17 +165,19 @@ amount and its window match the previously stored cap for that asset (matched by
 mint; the SOL cap by presence); such a cap keeps its `remaining` and its interval
 anchor, so an identical save or a permissions-only edit does not refill allowances
 or reset the clock. A changed cap (different amount or window) and a newly-added cap
-are refilled and anchored at the current chain timestamp. A new payer can fund
-account growth; shrinking always refunds the original payer.
+are refilled and anchored to the current window's epoch-grid boundary. A new payer
+can fund account growth; shrinking always refunds the original payer.
 
 ### Exact interval and allowance accounting
 
-`new_spend_cap` stores `last_reset = now` when a cap is first created (or when a
-save changes its amount or window). On a later positive charge, `charge_cap` refills
-when `now - last_reset >= window_seconds`. It advances by whole periods, preserving
-the original phase. When elapsed time equals exactly one interval from the stored
-anchor, the allowance refills. A read or a zero-spend execution does not update
-counters. An interface must calculate effective remaining allowance from chain time;
+`new_spend_cap` stores `last_reset = now - now % window_seconds` — the current
+window's epoch-grid boundary — when a cap is first created (or when a save changes
+its amount or window); a zero window stores `now` (it never resets). On a later
+positive charge, `charge_cap` refills when `now - last_reset >= window_seconds`. It
+advances by whole periods, preserving the grid phase. When elapsed time equals
+exactly one interval from the stored anchor, the allowance refills. A read or a
+zero-spend execution does not update counters. An interface must calculate effective
+remaining allowance from chain time;
 stored `remaining` alone can be stale. Do not promise a midnight reset or a rolling
 24-hour total.
 

@@ -86,6 +86,12 @@ export const queryKeys = {
       [...queryKeys.walletPolicy.all(), token] as const,
   },
 
+  tokenPrices: {
+    all: () => ["tokenPrices"] as const,
+    byMints: (mints: string[]) =>
+      [...queryKeys.tokenPrices.all(), [...mints].sort().join(",")] as const,
+  },
+
   phygitalToken: {
     all: () => ["phygitalTokens"] as const,
     byIdentifier: (identifier: string | null) =>

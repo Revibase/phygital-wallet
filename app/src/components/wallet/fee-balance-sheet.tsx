@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { PolicyDeniedError } from "phygital-wallet-sdk";
 
 import { NavBar, NavBarBack } from "@/components/shared/nav-bar";
 import { CeremonyShell } from "@/components/shared/ceremony-shell";
@@ -25,7 +24,12 @@ import {
   type WalletActivitySnapshot,
 } from "@/lib/queries";
 import { toUserErrorMessage } from "@/lib/user-errors";
-import { topUpFeeBalance } from "@/lib/wallet/top-up-fee-balance";
+import {
+  buildTopUpInstructions,
+  topUpFeeBalance,
+} from "@/lib/wallet/top-up-fee-balance";
+import { useWalletTransaction } from "@/hooks/wallet/use-wallet-transaction";
+import { WalletApprovalModal } from "@/components/wallet/wallet-approval-modal";
 import {
   NATIVE_SOL_MINT,
   resolveTokenIconSrc,
@@ -40,6 +44,13 @@ import {
 
 type Phase = "form" | "holding" | "success";
 
+type TopUpSnapshot = {
+  signature: string;
+  feeBefore: FeeBalance | undefined;
+  activityBefore: WalletActivitySnapshot | undefined;
+  portfolioBefore: WalletPortfolio | undefined;
+};
+
 /** Settings → network fees: show balance + Hold to top up. */
 export function FeeBalanceSheet({
   phygitalTokenPda,
@@ -51,6 +62,7 @@ export function FeeBalanceSheet({
   const fee = useFeeBalance(phygitalTokenPda);
   const { walletAddress } = useWalletPda(phygitalTokenPda);
   const queryClient = useQueryClient();
+  const walletTx = useWalletTransaction(phygitalTokenPda);
   const [amount, setAmount] = useState("0.01");
   const [phase, setPhase] = useState<Phase>("form");
   const [signPhase, setSignPhase] = useState<PhygitalWalletSignPhase | null>(
@@ -67,103 +79,105 @@ export function FeeBalanceSheet({
     if (!canTopUp) return;
     setBusy(true);
     setSignPhase(null);
-    let submittedSignature: string | null = null;
-    let portfolioBefore: WalletPortfolio | undefined;
-    let activityBefore: WalletActivitySnapshot | undefined;
-    let feeBefore: FeeBalance | undefined;
-    try {
-      const { signature, confirmed } = await topUpFeeBalance({
-        phygitalTokenPda,
-        amountUi: amount,
-        signer: {
-          onPhaseChange: (phase) => {
-            setSignPhase(phase);
-            if (isWalletSignCeremonyPhase(phase)) setPhase("holding");
-          },
-        },
-      });
-      submittedSignature = signature;
-      setPhase("holding");
-      feeBefore = applyOptimisticFeeBalance(queryClient, {
-        token: phygitalTokenPda,
-        amountUi: amount,
-        direction: "in",
-      });
-      if (walletAddress) {
-        activityBefore = applyOptimisticWalletActivity(queryClient, {
-          id: signature,
-          walletAddress,
-          kind: "topUp",
-          title: copy.wallet.topUpSuccess,
-          subtitle: null,
-          amountLabel: `-${amount} SOL`,
-          statusLabel: copy.wallet.topUpPending,
-          timestamp: Math.floor(Date.now() / 1000),
-          signature,
-          mint: NATIVE_SOL_MINT,
-          balanceDeltas: [
-            {
-              mint: NATIVE_SOL_MINT,
-              direction: "out",
-              amountUi: amount,
-            },
-          ],
-          pending: true,
-          source: "local",
-        });
-        portfolioBefore = applyOptimisticPortfolioDelta(queryClient, {
-          owner: walletAddress,
-          mint: NATIVE_SOL_MINT,
+
+    const outcome = await walletTx.run<TopUpSnapshot>({
+      send: async (mode) => {
+        if (mode === "authority") {
+          const { instructions } = await buildTopUpInstructions({
+            phygitalTokenPda,
+            amountUi: amount,
+          });
+          return walletTx.sendWithAuthority(instructions);
+        }
+        return topUpFeeBalance({
+          phygitalTokenPda,
           amountUi: amount,
-          direction: "out",
+          signer: {
+            onPhaseChange: (phase) => {
+              setSignPhase(phase);
+              if (isWalletSignCeremonyPhase(phase)) setPhase("holding");
+            },
+          },
         });
-      }
-
-      setPhase("success");
-      setSignPhase(null);
-      toast.success(copy.wallet.topUpSuccess);
-
-      void confirmed.then(
-        () => {
-          if (submittedSignature && walletAddress) {
+      },
+      optimistic: {
+        apply: (signature) => {
+          setPhase("holding");
+          const feeBefore = applyOptimisticFeeBalance(queryClient, {
+            token: phygitalTokenPda,
+            amountUi: amount,
+            direction: "in",
+          });
+          let activityBefore: WalletActivitySnapshot | undefined;
+          let portfolioBefore: WalletPortfolio | undefined;
+          if (walletAddress) {
+            activityBefore = applyOptimisticWalletActivity(queryClient, {
+              id: signature,
+              walletAddress,
+              kind: "topUp",
+              title: copy.wallet.topUpSuccess,
+              subtitle: null,
+              amountLabel: `-${amount} SOL`,
+              statusLabel: copy.wallet.topUpPending,
+              timestamp: Math.floor(Date.now() / 1000),
+              signature,
+              mint: NATIVE_SOL_MINT,
+              balanceDeltas: [
+                { mint: NATIVE_SOL_MINT, direction: "out", amountUi: amount },
+              ],
+              pending: true,
+              source: "local",
+            });
+            portfolioBefore = applyOptimisticPortfolioDelta(queryClient, {
+              owner: walletAddress,
+              mint: NATIVE_SOL_MINT,
+              amountUi: amount,
+              direction: "out",
+            });
+          }
+          return { signature, feeBefore, activityBefore, portfolioBefore };
+        },
+        confirm: (snap) => {
+          if (walletAddress) {
             patchOptimisticWalletActivity(queryClient, {
               owner: walletAddress,
-              id: submittedSignature,
+              id: snap.signature,
               patch: { pending: false },
             });
           }
         },
-        (err) => {
-          restoreFeeBalanceSnapshot(queryClient, phygitalTokenPda, feeBefore);
+        rollback: (snap) => {
+          restoreFeeBalanceSnapshot(queryClient, phygitalTokenPda, snap.feeBefore);
           if (walletAddress) {
             restorePortfolioSnapshot(
               queryClient,
               walletAddress,
-              portfolioBefore
+              snap.portfolioBefore
             );
-            restoreWalletActivitySnapshot(queryClient, activityBefore);
+            restoreWalletActivitySnapshot(queryClient, snap.activityBefore);
           }
-          toast.error(toUserErrorMessage(err));
-        }
-      );
-    } catch (e) {
-      setSignPhase(null);
-      if (submittedSignature) {
-        restoreFeeBalanceSnapshot(queryClient, phygitalTokenPda, feeBefore);
-        if (walletAddress) {
-          restorePortfolioSnapshot(queryClient, walletAddress, portfolioBefore);
-          restoreWalletActivitySnapshot(queryClient, activityBefore);
-        }
-      }
-      setPhase("form");
-      if (e instanceof PolicyDeniedError) {
-        toast.error(e.message);
-      } else {
+        },
+      },
+      onSent: () => {
+        setPhase("success");
+        setSignPhase(null);
+        toast.success(copy.wallet.topUpSuccess);
+      },
+      onConfirmError: (err) => {
+        toast.error(toUserErrorMessage(err));
+      },
+      onError: (e) => {
+        setSignPhase(null);
+        setPhase("form");
         toast.error(toUserErrorMessage(e));
-      }
-    } finally {
-      setBusy(false);
+      },
+    });
+
+    if (outcome.status !== "sent") {
+      setSignPhase(null);
+      setPhase("form");
     }
+    setBusy(false);
   }
 
   if (phase === "holding" || phase === "success") {
@@ -175,6 +189,7 @@ export function FeeBalanceSheet({
           pulse: true,
         };
     return (
+      <>
       <CeremonyShell
         leading={
           <NavBar
@@ -213,6 +228,8 @@ export function FeeBalanceSheet({
           }
         />
       </CeremonyShell>
+      <WalletApprovalModal approval={walletTx.approval} tokenSymbol="SOL" />
+      </>
     );
   }
 
@@ -258,6 +275,7 @@ export function FeeBalanceSheet({
       >
         {busy ? <Spinner className="size-4" /> : copy.wallet.holdToTopUp}
       </Button>
+      <WalletApprovalModal approval={walletTx.approval} tokenSymbol="SOL" />
     </div>
   );
 }
