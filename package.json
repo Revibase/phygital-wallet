@@ -18,7 +18,7 @@
     "cf:deploy": "pnpm --filter app exec opennextjs-cloudflare deploy",
     "deploy:app": "pnpm cf:build && pnpm cf:deploy",
     "deploy:api": "pnpm --filter api run deploy",
-    "build:secure-signer": "pnpm --filter secure-signer build && cp secure-signer/deploy/_headers secure-signer/dist/_headers",
+    "build:secure-signer": "pnpm build:client && pnpm --filter secure-signer build && cp secure-signer/deploy/_headers secure-signer/dist/_headers",
     "deploy:secure-signer": "pnpm cf:deploy:secure-signer"
   },
   "dependencies": {
