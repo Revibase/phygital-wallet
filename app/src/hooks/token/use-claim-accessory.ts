@@ -32,6 +32,9 @@ export function useClaimAccessory(phygitalToken: string) {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.tokenAuthority.byToken(phygitalToken),
       });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.walletPolicy.byToken(phygitalToken),
+      });
       // The newly-claimed accessory now belongs to the owner — refresh the
       // dashboard's authority-filtered list.
       void queryClient.invalidateQueries({

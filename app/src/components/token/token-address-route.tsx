@@ -11,6 +11,7 @@ import { InAppBrowserGate } from "@/components/shared/in-app-browser-gate";
 import { NfcHoldStatus } from "@/components/shared/nfc-hold-status";
 import { TokenRouteShell } from "@/components/token/token-route-shell";
 import { Button } from "@/components/ui/button";
+import { AccessoryAuthorityPrompt } from "@/components/wallet/accessory-authority-prompt";
 import { useAccessoryHold } from "@/hooks/token/use-accessory-hold";
 import { useResolvedDasCollectible } from "@/hooks/token/use-das-collectible";
 import { usePhygitalTokenByAddress } from "@/hooks/token/use-phygital-token";
@@ -50,7 +51,9 @@ export function TokenAddressRoute({ tokenAddress, children }: { tokenAddress: st
   return (
     <TokenRouteShell layout={layout}>
       {sessionValue ? (
-        typeof children === "function" ? children(sessionValue) : children ?? null
+        <AccessoryAuthorityPrompt phygitalTokenPda={tokenAddress}>
+          {typeof children === "function" ? children(sessionValue) : children ?? null}
+        </AccessoryAuthorityPrompt>
       ) : restoring || tokenQuery.isPending ? (
         <CeremonyShell><NfcHoldStatus size="lg" pulsing busy imageSrc={collectible?.image} imageAlt={collectible?.name ?? ""} title={copy.verify.verifyingChip} /></CeremonyShell>
       ) : accessory.showInAppGate ? (

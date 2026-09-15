@@ -10,6 +10,7 @@ import {
   useWalletNav,
   useWalletSession,
 } from "@/components/wallet/wallet-route-shell";
+import { useTokenOwner } from "@/hooks/token/use-token-owner";
 import { useWalletPortfolio } from "@/hooks/wallet/use-wallet-portfolio";
 import { useFeeBalance } from "@/hooks/wallet/use-fee-balance";
 import { useRpcPreference } from "@/hooks/wallet/use-rpc-preference";
@@ -26,14 +27,22 @@ export default function WalletHomePage() {
   const portfolio = useWalletPortfolio(walletAddress);
   const feeBalance = useFeeBalance(tokenAddress);
   const rpc = useRpcPreference();
+  const ownership = useTokenOwner(tokenAddress);
 
   const resolvedLabel =
     collectible?.name ?? (mint ? copy.home.card : copy.common.wallet);
   const status = portfolio.isError
     ? "error"
     : portfolio.isLoading
-    ? "refreshing"
-    : "live";
+      ? "refreshing"
+      : "live";
+
+  const showUnclaimed = !ownership.isLoading && !ownership.isClaimed;
+  const showOtherOwner =
+    !ownership.isLoading &&
+    ownership.isClaimed &&
+    ownership.isSignedIn &&
+    !ownership.isOwner;
 
   return (
     <div className="flex flex-1 flex-col">
@@ -101,9 +110,26 @@ export default function WalletHomePage() {
         lastUpdatedLabel={
           portfolio.dataUpdatedAt
             ? copy.wallet.lastUpdated(
-                timeFormatter.format(portfolio.dataUpdatedAt)
+                timeFormatter.format(portfolio.dataUpdatedAt),
               )
             : null
+        }
+        visitorNotice={
+          showUnclaimed
+            ? copy.wallet.unclaimedBanner
+            : showOtherOwner
+              ? copy.wallet.otherOwnerBanner
+              : null
+        }
+        visitorNoticeAction={
+          showUnclaimed
+            ? copy.wallet.unclaimedBannerAction
+            : showOtherOwner
+              ? copy.wallet.otherOwnerBannerAction
+              : undefined
+        }
+        onVisitorNotice={
+          showUnclaimed || showOtherOwner ? () => go("settings") : undefined
         }
       />
     </div>

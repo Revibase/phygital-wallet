@@ -24,13 +24,18 @@ export function OwnerWelcome() {
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 py-10 text-center">
         <RevibaseMark variant="digital" className="size-12" aria-hidden />
         <div className="max-w-xs space-y-2">
-          <h1 className="text-display-md tracking-tight">Set up your wallet</h1>
+          <h1 className="text-display-md tracking-tight">
+            {copy.home.welcomeTitle}
+          </h1>
           <p className="text-sm leading-relaxed text-muted-foreground">
-            Sign in to manage every card and accessory your wallet owns.
+            {copy.home.welcomeBody}
           </p>
         </div>
         <div className="flex w-full max-w-72 flex-col gap-2.5">
-          <OwnerConnectButton className="w-full rounded-full" />
+          <OwnerConnectButton
+            className="w-full rounded-full"
+            signInLabel={copy.home.welcomeSignIn}
+          />
           <Button
             type="button"
             size="lg"
@@ -39,7 +44,9 @@ export function OwnerWelcome() {
             disabled={tap.holding}
             onClick={() => void tap.open()}
           >
-            {tap.holding ? copy.wallet.holdToOpenTitle : "I have an accessory"}
+            {tap.holding
+              ? copy.wallet.holdToOpenTitle
+              : copy.home.welcomeHaveAccessory}
           </Button>
           {tap.error ? (
             <p className="text-xs text-destructive">{tap.error}</p>

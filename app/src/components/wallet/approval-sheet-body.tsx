@@ -31,7 +31,7 @@ export function ApprovalSheetBody({
   recipientLabel?: string;
   detailRows: { label: string; value: string }[];
   busy: boolean;
-  mode: "owner" | "visitor";
+  mode: "owner" | "signIn" | "visitor";
   visitorPhase?: "denied" | "idle";
   onApprove: () => void;
   onClose: () => void;
@@ -99,6 +99,28 @@ export function ApprovalSheetBody({
               onClick={onClose}
             >
               {copy.wallet.denyOnce}
+            </Button>
+          </>
+        ) : mode === "signIn" ? (
+          <>
+            <Button
+              type="button"
+              size="lg"
+              className="w-full"
+              disabled={busy}
+              onClick={onApprove}
+            >
+              {copy.wallet.approveSendSignInCta}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="lg"
+              className="w-full"
+              disabled={busy}
+              onClick={onClose}
+            >
+              {copy.wallet.approveSendSignInNotNow}
             </Button>
           </>
         ) : visitorPhase === "denied" ? (

@@ -16,6 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ClaimedSuccessDialog } from "@/components/wallet/claimed-success-dialog";
 import { useClaimAccessory } from "@/hooks/token/use-claim-accessory";
 import { useTokenOwner } from "@/hooks/token/use-token-owner";
 import { useUnlinkAccessory } from "@/hooks/token/use-unlink-accessory";
@@ -52,7 +53,7 @@ export function OwnerOwnershipSection({
 
   if (isLoading) {
     return (
-      <GroupedList label="Ownership">
+      <GroupedList label={copy.wallet.ownershipLabel}>
         <div className="px-4 py-3">
           <Skeleton className="h-5 w-40 rounded" />
         </div>
@@ -62,12 +63,12 @@ export function OwnerOwnershipSection({
 
   if (!isSignedIn) {
     return (
-      <GroupedList label="Ownership">
+      <GroupedList label={copy.wallet.ownershipLabel}>
         <GroupedRow
           onClick={goSignIn}
-          subtitle="Sign in to claim or manage this accessory."
+          subtitle={copy.wallet.ownershipSignInSubtitle}
         >
-          Sign in
+          {copy.wallet.ownershipSignIn}
         </GroupedRow>
       </GroupedList>
     );
@@ -77,8 +78,8 @@ export function OwnerOwnershipSection({
     return (
       <>
         <GroupedList
-          label="Ownership"
-          footer="Claiming sets you as the owner and turns on everyday payments: a tap can send SOL and standard tokens; other apps stay blocked until you allow them."
+          label={copy.wallet.ownershipLabel}
+          footer={copy.wallet.ownershipClaimFooter}
         >
           <div className="px-4 py-3">
             <Button
@@ -91,12 +92,14 @@ export function OwnerOwnershipSection({
                   onSuccess: () => setClaimedOpen(true),
                   onError: (err) =>
                     toast.error(
-                      toUserErrorMessage(err, "Couldn’t claim this item"),
+                      toUserErrorMessage(err, copy.wallet.authorityClaimFailed),
                     ),
                 })
               }
             >
-              {claim.isPending ? "Claiming…" : "Claim this accessory"}
+              {claim.isPending
+                ? copy.wallet.authorityClaiming
+                : copy.wallet.authorityClaimCta}
             </Button>
           </div>
         </GroupedList>
@@ -111,32 +114,32 @@ export function OwnerOwnershipSection({
 
   if (!isOwner) {
     return (
-      <>
-        <GroupedList label="Ownership">
-          <GroupedRow
-            subtitle={authority ? shortAddress(authority) : undefined}
-          >
-            Owned by another wallet
-          </GroupedRow>
-        </GroupedList>
-        <ClaimedSuccessDialog
-          open={claimedOpen}
-          onOpenChange={setClaimedOpen}
-          phygitalTokenPda={phygitalTokenPda}
-        />
-      </>
+      <GroupedList
+        label={copy.wallet.ownershipLabel}
+        footer={copy.wallet.ownershipOtherFooter}
+      >
+        <GroupedRow
+          subtitle={
+            authority
+              ? copy.wallet.ownershipOtherSubtitle(shortAddress(authority))
+              : undefined
+          }
+        >
+          {copy.wallet.ownershipOtherTitle}
+        </GroupedRow>
+      </GroupedList>
     );
   }
 
   return (
     <>
-      <GroupedList label="Danger zone">
+      <GroupedList label={copy.wallet.ownershipDangerZone}>
         <GroupedRow
           destructive
           onClick={() => setConfirmOpen(true)}
-          subtitle="Removes the owner and disables the accessory until it is claimed again."
+          subtitle={copy.wallet.ownershipUnlinkSubtitle}
         >
-          Unlink accessory
+          {copy.wallet.ownershipUnlink}
         </GroupedRow>
       </GroupedList>
 
@@ -148,10 +151,9 @@ export function OwnerOwnershipSection({
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Unlink this accessory?</DialogTitle>
+            <DialogTitle>{copy.wallet.ownershipUnlinkTitle}</DialogTitle>
             <DialogDescription>
-              This removes you as the owner and disables the accessory. Anyone
-              holding it can claim it again with a tap.
+              {copy.wallet.ownershipUnlinkBody}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -161,7 +163,7 @@ export function OwnerOwnershipSection({
                 variant="outline"
                 disabled={unlink.isPending}
               >
-                Cancel
+                {copy.common.cancel}
               </Button>
             </DialogClose>
             <Button
@@ -171,71 +173,26 @@ export function OwnerOwnershipSection({
               onClick={() =>
                 unlink.mutate(undefined, {
                   onSuccess: () => {
-                    toast.success("Accessory unlinked");
+                    toast.success(copy.wallet.ownershipUnlinked);
                     setConfirmOpen(false);
                   },
                   onError: (err) =>
                     toast.error(
-                      toUserErrorMessage(err, "Couldn’t unlink this item"),
+                      toUserErrorMessage(
+                        err,
+                        copy.wallet.ownershipUnlinkFailed,
+                      ),
                     ),
                 })
               }
             >
-              {unlink.isPending ? "Unlinking…" : "Unlink"}
+              {unlink.isPending
+                ? copy.wallet.ownershipUnlinking
+                : copy.wallet.ownershipUnlinkCta}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <ClaimedSuccessDialog
-        open={claimedOpen}
-        onOpenChange={setClaimedOpen}
-        phygitalTokenPda={phygitalTokenPda}
-      />
     </>
-  );
-}
-
-function ClaimedSuccessDialog({
-  open,
-  onOpenChange,
-  phygitalTokenPda,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  phygitalTokenPda: string;
-}) {
-  const router = useRouter();
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{copy.wallet.policyClaimedTitle}</DialogTitle>
-          <DialogDescription>{copy.wallet.policyClaimedBody}</DialogDescription>
-        </DialogHeader>
-        <DialogFooter className="flex-col gap-2 sm:flex-col">
-          <Button
-            type="button"
-            size="lg"
-            className="w-full"
-            onClick={() => onOpenChange(false)}
-          >
-            {copy.wallet.policyClaimedStay}
-          </Button>
-          <Button
-            type="button"
-            size="lg"
-            variant="outline"
-            className="w-full"
-            onClick={() => {
-              onOpenChange(false);
-              router.push(walletSettingsHref(phygitalTokenPda, "walletPolicy"));
-            }}
-          >
-            {copy.wallet.policyClaimedLimit}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }

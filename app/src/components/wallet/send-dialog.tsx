@@ -317,7 +317,7 @@ export function SendDialog({
             id: signature,
             walletAddress,
             kind: "sent",
-            title: nft ? copy.wallet.sent : `Sent ${asset.symbol}`,
+            title: copy.wallet.sent,
             subtitle: String(recipient),
             amountLabel: nft ? asset.name : `-${amount}`,
             statusLabel: null,

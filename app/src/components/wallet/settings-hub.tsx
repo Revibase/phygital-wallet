@@ -38,13 +38,15 @@ export function SettingsHub({
     : copy.wallet.rpcDefault;
   const policySubtitle = policy.isLoading
     ? copy.common.loading
-    : policy.data?.status === "limited"
-      ? copy.wallet.policyAssetsSummary(
-          policy.data.mintCaps.length + (policy.data.solCap ? 1 : 0),
-        )
-      : policy.data?.status === "open"
-        ? copy.wallet.policyHubOpen
-        : copy.wallet.policyHubStandard;
+    : policy.data?.status === "none"
+      ? copy.wallet.policyHubLocked
+      : policy.data?.status === "limited"
+        ? copy.wallet.policyAssetsSummary(
+            policy.data.mintCaps.length + (policy.data.solCap ? 1 : 0),
+          )
+        : policy.data?.status === "open"
+          ? copy.wallet.policyHubOpen
+          : copy.wallet.policyHubStandard;
 
   function rowClass(target: SettingsTarget) {
     return cn(

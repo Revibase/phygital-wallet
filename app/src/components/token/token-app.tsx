@@ -20,7 +20,7 @@ const TokenRouteShell = dynamic(
 
 const TOKEN_NFC_COPY = {
   inAppCheck: copy.gate.openInBrowserBody,
-  holdBody: copy.verify.introBody,
+  holdBody: copy.wallet.holdToOpenBody,
 };
 
 /** Compat: `/token?address=X` → `/token/X` (unminted card page redirects to wallet). */

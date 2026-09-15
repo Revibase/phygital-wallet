@@ -42,7 +42,7 @@ export function ReceiveHub({
         align="start"
         leading={
           <Button type="button" variant="ghost" size="sm" onClick={onClose}>
-            {copy.common.cancel}
+            {copy.common.back}
           </Button>
         }
         title={copy.wallet.receive}

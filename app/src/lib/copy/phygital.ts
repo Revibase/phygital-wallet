@@ -62,7 +62,7 @@ export const copy = {
   },
   wallet: {
     addressCopyFailed: "Couldn’t copy",
-    showCardAria: "Back to object",
+    showCardAria: "Back to card",
     addMoney: "Nothing here yet — receive to get started",
     available: "Available",
     sendNeedsFunds: "Add money to send",
@@ -126,7 +126,7 @@ export const copy = {
       "Waiting for Face ID, fingerprint, or screen lock…",
     save: "Save",
     holdToOpenTitle: "Hold to open",
-    holdToOpenBody: "Hold your accessory to the top of your phone.",
+    holdToOpenBody: "Hold your accessory to unlock this wallet on this phone.",
     holdToOpenCta: "Hold to open",
     holdCeremonyTitle: "Hold your accessory",
     holdCeremonyBody: "Hold it to the top of your phone until this finishes.",
@@ -199,6 +199,49 @@ export const copy = {
     policyStatusOpenBody:
       "Accessory checks are turned off. A tap can call any program this wallet can sign for. Restore everyday payments unless you intend this.",
     policyStatusLimited: "Custom limits",
+    policyStatusLocked: "Locked",
+    policyStatusLockedBody:
+      "No transactions until someone claims this accessory. Claim it to turn on everyday payments.",
+    policyLockedClaimCta: "Claim to unlock",
+    /** Post-tap: no on-chain authority yet. */
+    authorityChecking: "Checking ownership…",
+    authoritySignInTitle: "Claim this accessory",
+    authoritySignInBody:
+      "Sign in on this phone, then hold the accessory once to become the owner and turn on everyday payments.",
+    authoritySignInCta: "Sign in",
+    authorityClaimTitle: "Turn on everyday payments",
+    authorityClaimBody:
+      "Claim this accessory as yours. You’ll hold it once to confirm — then a tap can send SOL and standard tokens.",
+    authorityClaimCta: "Claim accessory",
+    authorityClaiming: "Claiming…",
+    authorityClaimFailed: "Couldn’t claim this item",
+    authorityBrowse: "Just browsing",
+    /** Wallet home after browse-without-claim. */
+    unclaimedBanner:
+      "Everyday payments stay off until you claim this accessory.",
+    unclaimedBannerAction: "Claim",
+    otherOwnerBanner: "Owned by another account on this phone.",
+    otherOwnerBannerAction: "Details",
+    ownershipLabel: "Ownership",
+    ownershipSignIn: "Sign in",
+    ownershipSignInSubtitle: "Sign in to claim or manage this accessory.",
+    ownershipClaimFooter:
+      "Claiming sets you as the owner and turns on everyday payments: a tap can send SOL and standard tokens; other apps stay blocked until you allow them.",
+    ownershipOtherTitle: "Owned by another account",
+    ownershipOtherSubtitle: (short: string) => `Owner · ${short}`,
+    ownershipOtherFooter:
+      "Only the owner can change permissions or unlink. After they unlink, anyone holding the accessory can claim it.",
+    ownershipUnlink: "Unlink accessory",
+    ownershipUnlinkSubtitle:
+      "Removes the owner and disables the accessory until it is claimed again.",
+    ownershipUnlinkTitle: "Unlink this accessory?",
+    ownershipUnlinkBody:
+      "This removes you as the owner and disables everyday payments. Funds in this wallet stay put — move them out first if you’re handing the accessory off. Anyone holding it can claim it again with a hold.",
+    ownershipUnlinkCta: "Unlink",
+    ownershipUnlinking: "Unlinking…",
+    ownershipUnlinked: "Accessory unlinked",
+    ownershipUnlinkFailed: "Couldn’t unlink this item",
+    ownershipDangerZone: "Danger zone",
     policyBaselineTitle: "Included by default",
     policyBaselineHint:
       "These stay allowed while protections are on, unless you block them under Advanced.",
@@ -217,6 +260,7 @@ export const copy = {
       `${count} spendable asset${count === 1 ? "" : "s"}`,
     policyHubStandard: "Everyday payments",
     policyHubOpen: "Protections off",
+    policyHubLocked: "Locked · no transactions",
     // Pre-save preview of what a tap will be allowed to do
     policyPreviewTitle: "After saving, a tap can:",
     policyPreviewStandard:
@@ -408,12 +452,17 @@ export const copy = {
     approveSendBodyLimit: (limit: string) => `Over your $${limit} limit.`,
     approveSendBodyTime: "Sending isn’t allowed right now.",
     approveSendBodyApproval: "This send needs your one-time approval.",
+    approveSendBodyFallback: "This send needs your one-time approval.",
     approveSendBodyInstruction:
-      "This action isn’t allowed by your standing settings.",
+      "This action isn’t allowed by your accessory permissions.",
     approveSendBodyProgram:
-      "This program isn’t allowed by your standing settings.",
+      "This app isn’t allowed by your accessory permissions.",
     approveSendBodyUnexpected:
       "This transaction couldn’t be checked against your settings.",
+    approveSendSignInBody:
+      "Sign in as the owner to approve once, then try again.",
+    approveSendSignInCta: "Sign in",
+    approveSendSignInNotNow: "Not now",
     approveSendAmount: "Amount",
     approveSendDestination: "To",
     approveSendMint: "Token",
@@ -422,7 +471,8 @@ export const copy = {
     approveOnce: "Approve once",
     denyOnce: "Deny",
     changeLimits: "Change settings",
-    sendBlockedHard: "This can’t be approved once — it would fail on-chain.",
+    sendBlockedHard:
+      "This can’t be approved once — change permissions or try a different send.",
     spendingLimits: "Spending limits",
     spendingLimitsHint:
       "Caps cover SOL and verified tokens you add on built-in wallet sends. Larger sends need a one-time approval. They do not apply to exceptions.",
@@ -522,7 +572,20 @@ export const copy = {
     openWallet: "Open wallet",
   },
   home: {
-    emptyBody: "Hold an accessory to the top of your phone to add it.",
+    welcomeTitle: "Your accessories, one place",
+    welcomeBody:
+      "Sign in to manage what you own — or open an accessory you’re holding.",
+    welcomeSignIn: "Sign in",
+    welcomeHaveAccessory: "I have an accessory",
+    emptyTitle: "No accessories yet",
+    emptyBody: "Hold an accessory to open it, then claim it to see it here.",
+    emptyOpenCta: "Hold to open",
+    openAnother: "Open another",
+    account: "Account",
+    accountExportKey: "Export private key",
+    accountExportKeySubtitle: "Reveal and copy this wallet’s private key.",
+    accountSignOut: "Sign out",
+    accountExportFailed: "Couldn’t open export",
     keysSubtitle: "Your keys",
     cards: "Cards",
     accessories: "Accessories",
@@ -597,7 +660,8 @@ export const copy = {
   },
   gate: {
     openInBrowserTitle: "Open in browser",
-    openInBrowserBody: "Open this link in your phone’s browser to continue.",
+    openInBrowserBody:
+      "This browser can’t use your accessory. Copy the link and open it in Chrome or Safari.",
     copyLink: "Copy link",
     openInSafari: "Open in Safari",
     linkCopied: "Link copied",
@@ -625,7 +689,7 @@ export const errorCopy = {
   },
   accessoryLocked: {
     title: "Locked",
-    body: "This item can’t send right now.",
+    body: "Claim this accessory before a tap can send.",
   },
   sessionEnded: {
     title: "Timed out",

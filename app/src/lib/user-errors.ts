@@ -160,12 +160,20 @@ export function toUserErrorMessage(
   fallback: string = DEFAULT_ERROR_BODY
 ): string {
   if (error instanceof PolicyDeniedError) {
-    if (error.code === "spend_limit") return error.message;
+    if (error.code === "spend_limit") {
+      const limit =
+        typeof error.details?.limitUi === "string"
+          ? error.details.limitUi
+          : null;
+      return limit
+        ? copy.wallet.approveSendBodyLimit(limit)
+        : copy.wallet.approveSendBodyFallback;
+    }
     if (error.code === "outside_time_window") {
       return copy.wallet.approveSendBodyTime;
     }
     if (!error.soft) return copy.wallet.sendBlockedHard;
-    return error.message || copy.wallet.sendBlockedHard;
+    return copy.wallet.approveSendBodyFallback;
   }
 
   const raw = rawMessage(error).trim();

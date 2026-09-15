@@ -8,7 +8,9 @@ export function policySoftDenyBody(deny: PolicyDeniedError): string {
   if (deny.code === "spend_limit") {
     const limit =
       typeof deny.details?.limitUi === "string" ? deny.details.limitUi : null;
-    return limit ? copy.wallet.approveSendBodyLimit(limit) : deny.message;
+    return limit
+      ? copy.wallet.approveSendBodyLimit(limit)
+      : copy.wallet.approveSendBodyFallback;
   }
   if (deny.code === "outside_time_window") {
     return copy.wallet.approveSendBodyTime;
@@ -25,13 +27,13 @@ export function policySoftDenyBody(deny: PolicyDeniedError): string {
   if (deny.code === "unexpected_instruction") {
     return copy.wallet.approveSendBodyUnexpected;
   }
-  return deny.message;
+  return copy.wallet.approveSendBodyFallback;
 }
 
 /** Hero amount line for soft-deny / open-approval sheets. */
 export function policyAmountLabel(
   details: Record<string, unknown> | null | undefined,
-  fallbackSymbol?: string | null
+  fallbackSymbol?: string | null,
 ): string | undefined {
   if (!details) return undefined;
   const amountUi =
@@ -46,7 +48,7 @@ export function policyAmountLabel(
 
 /** Short recipient line for the approval sheet hero. */
 export function policyRecipientLabel(
-  details: Record<string, unknown> | null | undefined
+  details: Record<string, unknown> | null | undefined,
 ): string | undefined {
   const destination =
     typeof details?.destination === "string" ? details.destination : null;
@@ -66,7 +68,7 @@ export function policyApprovalDetailRows(
     omitMint?: boolean;
     /** Hide Action / Program for clear send approvals. */
     omitTechnical?: boolean;
-  }
+  },
 ): { label: string; value: string }[] {
   if (!details) return [];
   const rows: { label: string; value: string }[] = [];

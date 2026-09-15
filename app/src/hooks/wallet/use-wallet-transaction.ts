@@ -18,12 +18,17 @@ import {
 /** State for the shared <WalletApprovalModal>. */
 export type WalletApprovalState = {
   open: boolean;
-  /** owner = authority can approve → executeWithAuthority; visitor = rejection. */
-  mode: "owner" | "visitor";
+  /**
+   * owner = authority can approve → executeWithAuthority;
+   * signIn = soft-deny but owner session missing;
+   * visitor = rejection only.
+   */
+  mode: "owner" | "signIn" | "visitor";
   error: PolicyDeniedError | null;
   /** Authority signing in flight after Approve. */
   busy: boolean;
   onApprove: () => void;
+  onSignIn: () => void;
   onCancel: () => void;
 };
 
@@ -47,12 +52,13 @@ export type WalletTransactionController = {
   approval: WalletApprovalState;
 };
 
-const CLOSED: Omit<WalletApprovalState, "onApprove" | "onCancel"> = {
-  open: false,
-  mode: "owner",
-  error: null,
-  busy: false,
-};
+const CLOSED: Omit<WalletApprovalState, "onApprove" | "onSignIn" | "onCancel"> =
+  {
+    open: false,
+    mode: "owner",
+    error: null,
+    busy: false,
+  };
 
 /**
  * Centralized transaction mutation controller. Wires `runWalletTransaction` to
@@ -63,7 +69,7 @@ const CLOSED: Omit<WalletApprovalState, "onApprove" | "onCancel"> = {
 export function useWalletTransaction(
   phygitalToken: string,
 ): WalletTransactionController {
-  const { isAuthenticated, address, signer } = useOwnerWallet();
+  const { isAuthenticated, address, signer, login } = useOwnerWallet();
   const authority = useTokenAuthority(phygitalToken);
   const isAuthority = Boolean(
     isAuthenticated && address && authority.data?.authority === address,
@@ -90,6 +96,14 @@ export function useWalletTransaction(
     decide?.("rejected");
   }, []);
 
+  const onSignIn = useCallback(() => {
+    const decide = decideRef.current;
+    decideRef.current = null;
+    setModal(CLOSED);
+    decide?.("rejected");
+    void login();
+  }, [login]);
+
   const sendWithAuthority = useCallback(
     (instructions: Instruction[], abortSignal?: AbortSignal) => {
       if (!address || !signer) {
@@ -102,21 +116,26 @@ export function useWalletTransaction(
         abortSignal,
       });
     },
-    [signer, phygitalToken],
+    [address, signer, phygitalToken],
   );
 
   const resolvePolicyDenial = useCallback(
     (error: PolicyDeniedError): Promise<PolicyDenialDecision> =>
       new Promise<PolicyDenialDecision>((resolve) => {
         decideRef.current = resolve;
+        const mode = !isAuthenticated
+          ? "signIn"
+          : isAuthority
+            ? "owner"
+            : "visitor";
         setModal({
           open: true,
-          mode: isAuthority ? "owner" : "visitor",
+          mode,
           error,
           busy: false,
         });
       }),
-    [isAuthority],
+    [isAuthenticated, isAuthority],
   );
 
   const run = useCallback(
@@ -137,6 +156,6 @@ export function useWalletTransaction(
     run,
     sendWithAuthority,
     isAuthority,
-    approval: { ...modal, onApprove, onCancel },
+    approval: { ...modal, onApprove, onSignIn, onCancel },
   };
 }

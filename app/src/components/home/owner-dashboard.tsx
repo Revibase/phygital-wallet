@@ -46,9 +46,9 @@ export function OwnerDashboard({ owner }: { owner: string }) {
       ) : isEmpty ? (
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 py-10 text-center">
           <div className="max-w-xs space-y-2">
-            <p className="text-base font-medium">No accessories yet</p>
+            <p className="text-base font-medium">{copy.home.emptyTitle}</p>
             <p className="text-sm leading-relaxed text-muted-foreground">
-              Tap an accessory to open it, then claim it to see it here.
+              {copy.home.emptyBody}
             </p>
           </div>
           <Button
@@ -60,7 +60,7 @@ export function OwnerDashboard({ owner }: { owner: string }) {
           >
             {tap.holding
               ? copy.wallet.holdToOpenTitle
-              : copy.wallet.holdToOpenCta}
+              : copy.home.emptyOpenCta}
           </Button>
           {tap.error ? (
             <p className="text-xs text-destructive">{tap.error}</p>
@@ -87,7 +87,9 @@ export function OwnerDashboard({ owner }: { owner: string }) {
               disabled={tap.holding}
               onClick={() => void tap.open()}
             >
-              {tap.holding ? copy.wallet.holdToOpenTitle : "Open another"}
+              {tap.holding
+                ? copy.wallet.holdToOpenTitle
+                : copy.home.openAnother}
             </Button>
             {tap.error ? (
               <p className="text-xs text-destructive">{tap.error}</p>

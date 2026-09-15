@@ -192,13 +192,15 @@ export function FeeBalanceSheet({
       <>
       <CeremonyShell
         leading={
-          <NavBar
-            leading={
-              <Button type="button" variant="ghost" size="sm" onClick={onBack}>
-                {copy.common.cancel}
-              </Button>
-            }
-          />
+          phase === "success" ? undefined : (
+            <NavBar
+              leading={
+                <Button type="button" variant="ghost" size="sm" onClick={onBack}>
+                  {copy.common.cancel}
+                </Button>
+              }
+            />
+          )
         }
       >
         <NfcHoldStatus

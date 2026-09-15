@@ -8,13 +8,13 @@ import { GroupedList, GroupedRow } from "@/components/shared/grouped-list";
 import { ModalSheet } from "@/components/shared/modal-sheet";
 import { Button } from "@/components/ui/button";
 import { useOwnerWallet } from "@/hooks/wallet/use-owner-wallet";
+import { copy } from "@/lib/copy/phygital";
 import { toUserErrorMessage } from "@/lib/user-errors";
 import { cn, shortAddress } from "@/lib/utils";
 
 /**
  * Owner account control on the dashboard: shows the signed-in address and,
- * in a sheet, lets the owner export their private key or sign out (both via
- * Helius WaaS).
+ * in a sheet, lets the owner export their private key or sign out.
  */
 export function OwnerAccountMenu({ className }: { className?: string }) {
   const { address, logout, exportWallet } = useOwnerWallet();
@@ -24,7 +24,9 @@ export function OwnerAccountMenu({ className }: { className?: string }) {
     try {
       await exportWallet();
     } catch (err) {
-      toast.error(toUserErrorMessage(err, "Couldn’t open export"));
+      toast.error(
+        toUserErrorMessage(err, copy.home.accountExportFailed),
+      );
     }
   }
 
@@ -37,21 +39,25 @@ export function OwnerAccountMenu({ className }: { className?: string }) {
         className={cn("rounded-full", className)}
         onClick={() => setOpen(true)}
       >
-        {address ? shortAddress(address) : "Account"}
+        {address ? shortAddress(address) : copy.home.account}
       </Button>
 
-      <ModalSheet open={open} onClose={() => setOpen(false)} title="Account">
+      <ModalSheet
+        open={open}
+        onClose={() => setOpen(false)}
+        title={copy.home.account}
+      >
         <div className="rounded-3xl border border-border/60 bg-card p-4 shadow-xl">
           <GroupedList>
             <GroupedRow
               leading={<KeyRound className="size-4" />}
-              subtitle="Reveal and copy this wallet’s private key."
+              subtitle={copy.home.accountExportKeySubtitle}
               onClick={() => {
                 setOpen(false);
                 void onExport();
               }}
             >
-              Export private key
+              {copy.home.accountExportKey}
             </GroupedRow>
             <GroupedRow
               destructive
@@ -61,7 +67,7 @@ export function OwnerAccountMenu({ className }: { className?: string }) {
                 void logout();
               }}
             >
-              Sign out
+              {copy.home.accountSignOut}
             </GroupedRow>
           </GroupedList>
         </div>

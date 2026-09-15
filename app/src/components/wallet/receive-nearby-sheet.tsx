@@ -240,7 +240,7 @@ export function ReceiveNearbySheet({
             id: signature,
             walletAddress: recipientWallet,
             kind: "received",
-            title: `Received ${asset.symbol}`,
+            title: copy.wallet.received,
             subtitle: payer.walletPda,
             amountLabel: `+${amount}`,
             statusLabel: null,

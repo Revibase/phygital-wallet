@@ -14,6 +14,7 @@ import type { WalletApprovalState } from "@/hooks/wallet/use-wallet-transaction"
 /**
  * Shared policy-denial sheet driven by `useWalletTransaction`.
  * - `mode="owner"`: the connected authority can approve → executeWithAuthority.
+ * - `mode="signIn"`: soft-deny while unsigned — prompt to sign in, then retry.
  * - `mode="visitor"`: the connected wallet isn't the authority → rejection only.
  */
 export function WalletApprovalModal({
@@ -24,7 +25,7 @@ export function WalletApprovalModal({
   /** Prefer a symbol over a truncated mint in the detail rows. */
   tokenSymbol?: string | null;
 }) {
-  const { open, mode, error, busy, onApprove, onCancel } = approval;
+  const { open, mode, error, busy, onApprove, onSignIn, onCancel } = approval;
   const details = error?.details ?? null;
 
   return (
@@ -50,9 +51,22 @@ export function WalletApprovalModal({
               detailRows={policyApprovalDetailRows(details, {
                 omitDestination: true,
                 omitAmount: true,
+                omitTechnical: true,
                 tokenLabel: tokenSymbol,
               })}
               onApprove={onApprove}
+              onClose={onCancel}
+            />
+          ) : mode === "signIn" ? (
+            <ApprovalSheetBody
+              mode="signIn"
+              busy={busy}
+              title={copy.wallet.approveSendTitle}
+              body={copy.wallet.approveSendSignInBody}
+              amountLabel={policyAmountLabel(details, tokenSymbol)}
+              recipientLabel={policyRecipientLabel(details)}
+              detailRows={[]}
+              onApprove={onSignIn}
               onClose={onCancel}
             />
           ) : (

@@ -27,7 +27,9 @@ import {
 import { FieldError, FieldLabel, Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
+import { ClaimedSuccessDialog } from "@/components/wallet/claimed-success-dialog";
 import { useClearWalletPolicy } from "@/hooks/token/use-clear-wallet-policy";
+import { useClaimAccessory } from "@/hooks/token/use-claim-accessory";
 import { useSetWalletPolicy } from "@/hooks/token/use-set-wallet-policy";
 import { useTokenOwner } from "@/hooks/token/use-token-owner";
 import { useWalletPolicy } from "@/hooks/token/use-wallet-policy";
@@ -70,6 +72,7 @@ const DEFAULT_WINDOW = 604_800n; // weekly
  * Spend-policy panel. Publicly viewable (the wallet route floor is the
  * browse-unlock cookie); editing controls render only when the signed-in owner
  * wallet is this accessory's on-chain authority (`useTokenOwner().isOwner`).
+ * Unclaimed accessories (`status === "none"`) show locked — no transactions.
  */
 export function WalletPolicySheet({
   phygitalTokenPda,
@@ -79,8 +82,10 @@ export function WalletPolicySheet({
   onBack: () => void;
 }) {
   const policy = useWalletPolicy(phygitalTokenPda);
-  const { isOwner } = useTokenOwner(phygitalTokenPda);
+  const { isOwner, isSignedIn, isClaimed } = useTokenOwner(phygitalTokenPda);
+  const claim = useClaimAccessory(phygitalTokenPda);
   const [mode, setMode] = useState<Mode>("view");
+  const [claimedOpen, setClaimedOpen] = useState(false);
 
   const data = policy.data;
   const status = data?.status ?? "none";
@@ -126,12 +131,47 @@ export function WalletPolicySheet({
           <Skeleton className="h-9 w-40 rounded" />
           <Skeleton className="h-4 w-56 rounded" />
         </div>
+      ) : status === "none" ? (
+        <div className="flex flex-col gap-3">
+          <StatusCard
+            title={copy.wallet.policyStatusLocked}
+            body={copy.wallet.policyStatusLockedBody}
+            tone="warn"
+          />
+          {isSignedIn && !isClaimed ? (
+            <Button
+              type="button"
+              size="lg"
+              className="w-full"
+              disabled={claim.isPending}
+              onClick={() =>
+                claim.mutate(undefined, {
+                  onSuccess: () => setClaimedOpen(true),
+                  onError: (err) =>
+                    toast.error(
+                      toUserErrorMessage(err, copy.wallet.authorityClaimFailed),
+                    ),
+                })
+              }
+            >
+              {claim.isPending
+                ? copy.wallet.authorityClaiming
+                : copy.wallet.policyLockedClaimCta}
+            </Button>
+          ) : null}
+        </div>
       ) : status === "limited" ? (
-        <PolicyView
-          solCap={data?.solCap ?? null}
-          mintCaps={data?.mintCaps ?? []}
-          programPermissions={data?.programPermissions ?? []}
-        />
+        <div className="flex flex-col gap-4">
+          <StatusCard
+            title={copy.wallet.policyStatusLimited}
+            body={copy.wallet.policyAllowlistNote}
+          />
+          <PolicyView
+            solCap={data?.solCap ?? null}
+            mintCaps={data?.mintCaps ?? []}
+            programPermissions={data?.programPermissions ?? []}
+          />
+        </div>
       ) : status === "open" ? (
         <StatusCard
           title={copy.wallet.policyStatusOpen}
@@ -151,7 +191,7 @@ export function WalletPolicySheet({
         </div>
       )}
 
-      {isOwner ? (
+      {isOwner && status !== "none" ? (
         <div className="flex flex-col gap-3">
           <Button
             type="button"
@@ -171,7 +211,17 @@ export function WalletPolicySheet({
             <RestoreStandardButton phygitalTokenPda={phygitalTokenPda} />
           ) : null}
         </div>
+      ) : status !== "none" && !isSignedIn ? (
+        <p className="px-1 text-sm text-muted-foreground">
+          {copy.wallet.policySignInToEdit}
+        </p>
       ) : null}
+
+      <ClaimedSuccessDialog
+        open={claimedOpen}
+        onOpenChange={setClaimedOpen}
+        phygitalTokenPda={phygitalTokenPda}
+      />
     </div>
   );
 }
