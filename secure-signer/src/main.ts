@@ -333,7 +333,7 @@ async function handleAuth(
       }
       const created = await createWallet(prf, rpId, {
         userName: account.userName,
-        messageToSign,
+        ...(messageToSign ? { messageToSign } : {}),
       });
       if (busy.wasDismissed()) return;
       const { publicKey, blob, signature } = created;
