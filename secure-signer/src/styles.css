@@ -14,8 +14,6 @@
   --focus: #00c2b8;
   --radius: 24px;
   --pad: 20px;
-  /* Set by visualViewport when the software keyboard is open (iframe-safe). */
-  --keyboard-inset: 0px;
   font-family:
     "Space Grotesk",
     -apple-system,
@@ -40,9 +38,6 @@ body {
 body {
   display: flex;
   flex-direction: column;
-  /* Avoid rubber-banding the document instead of the sheet body. */
-  overflow: hidden;
-  overscroll-behavior: none;
 }
 
 #app {
@@ -50,7 +45,6 @@ body {
   min-height: 0;
   width: 100%;
   height: 100%;
-  overflow: hidden;
 }
 
 .sheet {
@@ -58,18 +52,15 @@ body {
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  overflow: hidden;
   background: var(--sheet);
   border-radius: var(--radius) var(--radius) 0 0;
-  /* Keep actions above the software keyboard inside the parent iframe. */
-  padding: 8px var(--pad)
-    calc(var(--pad) + env(safe-area-inset-bottom, 0px) + var(--keyboard-inset));
+  padding: 8px var(--pad) calc(var(--pad) + env(safe-area-inset-bottom, 0px));
 }
 
 @media (min-width: 640px) {
   .sheet {
     border-radius: var(--radius);
-    padding-bottom: calc(var(--pad) + var(--keyboard-inset));
+    padding-bottom: var(--pad);
   }
 }
 
@@ -149,10 +140,8 @@ body {
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
-  touch-action: pan-y;
-  /* Room to scroll the last field above sticky-feel actions while typing. */
+  overscroll-behavior-y: contain;
   padding-bottom: 12px;
 }
 
@@ -257,9 +246,8 @@ body {
   display: flex;
   flex-direction: column-reverse;
   gap: 8px;
-  margin-top: 8px;
+  margin-top: 16px;
   flex: 0 0 auto;
-  background: var(--sheet);
 }
 
 @media (min-width: 640px) {
@@ -308,26 +296,17 @@ body {
   cursor: default;
 }
 
-.input,
 .secret {
-  width: 100%;
+  margin: 0 0 12px;
   padding: 12px 14px;
   border-radius: 12px;
   border: 1px solid var(--line);
   background: #fff;
   color: var(--fg);
-  /* 16px avoids iOS focus-zoom that breaks nested iframe scroll. */
-  font-size: 16px;
-  line-height: 1.35;
-  -webkit-user-select: text;
+  font-size: 0.9rem;
+  line-height: 1.45;
   user-select: text;
-}
-
-.secret {
-  min-height: 96px;
-  resize: none;
-  /* Allow the sheet body to pan when dragging on the textarea. */
-  touch-action: pan-y;
+  -webkit-user-select: text;
 }
 
 .field-error {

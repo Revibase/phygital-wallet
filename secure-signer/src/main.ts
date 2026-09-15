@@ -722,7 +722,7 @@ async function handleExportPrivateKey(
   blobB64: string,
 ): Promise<void> {
   const { parsed } = resolveBlobForOp(blobB64);
-  // Dedicated ceremony with typed confirmation BEFORE WebAuthn (§14).
+  // Dedicated ceremony BEFORE WebAuthn (§14) — warning + explicit continue.
   if (!(await ui.confirmExportPrivateKey()))
     return fail(requestId, "USER_CANCELLED");
   const busy = beginBusy(requestId, "Follow your device’s passkey prompt…");

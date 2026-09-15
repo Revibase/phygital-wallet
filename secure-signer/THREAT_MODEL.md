@@ -43,7 +43,7 @@ and generic results/errors.
   proves presence, not comprehension — a user can click through a clear-signed
   screen. Clickjacking of a framed signer cannot be fully prevented (the signer
   is, by design, framed and cannot frame-bust); the out-of-page WebAuthn modal
-  and an in-iframe typed confirmation are partial mitigations.
+  and in-iframe danger warnings are partial mitigations.
 - **On-chain behavior inside the allowed program.** Program-ID allowlisting does
   not constrain what the phygital-wallet program does via CPI. This key is the
   on-chain *escape hatch* (`execute_with_authority` bypasses policy); the signer

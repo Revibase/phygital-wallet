@@ -8,9 +8,6 @@ import { PhygitalWalletInstruction } from "phygital-wallet-sdk";
 import type { ParsedInstructionSummary } from "./parser.js";
 import type { TransactionSummary } from "./policy.js";
 
-/** Typed phrase required before private-key export. */
-export const EXPORT_CONFIRM_PHRASE = "EXPORT";
-
 export type SignRisk = "normal" | "high";
 
 export function instructionLabel(kind: PhygitalWalletInstruction): string {
