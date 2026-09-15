@@ -165,6 +165,31 @@ body {
   font-weight: 600;
 }
 
+.callout {
+  padding: 12px 14px;
+  border-radius: 12px;
+  margin: 0 0 12px;
+  font-size: 0.9rem;
+  line-height: 1.35;
+  font-weight: 600;
+}
+
+.callout-danger {
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  color: var(--danger);
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+}
+
+.secret-hidden {
+  margin: 0 0 12px;
+  padding: 16px 14px;
+  border-radius: 12px;
+  border: 1px dashed var(--line);
+  text-align: center;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+
 .mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   word-break: break-all;
@@ -200,6 +225,11 @@ body {
   font-weight: 600;
   font-size: 0.85rem;
   border-bottom: 1px solid var(--line);
+}
+
+.sep-inner {
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  font-weight: 600;
 }
 
 .actions {

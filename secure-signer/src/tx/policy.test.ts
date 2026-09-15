@@ -10,6 +10,7 @@ import {
 import {
   compileWalletInstructions,
   getExecuteWithAuthorityInstruction,
+  PhygitalWalletInstruction,
 } from "phygital-wallet-sdk";
 import { ed25519PublicKey, ed25519Sign, generateEd25519Seed, randomBytes } from "../crypto.js";
 import { compileV1, encodeV1Wire } from "../testing/encode-v1.js";
@@ -67,12 +68,14 @@ describe("evaluatePolicy (executeWithAuthority)", () => {
     expect(result.summary.walletAddress).toBe(ownerAddress);
     expect(result.summary.instructions).toHaveLength(1);
     const s = result.summary.instructions[0]!;
-    expect(s.kind).toBe("executeWithAuthority");
+    expect(s.kind).toBe(PhygitalWalletInstruction.ExecuteWithAuthority);
     expect(s.authority).toBe(ownerAddress);
     expect(s.inner).not.toBeNull();
     expect(s.inner![0]!.programAddress).toBe(SYSTEM);
     expect(s.inner![0]!.accounts).toContain(dest);
     expect(s.inner![0]!.accounts).toContain(wallet);
+    expect(s.inner![0]!.title).toBe("Send 1 SOL");
+    expect(s.inner![0]!.details.some((d) => d.label === "To")).toBe(true);
 
     // The signature covers EXACTLY the decoded message bytes.
     const sig = ed25519Sign(tx.messageBytes, seed);

@@ -22,6 +22,11 @@ import {
   PhygitalWalletInstruction,
 } from "phygital-wallet-sdk";
 import {
+  describeInnerInstruction,
+  describeWalletPolicy,
+  type DetailRow,
+} from "./clear-sign.js";
+import {
   isSignerIndex,
   isWritableIndex,
   type DecodedV1Transaction,
@@ -35,6 +40,9 @@ export interface InnerInstructionSummary {
   programAddress: string;
   accounts: string[];
   dataLength: number;
+  /** Human title, e.g. "Send 1 SOL". */
+  title: string;
+  details: DetailRow[];
 }
 
 export interface ParsedInstructionSummary {
@@ -45,6 +53,8 @@ export interface ParsedInstructionSummary {
   phygitalToken: string | null;
   /** Decoded inner spend for executeWithAuthority (clear-signing), else null. */
   inner: InnerInstructionSummary[] | null;
+  /** Extra trusted rows (policy caps, clear warnings, etc.). */
+  details: DetailRow[];
 }
 
 function roleFor(tx: DecodedV1Transaction, i: number): AccountRole {
@@ -100,13 +110,27 @@ function summarizeInner(
       if (!meta) throw new Error("inner account index out of range");
       accounts.push(meta.address);
     }
+    const data = Uint8Array.from(ci.data);
+    const cleared = describeInnerInstruction(prog.address, accounts, data);
     out.push({
       programAddress: prog.address,
       accounts,
-      dataLength: ci.data.length,
+      dataLength: data.length,
+      title: cleared.title,
+      details: cleared.details,
     });
   }
   return out;
+}
+
+function baseSummary(
+  kind: PhygitalWalletInstruction,
+  authority: string | null,
+  phygitalToken: string | null,
+  inner: InnerInstructionSummary[] | null,
+  details: DetailRow[] = [],
+): ParsedInstructionSummary {
+  return { kind, authority, phygitalToken, inner, details };
 }
 
 /** Parse a single instruction into a trusted display summary. */
@@ -127,7 +151,7 @@ export function parseInstruction(
         parsed.data.compactInstructions,
         kit.accounts,
       );
-      return { kind: parsed.instructionType, authority, phygitalToken, inner };
+      return baseSummary(parsed.instructionType, authority, phygitalToken, inner);
     }
     case PhygitalWalletInstruction.ExecuteWithAuthorityUsingPolicies: {
       const inner = summarizeInner(
@@ -135,43 +159,39 @@ export function parseInstruction(
         parsed.data.compactInstructions,
         kit.accounts,
       );
-      return {
-        kind: parsed.instructionType,
-        authority,
-        phygitalToken,
-        inner,
-      };
+      return baseSummary(parsed.instructionType, authority, phygitalToken, inner, [
+        {
+          label: "Note",
+          value: "Owner spend with on-chain wallet policies applied",
+        },
+      ]);
     }
     case PhygitalWalletInstruction.ClearAuthority:
-      return {
-        kind: parsed.instructionType,
-        authority,
-        phygitalToken,
-        inner: null,
-      };
+      return baseSummary(parsed.instructionType, authority, phygitalToken, null, [
+        {
+          label: "Effect",
+          value: "Removes the owner key from this accessory",
+        },
+      ]);
     case PhygitalWalletInstruction.SetWalletPolicy:
-      return {
-        kind: parsed.instructionType,
+      return baseSummary(
+        parsed.instructionType,
         authority,
         phygitalToken,
-        inner: null,
-      };
+        null,
+        describeWalletPolicy(parsed.data),
+      );
     case PhygitalWalletInstruction.ClearWalletPolicy:
-      return {
-        kind: parsed.instructionType,
-        authority,
-        phygitalToken,
-        inner: null,
-      };
+      return baseSummary(parsed.instructionType, authority, phygitalToken, null, [
+        {
+          label: "Effect",
+          value: "Deletes spend caps and program permission overrides",
+        },
+      ]);
     case PhygitalWalletInstruction.SetAuthority:
       // setAuthority is authorized by the accessory passkey + paymaster payer,
       // NOT by an ed25519 authority signer. The owner is not a signer here.
-      return {
-        kind: parsed.instructionType,
-        authority: null,
-        phygitalToken,
-        inner: null,
-      };
+      return baseSummary(parsed.instructionType, null, phygitalToken, null);
     default:
       throw new Error("unsupported instruction");
   }

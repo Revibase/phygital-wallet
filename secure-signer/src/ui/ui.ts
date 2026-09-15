@@ -8,6 +8,13 @@
  */
 
 import type { TransactionSummary } from "../tx/policy.js";
+import {
+  classifySignRisk,
+  EXPORT_CONFIRM_PHRASE,
+  HIGH_RISK_CONFIRM_PHRASE,
+  highRiskWarning,
+  instructionLabel,
+} from "../tx/sign-risk.js";
 import { validateUserName } from "../user-name.js";
 
 const app = (): HTMLElement => {
@@ -372,19 +379,32 @@ export function confirmSignTransaction(
       detachEscape();
       resolve(v);
     };
+    const risk = classifySignRisk(summary);
     const rows: Node[] = [];
     rows.push(row("Wallet", shorten(summary.walletAddress)));
     for (const [i, ix] of summary.instructions.entries()) {
       rows.push(
-        el("div", { class: "sep", text: `Instruction ${i + 1}: ${ix.kind}` }),
+        el("div", {
+          class: "sep",
+          text: `Instruction ${i + 1}: ${instructionLabel(ix.kind)}`,
+        }),
       );
       if (ix.phygitalToken)
         rows.push(row("Accessory", shorten(ix.phygitalToken)));
+      for (const d of ix.details) {
+        rows.push(row(d.label, d.value));
+      }
       if (ix.inner) {
-        for (const inner of ix.inner) {
-          rows.push(row("Calls program", shorten(inner.programAddress)));
-          rows.push(row("Accounts", String(inner.accounts.length)));
-          rows.push(row("Data bytes", String(inner.dataLength)));
+        for (const [j, inner] of ix.inner.entries()) {
+          rows.push(
+            el("div", {
+              class: "sep sep-inner",
+              text: `Spend ${j + 1}: ${inner.title}`,
+            }),
+          );
+          for (const d of inner.details) {
+            rows.push(row(d.label, d.value));
+          }
         }
       }
     }
@@ -396,21 +416,77 @@ export function confirmSignTransaction(
     if (summary.config.computeUnitLimit !== undefined)
       rows.push(row("Compute units", String(summary.config.computeUnitLimit)));
 
-    screen(
-      "Authorize",
-      [
-        el("div", { class: "kv" }, rows),
+    const body: Node[] = [];
+    if (risk === "high") {
+      body.push(
+        el("div", {
+          class: "callout callout-danger",
+          text: highRiskWarning(summary.instructions),
+        }),
         el("p", {
           class: "muted",
-          text: "Decoded by this signer. Read what you approve.",
+          text: "Signing never shows your private key — but approving the wrong spend can move funds. Only continue if you started this yourself.",
         }),
-      ],
-      [
-        button("Cancel", "ghost", () => done(false)),
-        button("Authorize with passkey", "primary", () => done(true)),
-      ],
-      { dismissible: true, onDismiss: () => done(false) },
+      );
+    } else {
+      body.push(
+        el("p", {
+          class: "muted",
+          text: "Decoded by this signer. Read every line before you approve.",
+        }),
+      );
+    }
+    body.push(el("div", { class: "kv" }, rows));
+
+    const actions: Node[] = [button("Cancel", "ghost", () => done(false))];
+
+    if (risk === "high") {
+      const input = el("input", { class: "input" });
+      input.type = "text";
+      input.autocomplete = "off";
+      input.spellcheck = false;
+      input.placeholder = `Type ${HIGH_RISK_CONFIRM_PHRASE}`;
+      input.setAttribute(
+        "aria-label",
+        `Type ${HIGH_RISK_CONFIRM_PHRASE} to confirm`,
+      );
+      const proceed = button("Authorize with passkey", "danger", () => {
+        if (input.value.trim() === HIGH_RISK_CONFIRM_PHRASE) done(true);
+      });
+      proceed.disabled = true;
+      const sync = () => {
+        proceed.disabled = input.value.trim() !== HIGH_RISK_CONFIRM_PHRASE;
+      };
+      input.addEventListener("input", sync);
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          if (!proceed.disabled) proceed.click();
+        }
+      });
+      body.push(
+        el("p", {
+          class: "muted",
+          text: `Type ${HIGH_RISK_CONFIRM_PHRASE} to confirm you understand the risk:`,
+        }),
+        input,
+      );
+      actions.push(proceed);
+      screen("High-risk authorization", body, actions, {
+        dismissible: true,
+        onDismiss: () => done(false),
+      });
+      input.focus();
+      return;
+    }
+
+    actions.push(
+      button("Authorize with passkey", "primary", () => done(true)),
     );
+    screen("Authorize", body, actions, {
+      dismissible: true,
+      onDismiss: () => done(false),
+    });
   });
 }
 
@@ -429,27 +505,47 @@ export function confirmExportPrivateKey(): Promise<boolean> {
     };
     const input = el("input", { class: "input" });
     input.type = "text";
-    input.setAttribute("autocomplete", "off");
-    input.setAttribute("aria-label", "Type EXPORT to confirm");
+    input.autocomplete = "off";
+    input.spellcheck = false;
+    input.placeholder = `Type ${EXPORT_CONFIRM_PHRASE}`;
+    input.setAttribute(
+      "aria-label",
+      `Type ${EXPORT_CONFIRM_PHRASE} to confirm`,
+    );
     const proceed = button("Continue to export", "danger", () => {
-      if (input.value.trim() === "EXPORT") done(true);
+      if (input.value.trim() === EXPORT_CONFIRM_PHRASE) done(true);
+    });
+    proceed.disabled = true;
+    const sync = () => {
+      proceed.disabled = input.value.trim() !== EXPORT_CONFIRM_PHRASE;
+    };
+    input.addEventListener("input", sync);
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (!proceed.disabled) proceed.click();
+      }
     });
     screen(
       "Export private key",
       [
-        el("p", {
-          class: "warn",
-          text: "This reveals complete control of your wallet.",
+        el("div", {
+          class: "callout callout-danger",
+          text: "This is the only way this signer reveals your private key. Signing transactions never shows it.",
         }),
         el("p", {
-          text: "Anyone with this key can move your funds. Only continue if you understand the risk.",
+          text: "Anyone with this key can move your funds forever. Do not export on a shared device or if you did not open this screen yourself.",
         }),
-        el("p", { class: "muted", text: "Type EXPORT to confirm:" }),
+        el("p", {
+          class: "muted",
+          text: `Type ${EXPORT_CONFIRM_PHRASE} to confirm:`,
+        }),
         input,
       ],
       [button("Cancel", "ghost", () => done(false)), proceed],
       { dismissible: true, onDismiss: () => done(false) },
     );
+    input.focus();
   });
 }
 
@@ -459,31 +555,61 @@ export function showExportedSecret(
   publicKey: string,
 ): Promise<void> {
   return new Promise((resolve) => {
+    let clipboardTimer: number | null = null;
     const done = () => {
+      if (clipboardTimer !== null) window.clearTimeout(clipboardTimer);
       detachEscape();
       resolve();
     };
+
+    const hidden = el("p", {
+      class: "secret-hidden mono",
+      text: "••••••••••••••••••••••••••••••••",
+    });
     const secret = el("textarea", { class: "secret mono" });
     secret.readOnly = true;
+    secret.hidden = true;
     secret.value = secretBase58;
     secret.setAttribute("aria-label", "exported secret key");
+
+    const copyBtn = button("Copy to clipboard", "primary", () => {
+      void navigator.clipboard
+        ?.writeText(secretBase58)
+        .then(() => {
+          copyBtn.textContent = "Copied — clear clipboard in 30s";
+          copyBtn.disabled = true;
+          if (clipboardTimer !== null) window.clearTimeout(clipboardTimer);
+          clipboardTimer = window.setTimeout(() => {
+            void navigator.clipboard?.writeText("").catch(() => {});
+            copyBtn.textContent = "Clipboard cleared";
+          }, 30_000);
+        })
+        .catch(() => {
+          secret.select();
+        });
+    });
+    copyBtn.disabled = true;
+
+    const revealBtn = button("Show private key", "danger", () => {
+      hidden.hidden = true;
+      secret.hidden = false;
+      copyBtn.disabled = false;
+      revealBtn.disabled = true;
+      revealBtn.textContent = "Key visible on screen";
+    });
+
     screen(
       "Your private key",
       [
-        el("p", {
-          class: "warn",
-          text: "Copy this now and store it securely. It will not be shown again.",
+        el("div", {
+          class: "callout callout-danger",
+          text: "Keep this key only in a password manager or offline backup. Prefer writing it down over copying if this browser tab might be compromised.",
         }),
         el("p", { class: "muted", text: `Wallet ${shorten(publicKey)}` }),
+        hidden,
         secret,
       ],
-      [
-        button("Copy", "primary", () => {
-          secret.select();
-          void navigator.clipboard?.writeText(secretBase58).catch(() => {});
-        }),
-        button("Done", "ghost", () => done()),
-      ],
+      [button("Done", "ghost", () => done()), revealBtn, copyBtn],
       { dismissible: true, onDismiss: done },
     );
   });
