@@ -11,7 +11,7 @@
           "syncPackageJson": true,
           "kitImportStrategy": "rootOnly",
           "dependencyVersions": {
-            "@solana/kit": "^8.1.0"
+            "@solana/kit": "^8.3.0"
           }
         }
       ]

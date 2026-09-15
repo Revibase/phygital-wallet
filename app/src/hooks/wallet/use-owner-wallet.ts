@@ -1,45 +1,30 @@
 "use client";
 
-import { useHeliusWallet } from "helius-wallet-kit";
+import { useSecureSignerWallet } from "@/hooks/wallet/use-secure-signer-wallet";
+import { TransactionPartialSigner, TransactionSigner } from "@solana/kit";
 
 /**
- * App-facing owner-wallet seam over Helius WaaS (`helius-wallet-kit`).
+ * App-facing owner-wallet seam. All app code goes through this hook, never a
+ * concrete backend, so the backend stays swappable behind one interface.
  *
- * The "owner" is the signed-in Helius embedded wallet — the identity that
- * claims an accessory (on-chain `set_authority`) and gates owner-only routes.
- * All app code goes through this hook, never `useHeliusWallet` directly, so the
- * WaaS provider stays swappable behind one interface.
+ * The "owner" is the identity that claims an accessory (on-chain `set_authority`)
+ * and gates owner-only routes. It is backed by the self-hosted secure-signer
+ * iframe (see `secure-signer/`), which holds the owner ed25519 key non-custodially.
  */
 export type OwnerWallet = {
-  /** Base58 Solana address of the embedded wallet, or null when signed out. */
+  /** Base58 Solana address of the wallet, or null when signed out. */
   address: string | null;
+  signer: TransactionPartialSigner | null;
   status: "loading" | "unauthenticated" | "authenticated";
   isAuthenticated: boolean;
   isLoading: boolean;
-  /** Open the WaaS auth modal (passkey / email / wallet, per dashboard config). */
+  /** Sign in (WaaS modal, or create/restore in the secure signer). */
   login: () => Promise<void>;
   logout: () => Promise<void>;
-  /**
-   * Sign a serialized transaction as this wallet (no send). Used to co-sign
-   * owner/authority instructions (e.g. `clear_authority`) that the paymaster
-   * fee-pays. See `createHeliusSigner`.
-   */
-  signTransaction: (transaction: Uint8Array) => Promise<Uint8Array>;
-  /** Open the WaaS modal to reveal / export this wallet's private key. */
+  /** Reveal / export this wallet's private key (in a controlled ceremony). */
   exportWallet: () => Promise<void>;
 };
 
 export function useOwnerWallet(): OwnerWallet {
-  const wallet = useHeliusWallet();
-  return {
-    address: wallet.address,
-    status: wallet.status,
-    isAuthenticated: wallet.status === "authenticated",
-    isLoading: wallet.status === "loading",
-    login: wallet.login,
-    logout: wallet.logout,
-    signTransaction: async (transaction) =>
-      new Uint8Array(await wallet.signTransaction(transaction)),
-    exportWallet: wallet.exportWallet,
-  };
+  return useSecureSignerWallet();
 }

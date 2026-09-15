@@ -11,17 +11,17 @@ import { clearWalletPolicy } from "@/lib/wallet/clear-wallet-policy";
  * Owner-signed, paymaster-fee-paid.
  */
 export function useClearWalletPolicy(phygitalToken: string) {
-  const { address, isAuthenticated, signTransaction } = useOwnerWallet();
+  const { address, isAuthenticated, signer } = useOwnerWallet();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async () => {
-      if (!isAuthenticated || !address) {
+      if (!isAuthenticated || !address || !signer) {
         throw new Error("Sign in to update spending limits");
       }
       const sent = await clearWalletPolicy({
         phygitalToken,
-        owner: { address, signTransaction },
+        owner: signer,
       });
       await sent.confirmed;
       return { signature: sent.signature };

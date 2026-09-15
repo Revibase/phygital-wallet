@@ -17,4 +17,5 @@ NEXTJS_ENV=development
 # Fee balance top-up accumulator (must match API TOP_UP_ACCUMULATOR)
 # NEXT_PUBLIC_TOP_UP_ACCUMULATOR=
 
-#HELIUS_API_KEY=
+# Origin of the secure-signer iframe (the owner-wallet signing surface)
+# NEXT_PUBLIC_SECURE_SIGNER_ORIGIN=http://localhost:3000

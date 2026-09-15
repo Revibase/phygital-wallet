@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Secure Signer</title>
+    <!--
+      Production CSP + security headers are served by the host (see deploy/).
+      No inline scripts or inline event handlers appear in this document; the
+      build guard (scripts/assert-no-inline.mjs) enforces that so the strict
+      `script-src 'self'` CSP stays honest.
+    -->
+  </head>
+  <body>
+    <main id="app"></main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -16,7 +16,7 @@ import {
  * once confirmed so the policy view refetches.
  */
 export function useSetWalletPolicy(phygitalToken: string) {
-  const { address, isAuthenticated, signTransaction } = useOwnerWallet();
+  const { address, isAuthenticated, signer } = useOwnerWallet();
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -25,12 +25,12 @@ export function useSetWalletPolicy(phygitalToken: string) {
       mintCaps?: MintCapInput[];
       programPermissions?: ProgramPermissionArgs[];
     }) => {
-      if (!isAuthenticated || !address) {
+      if (!isAuthenticated || !address || !signer) {
         throw new Error("Sign in to update spending limits");
       }
       const sent = await setWalletPolicy({
         phygitalToken,
-        owner: { address, signTransaction },
+        owner: signer,
         solCap: input.solCap,
         mintCaps: input.mintCaps,
         programPermissions: input.programPermissions,

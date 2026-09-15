@@ -34,11 +34,13 @@ export type WalletTransactionRunArgs<S> = Omit<
 >;
 
 export type WalletTransactionController = {
-  run: <S>(args: WalletTransactionRunArgs<S>) => Promise<WalletTransactionOutcome>;
+  run: <S>(
+    args: WalletTransactionRunArgs<S>,
+  ) => Promise<WalletTransactionOutcome>;
   /** Authority fallback send (executeWithAuthority) — use for `send("authority")`. */
   sendWithAuthority: (
     instructions: Instruction[],
-    abortSignal?: AbortSignal
+    abortSignal?: AbortSignal,
   ) => Promise<SentTransaction>;
   /** True when the connected wallet is the accessory's on-chain authority. */
   isAuthority: boolean;
@@ -59,19 +61,17 @@ const CLOSED: Omit<WalletApprovalState, "onApprove" | "onCancel"> = {
  * behavior. Render the returned `approval` via <WalletApprovalModal>.
  */
 export function useWalletTransaction(
-  phygitalToken: string
+  phygitalToken: string,
 ): WalletTransactionController {
-  const owner = useOwnerWallet();
+  const { isAuthenticated, address, signer } = useOwnerWallet();
   const authority = useTokenAuthority(phygitalToken);
   const isAuthority = Boolean(
-    owner.isAuthenticated &&
-      owner.address &&
-      authority.data?.authority === owner.address
+    isAuthenticated && address && authority.data?.authority === address,
   );
 
   const [modal, setModal] = useState(CLOSED);
   const decideRef = useRef<((decision: PolicyDenialDecision) => void) | null>(
-    null
+    null,
   );
 
   const onApprove = useCallback(() => {
@@ -92,17 +92,17 @@ export function useWalletTransaction(
 
   const sendWithAuthority = useCallback(
     (instructions: Instruction[], abortSignal?: AbortSignal) => {
-      if (!owner.address) {
+      if (!address || !signer) {
         throw new Error("Sign in as the owner to approve this transaction");
       }
       return sendViaAuthority({
         phygitalToken,
-        owner: { address: owner.address, signTransaction: owner.signTransaction },
+        owner: signer,
         instructions,
         abortSignal,
       });
     },
-    [owner.address, owner.signTransaction, phygitalToken]
+    [signer, phygitalToken],
   );
 
   const resolvePolicyDenial = useCallback(
@@ -116,12 +116,12 @@ export function useWalletTransaction(
           busy: false,
         });
       }),
-    [isAuthority]
+    [isAuthority],
   );
 
   const run = useCallback(
-    async <S,>(
-      args: WalletTransactionRunArgs<S>
+    async <S>(
+      args: WalletTransactionRunArgs<S>,
     ): Promise<WalletTransactionOutcome> => {
       try {
         return await runWalletTransaction<S>({ ...args, resolvePolicyDenial });
@@ -130,7 +130,7 @@ export function useWalletTransaction(
         setModal(CLOSED);
       }
     },
-    [resolvePolicyDenial]
+    [resolvePolicyDenial],
   );
 
   return {

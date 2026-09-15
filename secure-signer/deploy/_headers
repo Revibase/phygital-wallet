@@ -1,0 +1,29 @@
+# Cloudflare Pages / Netlify `_headers` for the signer origin.
+# Copy into the published output root (dist/). Replace https://app.example.com
+# with the real parent (app) origin before deploying.
+
+/*
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors https://app.example.com
+  Permissions-Policy: publickey-credentials-get=(self), publickey-credentials-create=(self)
+  Referrer-Policy: no-referrer
+  X-Content-Type-Options: nosniff
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+  Cross-Origin-Resource-Policy: same-origin
+  Cache-Control: no-store
+
+# Hashed, immutable build assets can be cached hard.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# NOTE:
+# - connect-src 'none': the signer never talks to Solana RPC or any network;
+#   the parent builds + sends transactions. If that ever changes, this MUST be
+#   revisited rather than widened casually.
+# - frame-ancestors (NOT X-Frame-Options: DENY): the signer is INTENDED to be
+#   framed by the app origin. Do not add X-Frame-Options — it would break it.
+# - Do NOT enable Cross-Origin-Embedder-Policy: require-corp. It forces the
+#   embedder to be crossOriginIsolated and all subresources to be CORP/CORS,
+#   which breaks the embedding model for no benefit here. COOP is a no-op on a
+#   framed document.
+# - index.html is no-store so a signer update is picked up immediately; only the
+#   content-hashed /assets/* are cached.

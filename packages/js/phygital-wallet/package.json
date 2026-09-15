@@ -52,7 +52,7 @@
     "test": "vitest run"
   },
   "peerDependencies": {
-    "@solana/kit": "^8.1.0"
+    "@solana/kit": "^8.3.0"
   },
   "dependencies": {
     "@noble/hashes": "^2.2.0",
@@ -65,7 +65,7 @@
     "phygital-token-sdk": "^1.0.3"
   },
   "devDependencies": {
-    "@solana/kit": "^8.1.0",
+    "@solana/kit": "^8.3.0",
     "typescript": "^5.7.3",
     "vitest": "^3.2.4"
   }

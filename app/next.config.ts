@@ -46,6 +46,10 @@ const nextConfig: NextConfig = {
     root: workspaceRoot,
   },
   async headers() {
+    // Delegate WebAuthn to the cross-origin secure-signer iframe (the owner
+    // backend) via Permissions-Policy, paired with the iframe `allow=` attribute.
+    const signerOrigin =
+      process.env.NEXT_PUBLIC_SECURE_SIGNER_ORIGIN?.trim() || "http://localhost:5173";
     return [
       {
         source: "/:path*",
@@ -57,6 +61,10 @@ const nextConfig: NextConfig = {
           {
             key: "X-Frame-Options",
             value: "DENY",
+          },
+          {
+            key: "Permissions-Policy",
+            value: `publickey-credentials-get=(self "${signerOrigin}"), publickey-credentials-create=(self "${signerOrigin}")`,
           },
         ],
       },

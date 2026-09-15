@@ -6,14 +6,12 @@
 import { getClearWalletPolicyInstruction } from "phygital-wallet-sdk";
 
 import type { SentTransaction } from "@/lib/solana/tx";
-import {
-  sendOwnerAuthorityTransaction,
-  type OwnerSigner,
-} from "@/lib/wallet/owner-authority-tx";
+import { sendOwnerAuthorityTransaction } from "@/lib/wallet/owner-authority-tx";
+import { TransactionPartialSigner } from "@solana/kit";
 
 export async function clearWalletPolicy(args: {
   phygitalToken: string;
-  owner: OwnerSigner;
+  owner: TransactionPartialSigner;
 }): Promise<SentTransaction> {
   return sendOwnerAuthorityTransaction({
     phygitalToken: args.phygitalToken,

@@ -12,17 +12,17 @@ import { unlinkAccessory } from "@/lib/wallet/unlink-accessory";
  * ownership gate flips back to unclaimed.
  */
 export function useUnlinkAccessory(phygitalToken: string) {
-  const { address, isAuthenticated, signTransaction } = useOwnerWallet();
+  const { address, isAuthenticated, signer } = useOwnerWallet();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async () => {
-      if (!isAuthenticated || !address) {
+      if (!isAuthenticated || !address || !signer) {
         throw new Error("Sign in to unlink this item");
       }
       const sent = await unlinkAccessory({
         phygitalToken,
-        owner: { address, signTransaction },
+        owner: signer,
       });
       await sent.confirmed;
       return { signature: sent.signature };

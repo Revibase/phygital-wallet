@@ -4,7 +4,6 @@ import { Space_Grotesk } from "next/font/google";
 import { AppProviders } from "./providers";
 import { brand } from "@/lib/copy/phygital";
 import "./globals.css";
-import "helius-wallet-kit/ui/styles.css";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],

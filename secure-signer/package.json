@@ -1,0 +1,26 @@
+{
+  "name": "secure-signer",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Non-custodial Solana WebAuthn signing iframe (trusted origin). Assumes the parent is XSS-compromised.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json --noEmit && vite build && node scripts/assert-no-inline.mjs dist/index.html",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@noble/curves": "2.3.0",
+    "@noble/hashes": "2.2.0",
+    "@solana/kit": "8.3.0",
+    "phygital-wallet-sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "vite": "^6.0.0",
+    "vitest": "^3.2.4"
+  }
+}

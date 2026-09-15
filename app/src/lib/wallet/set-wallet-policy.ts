@@ -7,17 +7,14 @@
  * refills + reanchors it. Both WSOL mints belong to the SOL cap and are rejected
  * in `mintCaps`.
  */
-import { address } from "@solana/kit";
+import { address, TransactionPartialSigner } from "@solana/kit";
 import {
   getSetWalletPolicyInstruction,
   type ProgramPermissionArgs,
 } from "phygital-wallet-sdk";
 
 import type { SentTransaction } from "@/lib/solana/tx";
-import {
-  sendOwnerAuthorityTransaction,
-  type OwnerSigner,
-} from "@/lib/wallet/owner-authority-tx";
+import { sendOwnerAuthorityTransaction } from "@/lib/wallet/owner-authority-tx";
 
 /** Amounts are raw base units (lamports for SOL); `windowSeconds` 0 = lifetime. */
 export type SolCapInput = { cap: bigint; windowSeconds: bigint };
@@ -29,7 +26,7 @@ export type MintCapInput = {
 
 export async function setWalletPolicy(args: {
   phygitalToken: string;
-  owner: OwnerSigner;
+  owner: TransactionPartialSigner;
   /** null clears the SOL cap; omit to also clear it. */
   solCap?: SolCapInput | null;
   mintCaps?: MintCapInput[];

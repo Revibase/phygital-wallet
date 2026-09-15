@@ -18,13 +18,7 @@ import {
 
 import { getSolanaRpc } from "@/lib/solana/rpc";
 import { sendTransaction, type SentTransaction } from "@/lib/solana/tx";
-import { createHeliusSigner } from "@/lib/wallet/helius-signer";
 import { appVerifierFetch } from "@/lib/wallet/verifier-fee-payer";
-
-export type OwnerSigner = {
-  address: string;
-  signTransaction: (transaction: Uint8Array) => Promise<Uint8Array>;
-};
 
 export type OwnerAuthorityContext = {
   authoritySigner: TransactionPartialSigner<Address>;
@@ -37,19 +31,18 @@ export type OwnerAuthorityContext = {
 
 export async function sendOwnerAuthorityTransaction(args: {
   phygitalToken: string;
-  owner: OwnerSigner;
-  build: (ctx: OwnerAuthorityContext) => Instruction | Instruction[];
+  owner: TransactionPartialSigner;
+  build: (ctx: OwnerAuthorityContext) => Instruction;
 }): Promise<SentTransaction> {
   const rpc = getSolanaRpc();
   const phygitalToken = address(args.phygitalToken);
   const [authorityPda] = await findAuthorityAccountPda({ phygitalToken });
   const account = await fetchAuthority(rpc, authorityPda);
 
-  const authoritySigner = createHeliusSigner(args.owner);
   const feePayer = await createDefaultFeePayer({ fetch: appVerifierFetch });
 
   const built = args.build({
-    authoritySigner,
+    authoritySigner: args.owner,
     feePayer,
     phygitalToken,
     authorityPda,
@@ -57,7 +50,7 @@ export async function sendOwnerAuthorityTransaction(args: {
   });
 
   return sendTransaction({
-    instructions: Array.isArray(built) ? built : [built],
+    instructions: [built],
     feePayer,
     fetchBlockhash: true,
     applyResourceLimits: true,

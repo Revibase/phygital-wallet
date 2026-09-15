@@ -2,3 +2,4 @@ packages:
   - "workers/*"
   - "app"
   - "packages/js/*"
+  - "secure-signer"

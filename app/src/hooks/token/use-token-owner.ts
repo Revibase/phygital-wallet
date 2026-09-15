@@ -20,20 +20,20 @@ export type TokenOwnerState = {
  * authority for this accessory? The basis for gating owner-only routes.
  */
 export function useTokenOwner(phygitalToken: string | null): TokenOwnerState {
-  const owner = useOwnerWallet();
+  const { address, isAuthenticated, isLoading } = useOwnerWallet();
   const authorityQuery = useTokenAuthority(phygitalToken);
   const authority = authorityQuery.data?.authority ?? null;
 
   return {
-    ownerAddress: owner.address,
-    isSignedIn: owner.isAuthenticated,
+    ownerAddress: address,
+    isSignedIn: isAuthenticated,
     authority,
     isClaimed: authorityQuery.data?.isClaimed ?? false,
     isOwner:
-      owner.isAuthenticated &&
-      owner.address != null &&
+      isAuthenticated &&
+      address != null &&
       authority != null &&
-      owner.address === authority,
-    isLoading: owner.isLoading || authorityQuery.isPending,
+      address === authority,
+    isLoading: isLoading || authorityQuery.isPending,
   };
 }

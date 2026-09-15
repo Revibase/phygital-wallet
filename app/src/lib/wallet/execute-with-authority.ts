@@ -11,6 +11,7 @@
  */
 import {
   address,
+  TransactionPartialSigner,
   type AccountMeta,
   type Address,
   type Instruction,
@@ -23,14 +24,12 @@ import {
 } from "phygital-wallet-sdk";
 
 import { sendTransaction, type SentTransaction } from "@/lib/solana/tx";
-import { createHeliusSigner } from "@/lib/wallet/helius-signer";
-import type { OwnerSigner } from "@/lib/wallet/owner-authority-tx";
 import { walletPdaForToken } from "@/lib/wallet/pda";
 import { appVerifierFetch } from "@/lib/wallet/verifier-fee-payer";
 
 function withRemainingAccounts(
   instruction: Instruction,
-  remainingAccounts: readonly AccountMeta[]
+  remainingAccounts: readonly AccountMeta[],
 ): Instruction {
   return {
     ...instruction,
@@ -45,31 +44,29 @@ function withRemainingAccounts(
  */
 export async function sendViaAuthority(args: {
   phygitalToken: Address | string;
-  owner: OwnerSigner;
+  owner: TransactionPartialSigner;
   instructions: Instruction[];
   abortSignal?: AbortSignal;
 }): Promise<SentTransaction> {
   const phygitalToken = address(String(args.phygitalToken));
   const walletPda = await walletPdaForToken(phygitalToken);
   const [authorityPda] = await findAuthorityAccountPda({ phygitalToken });
-
-  const authoritySigner = createHeliusSigner(args.owner);
   const feePayer = await createDefaultFeePayer({ fetch: appVerifierFetch });
 
   const { compactInstructions, remainingAccounts } = compileWalletInstructions(
     args.instructions,
-    walletPda
+    walletPda,
   );
 
   const executeIx = withRemainingAccounts(
     getExecuteWithAuthorityInstruction({
-      authority: authoritySigner,
+      authority: args.owner,
       phygitalToken,
       authorityAccount: authorityPda,
       wallet: walletPda,
       compactInstructions,
     }),
-    remainingAccounts
+    remainingAccounts,
   );
 
   return sendTransaction({
