@@ -10,7 +10,9 @@
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "cf:deploy": "pnpm --filter app exec wrangler deploy -c ../secure-signer/wrangler.jsonc",
+    "deploy": "pnpm build && cp deploy/_headers dist/_headers && pnpm cf:deploy"
   },
   "dependencies": {
     "@noble/curves": "2.3.0",
