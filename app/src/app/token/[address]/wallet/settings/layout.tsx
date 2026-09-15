@@ -3,7 +3,6 @@
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 
-import { OwnerGate } from "@/components/wallet/owner-gate";
 import { SettingsHub } from "@/components/wallet/settings-hub";
 import {
   useWalletNav,
@@ -47,5 +46,5 @@ export default function WalletSettingsLayout({
     </div>
   );
 
-  return <OwnerGate phygitalTokenPda={tokenAddress}>{content}</OwnerGate>;
+  return content;
 }

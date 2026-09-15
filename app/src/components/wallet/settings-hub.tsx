@@ -2,7 +2,7 @@
 
 import { NavBar, NavBarBack } from "@/components/shared/nav-bar";
 import { GroupedList, GroupedRow } from "@/components/shared/grouped-list";
-import { OwnerDangerSection } from "@/components/wallet/owner-danger-section";
+import { OwnerOwnershipSection } from "@/components/wallet/owner-ownership-section";
 import { useFeeBalance } from "@/hooks/wallet/use-fee-balance";
 import { useRpcPreference } from "@/hooks/wallet/use-rpc-preference";
 import { copy } from "@/lib/copy/phygital";
@@ -79,7 +79,7 @@ export function SettingsHub({
       </GroupedList>
 
       {phygitalTokenPda ? (
-        <OwnerDangerSection phygitalTokenPda={phygitalTokenPda} />
+        <OwnerOwnershipSection phygitalTokenPda={phygitalTokenPda} />
       ) : null}
     </div>
   );

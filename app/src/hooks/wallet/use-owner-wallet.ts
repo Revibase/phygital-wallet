@@ -25,6 +25,8 @@ export type OwnerWallet = {
    * fee-pays. See `createHeliusSigner`.
    */
   signTransaction: (transaction: Uint8Array) => Promise<Uint8Array>;
+  /** Open the WaaS modal to reveal / export this wallet's private key. */
+  exportWallet: () => Promise<void>;
 };
 
 export function useOwnerWallet(): OwnerWallet {
@@ -38,5 +40,6 @@ export function useOwnerWallet(): OwnerWallet {
     logout: wallet.logout,
     signTransaction: async (transaction) =>
       new Uint8Array(await wallet.signTransaction(transaction)),
+    exportWallet: wallet.exportWallet,
   };
 }

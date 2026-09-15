@@ -34,14 +34,21 @@ export function AppProviders({ children }: { children: ReactNode }) {
             retry: shouldRetryQuery,
           },
         },
-      })
+      }),
   );
   const [persister] = useState(() => createQueryPersister());
 
   // Key-less: the API key stays server-side behind `/api/helius/*`.
   const heliusConfig = useMemo<HeliusWalletConfig>(
-    () => ({ cluster: isMainnet() ? "mainnet-beta" : "devnet" }),
-    []
+    () => ({
+      cluster: isMainnet() ? "mainnet-beta" : "devnet",
+      theme: {
+        darkMode: false,
+        logoLight: "/apple-icon.png",
+        primaryColor: "#06C2B8",
+      },
+    }),
+    [],
   );
 
   return (

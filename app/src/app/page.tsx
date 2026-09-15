@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
-import { OwnedHome } from "@/components/home/owned-home";
+import { OwnerHome } from "@/components/home/owner-home";
 import { RouteBoot } from "@/components/layout/route-boot";
 import { products } from "@/lib/copy/phygital";
 
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 export default function Home() {
   return (
     <Suspense fallback={<RouteBoot layout="home" />}>
-      <OwnedHome />
+      <OwnerHome />
     </Suspense>
   );
 }

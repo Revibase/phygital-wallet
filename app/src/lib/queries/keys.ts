@@ -74,6 +74,12 @@ export const queryKeys = {
       [...queryKeys.tokenAuthority.all(), token] as const,
   },
 
+  ownedAccessories: {
+    all: () => ["ownedAccessories"] as const,
+    byOwner: (owner: string | null) =>
+      [...queryKeys.ownedAccessories.all(), owner] as const,
+  },
+
   walletPolicy: {
     all: () => ["walletPolicy"] as const,
     byToken: (token: string | null) =>

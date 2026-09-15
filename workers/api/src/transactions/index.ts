@@ -1,7 +1,6 @@
 /**
  * Revibase paymaster + owner-connect HTTP surface.
  *
- * - POST `/connect` + `/connect/tap` — WebAuthn / NFC owner proof → session bearer.
  * - GET  `/getFeePayer` — the default fee-payer pubkey the SDK builds txs against.
  * - POST `/sign` — fee-sponsor an on-chain `execute` (fee-balance + shape gate).
  *
