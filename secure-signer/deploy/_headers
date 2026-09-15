@@ -3,7 +3,7 @@
 # with the real parent (app) origin before deploying.
 
 /*
-  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors https://app.example.com
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors https://app.revibase.com
   Permissions-Policy: publickey-credentials-get=(self), publickey-credentials-create=(self)
   Referrer-Policy: no-referrer
   X-Content-Type-Options: nosniff
