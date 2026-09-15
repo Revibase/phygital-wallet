@@ -15,7 +15,7 @@ function signTapParams(counter: number): URLSearchParams {
   const message = new Uint8Array(12);
   message.set(getU32Encoder({ endian: Endian.Big }).encode(counter), 0);
   message.set(nonce, 4);
-  const sig = p256.sign(message, priv, { prehash: false }); // 64-byte r||s
+  const sig = p256.sign(message, priv); // 64-byte r||s
 
   return new URLSearchParams({
     pk: bytesToBase64Url(pk),
