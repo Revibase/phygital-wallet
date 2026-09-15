@@ -7,8 +7,9 @@ import { queryKeys } from "@/lib/queries";
 import { clearWalletPolicy } from "@/lib/wallet/clear-wallet-policy";
 
 /**
- * Clear the on-chain spend policy — drops all caps, keeps the owner.
- * Owner-signed, paymaster-fee-paid.
+ * Turn off accessory policy protections (`clear_wallet_policy`) while keeping
+ * the owner. Prefer restoring everyday payments via empty `set_wallet_policy`
+ * unless the owner explicitly wants no checks.
  */
 export function useClearWalletPolicy(phygitalToken: string) {
   const { address, isAuthenticated, signer } = useOwnerWallet();

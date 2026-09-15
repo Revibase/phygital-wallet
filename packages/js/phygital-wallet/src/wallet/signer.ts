@@ -46,8 +46,7 @@ export function assertSupportedTransactionLifetime(
 
 /**
  * Kit modifying signer for a phygital wallet PDA.
- * Soft deny throws {@link PolicyDeniedError}; retry the same instructions
- * after the owner grants on their device.
+ * Policy soft-denies surface as {@link PolicyDeniedError} before the passkey prompt.
  */
 export async function getPhygitalWalletSigner(
   rpc: Rpc<SolanaRpcApi>,

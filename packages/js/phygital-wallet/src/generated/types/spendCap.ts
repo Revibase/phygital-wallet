@@ -19,40 +19,16 @@ import {
   type FixedSizeEncoder,
 } from "@solana/kit";
 
-/**
- * A fixed-interval allowance in raw units. `window_seconds == 0` never resets
- * automatically. Positive windows refill on a charge at or after the boundary;
- * `last_reset` anchors the interval and is aligned to the Unix-epoch grid at save
- * (a multiple of `window_seconds` since the epoch), not to the save time — so a
- * daily cap resets at 00:00 UTC and the boundary is independent of when it was
- * saved. Saving policy preserves usage for a cap left unchanged; changing a cap's
- * amount or window refills and reanchors that cap.
- * Used directly as the SOL cap and embedded (with a mint) in `MintCap`. Derives
- * both Borsh (for the IDL / clients) and `bytemuck::Pod` (for on-chain reads); the
- * padding-free `#[repr(C)]` layout makes those two encodings byte-identical.
- */
 export type SpendCap = {
-  /** Maximum allowance per period (or lifetime for a zero window). */
   cap: bigint;
-  /** Stored allowance; reads do not refill it when an interval passes. */
   remaining: bigint;
-  /**
-   * Epoch-grid-aligned timestamp anchoring this interval (a multiple of
-   * `window_seconds`), not the save time or the time of the last payment.
-   */
   lastReset: bigint;
   windowSeconds: bigint;
 };
 
 export type SpendCapArgs = {
-  /** Maximum allowance per period (or lifetime for a zero window). */
   cap: number | bigint;
-  /** Stored allowance; reads do not refill it when an interval passes. */
   remaining: number | bigint;
-  /**
-   * Epoch-grid-aligned timestamp anchoring this interval (a multiple of
-   * `window_seconds`), not the save time or the time of the last payment.
-   */
   lastReset: number | bigint;
   windowSeconds: number | bigint;
 };

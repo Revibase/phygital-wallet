@@ -148,14 +148,7 @@ export type ExecuteInput<
   TAccountPhygitalTokenProgram extends string = string,
 > = {
   phygitalToken: Address<TAccountPhygitalToken>;
-  /** (`wallet.key == phygital_token.owner`, the canonical wallet PDA). */
   wallet: Address<TAccountWallet>;
-  /**
-   * program-owned (an absent/closed PDA is system-owned) — this is what disables
-   * the tap once the owner is removed. Token binding, canonical PDA and policy tail
-   * are validated in the handler (they need the header, so they cannot be Anchor
-   * constraints). Writable for spend counters.
-   */
   authorityAccount: Address<TAccountAuthorityAccount>;
   slotHashes?: Address<TAccountSlotHashes>;
   instructionsSysvar?: Address<TAccountInstructionsSysvar>;
@@ -268,14 +261,7 @@ export type ParsedExecuteInstruction<
   programAddress: Address<TProgram>;
   accounts: {
     phygitalToken: TAccountMetas[0];
-    /** (`wallet.key == phygital_token.owner`, the canonical wallet PDA). */
     wallet: TAccountMetas[1];
-    /**
-     * program-owned (an absent/closed PDA is system-owned) — this is what disables
-     * the tap once the owner is removed. Token binding, canonical PDA and policy tail
-     * are validated in the handler (they need the header, so they cannot be Anchor
-     * constraints). Writable for spend counters.
-     */
     authorityAccount: TAccountMetas[2];
     slotHashes: TAccountMetas[3];
     instructionsSysvar: TAccountMetas[4];

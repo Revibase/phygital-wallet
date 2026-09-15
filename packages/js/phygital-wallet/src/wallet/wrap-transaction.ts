@@ -261,8 +261,8 @@ function withLifetimeConstraint(
 }
 
 /**
- * Wallet PDA cannot pay fees (no private key). If the message uses it as fee
- * payer, swap in the verifier co-signer instead.
+ * Wallet PDA cannot pay fees (no private key). If it is the fee payer, swap in
+ * the configured fee-payer signer.
  */
 function withFeePayerIfWallet<T extends DecompiledMessage>(
   message: T,

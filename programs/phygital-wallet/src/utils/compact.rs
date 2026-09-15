@@ -91,8 +91,10 @@ pub(crate) fn hash_referenced_accounts_infos<'info>(
             .get(ix.program_id_index as usize)
             .ok_or_else(|| error!(PhygitalError::InvalidAccountIndex))?;
         parts.push(program.key.as_ref());
-        parts.push(PRIVILEGE_SLICES[account_privilege_byte(program.is_signer, program.is_writable)
-            as usize]);
+        parts.push(
+            PRIVILEGE_SLICES
+                [account_privilege_byte(program.is_signer, program.is_writable) as usize],
+        );
         for &idx in &ix.account_indexes {
             let ai = remaining
                 .get(idx as usize)
@@ -106,13 +108,8 @@ pub(crate) fn hash_referenced_accounts_infos<'info>(
     Ok(hashv(&parts).to_bytes())
 }
 
-/// Execute compact instructions via `invoke_signed` with the wallet PDA as signer.
-///
-/// Batch size is bounded by Solana transaction size / CU, not a program constant.
-///
-/// Protected accounts (phygital token and authority PDA) may appear in direct
-/// inner metas only as non-signer/non-writable. The wallet PDA signs the action.
-/// Permissions gate these direct calls; they do not inspect every nested CPI.
+/// `invoke_signed` batch with the wallet PDA. Protected accounts may only appear
+/// non-signer/non-writable in direct metas. Permissions do not cover nested CPIs.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn execute_compact_instructions<'info>(
     program_id: &Pubkey,

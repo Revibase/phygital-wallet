@@ -181,7 +181,8 @@ fn passkey_execute_replay_rejected() {
     ctx.set_authority(&mut passkey, asset, Keypair::new().pubkey())
         .expect("set owner");
 
-    let (mut remaining, compact) = ctx.spl_transfer_compact(asset, mint, sender, recipient_token, 1, 6);
+    let (mut remaining, compact) =
+        ctx.spl_transfer_compact(asset, mint, sender, recipient_token, 1, 6);
     let (slot_number, slot_hash) = current_slot_entry(&ctx.svm);
     ctx.elevate_remaining_for_execute(asset, &mut remaining, &[]);
     let challenge = build_execute_challenge(slot_hash, &compact, &remaining);
@@ -320,12 +321,9 @@ fn privilege_elevation_breaks_passkey_challenge() {
 
     remaining[dest_idx].is_writable = true;
     let exec_ix = ctx.execute_ix(asset, compact, remaining, verify_args, slot_number);
-    let err = TestContext::send_instructions(
-        &mut ctx.svm,
-        &[secp_ix, exec_ix],
-        &[ctx.payer.pubkey()],
-    )
-    .expect_err("elevated writable must invalidate challenge");
+    let err =
+        TestContext::send_instructions(&mut ctx.svm, &[secp_ix, exec_ix], &[ctx.payer.pubkey()])
+            .expect_err("elevated writable must invalidate challenge");
     // Verify CPI rejects the mismatched message hash (not a successful spend).
     let _ = err;
     assert_eq!(ctx.token_balance(recipient_token), 0);
@@ -338,8 +336,11 @@ fn durable_nonce_rejected_on_authority_policies_path() {
     let amount = 1_000_000u64;
     let (mut passkey, _owner, _recipient, asset, mint, sender, recipient_token) =
         setup_locked_execute(&mut ctx, amount);
-    let authority =
-        ctx.install_policy(&mut passkey, asset, policy_args(vec![mint_cap(mint, amount, 0)]));
+    let authority = ctx.install_policy(
+        &mut passkey,
+        asset,
+        policy_args(vec![mint_cap(mint, amount, 0)]),
+    );
 
     let nonce = Keypair::new();
     let rent: anchor_lang::prelude::Rent = ctx.svm.get_sysvar();

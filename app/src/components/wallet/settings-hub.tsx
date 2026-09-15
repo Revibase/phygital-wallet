@@ -38,12 +38,13 @@ export function SettingsHub({
     : copy.wallet.rpcDefault;
   const policySubtitle = policy.isLoading
     ? copy.common.loading
-    : policy.data?.hasPolicy
-    ? copy.wallet.policyAssetsSummary(
-        policy.data.mintCaps.length +
-          (policy.data.solCap?.cap ?? 0 > 0 ? 1 : 0),
-      )
-    : copy.wallet.policyNone;
+    : policy.data?.status === "limited"
+      ? copy.wallet.policyAssetsSummary(
+          policy.data.mintCaps.length + (policy.data.solCap ? 1 : 0),
+        )
+      : policy.data?.status === "open"
+        ? copy.wallet.policyHubOpen
+        : copy.wallet.policyHubStandard;
 
   function rowClass(target: SettingsTarget) {
     return cn(

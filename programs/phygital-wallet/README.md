@@ -1,69 +1,47 @@
-# Phygital wallet: an accessory for everyday payments
+# Phygital wallet program
 
-Use the accessory to authorize a payment. Use a separate **owner key** to choose
-what the accessory can do, change its limits, or make a transaction outside those
-limits. A tap does not guarantee success: the requested action must satisfy the
-wallet's permissions and available allowance.
+Accessory taps authorize everyday actions. The **owner key** sets permissions and
+allowances, and can run a separate transaction that bypasses accessory policy.
 
-**Development status:** this directory contains the undeployed v2 program (policy
-version 8). The existing app and TypeScript SDK still use the earlier verifier
-interface. The behavior below describes this program, not features already shipped
-in the app.
+A tap can still fail: the request must match permissions and remaining allowance.
 
-## Start here
+## Docs
 
-- [Accessory owner guide](docs/accessory-owner-guide.md): what a tap permits, limits,
-  receiving funds, owner access, and common reasons a payment is blocked.
-- [User expectation review](docs/user-experience-review.md): what feels natural,
-  current surprises, and recommended changes that are not yet implemented.
-- [Integration reference](docs/policy-reference.md): instruction rules, exact spend
-  accounting, account layout, recovery, and a working configuration example.
-- [Repository entry point](../../README.md): program build and documentation links.
+- [Accessory owner guide](docs/accessory-owner-guide.md) — everyday behavior and wording
+- [Policy reference](docs/policy-reference.md) — rules, metering, account layout
+- [TypeScript SDK](../../packages/js/phygital-wallet/README.md)
 
-## What happens by default?
+## Defaults
 
-After owner setup succeeds, the wallet starts with
-**No spending limits · Standard protections**.
+After `set_authority`, the wallet starts with **No spending limits · Standard
+protections**:
 
-- Ordinary SOL and supported token transfers have no amount cap.
-- Direct calls to other applications need an explicit permission.
-- Checks prevent supported token accounts from retaining a spending approval for
-  someone else or changing their ownership/control during accessory execution.
+- No amount caps on SOL / supported tokens through baseline programs
+- Non-baseline programs need an explicit permission
+- Wallet-owned token accounts cannot keep a standing delegate or change control
+  during accessory execute
 
-This default is not a spending budget or a guarantee against an unwanted payment.
-There is no wallet policy before owner setup or after owner controls are removed.
+There is no policy before owner setup. After `clear_authority`, the accessory tap
+is disabled until a new owner is set.
 
-## Keep these choices distinct
+## Owner actions (keep distinct)
 
-| Owner action | What it means |
+| Action | Effect |
 | --- | --- |
-| Set accessory spending limits | Choose the assets the accessory may spend and their allowances; assets without a cap become unavailable while any cap exists |
-| Remove spending limits | Remove all caps and keep existing application rules; amounts become unlimited |
-| Change application permissions | Choose blocked, all instructions, or specific rules for each program; saving currently refills all allowances |
-| Restore standard settings | Remove all caps and custom rules; previously blocked baseline programs become allowed again |
-| Turn off accessory protections | Remove the policy entirely; standard checks and limits stop applying |
-| Use owner key for this transaction | Execute without accessory policy checks, without changing the policy or consuming its allowance |
-| Remove owner controls | Delete authority and policy; this does not disable or empty the wallet |
+| Set spending limits | Caps listed assets; any cap blocks uncapped asset decreases |
+| Remove spending limits | Clear caps; keep program rules |
+| Change program permissions | Per-program Denied / AllInstructions / Restricted; unchanged caps keep usage |
+| Restore standard settings | Empty policy args: baseline programs, no caps, no custom blocks |
+| Turn off protections | `clear_wallet_policy` — owner remains; tap stays on without policy checks |
+| Owner execute | Separate tx; skips policy; does not consume accessory allowance |
+| Remove owner | `clear_authority` — closes authority + policy; **disables tap** |
 
-The last three choices must not be presented as interchangeable ways to remove a
-limit. An owner transaction is a separate signed transaction, not an approval token
-that makes a blocked accessory transaction pass.
-
-## Build and verify
-
-Run from the repository root:
+## Build
 
 ```sh
 NO_DNA=1 anchor build
-cp target/idl/phygital_wallet.json idl/phygital_wallet_v2.json
+pnpm idl:sync
 NO_DNA=1 cargo test -p phygital-wallet --tests
 ```
 
-The [v2 IDL](../../idl/phygital_wallet_v2.json) is the interface for this directory.
-Keep it separate from the earlier app/SDK IDL. The root `build:program` script also
-regenerates the earlier SDK; use the commands above for isolated v2 work.
-
-Tests run the built SBF program in LiteSVM. See
-[instruction-rule tests](tests/instruction_policy_flow.rs) and
-[spending regressions](tests/spending_regressions.rs) for concrete examples.
-No deployment is part of this workflow.
+IDL: [`idl/phygital_wallet.json`](../../idl/phygital_wallet.json).

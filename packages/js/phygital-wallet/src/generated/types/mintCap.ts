@@ -24,10 +24,6 @@ import {
   type SpendCapArgs,
 } from "./index.js";
 
-/**
- * A spending allowance bound to a specific SPL/Token-2022 mint. Same dual Borsh +
- * Pod derivation and padding-free layout as [`SpendCap`].
- */
 export type MintCap = { mint: Address; cap: SpendCap };
 
 export type MintCapArgs = { mint: Address; cap: SpendCapArgs };

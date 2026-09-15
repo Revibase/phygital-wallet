@@ -24,11 +24,8 @@ import {
   type ReadonlyUint8Array,
 } from "@solana/kit";
 
-/** Index-based inner instruction for execute. */
 export type CompactInstruction = {
-  /** Index into `remaining_accounts` for the target program id. */
   programIdIndex: number;
-  /** Indexes into `remaining_accounts` for the instruction's accounts. */
   accountIndexes: ReadonlyUint8Array;
   data: ReadonlyUint8Array;
 };

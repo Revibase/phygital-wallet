@@ -25,28 +25,13 @@ import {
   type ReadonlyUint8Array,
 } from "@solana/kit";
 
-/**
- * Fixed 104-byte header of the [`Authority`] account, laid out immediately after
- * the 8-byte Anchor discriminator. Kept as its own `#[repr(C)]` Pod type so the
- * hot path can `bytemuck`-read it in place, and reused as the first field of the
- * Borsh `Authority` so the IDL and the on-chain bytes share one definition
- * (Borsh serializes a nested struct inline, byte-for-byte with its Pod layout).
- */
 export type AuthorityHeader = {
-  /** Owner admin key: changes settings and executes outside accessory policy. */
   authority: Address;
-  /** Token governed by this account, retained for authority-filtered GPA discovery. */
   phygitalToken: Address;
-  /** Account that paid init rent; close refunds this pubkey. */
   payer: Address;
   bump: number;
   walletBump: number;
   version: number;
-  /**
-   * Zero => no policy configured (unrestricted). `WALLET_POLICY_VERSION` => the
-   * inline policy below is active (and enforces token-control invariants even
-   * with no spend caps set).
-   */
   policyVersion: number;
   padding: ReadonlyUint8Array;
 };

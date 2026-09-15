@@ -24,15 +24,10 @@ import {
   type ProgramAccessArgs,
 } from "./index.js";
 
-export type ProgramPermission = {
-  programId: Address;
-  /** Overrides this program's baseline permission; never additive to it. */
-  access: ProgramAccess;
-};
+export type ProgramPermission = { programId: Address; access: ProgramAccess };
 
 export type ProgramPermissionArgs = {
   programId: Address;
-  /** Overrides this program's baseline permission; never additive to it. */
   access: ProgramAccessArgs;
 };
 

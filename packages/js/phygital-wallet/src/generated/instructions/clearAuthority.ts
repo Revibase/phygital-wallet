@@ -117,19 +117,9 @@ export type ClearAuthorityInput<
   TAccountAuthorityAccount extends string = string,
   TAccountInstructionsSysvar extends string = string,
 > = {
-  /**
-   * Current owner key. Clearing closes the authority account (and any inline
-   * wallet policy), refunds rent, and disables the accessory tap. It does not
-   * close the wallet holding funds. The passkey can re-enable the tap by running
-   * `set_authority` again.
-   */
   authority: TransactionSigner<TAccountAuthority>;
   phygitalToken: Address<TAccountPhygitalToken>;
   rentReceiver: Address<TAccountRentReceiver>;
-  /**
-   * tails cannot brick owner removal. Canonical PDA + authority signer are
-   * validated in the handler.
-   */
   authorityAccount: Address<TAccountAuthorityAccount>;
   instructionsSysvar?: Address<TAccountInstructionsSysvar>;
 };
@@ -214,19 +204,9 @@ export type ParsedClearAuthorityInstruction<
 > = {
   programAddress: Address<TProgram>;
   accounts: {
-    /**
-     * Current owner key. Clearing closes the authority account (and any inline
-     * wallet policy), refunds rent, and disables the accessory tap. It does not
-     * close the wallet holding funds. The passkey can re-enable the tap by running
-     * `set_authority` again.
-     */
     authority: TAccountMetas[0];
     phygitalToken: TAccountMetas[1];
     rentReceiver: TAccountMetas[2];
-    /**
-     * tails cannot brick owner removal. Canonical PDA + authority signer are
-     * validated in the handler.
-     */
     authorityAccount: TAccountMetas[3];
     instructionsSysvar: TAccountMetas[4];
   };

@@ -162,12 +162,9 @@ export type SetAuthorityAsyncInput<
   TAccountPhygitalTokenProgram extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
-  /** Fee payer for rent; not an authorization authority. */
   payer: TransactionSigner<TAccountPayer>;
   phygitalToken: Address<TAccountPhygitalToken>;
-  /** enforced by the seeds and `wallet_matches_owner` constraints. */
   wallet?: Address<TAccountWallet>;
-  /** `init` (not `init_if_needed`) enforces "only if no authority exists yet". */
   authorityAccount?: Address<TAccountAuthorityAccount>;
   slotHashes?: Address<TAccountSlotHashes>;
   instructionsSysvar?: Address<TAccountInstructionsSysvar>;
@@ -318,12 +315,9 @@ export type SetAuthorityInput<
   TAccountPhygitalTokenProgram extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
-  /** Fee payer for rent; not an authorization authority. */
   payer: TransactionSigner<TAccountPayer>;
   phygitalToken: Address<TAccountPhygitalToken>;
-  /** enforced by the seeds and `wallet_matches_owner` constraints. */
   wallet: Address<TAccountWallet>;
-  /** `init` (not `init_if_needed`) enforces "only if no authority exists yet". */
   authorityAccount: Address<TAccountAuthorityAccount>;
   slotHashes?: Address<TAccountSlotHashes>;
   instructionsSysvar?: Address<TAccountInstructionsSysvar>;
@@ -452,12 +446,9 @@ export type ParsedSetAuthorityInstruction<
 > = {
   programAddress: Address<TProgram>;
   accounts: {
-    /** Fee payer for rent; not an authorization authority. */
     payer: TAccountMetas[0];
     phygitalToken: TAccountMetas[1];
-    /** enforced by the seeds and `wallet_matches_owner` constraints. */
     wallet: TAccountMetas[2];
-    /** `init` (not `init_if_needed`) enforces "only if no authority exists yet". */
     authorityAccount: TAccountMetas[3];
     slotHashes: TAccountMetas[4];
     instructionsSysvar: TAccountMetas[5];

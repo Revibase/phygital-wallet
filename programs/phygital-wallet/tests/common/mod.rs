@@ -73,7 +73,10 @@ pub fn hash_referenced_accounts(
             .get(ix.program_id_index as usize)
             .expect("program_id_index");
         buf.extend_from_slice(program.pubkey.as_ref());
-        buf.push(account_privilege_byte(program.is_signer, program.is_writable));
+        buf.push(account_privilege_byte(
+            program.is_signer,
+            program.is_writable,
+        ));
         for &idx in &ix.account_indexes {
             let meta = remaining.get(idx as usize).expect("account index");
             buf.extend_from_slice(meta.pubkey.as_ref());
@@ -262,7 +265,7 @@ impl TestContext {
             program_id: self.program_id,
             accounts: phygital_wallet::accounts::ClearAuthority {
                 authority: authority.pubkey(),
-                phygital_token: asset, 
+                phygital_token: asset,
                 rent_receiver: self.payer.pubkey(),
                 authority_account: self.authority_pda(asset),
                 instructions_sysvar: INSTRUCTIONS_SYSVAR_ID,

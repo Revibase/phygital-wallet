@@ -39,28 +39,20 @@ import {
 } from "./index.js";
 
 export type AccountConstraint = {
-  /** Position in this instruction, not in the outer remaining_accounts list. */
   index: number;
   key: AccountKeyConstraint;
-  /** Solana owner program, not the token account's encoded owner field. */
   owner: Option<Address>;
-  /** Effective privileges passed to CPI, including the wallet PDA signature. */
   isSigner: Option<boolean>;
   isWritable: Option<boolean>;
-  /** Account-data predicates require an explicit owner program. */
   data: Array<DataConstraint>;
 };
 
 export type AccountConstraintArgs = {
-  /** Position in this instruction, not in the outer remaining_accounts list. */
   index: number;
   key: AccountKeyConstraintArgs;
-  /** Solana owner program, not the token account's encoded owner field. */
   owner: OptionOrNullable<Address>;
-  /** Effective privileges passed to CPI, including the wallet PDA signature. */
   isSigner: OptionOrNullable<boolean>;
   isWritable: OptionOrNullable<boolean>;
-  /** Account-data predicates require an explicit owner program. */
   data: Array<DataConstraintArgs>;
 };
 

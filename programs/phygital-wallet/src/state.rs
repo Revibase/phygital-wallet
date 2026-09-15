@@ -5,11 +5,6 @@ use crate::error::PhygitalError;
 use crate::utils::instruction_policy::decode_permissions;
 use crate::utils::instruction_policy::ProgramPermission;
 
-/// Instruction-arg mirror of `phygital_token_client::Secp256r1VerifyArgs`.
-///
-/// The crates.io client only derives Borsh for this type, which breaks Anchor's
-/// `idl-build` (`IdlBuild` methods). Keep a same-layout Anchor type here for the
-/// program interface and convert at the CPI boundary.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, Eq, PartialEq)]
 pub struct Secp256r1VerifyArgs {
     pub verify_args_relative_index: i64,
@@ -27,21 +22,13 @@ impl From<Secp256r1VerifyArgs> for phygital_token_client::Secp256r1VerifyArgs {
     }
 }
 
-/// Index-based inner instruction for execute.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, Eq, PartialEq)]
 pub struct CompactInstruction {
-    /// Index into `remaining_accounts` for the target program id.
     pub program_id_index: u8,
-    /// Indexes into `remaining_accounts` for the instruction's accounts.
     pub account_indexes: Vec<u8>,
     pub data: Vec<u8>,
 }
 
-/// Fixed 104-byte header of the [`Authority`] account, laid out immediately after
-/// the 8-byte Anchor discriminator. Kept as its own `#[repr(C)]` Pod type so the
-/// hot path can `bytemuck`-read it in place, and reused as the first field of the
-/// Borsh `Authority` so the IDL and the on-chain bytes share one definition
-/// (Borsh serializes a nested struct inline, byte-for-byte with its Pod layout).
 #[derive(
     AnchorSerialize,
     AnchorDeserialize,
@@ -56,18 +43,12 @@ pub struct CompactInstruction {
 )]
 #[repr(C)]
 pub struct AuthorityHeader {
-    /// Owner admin key: changes settings and executes outside accessory policy.
     pub authority: Pubkey,
-    /// Token governed by this account, retained for authority-filtered GPA discovery.
     pub phygital_token: Pubkey,
-    /// Account that paid init rent; close refunds this pubkey.
     pub payer: Pubkey,
     pub bump: u8,
     pub wallet_bump: u8,
     pub version: u8,
-    /// Zero => no policy configured (unrestricted). `WALLET_POLICY_VERSION` => the
-    /// inline policy below is active (and enforces token-control invariants even
-    /// with no spend caps set).
     pub policy_version: u8,
     pub _padding: [u8; 4],
 }
@@ -76,27 +57,13 @@ pub const AUTHORITY_VERSION: u8 = 1;
 const _: () = assert!(core::mem::size_of::<AuthorityHeader>() == 104);
 const _: () = assert!(core::mem::align_of::<AuthorityHeader>() == 1);
 
-/// Per-token authority: an ed25519 key set once by the passkey. It administers
-/// policy, may bypass policy on execute, and may drive the wallet without the
-/// accessory passkey. Cleared only by its own signature.
-///
-/// The fixed header and aligned spending counters are read with bytemuck.
-/// A bounded Borsh program-permission tail follows the mint array. The complete
-/// account remains decodable by standard Anchor clients.
 #[account]
 #[derive(Debug)]
 pub struct Authority {
     pub header: AuthorityHeader,
-    /// Native SOL spend cap. Meters native lamports AND wallet-owned wrapped SOL
-    /// (both WSOL native mints) together — one asset to the user. Active when
-    /// `cap != 0` and `header.policy_version == WALLET_POLICY_VERSION`.
     pub sol_cap: SpendCap,
-    /// Must be zero; aligns the following mint array for zero-copy reads.
     pub policy_padding: u32,
-    /// Per-asset allowances. Any configured cap blocks decreases of uncapped
-    /// assets; no caps means no amount limits. WSOL belongs to sol_cap.
     pub mint_caps: Vec<MintCap>,
-    /// Explicit per-program overrides of the fixed baseline.
     pub program_permissions: Vec<ProgramPermission>,
 }
 
@@ -244,21 +211,10 @@ impl Authority {
     }
 }
 
-/// Discriminator length assumption must match what Anchor actually prepends, and
-/// the mint-cap array must be 8-aligned on-chain (`cast_slice` requires it).
 const _: () = assert!(Authority::DISCRIMINATOR_LEN == Authority::DISCRIMINATOR.len());
 const _: () = assert!(Authority::SOL_CAP_OFFSET % core::mem::align_of::<SpendCap>() == 0);
 const _: () = assert!(Authority::MINTS_OFFSET % core::mem::align_of::<MintCap>() == 0);
-/// A fixed-interval allowance in raw units. `window_seconds == 0` never resets
-/// automatically. Positive windows refill on a charge at or after the boundary;
-/// `last_reset` anchors the interval and is aligned to the Unix-epoch grid at save
-/// (a multiple of `window_seconds` since the epoch), not to the save time — so a
-/// daily cap resets at 00:00 UTC and the boundary is independent of when it was
-/// saved. Saving policy preserves usage for a cap left unchanged; changing a cap's
-/// amount or window refills and reanchors that cap.
-/// Used directly as the SOL cap and embedded (with a mint) in `MintCap`. Derives
-/// both Borsh (for the IDL / clients) and `bytemuck::Pod` (for on-chain reads); the
-/// padding-free `#[repr(C)]` layout makes those two encodings byte-identical.
+
 #[derive(
     AnchorSerialize,
     AnchorDeserialize,
@@ -273,12 +229,8 @@ const _: () = assert!(Authority::MINTS_OFFSET % core::mem::align_of::<MintCap>()
 )]
 #[repr(C)]
 pub struct SpendCap {
-    /// Maximum allowance per period (or lifetime for a zero window).
     pub cap: u64,
-    /// Stored allowance; reads do not refill it when an interval passes.
     pub remaining: u64,
-    /// Epoch-grid-aligned timestamp anchoring this interval (a multiple of
-    /// `window_seconds`), not the save time or the time of the last payment.
     pub last_reset: i64,
     pub window_seconds: i64,
 }
@@ -286,17 +238,12 @@ pub struct SpendCap {
 const _: () = assert!(core::mem::size_of::<SpendCap>() == 32);
 
 impl SpendCap {
-    /// A SOL cap is active exactly when one was configured. `new_spend_cap` requires
-    /// a nonzero `cap`, and an unset cap is left zeroed, so the cap value is a
-    /// faithful "is set" marker with no separate flag to keep in sync.
     #[inline]
     pub fn is_active(&self) -> bool {
         self.cap != 0
     }
 }
 
-/// A spending allowance bound to a specific SPL/Token-2022 mint. Same dual Borsh +
-/// Pod derivation and padding-free layout as [`SpendCap`].
 #[derive(
     AnchorSerialize,
     AnchorDeserialize,

@@ -31,9 +31,19 @@ export type ProgramPermissionView = {
   access: ProgramAccess;
 };
 
+/**
+ * Owner-facing policy posture.
+ * - `none` — no authority account (unclaimed / unlinked)
+ * - `open` — authority present, policy cleared (`policy_version = 0`): no accessory checks
+ * - `standard` — active policy, no caps or app overrides (baseline payments only)
+ * - `limited` — active policy with at least one cap or app override
+ */
+export type WalletPolicyStatus = "none" | "open" | "standard" | "limited";
+
 export type WalletPolicyView = {
-  /** True when a policy is present (any cap or program override configured). */
-  hasPolicy: boolean;
+  status: WalletPolicyStatus;
+  /** True when any spend cap or app override is configured. */
+  hasLimits: boolean;
   /** Unified SOL/WSOL cap, or null when unset. */
   solCap: SpendCapView | null;
   mintCaps: (SpendCapView & { mint: string })[];
@@ -65,14 +75,16 @@ export function useWalletPolicy(phygitalToken: string | null) {
       const account = await fetchMaybeAuthority(rpc, authorityPda);
       if (!account.exists) {
         return {
-          hasPolicy: false,
+          status: "none",
+          hasLimits: false,
           solCap: null,
           mintCaps: [],
           programPermissions: [],
         };
       }
 
-      const { solCap, mintCaps, programPermissions } = account.data;
+      const { header, solCap, mintCaps, programPermissions } = account.data;
+      const policyActive = header.policyVersion !== 0;
       const solActive = solCap.cap !== 0n;
       const activeMintCaps = mintCaps
         .filter((m) => m.cap.cap !== 0n)
@@ -88,10 +100,17 @@ export function useWalletPolicy(phygitalToken: string | null) {
         kind: accessKind(p.access),
         access: p.access,
       }));
+      const hasLimits =
+        solActive || activeMintCaps.length > 0 || permissions.length > 0;
+
+      let status: WalletPolicyStatus;
+      if (!policyActive) status = "open";
+      else if (hasLimits) status = "limited";
+      else status = "standard";
 
       return {
-        hasPolicy:
-          solActive || activeMintCaps.length > 0 || permissions.length > 0,
+        status,
+        hasLimits,
         solCap: solActive
           ? {
               cap: solCap.cap,

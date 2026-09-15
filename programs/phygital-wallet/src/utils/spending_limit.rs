@@ -1,18 +1,7 @@
-//! Fixed-interval allowances for accessory execution, anchored to the Unix-epoch
-//! grid (not to policy-save time). A window of length `w` resets at multiples of
-//! `w` since the epoch: daily caps reset at 00:00 UTC, and any two accessories
-//! with the same window share the same boundaries regardless of when they were
-//! saved. Not a trailing time window or a civil-calendar allowance (a weekly cap
-//! resets on the epoch's weekday, a "monthly" cap every 30 days — it does not
-//! track calendar months). Per-use is the aggregate measured decrease charged
-//! against a cap in one execute.
 use anchor_lang::prelude::*;
 
 use crate::{error::PhygitalError, state::SpendCap};
 
-/// Snap a timestamp down to the start of its current window on the epoch grid
-/// (`now - (now mod window_seconds)`). Zero windows (lifetime budgets) never
-/// reset, so their anchor is irrelevant and left at `now`.
 pub(crate) fn align_to_window(now: i64, window_seconds: i64) -> Result<i64> {
     if window_seconds <= 0 {
         return Ok(now);
@@ -37,11 +26,6 @@ pub(crate) fn new_spend_cap(cap: u64, window_seconds: i64, now: i64) -> Result<S
     })
 }
 
-/// Carry a re-saved cap's usage forward instead of refilling it. When the new cap
-/// matches the previous one in both amount and interval, its consumed allowance and
-/// interval anchor are kept, so an identical save or a permissions-only edit does
-/// NOT refill the allowance or reset the clock. Any change to the cap amount or the
-/// window is a deliberate reconfiguration and takes the freshly-anchored `new`.
 pub(crate) fn preserve_spend_cap(new: SpendCap, previous: Option<&SpendCap>) -> SpendCap {
     if let Some(prev) = previous {
         if prev.cap == new.cap && prev.window_seconds == new.window_seconds {
@@ -56,11 +40,6 @@ pub(crate) fn preserve_spend_cap(new: SpendCap, previous: Option<&SpendCap>) -> 
     new
 }
 
-/// Charge measured loss. Refill at or after the interval boundary
-/// (`elapsed >= window_seconds`), so an exact-boundary charge uses the fresh
-/// allowance. Zero windows never reset automatically. Reads/zero charges do not
-/// refresh state; UI must derive effective allowance from chain time, not only
-/// stored remaining.
 pub(crate) fn charge_cap(cap: &mut SpendCap, amount: u64, now: i64) -> Result<()> {
     if amount == 0 {
         return Ok(());

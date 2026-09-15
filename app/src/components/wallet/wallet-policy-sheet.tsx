@@ -36,7 +36,7 @@ import type {
   ProgramAccessKind,
   ProgramPermissionView,
 } from "@/hooks/token/use-wallet-policy";
-import { copy, errorCopy } from "@/lib/copy/phygital";
+import { copy } from "@/lib/copy/phygital";
 import { tryParseAddress } from "@/lib/solana/address";
 import {
   formatTokenAmount,
@@ -52,6 +52,11 @@ import {
   nextResetDate,
   windowPhrase,
 } from "@/lib/wallet/policy-format";
+import { POLICY_BASELINE_ACTIONS } from "@/lib/wallet/policy-baseline";
+import {
+  policyPresets,
+  type PolicyPreset,
+} from "@/lib/wallet/policy-presets";
 import { toUserErrorMessage } from "@/lib/user-errors";
 import { cn, shortAddress } from "@/lib/utils";
 
@@ -78,7 +83,8 @@ export function WalletPolicySheet({
   const [mode, setMode] = useState<Mode>("view");
 
   const data = policy.data;
-  const hasPolicy = Boolean(data?.hasPolicy);
+  const status = data?.status ?? "none";
+  const hasLimits = Boolean(data?.hasLimits);
 
   const header = (
     <NavBar
@@ -120,18 +126,28 @@ export function WalletPolicySheet({
           <Skeleton className="h-9 w-40 rounded" />
           <Skeleton className="h-4 w-56 rounded" />
         </div>
-      ) : hasPolicy ? (
+      ) : status === "limited" ? (
         <PolicyView
           solCap={data?.solCap ?? null}
           mintCaps={data?.mintCaps ?? []}
           programPermissions={data?.programPermissions ?? []}
         />
+      ) : status === "open" ? (
+        <StatusCard
+          title={copy.wallet.policyStatusOpen}
+          body={copy.wallet.policyStatusOpenBody}
+          tone="warn"
+        />
       ) : (
-        <div className="flex flex-col gap-1 px-1">
-          <p className="text-base font-medium">{copy.wallet.policyNone}</p>
-          <p className="text-sm text-muted-foreground">
-            {copy.wallet.policyNoneBody}
-          </p>
+        <div className="flex flex-col gap-4">
+          <StatusCard
+            title={copy.wallet.policyStatusStandard}
+            body={copy.wallet.policyStatusStandardBody}
+          />
+          <BaselineList />
+          {isOwner ? (
+            <PolicyPresetList phygitalTokenPda={phygitalTokenPda} />
+          ) : null}
         </div>
       )}
 
@@ -143,10 +159,16 @@ export function WalletPolicySheet({
             className="w-full"
             onClick={() => setMode("edit")}
           >
-            {hasPolicy ? copy.wallet.policyEdit : copy.wallet.policySet}
+            {hasLimits ? copy.wallet.policyEdit : copy.wallet.policySet}
           </Button>
-          {hasPolicy ? (
-            <RemoveLimitsButton phygitalTokenPda={phygitalTokenPda} />
+          {hasLimits ? (
+            <RestoreStandardButton phygitalTokenPda={phygitalTokenPda} />
+          ) : null}
+          {status === "standard" || status === "limited" ? (
+            <TurnOffProtectionsButton phygitalTokenPda={phygitalTokenPda} />
+          ) : null}
+          {status === "open" ? (
+            <RestoreStandardButton phygitalTokenPda={phygitalTokenPda} />
           ) : null}
         </div>
       ) : null}
@@ -204,7 +226,7 @@ function PolicyView({
         </div>
       ) : null}
 
-      <AllowlistNote />
+      {(solCap || mintCaps.length > 0) ? <AllowlistNote /> : null}
 
       {mintCaps.length > 0 ? (
         <div className="flex flex-col gap-2">
@@ -278,11 +300,130 @@ function PolicyView({
           </ul>
         </div>
       ) : null}
+
+      <BaselineList />
     </div>
   );
 }
 
-/** The allow-list surprise, stated once, wherever limits exist. */
+function StatusCard({
+  title,
+  body,
+  tone = "default",
+}: {
+  title: string;
+  body: string;
+  tone?: "default" | "warn";
+}) {
+  return (
+    <div
+      className={cn(
+        "flex flex-col gap-1 rounded-xl px-3 py-3",
+        tone === "warn" ? "bg-destructive/10" : "bg-muted/50",
+      )}
+    >
+      <p
+        className={cn(
+          "text-base font-medium",
+          tone === "warn" && "text-destructive",
+        )}
+      >
+        {title}
+      </p>
+      <p className="text-sm text-muted-foreground">{body}</p>
+    </div>
+  );
+}
+
+function BaselineList() {
+  return (
+    <div className="flex flex-col gap-2 px-1">
+      <h2 className="text-section-label px-0">
+        {copy.wallet.policyBaselineTitle}
+      </h2>
+      <p className="text-xs text-muted-foreground">
+        {copy.wallet.policyBaselineHint}
+      </p>
+      <ul className="flex flex-col gap-2">
+        {POLICY_BASELINE_ACTIONS.map((action) => (
+          <li key={action.label} className="flex items-start gap-3">
+            <Check className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+            <div className="min-w-0">
+              <p className="text-sm font-medium">{action.label}</p>
+              <p className="text-xs text-muted-foreground">{action.detail}</p>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** One-tap allow-list setups for owners on everyday payments. */
+function PolicyPresetList({
+  phygitalTokenPda,
+}: {
+  phygitalTokenPda: string;
+}) {
+  const setPolicy = useSetWalletPolicy(phygitalTokenPda);
+  const presets = useMemo(() => policyPresets(), []);
+  const [pendingId, setPendingId] = useState<string | null>(null);
+
+  function apply(preset: PolicyPreset) {
+    setPendingId(preset.id);
+    setPolicy.mutate(
+      {
+        solCap: preset.solCap,
+        mintCaps: preset.mintCaps,
+        programPermissions: [],
+      },
+      {
+        onSuccess: () => toast.success(copy.wallet.policyPresetApplied),
+        onError: (err) => toast.error(toUserErrorMessage(err)),
+        onSettled: () => setPendingId(null),
+      },
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-2 px-1">
+      <h2 className="text-section-label px-0">
+        {copy.wallet.policyPresetsTitle}
+      </h2>
+      <p className="text-xs text-muted-foreground">
+        {copy.wallet.policyPresetsHint}
+      </p>
+      <ul className="flex flex-col gap-2">
+        {presets.map((preset) => {
+          const busy = setPolicy.isPending && pendingId === preset.id;
+          return (
+            <li key={preset.id}>
+              <button
+                type="button"
+                disabled={setPolicy.isPending}
+                onClick={() => apply(preset)}
+                className={cn(
+                  "flex w-full flex-col gap-0.5 rounded-xl border border-border/40 bg-grouped px-3 py-3 text-left transition-colors",
+                  "hover:bg-muted/60 disabled:opacity-60",
+                )}
+              >
+                <span className="flex items-center justify-between gap-2 text-sm font-medium">
+                  {preset.title}
+                  {busy ? <Spinner className="size-4" /> : null}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {preset.detail}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+/** The allow-list surprise, stated once, wherever asset limits exist. */
 function AllowlistNote() {
   return (
     <div className="rounded-xl bg-muted/50 px-3 py-2.5">
@@ -407,6 +548,11 @@ function PolicyEditorForm({
       tokens.filter((t) => !isSolLikeMint(t.mint) && !usedMints.has(t.mint)),
     [tokens, usedMints],
   );
+  const showPresets =
+    !solCap &&
+    mintCaps.length === 0 &&
+    drafts.length === 0 &&
+    solAmount.trim() === "";
 
   function updateDraft(mint: string, patch: Partial<MintCapDraft>) {
     setDrafts((prev) =>
@@ -522,20 +668,14 @@ function PolicyEditorForm({
       access: programAccessArg(p),
     }));
 
-    if (
-      !solCapArg &&
-      mintCapArgs.length === 0 &&
-      programArgs.length === 0 &&
-      !nextErrors.sol
-    ) {
-      nextErrors.form = errorCopy.enterAmount.body;
-    }
-
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
       return;
     }
     setErrors({});
+
+    const restoringStandard =
+      !solCapArg && mintCapArgs.length === 0 && programArgs.length === 0;
 
     setPolicy.mutate(
       {
@@ -545,7 +685,11 @@ function PolicyEditorForm({
       },
       {
         onSuccess: () => {
-          toast.success(copy.wallet.policySaved);
+          toast.success(
+            restoringStandard
+              ? copy.wallet.policyRestored
+              : copy.wallet.policySaved,
+          );
           onDone();
         },
         onError: (err) => toast.error(toUserErrorMessage(err)),
@@ -591,7 +735,33 @@ function PolicyEditorForm({
 
   return (
     <div className="flex flex-1 flex-col gap-6">
-      <AllowlistNote />
+      {showPresets ? (
+        <EditorPresetPicker
+          onPick={(preset) => {
+            setSolAmount(
+              preset.solCap ? lamportsToSol(preset.solCap.cap) : "",
+            );
+            setSolWindow(preset.solCap?.windowSeconds ?? DEFAULT_WINDOW);
+            setDrafts(
+              preset.mintCaps.map((m) => {
+                const token = byMint.get(m.mint);
+                const decimals = token?.decimals ?? 6;
+                return {
+                  mint: m.mint,
+                  symbol: token?.symbol ?? "USDC",
+                  icon: token?.icon ?? null,
+                  decimals,
+                  amount: formatTokenAmount(m.cap, decimals),
+                  windowSeconds: m.windowSeconds,
+                  rawFallback: m.cap,
+                };
+              }),
+            );
+          }}
+        />
+      ) : (
+        <AllowlistNote />
+      )}
 
       {/* SOL cap */}
       <div className="flex flex-col gap-2">
@@ -609,6 +779,9 @@ function PolicyEditorForm({
           <FieldError className="px-1">{errors.sol}</FieldError>
         ) : null}
         <WindowPills value={solWindow} onChange={setSolWindow} />
+        <p className="px-1 text-xs text-muted-foreground">
+          {copy.wallet.policyWindowHint}
+        </p>
       </div>
 
       {/* Per-mint caps */}
@@ -751,7 +924,7 @@ function PolicyEditorForm({
           </ul>
         ) : (
           <p className="text-sm text-muted-foreground">
-            {copy.wallet.policyPreviewNoLimits}
+            {copy.wallet.policyPreviewStandard}
           </p>
         )}
         {programs.length > 0 ? (
@@ -995,7 +1168,114 @@ function TokenPickerSheet({
   );
 }
 
-function RemoveLimitsButton({
+/** Prefill the editor from a quick setup (owner still saves). */
+function EditorPresetPicker({
+  onPick,
+}: {
+  onPick: (preset: PolicyPreset) => void;
+}) {
+  const presets = useMemo(() => policyPresets(), []);
+  return (
+    <div className="flex flex-col gap-2 px-1">
+      <h2 className="text-section-label px-0">
+        {copy.wallet.policyPresetsTitle}
+      </h2>
+      <p className="text-xs text-muted-foreground">
+        {copy.wallet.policyPresetsHint}
+      </p>
+      <ul className="flex flex-col gap-2">
+        {presets.map((preset) => (
+          <li key={preset.id}>
+            <button
+              type="button"
+              onClick={() => onPick(preset)}
+              className="flex w-full flex-col gap-0.5 rounded-xl border border-border/40 bg-grouped px-3 py-3 text-left transition-colors hover:bg-muted/60"
+            >
+              <span className="text-sm font-medium">{preset.title}</span>
+              <span className="text-xs text-muted-foreground">
+                {preset.detail}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function RestoreStandardButton({
+  phygitalTokenPda,
+}: {
+  phygitalTokenPda: string;
+}) {
+  const setPolicy = useSetWalletPolicy(phygitalTokenPda);
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <Button
+        type="button"
+        size="lg"
+        variant="ghost"
+        className="w-full"
+        onClick={() => setOpen(true)}
+      >
+        {copy.wallet.policyRestore}
+      </Button>
+
+      <Dialog
+        open={open}
+        onOpenChange={(next) => {
+          if (!setPolicy.isPending) setOpen(next);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{copy.wallet.policyRestoreConfirmTitle}</DialogTitle>
+            <DialogDescription>
+              {copy.wallet.policyRestoreConfirmBody}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={setPolicy.isPending}
+              >
+                {copy.common.cancel}
+              </Button>
+            </DialogClose>
+            <Button
+              type="button"
+              disabled={setPolicy.isPending}
+              onClick={() =>
+                setPolicy.mutate(
+                  {
+                    solCap: null,
+                    mintCaps: [],
+                    programPermissions: [],
+                  },
+                  {
+                    onSuccess: () => {
+                      toast.success(copy.wallet.policyRestored);
+                      setOpen(false);
+                    },
+                    onError: (err) => toast.error(toUserErrorMessage(err)),
+                  },
+                )
+              }
+            >
+              {setPolicy.isPending ? "…" : copy.wallet.policyRestore}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function TurnOffProtectionsButton({
   phygitalTokenPda,
 }: {
   phygitalTokenPda: string;
@@ -1012,7 +1292,7 @@ function RemoveLimitsButton({
         className="w-full text-destructive hover:text-destructive"
         onClick={() => setOpen(true)}
       >
-        {copy.wallet.policyRemove}
+        {copy.wallet.policyTurnOff}
       </Button>
 
       <Dialog
@@ -1023,9 +1303,9 @@ function RemoveLimitsButton({
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{copy.wallet.policyRemoveConfirmTitle}</DialogTitle>
+            <DialogTitle>{copy.wallet.policyTurnOffConfirmTitle}</DialogTitle>
             <DialogDescription>
-              {copy.wallet.policyRemoveConfirmBody}
+              {copy.wallet.policyTurnOffConfirmBody}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -1045,14 +1325,14 @@ function RemoveLimitsButton({
               onClick={() =>
                 clear.mutate(undefined, {
                   onSuccess: () => {
-                    toast.success(copy.wallet.policyRemoved);
+                    toast.success(copy.wallet.policyTurnedOff);
                     setOpen(false);
                   },
                   onError: (err) => toast.error(toUserErrorMessage(err)),
                 })
               }
             >
-              {clear.isPending ? "…" : copy.wallet.policyRemove}
+              {clear.isPending ? "…" : copy.wallet.policyTurnOff}
             </Button>
           </DialogFooter>
         </DialogContent>

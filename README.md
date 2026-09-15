@@ -1,23 +1,22 @@
-# Phygital wallet program
+# Phygital wallet
 
-The NFC accessory authorizes everyday wallet actions. A separate owner key manages
-its permissions and allowances, and can make transactions outside those limits.
+NFC accessory authorizes everyday spends. A separate owner key manages policy and
+can execute outside those limits.
 
-The program in this repository is **undeployed v2, policy version 8**.
-After owner setup, its default is **No spending limits · Standard protections**.
+Default after owner setup: **No spending limits · Standard protections**
+(policy version 8).
 
-- [Program overview](programs/phygital-wallet/README.md)
-- [Accessory owner guide](programs/phygital-wallet/docs/accessory-owner-guide.md)
-- [User expectation review](programs/phygital-wallet/docs/user-experience-review.md)
-- [Integration reference](programs/phygital-wallet/docs/policy-reference.md)
-
-Build and test from the repository root:
+| Doc | Audience |
+| --- | --- |
+| [Program overview](programs/phygital-wallet/README.md) | Developers |
+| [Accessory owner guide](programs/phygital-wallet/docs/accessory-owner-guide.md) | Product / UX |
+| [Policy reference](programs/phygital-wallet/docs/policy-reference.md) | Integrators |
+| [TypeScript SDK](packages/js/phygital-wallet/README.md) | App clients |
 
 ```sh
 NO_DNA=1 anchor build
-cp target/idl/phygital_wallet.json idl/phygital_wallet_v2.json
+pnpm idl:sync          # → idl/phygital_wallet.json
 NO_DNA=1 cargo test -p phygital-wallet --tests
 ```
 
-These commands build the program, refresh its v2 interface, and run local tests.
-They do not deploy it. See the program overview before using other build scripts.
+Or `pnpm build:program` to build, sync the IDL, and regenerate the JS client.

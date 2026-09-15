@@ -26,13 +26,6 @@ import {
   type ReadonlyUint8Array,
 } from "@solana/kit";
 
-/**
- * Instruction-arg mirror of `phygital_token_client::Secp256r1VerifyArgs`.
- *
- * The crates.io client only derives Borsh for this type, which breaks Anchor's
- * `idl-build` (`IdlBuild` methods). Keep a same-layout Anchor type here for the
- * program interface and convert at the CPI boundary.
- */
 export type Secp256r1VerifyArgs = {
   verifyArgsRelativeIndex: bigint;
   signedMessageIndex: number;

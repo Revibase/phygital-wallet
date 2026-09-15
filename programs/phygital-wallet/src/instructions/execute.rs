@@ -16,13 +16,9 @@ use crate::utils::policy::{
 };
 use crate::utils::slot_hash::fetch_slot_hash;
 
-/// Accessory authorization: signed request plus current policy checks. Requires a
-/// present owner (authority): with none set — or after `clear_authority` removes it
-/// — the tap is disabled (`AccessoryDisabled`). With an owner but no spending
-/// policy (`clear_wallet_policy`), execution has only structural guards.
 #[derive(Accounts)]
 pub struct Execute<'info> {
-    /// CHECK: owned by phygital-token; fields read by offset (no Borsh round-trip).
+    /// CHECK: locked Controlled phygital-token account.
     #[account(
         mut,
         owner = phygital_token_client::PHYGITAL_TOKEN_ID,
@@ -30,31 +26,26 @@ pub struct Execute<'info> {
     )]
     pub phygital_token: UncheckedAccount<'info>,
 
-    /// CHECK: wallet PDA that signs inner CPIs; validated by `wallet_matches_owner`
-    /// (`wallet.key == phygital_token.owner`, the canonical wallet PDA).
+    /// CHECK: wallet PDA matching token owner.
     #[account(
         mut,
         constraint = wallet_matches_owner(&wallet, &phygital_token) @ PhygitalError::WalletOwnerMismatch,
     )]
     pub wallet: UncheckedAccount<'info>,
 
-    /// CHECK: the owner account. `owner = crate::ID` enforces that it is present and
-    /// program-owned (an absent/closed PDA is system-owned) — this is what disables
-    /// the tap once the owner is removed. Token binding, canonical PDA and policy tail
-    /// are validated in the handler (they need the header, so they cannot be Anchor
-    /// constraints). Writable for spend counters.
+    /// CHECK: program-owned authority; absent account disables the tap.
     #[account(mut, owner = crate::ID @ PhygitalError::AccessoryDisabled)]
     pub authority_account: UncheckedAccount<'info>,
 
-    /// CHECK: validated as the SlotHashes sysvar address
+    /// CHECK: SlotHashes sysvar.
     #[account(address = SLOT_HASHES_SYSVAR_ID)]
     pub slot_hashes: UncheckedAccount<'info>,
 
-    /// CHECK: validated as the instructions sysvar address
+    /// CHECK: instructions sysvar.
     #[account(address = INSTRUCTIONS_SYSVAR_ID)]
     pub instructions_sysvar: UncheckedAccount<'info>,
 
-    /// CHECK: phygital-token program for verify CPI
+    /// CHECK: phygital-token program.
     #[account(address = phygital_token_client::PHYGITAL_TOKEN_ID, executable)]
     pub phygital_token_program: UncheckedAccount<'info>,
 }
@@ -100,8 +91,6 @@ pub fn handler<'info>(
         .message_hash(message_hash)
         .invoke()?;
 
-    // Snapshot balances before the CPIs; spend is metered from the actual balance
-    // delta, not instruction data (see `charge_policy_deltas`).
     let snapshot = if policy_present {
         Some(check_policy_and_snapshot(
             &ctx.accounts.authority_account,
@@ -138,35 +127,28 @@ pub fn handler<'info>(
     Ok(())
 }
 
-/// Separate owner transaction: no accessory proof or policy checks. This does
-/// not update accessory allowances or issue a grant for a later accessory retry.
 #[derive(Accounts)]
 pub struct ExecuteWithAuthority<'info> {
-    /// The token's authority (ed25519) — the sole authorization; policy is skipped.
     pub authority: Signer<'info>,
 
-    /// CHECK: owned by phygital-token; must be locked Controlled.
+    /// CHECK: locked Controlled phygital-token account.
     #[account(
         owner = phygital_token_client::PHYGITAL_TOKEN_ID,
         constraint = locked_controlled(&phygital_token) @ PhygitalError::TokenIsCurrentlyUnLocked,
     )]
     pub phygital_token: UncheckedAccount<'info>,
 
-    /// CHECK: header read by offset; authority signer, token binding and canonical
-    /// PDA validated in the handler (not via Anchor `seeds`/`has_one`, whose
-    /// `?`/self-referential form is not expressible in the IDL). Not writable: the
-    /// authority path never touches policy counters.
+    /// CHECK: validated in handler; not writable (no policy charges).
     pub authority_account: UncheckedAccount<'info>,
 
-    /// CHECK: wallet PDA that signs inner CPIs. Validated by `wallet_matches_owner`;
-    /// the wallet bump comes from the validated authority header.
+    /// CHECK: wallet PDA matching token owner.
     #[account(
         mut,
         constraint = wallet_matches_owner(&wallet, &phygital_token) @ PhygitalError::WalletOwnerMismatch,
     )]
     pub wallet: UncheckedAccount<'info>,
 
-    /// CHECK: validated as the instructions sysvar address
+    /// CHECK: instructions sysvar.
     #[account(address = INSTRUCTIONS_SYSVAR_ID)]
     pub instructions_sysvar: UncheckedAccount<'info>,
 }
@@ -209,32 +191,29 @@ pub fn authority_handler<'info>(
     Ok(())
 }
 
-/// Authority-signed execution that applies the same policy checks and spending
-/// charges as accessory execution, but does not require a Secp256r1 proof.
 #[derive(Accounts)]
 pub struct ExecuteWithAuthorityUsingPolicies<'info> {
     pub authority: Signer<'info>,
 
-    /// CHECK: owned by phygital-token; must be locked Controlled.
+    /// CHECK: locked Controlled phygital-token account.
     #[account(
         owner = phygital_token_client::PHYGITAL_TOKEN_ID,
         constraint = locked_controlled(&phygital_token) @ PhygitalError::TokenIsCurrentlyUnLocked,
     )]
     pub phygital_token: UncheckedAccount<'info>,
 
-    /// CHECK: validated by header, signer and canonical PDA in the handler.
-    /// Writable because successful execution may charge spending counters.
+    /// CHECK: validated in handler; writable for spend counters.
     #[account(mut)]
     pub authority_account: UncheckedAccount<'info>,
 
-    /// CHECK: validated against the token owner; signs inner CPIs as a PDA.
+    /// CHECK: wallet PDA matching token owner.
     #[account(
         mut,
         constraint = wallet_matches_owner(&wallet, &phygital_token) @ PhygitalError::WalletOwnerMismatch,
     )]
     pub wallet: UncheckedAccount<'info>,
 
-    /// CHECK: validated as the instructions sysvar address
+    /// CHECK: instructions sysvar.
     #[account(address = INSTRUCTIONS_SYSVAR_ID)]
     pub instructions_sysvar: UncheckedAccount<'info>,
 }

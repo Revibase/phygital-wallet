@@ -1,4 +1,4 @@
-/** Policy denial from `/preview` or `/sign`. */
+/** Policy denial from fee-payer `/preview` or `/sign` (or local simulation). */
 export class PolicyDeniedError extends Error {
   readonly code: string;
   readonly soft: boolean;

@@ -113,46 +113,14 @@ export type SetWalletPolicyInstruction<
 
 export type SetWalletPolicyInstructionData = {
   discriminator: ReadonlyUint8Array;
-  /**
-   * SOL/WSOL cap on net loss across execute; incoming offsets outgoing. Meters
-   * native lamports AND wallet-owned wrapped SOL (both native mints) as one
-   * budget. Absent => SOL cannot decrease when any spending limit exists.
-   */
   solCap: Option<SolCapArg>;
-  /**
-   * Each mint may appear once; the WSOL mints are rejected here (they belong to
-   * `sol_cap`). Unlisted mints cannot decrease when any cap exists. No SOL or
-   * mint limits means no amount limits; program/control checks still apply.
-   * Token spending sums each source account decrease, including transfers
-   * between wallet-owned accounts.
-   */
   mintCaps: Array<MintCapArg>;
-  /**
-   * Per-program overrides. Omitted programs fall back to baseline permissions.
-   * Preserve this list when removing only caps; empty removes custom blocks too.
-   */
   programPermissions: Array<ProgramPermission>;
 };
 
 export type SetWalletPolicyInstructionDataArgs = {
-  /**
-   * SOL/WSOL cap on net loss across execute; incoming offsets outgoing. Meters
-   * native lamports AND wallet-owned wrapped SOL (both native mints) as one
-   * budget. Absent => SOL cannot decrease when any spending limit exists.
-   */
   solCap: OptionOrNullable<SolCapArgArgs>;
-  /**
-   * Each mint may appear once; the WSOL mints are rejected here (they belong to
-   * `sol_cap`). Unlisted mints cannot decrease when any cap exists. No SOL or
-   * mint limits means no amount limits; program/control checks still apply.
-   * Token spending sums each source account decrease, including transfers
-   * between wallet-owned accounts.
-   */
   mintCaps: Array<MintCapArgArgs>;
-  /**
-   * Per-program overrides. Omitted programs fall back to baseline permissions.
-   * Preserve this list when removing only caps; empty removes custom blocks too.
-   */
   programPermissions: Array<ProgramPermissionArgs>;
 };
 
@@ -196,17 +164,10 @@ export type SetWalletPolicyInput<
   TAccountInstructionsSysvar extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
-  /** The token's authority (ed25519) — the sole authorization for policy admin. */
   authority: TransactionSigner<TAccountAuthority>;
-  /** Pays any additional rent when growing the policy. */
   payer: TransactionSigner<TAccountPayer>;
   rentReceiver: Address<TAccountRentReceiver>;
   phygitalToken: Address<TAccountPhygitalToken>;
-  /**
-   * version, authority signer and canonical PDA are validated in the handler;
-   * Anchor `seeds`/`has_one` are not used here because their `?`/self-reference
-   * form is not expressible in the IDL.
-   */
   authorityAccount: Address<TAccountAuthorityAccount>;
   instructionsSysvar?: Address<TAccountInstructionsSysvar>;
   systemProgram?: Address<TAccountSystemProgram>;
@@ -316,17 +277,10 @@ export type ParsedSetWalletPolicyInstruction<
 > = {
   programAddress: Address<TProgram>;
   accounts: {
-    /** The token's authority (ed25519) — the sole authorization for policy admin. */
     authority: TAccountMetas[0];
-    /** Pays any additional rent when growing the policy. */
     payer: TAccountMetas[1];
     rentReceiver: TAccountMetas[2];
     phygitalToken: TAccountMetas[3];
-    /**
-     * version, authority signer and canonical PDA are validated in the handler;
-     * Anchor `seeds`/`has_one` are not used here because their `?`/self-reference
-     * form is not expressible in the IDL.
-     */
     authorityAccount: TAccountMetas[4];
     instructionsSysvar: TAccountMetas[5];
     systemProgram: TAccountMetas[6];

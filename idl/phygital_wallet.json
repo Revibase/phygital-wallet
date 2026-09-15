@@ -9,11 +9,6 @@
   "instructions": [
     {
       "name": "clear_authority",
-      "docs": [
-        "Owner-signed: remove owner controls and the entire wallet policy by closing",
-        "the authority account. Disables the accessory tap until `set_authority`",
-        "runs again; does not freeze or empty the wallet."
-      ],
       "discriminator": [
         129,
         249,
@@ -27,12 +22,6 @@
       "accounts": [
         {
           "name": "authority",
-          "docs": [
-            "Current owner key. Clearing closes the authority account (and any inline",
-            "wallet policy), refunds rent, and disables the accessory tap. It does not",
-            "close the wallet holding funds. The passkey can re-enable the tap by running",
-            "`set_authority` again."
-          ],
           "signer": true
         },
         {
@@ -44,10 +33,6 @@
         },
         {
           "name": "authority_account",
-          "docs": [
-            "tails cannot brick owner removal. Canonical PDA + authority signer are",
-            "validated in the handler."
-          ],
           "writable": true
         },
         {
@@ -59,11 +44,6 @@
     },
     {
       "name": "clear_wallet_policy",
-      "docs": [
-        "Authority-signed: explicitly disable all policy protections (authority remains).",
-        "To remove only spending limits, submit no caps while preserving program",
-        "permissions. Empty/default args also remove custom application restrictions."
-      ],
       "discriminator": [
         226,
         224,
@@ -77,9 +57,6 @@
       "accounts": [
         {
           "name": "authority",
-          "docs": [
-            "The token's authority (ed25519)."
-          ],
           "signer": true
         },
         {
@@ -91,9 +68,6 @@
         },
         {
           "name": "authority_account",
-          "docs": [
-            "and canonical PDA are validated in the handler (see `SetWalletPolicy`)."
-          ],
           "writable": true
         },
         {
@@ -105,11 +79,6 @@
     },
     {
       "name": "execute",
-      "docs": [
-        "Passkey-authorized execute of compact inner instructions. Enforces the",
-        "token's instruction rules, spending allowances and token-control checks",
-        "when a policy is present. A valid accessory proof alone does not bypass them."
-      ],
       "discriminator": [
         130,
         221,
@@ -127,19 +96,10 @@
         },
         {
           "name": "wallet",
-          "docs": [
-            "(`wallet.key == phygital_token.owner`, the canonical wallet PDA)."
-          ],
           "writable": true
         },
         {
           "name": "authority_account",
-          "docs": [
-            "program-owned (an absent/closed PDA is system-owned) — this is what disables",
-            "the tap once the owner is removed. Token binding, canonical PDA and policy tail",
-            "are validated in the handler (they need the header, so they cannot be Anchor",
-            "constraints). Writable for spend counters."
-          ],
           "writable": true
         },
         {
@@ -182,11 +142,6 @@
     },
     {
       "name": "execute_with_authority",
-      "docs": [
-        "Authority-authorized execute (ed25519 authority signer). Skips the passkey",
-        "verify and policy checks for this separate owner transaction. Does not",
-        "consume accessory allowances or grant approval to retry a blocked tap."
-      ],
       "discriminator": [
         249,
         39,
@@ -200,27 +155,16 @@
       "accounts": [
         {
           "name": "authority",
-          "docs": [
-            "The token's authority (ed25519) — the sole authorization; policy is skipped."
-          ],
           "signer": true
         },
         {
           "name": "phygital_token"
         },
         {
-          "name": "authority_account",
-          "docs": [
-            "PDA validated in the handler (not via Anchor `seeds`/`has_one`, whose",
-            "`?`/self-referential form is not expressible in the IDL). Not writable: the",
-            "authority path never touches policy counters."
-          ]
+          "name": "authority_account"
         },
         {
           "name": "wallet",
-          "docs": [
-            "the wallet bump comes from the validated authority header."
-          ],
           "writable": true
         },
         {
@@ -243,10 +187,6 @@
     },
     {
       "name": "execute_with_authority_using_policies",
-      "docs": [
-        "Authority-authorized execute that skips the accessory proof but enforces",
-        "and charges the wallet policy exactly like `execute`."
-      ],
       "discriminator": [
         237,
         150,
@@ -267,9 +207,6 @@
         },
         {
           "name": "authority_account",
-          "docs": [
-            "Writable because successful execution may charge spending counters."
-          ],
           "writable": true
         },
         {
@@ -296,10 +233,6 @@
     },
     {
       "name": "set_authority",
-      "docs": [
-        "Passkey-gated: set the token's authority (ed25519). Only succeeds when no",
-        "authority exists yet. Starts with standard protections and no spending limits."
-      ],
       "discriminator": [
         133,
         250,
@@ -313,9 +246,6 @@
       "accounts": [
         {
           "name": "payer",
-          "docs": [
-            "Fee payer for rent; not an authorization authority."
-          ],
           "writable": true,
           "signer": true
         },
@@ -325,9 +255,6 @@
         },
         {
           "name": "wallet",
-          "docs": [
-            "enforced by the seeds and `wallet_matches_owner` constraints."
-          ],
           "pda": {
             "seeds": [
               {
@@ -358,9 +285,6 @@
         },
         {
           "name": "authority_account",
-          "docs": [
-            "`init` (not `init_if_needed`) enforces \"only if no authority exists yet\"."
-          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -423,11 +347,6 @@
     },
     {
       "name": "set_wallet_policy",
-      "docs": [
-        "Owner-signed: replace all settings and refill every allowance, even when",
-        "only permissions changed. Empty args restore standard settings, removing",
-        "caps AND custom restrictions; they do not disable the policy."
-      ],
       "discriminator": [
         246,
         162,
@@ -441,16 +360,10 @@
       "accounts": [
         {
           "name": "authority",
-          "docs": [
-            "The token's authority (ed25519) — the sole authorization for policy admin."
-          ],
           "signer": true
         },
         {
           "name": "payer",
-          "docs": [
-            "Pays any additional rent when growing the policy."
-          ],
           "writable": true,
           "signer": true
         },
@@ -463,11 +376,6 @@
         },
         {
           "name": "authority_account",
-          "docs": [
-            "version, authority signer and canonical PDA are validated in the handler;",
-            "Anchor `seeds`/`has_one` are not used here because their `?`/self-reference",
-            "form is not expressible in the IDL."
-          ],
           "writable": true
         },
         {
@@ -646,9 +554,6 @@
         "fields": [
           {
             "name": "index",
-            "docs": [
-              "Position in this instruction, not in the outer remaining_accounts list."
-            ],
             "type": "u8"
           },
           {
@@ -661,18 +566,12 @@
           },
           {
             "name": "owner",
-            "docs": [
-              "Solana owner program, not the token account's encoded owner field."
-            ],
             "type": {
               "option": "pubkey"
             }
           },
           {
             "name": "is_signer",
-            "docs": [
-              "Effective privileges passed to CPI, including the wallet PDA signature."
-            ],
             "type": {
               "option": "bool"
             }
@@ -685,9 +584,6 @@
           },
           {
             "name": "data",
-            "docs": [
-              "Account-data predicates require an explicit owner program."
-            ],
             "type": {
               "vec": {
                 "defined": {
@@ -721,15 +617,6 @@
     },
     {
       "name": "Authority",
-      "docs": [
-        "Per-token authority: an ed25519 key set once by the passkey. It administers",
-        "policy, may bypass policy on execute, and may drive the wallet without the",
-        "accessory passkey. Cleared only by its own signature.",
-        "",
-        "The fixed header and aligned spending counters are read with bytemuck.",
-        "A bounded Borsh program-permission tail follows the mint array. The complete",
-        "account remains decodable by standard Anchor clients."
-      ],
       "type": {
         "kind": "struct",
         "fields": [
@@ -743,11 +630,6 @@
           },
           {
             "name": "sol_cap",
-            "docs": [
-              "Native SOL spend cap. Meters native lamports AND wallet-owned wrapped SOL",
-              "(both WSOL native mints) together — one asset to the user. Active when",
-              "`cap != 0` and `header.policy_version == WALLET_POLICY_VERSION`."
-            ],
             "type": {
               "defined": {
                 "name": "SpendCap"
@@ -756,17 +638,10 @@
           },
           {
             "name": "policy_padding",
-            "docs": [
-              "Must be zero; aligns the following mint array for zero-copy reads."
-            ],
             "type": "u32"
           },
           {
             "name": "mint_caps",
-            "docs": [
-              "Per-asset allowances. Any configured cap blocks decreases of uncapped",
-              "assets; no caps means no amount limits. WSOL belongs to sol_cap."
-            ],
             "type": {
               "vec": {
                 "defined": {
@@ -777,9 +652,6 @@
           },
           {
             "name": "program_permissions",
-            "docs": [
-              "Explicit per-program overrides of the fixed baseline."
-            ],
             "type": {
               "vec": {
                 "defined": {
@@ -793,13 +665,6 @@
     },
     {
       "name": "AuthorityHeader",
-      "docs": [
-        "Fixed 104-byte header of the [`Authority`] account, laid out immediately after",
-        "the 8-byte Anchor discriminator. Kept as its own `#[repr(C)]` Pod type so the",
-        "hot path can `bytemuck`-read it in place, and reused as the first field of the",
-        "Borsh `Authority` so the IDL and the on-chain bytes share one definition",
-        "(Borsh serializes a nested struct inline, byte-for-byte with its Pod layout)."
-      ],
       "repr": {
         "kind": "c"
       },
@@ -808,23 +673,14 @@
         "fields": [
           {
             "name": "authority",
-            "docs": [
-              "Owner admin key: changes settings and executes outside accessory policy."
-            ],
             "type": "pubkey"
           },
           {
             "name": "phygital_token",
-            "docs": [
-              "Token governed by this account, retained for authority-filtered GPA discovery."
-            ],
             "type": "pubkey"
           },
           {
             "name": "payer",
-            "docs": [
-              "Account that paid init rent; close refunds this pubkey."
-            ],
             "type": "pubkey"
           },
           {
@@ -841,11 +697,6 @@
           },
           {
             "name": "policy_version",
-            "docs": [
-              "Zero => no policy configured (unrestricted). `WALLET_POLICY_VERSION` => the",
-              "inline policy below is active (and enforces token-control invariants even",
-              "with no spend caps set)."
-            ],
             "type": "u8"
           },
           {
@@ -862,24 +713,15 @@
     },
     {
       "name": "CompactInstruction",
-      "docs": [
-        "Index-based inner instruction for execute."
-      ],
       "type": {
         "kind": "struct",
         "fields": [
           {
             "name": "program_id_index",
-            "docs": [
-              "Index into `remaining_accounts` for the target program id."
-            ],
             "type": "u8"
           },
           {
             "name": "account_indexes",
-            "docs": [
-              "Indexes into `remaining_accounts` for the instruction's accounts."
-            ],
             "type": "bytes"
           },
           {
@@ -981,25 +823,16 @@
         "fields": [
           {
             "name": "selector",
-            "docs": [
-              "Nonempty byte prefix identifying the instruction (not necessarily Anchor)."
-            ],
             "type": "bytes"
           },
           {
             "name": "data_length",
-            "docs": [
-              "Exact encoded data length when the instruction has a fixed layout."
-            ],
             "type": {
               "option": "u16"
             }
           },
           {
             "name": "account_count",
-            "docs": [
-              "Exact number of instruction account positions, including duplicates."
-            ],
             "type": {
               "option": "u8"
             }
@@ -1016,9 +849,6 @@
           },
           {
             "name": "arguments",
-            "docs": [
-              "Per-instruction checks; an amount bound here is not a per-tap budget."
-            ],
             "type": {
               "vec": {
                 "defined": {
@@ -1032,10 +862,6 @@
     },
     {
       "name": "MintCap",
-      "docs": [
-        "A spending allowance bound to a specific SPL/Token-2022 mint. Same dual Borsh +",
-        "Pod derivation and padding-free layout as [`SpendCap`]."
-      ],
       "repr": {
         "kind": "c"
       },
@@ -1068,17 +894,10 @@
           },
           {
             "name": "cap",
-            "docs": [
-              "Allowance in raw asset units; must be nonzero. Saving refills it only when",
-              "the amount or window changes; an unchanged cap keeps its remaining usage."
-            ],
             "type": "u64"
           },
           {
             "name": "window_seconds",
-            "docs": [
-              "0 => no automatic reset; > 0 => interval in seconds anchored at save time."
-            ],
             "type": "i64"
           }
         ]
@@ -1141,9 +960,6 @@
           },
           {
             "name": "access",
-            "docs": [
-              "Overrides this program's baseline permission; never additive to it."
-            ],
             "type": {
               "defined": {
                 "name": "ProgramAccess"
@@ -1155,13 +971,6 @@
     },
     {
       "name": "Secp256r1VerifyArgs",
-      "docs": [
-        "Instruction-arg mirror of `phygital_token_client::Secp256r1VerifyArgs`.",
-        "",
-        "The crates.io client only derives Borsh for this type, which breaks Anchor's",
-        "`idl-build` (`IdlBuild` methods). Keep a same-layout Anchor type here for the",
-        "program interface and convert at the CPI boundary."
-      ],
       "type": {
         "kind": "struct",
         "fields": [
@@ -1182,25 +991,15 @@
     },
     {
       "name": "SolCapArg",
-      "docs": [
-        "Fixed-interval allowance for SOL and wallet-owned WSOL, in lamports."
-      ],
       "type": {
         "kind": "struct",
         "fields": [
           {
             "name": "cap",
-            "docs": [
-              "Allowance in raw asset units; must be nonzero. Saving refills it only when",
-              "the amount or window changes; an unchanged cap keeps its remaining usage."
-            ],
             "type": "u64"
           },
           {
             "name": "window_seconds",
-            "docs": [
-              "0 => no automatic reset; > 0 => interval in seconds anchored at save time."
-            ],
             "type": "i64"
           }
         ]
@@ -1208,18 +1007,6 @@
     },
     {
       "name": "SpendCap",
-      "docs": [
-        "A fixed-interval allowance in raw units. `window_seconds == 0` never resets",
-        "automatically. Positive windows refill on a charge at or after the boundary;",
-        "`last_reset` anchors the interval and is aligned to the Unix-epoch grid at save",
-        "(a multiple of `window_seconds` since the epoch), not to the save time — so a",
-        "daily cap resets at 00:00 UTC and the boundary is independent of when it was",
-        "saved. Saving policy preserves usage for a cap left unchanged; changing a cap's",
-        "amount or window refills and reanchors that cap.",
-        "Used directly as the SOL cap and embedded (with a mint) in `MintCap`. Derives",
-        "both Borsh (for the IDL / clients) and `bytemuck::Pod` (for on-chain reads); the",
-        "padding-free `#[repr(C)]` layout makes those two encodings byte-identical."
-      ],
       "repr": {
         "kind": "c"
       },
@@ -1228,24 +1015,14 @@
         "fields": [
           {
             "name": "cap",
-            "docs": [
-              "Maximum allowance per period (or lifetime for a zero window)."
-            ],
             "type": "u64"
           },
           {
             "name": "remaining",
-            "docs": [
-              "Stored allowance; reads do not refill it when an interval passes."
-            ],
             "type": "u64"
           },
           {
             "name": "last_reset",
-            "docs": [
-              "Epoch-grid-aligned timestamp anchoring this interval (a multiple of",
-              "`window_seconds`), not the save time or the time of the last payment."
-            ],
             "type": "i64"
           },
           {
@@ -1257,22 +1034,11 @@
     },
     {
       "name": "WalletPolicyArgs",
-      "docs": [
-        "Present policy with standard protections and optional spending limits.",
-        "`Default` restores baseline programs and control invariants with no spending",
-        "limits and no custom restrictions. It never removes the policy;",
-        "`clear_wallet_policy` explicitly turns off its protections."
-      ],
       "type": {
         "kind": "struct",
         "fields": [
           {
             "name": "sol_cap",
-            "docs": [
-              "SOL/WSOL cap on net loss across execute; incoming offsets outgoing. Meters",
-              "native lamports AND wallet-owned wrapped SOL (both native mints) as one",
-              "budget. Absent => SOL cannot decrease when any spending limit exists."
-            ],
             "type": {
               "option": {
                 "defined": {
@@ -1283,13 +1049,6 @@
           },
           {
             "name": "mint_caps",
-            "docs": [
-              "Each mint may appear once; the WSOL mints are rejected here (they belong to",
-              "`sol_cap`). Unlisted mints cannot decrease when any cap exists. No SOL or",
-              "mint limits means no amount limits; program/control checks still apply.",
-              "Token spending sums each source account decrease, including transfers",
-              "between wallet-owned accounts."
-            ],
             "type": {
               "vec": {
                 "defined": {
@@ -1300,10 +1059,6 @@
           },
           {
             "name": "program_permissions",
-            "docs": [
-              "Per-program overrides. Omitted programs fall back to baseline permissions.",
-              "Preserve this list when removing only caps; empty removes custom blocks too."
-            ],
             "type": {
               "vec": {
                 "defined": {
@@ -1324,11 +1079,6 @@
     },
     {
       "name": "EXECUTE_CHALLENGE_PREFIX",
-      "docs": [
-        "Execute challenge: `SHA256(prefix || slot_hash || instructions_hash || accounts_hash)`.",
-        "`accounts_hash` binds each referenced remaining-account pubkey plus its",
-        "signer/writable flags so privilege elevation after signing fails closed."
-      ],
       "type": "bytes",
       "value": "[112, 104, 121, 103, 105, 116, 97, 108, 95, 119, 97, 108, 108, 101, 116, 58, 101, 120, 101, 99, 117, 116, 101, 58, 118, 51]"
     },

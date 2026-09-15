@@ -134,16 +134,9 @@ export type ExecuteWithAuthorityInput<
   TAccountWallet extends string = string,
   TAccountInstructionsSysvar extends string = string,
 > = {
-  /** The token's authority (ed25519) — the sole authorization; policy is skipped. */
   authority: TransactionSigner<TAccountAuthority>;
   phygitalToken: Address<TAccountPhygitalToken>;
-  /**
-   * PDA validated in the handler (not via Anchor `seeds`/`has_one`, whose
-   * `?`/self-referential form is not expressible in the IDL). Not writable: the
-   * authority path never touches policy counters.
-   */
   authorityAccount: Address<TAccountAuthorityAccount>;
-  /** the wallet bump comes from the validated authority header. */
   wallet: Address<TAccountWallet>;
   instructionsSysvar?: Address<TAccountInstructionsSysvar>;
   compactInstructions: ExecuteWithAuthorityInstructionDataArgs["compactInstructions"];
@@ -234,16 +227,9 @@ export type ParsedExecuteWithAuthorityInstruction<
 > = {
   programAddress: Address<TProgram>;
   accounts: {
-    /** The token's authority (ed25519) — the sole authorization; policy is skipped. */
     authority: TAccountMetas[0];
     phygitalToken: TAccountMetas[1];
-    /**
-     * PDA validated in the handler (not via Anchor `seeds`/`has_one`, whose
-     * `?`/self-referential form is not expressible in the IDL). Not writable: the
-     * authority path never touches policy counters.
-     */
     authorityAccount: TAccountMetas[2];
-    /** the wallet bump comes from the validated authority header. */
     wallet: TAccountMetas[3];
     instructionsSysvar: TAccountMetas[4];
   };

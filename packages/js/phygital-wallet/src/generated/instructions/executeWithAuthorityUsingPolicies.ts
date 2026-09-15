@@ -136,7 +136,6 @@ export type ExecuteWithAuthorityUsingPoliciesInput<
 > = {
   authority: TransactionSigner<TAccountAuthority>;
   phygitalToken: Address<TAccountPhygitalToken>;
-  /** Writable because successful execution may charge spending counters. */
   authorityAccount: Address<TAccountAuthorityAccount>;
   wallet: Address<TAccountWallet>;
   instructionsSysvar?: Address<TAccountInstructionsSysvar>;
@@ -230,7 +229,6 @@ export type ParsedExecuteWithAuthorityUsingPoliciesInstruction<
   accounts: {
     authority: TAccountMetas[0];
     phygitalToken: TAccountMetas[1];
-    /** Writable because successful execution may charge spending counters. */
     authorityAccount: TAccountMetas[2];
     wallet: TAccountMetas[3];
     instructionsSysvar: TAccountMetas[4];

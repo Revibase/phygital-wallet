@@ -66,39 +66,17 @@ export function getAuthorityDiscriminatorBytes(): ReadonlyUint8Array {
 export type Authority = {
   discriminator: ReadonlyUint8Array;
   header: AuthorityHeader;
-  /**
-   * Native SOL spend cap. Meters native lamports AND wallet-owned wrapped SOL
-   * (both WSOL native mints) together — one asset to the user. Active when
-   * `cap != 0` and `header.policy_version == WALLET_POLICY_VERSION`.
-   */
   solCap: SpendCap;
-  /** Must be zero; aligns the following mint array for zero-copy reads. */
   policyPadding: number;
-  /**
-   * Per-asset allowances. Any configured cap blocks decreases of uncapped
-   * assets; no caps means no amount limits. WSOL belongs to sol_cap.
-   */
   mintCaps: Array<MintCap>;
-  /** Explicit per-program overrides of the fixed baseline. */
   programPermissions: Array<ProgramPermission>;
 };
 
 export type AuthorityArgs = {
   header: AuthorityHeaderArgs;
-  /**
-   * Native SOL spend cap. Meters native lamports AND wallet-owned wrapped SOL
-   * (both WSOL native mints) together — one asset to the user. Active when
-   * `cap != 0` and `header.policy_version == WALLET_POLICY_VERSION`.
-   */
   solCap: SpendCapArgs;
-  /** Must be zero; aligns the following mint array for zero-copy reads. */
   policyPadding: number;
-  /**
-   * Per-asset allowances. Any configured cap blocks decreases of uncapped
-   * assets; no caps means no amount limits. WSOL belongs to sol_cap.
-   */
   mintCaps: Array<MintCapArgs>;
-  /** Explicit per-program overrides of the fixed baseline. */
   programPermissions: Array<ProgramPermissionArgs>;
 };
 

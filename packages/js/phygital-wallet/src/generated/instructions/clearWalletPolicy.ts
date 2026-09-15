@@ -116,11 +116,9 @@ export type ClearWalletPolicyInput<
   TAccountAuthorityAccount extends string = string,
   TAccountInstructionsSysvar extends string = string,
 > = {
-  /** The token's authority (ed25519). */
   authority: TransactionSigner<TAccountAuthority>;
   rentReceiver: Address<TAccountRentReceiver>;
   phygitalToken: Address<TAccountPhygitalToken>;
-  /** and canonical PDA are validated in the handler (see `SetWalletPolicy`). */
   authorityAccount: Address<TAccountAuthorityAccount>;
   instructionsSysvar?: Address<TAccountInstructionsSysvar>;
 };
@@ -205,11 +203,9 @@ export type ParsedClearWalletPolicyInstruction<
 > = {
   programAddress: Address<TProgram>;
   accounts: {
-    /** The token's authority (ed25519). */
     authority: TAccountMetas[0];
     rentReceiver: TAccountMetas[1];
     phygitalToken: TAccountMetas[2];
-    /** and canonical PDA are validated in the handler (see `SetWalletPolicy`). */
     authorityAccount: TAccountMetas[3];
     instructionsSysvar: TAccountMetas[4];
   };

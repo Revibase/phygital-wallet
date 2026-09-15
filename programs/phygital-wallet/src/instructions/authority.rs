@@ -17,7 +17,6 @@ use crate::utils::policy::{
 use crate::utils::slot_hash::fetch_slot_hash;
 use crate::PROGRAM_WALLET_SEED;
 
-/// `SHA256("phygital_wallet:set_authority:v1" || slot_hash || phygital_token || authority)`.
 pub fn build_set_authority_challenge(
     slot_hash: [u8; 32],
     phygital_token: &Pubkey,
@@ -34,11 +33,10 @@ pub fn build_set_authority_challenge(
 
 #[derive(Accounts)]
 pub struct SetAuthority<'info> {
-    /// Fee payer for rent; not an authorization authority.
     #[account(mut)]
     pub payer: Signer<'info>,
 
-    /// CHECK: owner and locked Controlled state constrained below.
+    /// CHECK: locked Controlled phygital-token account.
     #[account(
         mut,
         owner = phygital_token_client::PHYGITAL_TOKEN_ID,
@@ -46,8 +44,7 @@ pub struct SetAuthority<'info> {
     )]
     pub phygital_token: UncheckedAccount<'info>,
 
-    /// CHECK: canonical wallet PDA whose address and token-owner binding are
-    /// enforced by the seeds and `wallet_matches_owner` constraints.
+    /// CHECK: canonical wallet PDA for this token.
     #[account(
         seeds = [PROGRAM_WALLET_SEED, phygital_token.key().as_ref()],
         bump,
@@ -55,7 +52,6 @@ pub struct SetAuthority<'info> {
     )]
     pub wallet: UncheckedAccount<'info>,
 
-    /// `init` (not `init_if_needed`) enforces "only if no authority exists yet".
     #[account(
         init,
         payer = payer,
@@ -65,15 +61,15 @@ pub struct SetAuthority<'info> {
     )]
     pub authority_account: Account<'info, Authority>,
 
-    /// CHECK: SlotHashes sysvar
+    /// CHECK: SlotHashes sysvar.
     #[account(address = SLOT_HASHES_SYSVAR_ID)]
     pub slot_hashes: UncheckedAccount<'info>,
 
-    /// CHECK: instructions sysvar
+    /// CHECK: instructions sysvar.
     #[account(address = INSTRUCTIONS_SYSVAR_ID)]
     pub instructions_sysvar: UncheckedAccount<'info>,
 
-    /// CHECK: phygital-token program for verify CPI
+    /// CHECK: phygital-token program.
     #[account(address = phygital_token_client::PHYGITAL_TOKEN_ID, executable)]
     pub phygital_token_program: UncheckedAccount<'info>,
 
@@ -91,8 +87,7 @@ pub fn set_authority_handler(
         authority != Pubkey::default(),
         PhygitalError::InvalidAuthority
     );
-    // No durable-nonce guard needed: the passkey verify CPI binds this to a
-    // recent slot_hash, which already bounds freshness.
+
     let token_key = ctx.accounts.phygital_token.key();
 
     let slot_hash = fetch_slot_hash(&ctx.accounts.slot_hashes, slot_number)?;
@@ -113,10 +108,6 @@ pub fn set_authority_handler(
         bump: ctx.bumps.authority_account,
         wallet_bump: ctx.bumps.wallet,
         version: AUTHORITY_VERSION,
-        // Default to an active empty policy (no caps, baseline programs only): the
-        // passkey is confined to the baseline allow-list and control invariants from
-        // creation. Spending amounts are unlimited. The authority adds caps via
-        // `set_wallet_policy`. Clearing the policy removes its protections.
         policy_version: WALLET_POLICY_VERSION,
         _padding: [0; 4],
     };
@@ -130,13 +121,9 @@ pub fn set_authority_handler(
 
 #[derive(Accounts)]
 pub struct ClearAuthority<'info> {
-    /// Current owner key. Clearing closes the authority account (and any inline
-    /// wallet policy), refunds rent, and disables the accessory tap. It does not
-    /// close the wallet holding funds. The passkey can re-enable the tap by running
-    /// `set_authority` again.
     pub authority: Signer<'info>,
 
-    /// CHECK: owner and locked Controlled state constrained below.
+    /// CHECK: locked Controlled phygital-token account.
     #[account(
         owner = phygital_token_client::PHYGITAL_TOKEN_ID,
         constraint = locked_controlled(&phygital_token) @ PhygitalError::TokenIsCurrentlyUnLocked,
@@ -144,7 +131,7 @@ pub struct ClearAuthority<'info> {
     )]
     pub phygital_token: UncheckedAccount<'info>,
 
-    /// CHECK: original rent payer; may be any account type.
+    /// CHECK: original authority rent payer.
     #[account(
         mut,
         address = read_authority_header(&authority_account.to_account_info())?.payer @ PhygitalError::AuthorityPayerMismatch,
@@ -152,13 +139,11 @@ pub struct ClearAuthority<'info> {
     )]
     pub rent_receiver: UncheckedAccount<'info>,
 
-    /// CHECK: closed by hand from the header only so unsupported/malformed policy
-    /// tails cannot brick owner removal. Canonical PDA + authority signer are
-    /// validated in the handler.
+    /// CHECK: closed from header in handler.
     #[account(mut)]
     pub authority_account: UncheckedAccount<'info>,
 
-    /// CHECK: instructions sysvar
+    /// CHECK: instructions sysvar.
     #[account(address = INSTRUCTIONS_SYSVAR_ID)]
     pub instructions_sysvar: UncheckedAccount<'info>,
 }
@@ -168,8 +153,7 @@ pub fn clear_authority_handler(ctx: Context<ClearAuthority>) -> Result<()> {
     reject_durable_nonce(&ctx.accounts.instructions_sysvar)?;
     let info = ctx.accounts.authority_account.to_account_info();
     let receiver = ctx.accounts.rent_receiver.to_account_info();
-    // Header-only: closing must remain available for unknown policy versions and
-    // malformed tails (same recovery posture as `clear_wallet_policy`).
+
     authorize_authority_signer(&info, &ctx.accounts.authority.key(), ctx.program_id)?;
 
     let lamports = info.lamports();

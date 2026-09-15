@@ -22,25 +22,11 @@ import {
   type FixedSizeEncoder,
 } from "@solana/kit";
 
-export type MintCapArg = {
-  mint: Address;
-  /**
-   * Allowance in raw asset units; must be nonzero. Saving refills it only when
-   * the amount or window changes; an unchanged cap keeps its remaining usage.
-   */
-  cap: bigint;
-  /** 0 => no automatic reset; > 0 => interval in seconds anchored at save time. */
-  windowSeconds: bigint;
-};
+export type MintCapArg = { mint: Address; cap: bigint; windowSeconds: bigint };
 
 export type MintCapArgArgs = {
   mint: Address;
-  /**
-   * Allowance in raw asset units; must be nonzero. Saving refills it only when
-   * the amount or window changes; an unchanged cap keeps its remaining usage.
-   */
   cap: number | bigint;
-  /** 0 => no automatic reset; > 0 => interval in seconds anchored at save time. */
   windowSeconds: number | bigint;
 };
 

@@ -19,24 +19,10 @@ import {
   type FixedSizeEncoder,
 } from "@solana/kit";
 
-/** Fixed-interval allowance for SOL and wallet-owned WSOL, in lamports. */
-export type SolCapArg = {
-  /**
-   * Allowance in raw asset units; must be nonzero. Saving refills it only when
-   * the amount or window changes; an unchanged cap keeps its remaining usage.
-   */
-  cap: bigint;
-  /** 0 => no automatic reset; > 0 => interval in seconds anchored at save time. */
-  windowSeconds: bigint;
-};
+export type SolCapArg = { cap: bigint; windowSeconds: bigint };
 
 export type SolCapArgArgs = {
-  /**
-   * Allowance in raw asset units; must be nonzero. Saving refills it only when
-   * the amount or window changes; an unchanged cap keeps its remaining usage.
-   */
   cap: number | bigint;
-  /** 0 => no automatic reset; > 0 => interval in seconds anchored at save time. */
   windowSeconds: number | bigint;
 };
 

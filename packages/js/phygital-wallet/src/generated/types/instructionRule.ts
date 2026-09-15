@@ -43,26 +43,18 @@ import {
 } from "./index.js";
 
 export type InstructionRule = {
-  /** Nonempty byte prefix identifying the instruction (not necessarily Anchor). */
   selector: ReadonlyUint8Array;
-  /** Exact encoded data length when the instruction has a fixed layout. */
   dataLength: Option<number>;
-  /** Exact number of instruction account positions, including duplicates. */
   accountCount: Option<number>;
   accounts: Array<AccountConstraint>;
-  /** Per-instruction checks; an amount bound here is not a per-tap budget. */
   arguments: Array<DataConstraint>;
 };
 
 export type InstructionRuleArgs = {
-  /** Nonempty byte prefix identifying the instruction (not necessarily Anchor). */
   selector: ReadonlyUint8Array;
-  /** Exact encoded data length when the instruction has a fixed layout. */
   dataLength: OptionOrNullable<number>;
-  /** Exact number of instruction account positions, including duplicates. */
   accountCount: OptionOrNullable<number>;
   accounts: Array<AccountConstraintArgs>;
-  /** Per-instruction checks; an amount bound here is not a per-tap budget. */
   arguments: Array<DataConstraintArgs>;
 };
 

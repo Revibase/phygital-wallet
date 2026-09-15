@@ -1,11 +1,8 @@
-//! What an accessory may ask an application to do. Per-program overrides replace
-//! baseline access; each direct instruction must satisfy one complete rule.
-//! These rules do not inspect a callee's nested CPIs or replace spending counters.
+//! Direct-CPI instruction permissions. Overrides replace baseline; nested CPIs
+//! inside a permitted program are not inspected. Independent of spend counters.
 use crate::{constants::is_policy_allowed_program, error::PhygitalError, CompactInstruction};
 use anchor_lang::prelude::*;
 
-/// Bounds limit permission parsing/matching. Transaction size, total heap and
-/// compute still constrain combinations; these are not guaranteed payload sizes.
 pub const MAX_PERMISSION_BYTES: usize = 4096;
 pub const MAX_PERMISSION_HEAP_BYTES: usize = 8192;
 pub const MAX_PROGRAM_PERMISSIONS: usize = 16;
@@ -16,31 +13,22 @@ pub const MAX_MATCH_BYTES: usize = 64;
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, PartialEq, Eq)]
 pub struct ProgramPermission {
     pub program_id: Pubkey,
-    /// Overrides this program's baseline permission; never additive to it.
     pub access: ProgramAccess,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, PartialEq, Eq)]
 pub enum ProgramAccess {
-    /// Block this program directly, even if it normally belongs to the baseline.
     Denied,
-    /// Explicit broad access; spending limits and control invariants still apply.
     AllInstructions,
-    /// OR across rules, AND across conditions inside a rule. Other programs keep
-    /// their own permissions; this alone does not create a merchant-only wallet.
     Restricted(Vec<InstructionRule>),
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, PartialEq, Eq)]
 pub struct InstructionRule {
-    /// Nonempty byte prefix identifying the instruction (not necessarily Anchor).
     pub selector: Vec<u8>,
-    /// Exact encoded data length when the instruction has a fixed layout.
     pub data_length: Option<u16>,
-    /// Exact number of instruction account positions, including duplicates.
     pub account_count: Option<u8>,
     pub accounts: Vec<AccountConstraint>,
-    /// Per-instruction checks; an amount bound here is not a per-tap budget.
     pub arguments: Vec<DataConstraint>,
 }
 
@@ -53,15 +41,11 @@ pub enum AccountKeyConstraint {
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, PartialEq, Eq)]
 pub struct AccountConstraint {
-    /// Position in this instruction, not in the outer remaining_accounts list.
     pub index: u8,
     pub key: AccountKeyConstraint,
-    /// Solana owner program, not the token account's encoded owner field.
     pub owner: Option<Pubkey>,
-    /// Effective privileges passed to CPI, including the wallet PDA signature.
     pub is_signer: Option<bool>,
     pub is_writable: Option<bool>,
-    /// Account-data predicates require an explicit owner program.
     pub data: Vec<DataConstraint>,
 }
 
@@ -97,7 +81,6 @@ impl NumericWidth {
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, PartialEq, Eq)]
 pub enum DataPredicate {
     BytesEqual(Vec<u8>),
-    /// Unsigned little-endian integer; width is explicit and never inferred.
     Unsigned {
         width: NumericWidth,
         comparison: Comparison,
