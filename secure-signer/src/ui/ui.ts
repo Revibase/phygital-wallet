@@ -11,7 +11,6 @@ import type { TransactionSummary } from "../tx/policy.js";
 import {
   classifySignRisk,
   EXPORT_CONFIRM_PHRASE,
-  HIGH_RISK_CONFIRM_PHRASE,
   highRiskWarning,
   instructionLabel,
 } from "../tx/sign-risk.js";
@@ -51,6 +50,69 @@ type ScreenOpts = {
 let escapeHandler: ((e: KeyboardEvent) => void) | null = null;
 /** Cancel callback while a busy/passkey screen is showing. */
 let busyDismiss: (() => void) | null = null;
+let viewportGuardsInstalled = false;
+
+/**
+ * Keep the sheet scrollport usable when the software keyboard opens inside the
+ * parent iframe (visualViewport shrinks; layout height often does not).
+ */
+function installViewportGuards(): void {
+  if (viewportGuardsInstalled) return;
+  viewportGuardsInstalled = true;
+
+  const syncKeyboardInset = () => {
+    const vv = window.visualViewport;
+    if (!vv) {
+      document.documentElement.style.setProperty("--keyboard-inset", "0px");
+      return;
+    }
+    const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    document.documentElement.style.setProperty(
+      "--keyboard-inset",
+      `${Math.round(inset)}px`,
+    );
+  };
+
+  const revealField = (field: HTMLElement) => {
+    const body = field.closest(".body");
+    if (body instanceof HTMLElement) {
+      const bodyRect = body.getBoundingClientRect();
+      const fieldRect = field.getBoundingClientRect();
+      const pad = 24;
+      if (fieldRect.top < bodyRect.top + pad) {
+        body.scrollTop -= bodyRect.top + pad - fieldRect.top;
+      } else if (fieldRect.bottom > bodyRect.bottom - pad) {
+        body.scrollTop += fieldRect.bottom - (bodyRect.bottom - pad);
+      }
+    } else {
+      field.scrollIntoView({ block: "center", inline: "nearest" });
+    }
+  };
+
+  const onFocusIn = (event: FocusEvent) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    if (target.tagName !== "INPUT" && target.tagName !== "TEXTAREA") return;
+    // Keyboard animation is async — re-sync inset and scroll after it settles.
+    requestAnimationFrame(() => {
+      syncKeyboardInset();
+      revealField(target);
+    });
+    window.setTimeout(() => {
+      syncKeyboardInset();
+      revealField(target);
+    }, 280);
+  };
+
+  window.visualViewport?.addEventListener("resize", syncKeyboardInset);
+  window.visualViewport?.addEventListener("scroll", syncKeyboardInset);
+  window.addEventListener("resize", syncKeyboardInset);
+  document.addEventListener("focusin", onFocusIn);
+  document.addEventListener("focusout", () => {
+    window.setTimeout(syncKeyboardInset, 120);
+  });
+  syncKeyboardInset();
+}
 
 function detachEscape() {
   if (escapeHandler) {
@@ -73,6 +135,7 @@ function screen(
   actions: Node[],
   opts: ScreenOpts = {},
 ): void {
+  installViewportGuards();
   const root = app();
   clear(root);
   detachEscape();
@@ -372,51 +435,15 @@ export function confirmSignTransaction(
     }
     body.push(el("div", { class: "kv" }, rows));
 
-    const actions: Node[] = [button("Cancel", "ghost", () => done(false))];
-
-    if (risk === "high") {
-      const input = el("input", { class: "input" });
-      input.type = "text";
-      input.autocomplete = "off";
-      input.spellcheck = false;
-      input.placeholder = `Type ${HIGH_RISK_CONFIRM_PHRASE}`;
-      input.setAttribute(
-        "aria-label",
-        `Type ${HIGH_RISK_CONFIRM_PHRASE} to confirm`,
-      );
-      const proceed = button("Authorize with passkey", "danger", () => {
-        if (input.value.trim() === HIGH_RISK_CONFIRM_PHRASE) done(true);
-      });
-      proceed.disabled = true;
-      const sync = () => {
-        proceed.disabled = input.value.trim() !== HIGH_RISK_CONFIRM_PHRASE;
-      };
-      input.addEventListener("input", sync);
-      input.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          if (!proceed.disabled) proceed.click();
-        }
-      });
-      body.push(
-        el("p", {
-          class: "muted",
-          text: `Type ${HIGH_RISK_CONFIRM_PHRASE} to confirm you understand the risk:`,
-        }),
-        input,
-      );
-      actions.push(proceed);
-      screen("High-risk authorization", body, actions, {
-        dismissible: true,
-        onDismiss: () => done(false),
-      });
-      return;
-    }
-
-    actions.push(
-      button("Authorize with passkey", "primary", () => done(true)),
-    );
-    screen("Authorize", body, actions, {
+    const actions: Node[] = [
+      button("Cancel", "ghost", () => done(false)),
+      button(
+        "Authorize with passkey",
+        risk === "high" ? "danger" : "primary",
+        () => done(true),
+      ),
+    ];
+    screen(risk === "high" ? "High-risk authorization" : "Authorize", body, actions, {
       dismissible: true,
       onDismiss: () => done(false),
     });

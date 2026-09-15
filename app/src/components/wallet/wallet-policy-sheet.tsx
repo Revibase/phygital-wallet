@@ -27,12 +27,12 @@ import { FieldError, FieldLabel, Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { ClaimedSuccessDialog } from "@/components/wallet/claimed-success-dialog";
 import { useClearWalletPolicy } from "@/hooks/token/use-clear-wallet-policy";
 import { useClaimAccessory } from "@/hooks/token/use-claim-accessory";
 import { useSetWalletPolicy } from "@/hooks/token/use-set-wallet-policy";
 import { useTokenOwner } from "@/hooks/token/use-token-owner";
 import { useWalletPolicy } from "@/hooks/token/use-wallet-policy";
+import { announceClaimedSuccess } from "@/lib/wallet/announce-claimed-success";
 import { useVerifiedTokens } from "@/hooks/wallet/use-verified-tokens";
 import type {
   ProgramAccessKind,
@@ -85,7 +85,6 @@ export function WalletPolicySheet({
   const { isOwner, isSignedIn, isClaimed } = useTokenOwner(phygitalTokenPda);
   const claim = useClaimAccessory(phygitalTokenPda);
   const [mode, setMode] = useState<Mode>("view");
-  const [claimedOpen, setClaimedOpen] = useState(false);
 
   const data = policy.data;
   const status = data?.status ?? "none";
@@ -146,7 +145,7 @@ export function WalletPolicySheet({
               disabled={claim.isPending}
               onClick={() =>
                 claim.mutate(undefined, {
-                  onSuccess: () => setClaimedOpen(true),
+                  onSuccess: () => announceClaimedSuccess(),
                   onError: (err) =>
                     toast.error(
                       toUserErrorMessage(err, copy.wallet.authorityClaimFailed),
@@ -216,12 +215,6 @@ export function WalletPolicySheet({
           {copy.wallet.policySignInToEdit}
         </p>
       ) : null}
-
-      <ClaimedSuccessDialog
-        open={claimedOpen}
-        onOpenChange={setClaimedOpen}
-        phygitalTokenPda={phygitalTokenPda}
-      />
     </div>
   );
 }

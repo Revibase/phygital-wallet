@@ -18,11 +18,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ClaimedSuccessDialog } from "@/components/wallet/claimed-success-dialog";
 import { useClaimAccessory } from "@/hooks/token/use-claim-accessory";
 import { useTokenOwner } from "@/hooks/token/use-token-owner";
 import { useUnlinkAccessory } from "@/hooks/token/use-unlink-accessory";
 import { copy } from "@/lib/copy/phygital";
+import { announceClaimedSuccess } from "@/lib/wallet/announce-claimed-success";
 import { setPendingReturn } from "@/lib/wallet/claim-return";
 import { walletSettingsHref } from "@/lib/wallet/token-routes";
 import { toUserErrorMessage } from "@/lib/user-errors";
@@ -46,11 +46,17 @@ export function OwnerOwnershipSection({
   const claim = useClaimAccessory(phygitalTokenPda);
   const unlink = useUnlinkAccessory(phygitalTokenPda);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [claimedOpen, setClaimedOpen] = useState(false);
 
   function goSignIn() {
     setPendingReturn(walletSettingsHref(phygitalTokenPda));
     router.push("/");
+  }
+
+  function onClaimed() {
+    announceClaimedSuccess({
+      onLimitSpend: () =>
+        router.push(walletSettingsHref(phygitalTokenPda, "walletPolicy")),
+    });
   }
 
   if (isLoading) {
@@ -91,7 +97,7 @@ export function OwnerOwnershipSection({
               disabled={claim.isPending}
               onClick={() =>
                 claim.mutate(undefined, {
-                  onSuccess: () => setClaimedOpen(true),
+                  onSuccess: onClaimed,
                   onError: (err) =>
                     toast.error(
                       toUserErrorMessage(err, copy.wallet.authorityClaimFailed),
@@ -122,11 +128,6 @@ export function OwnerOwnershipSection({
             </CeremonyShell>
           </div>
         ) : null}
-        <ClaimedSuccessDialog
-          open={claimedOpen}
-          onOpenChange={setClaimedOpen}
-          phygitalTokenPda={phygitalTokenPda}
-        />
       </>
     );
   }

@@ -43,6 +43,11 @@ export default function WalletHomePage() {
     ownership.isClaimed &&
     ownership.isSignedIn &&
     !ownership.isOwner;
+  const showClaimedVisitor =
+    !ownership.isLoading &&
+    ownership.isClaimed &&
+    !ownership.isSignedIn &&
+    !ownership.isOwner;
 
   return (
     <div className="flex flex-1 flex-col">
@@ -119,17 +124,23 @@ export default function WalletHomePage() {
             ? copy.wallet.unclaimedBanner
             : showOtherOwner
               ? copy.wallet.otherOwnerBanner
-              : null
+              : showClaimedVisitor
+                ? copy.wallet.claimedVisitorBanner
+                : null
         }
         visitorNoticeAction={
           showUnclaimed
             ? copy.wallet.unclaimedBannerAction
             : showOtherOwner
               ? copy.wallet.otherOwnerBannerAction
-              : undefined
+              : showClaimedVisitor
+                ? copy.wallet.claimedVisitorBannerAction
+                : undefined
         }
         onVisitorNotice={
-          showUnclaimed || showOtherOwner ? () => go("settings") : undefined
+          showUnclaimed || showOtherOwner || showClaimedVisitor
+            ? () => go("settings")
+            : undefined
         }
       />
     </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { RevibaseMark } from "@/components/brand/revibase-mark";
@@ -8,18 +9,20 @@ import { GateMessage } from "@/components/layout/gate-message";
 import { CeremonyShell } from "@/components/shared/ceremony-shell";
 import { NfcHoldStatus } from "@/components/shared/nfc-hold-status";
 import { Button } from "@/components/ui/button";
-import { ClaimedSuccessDialog } from "@/components/wallet/claimed-success-dialog";
 import { useClaimAccessory } from "@/hooks/token/use-claim-accessory";
 import { useTokenOwner } from "@/hooks/token/use-token-owner";
 import { useOwnerWallet } from "@/hooks/wallet/use-owner-wallet";
 import { copy, errorCopy } from "@/lib/copy/phygital";
+import { announceClaimedSuccess } from "@/lib/wallet/announce-claimed-success";
+import { walletSettingsHref } from "@/lib/wallet/token-routes";
 import { toUserErrorMessage } from "@/lib/user-errors";
 
 /**
  * After browse-unlock, if this accessory has no on-chain authority, prompt the
- * user to become it. Unsigned users sign in / create an account first.
- * Claim uses the same Hold ceremony as open/send — accessory NFC, not Face ID.
- * Dismissible so balances can still be browsed; permissions stay locked until claimed.
+ * user to become it. Unsigned users sign in / create an account first (sheet →
+ * signer iframe). Claim uses the same Hold ceremony as open/send — accessory
+ * NFC, not Face ID. Dismissible so balances can still be browsed; permissions
+ * stay locked until claimed. Success lands quietly — no blocking dialog.
  */
 export function AccessoryAuthorityPrompt({
   phygitalTokenPda,
@@ -28,34 +31,32 @@ export function AccessoryAuthorityPrompt({
   phygitalTokenPda: string;
   children: ReactNode;
 }) {
+  const router = useRouter();
   const { isClaimed, isLoading, isSignedIn } = useTokenOwner(phygitalTokenPda);
   const { login, isLoading: ownerLoading } = useOwnerWallet();
   const claim = useClaimAccessory(phygitalTokenPda);
   const [dismissed, setDismissed] = useState(false);
-  const [claimedOpen, setClaimedOpen] = useState(false);
+
+  function onClaimed() {
+    setDismissed(true);
+    announceClaimedSuccess({
+      onLimitSpend: () =>
+        router.push(walletSettingsHref(phygitalTokenPda, "walletPolicy")),
+    });
+  }
 
   if (isClaimed || dismissed) {
-    return (
-      <>
-        {children}
-        <ClaimedSuccessDialog
-          open={claimedOpen}
-          onOpenChange={setClaimedOpen}
-          phygitalTokenPda={phygitalTokenPda}
-        />
-      </>
-    );
+    return <>{children}</>;
   }
 
   if (isLoading) {
     return (
       <CeremonyShell>
-        <NfcHoldStatus
-          size="lg"
-          pulsing
-          busy
-          title={copy.wallet.authorityChecking}
-        />
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-6">
+          <p className="text-sm text-muted-foreground" role="status">
+            {copy.wallet.authorityChecking}
+          </p>
+        </div>
       </CeremonyShell>
     );
   }
@@ -143,7 +144,7 @@ export function AccessoryAuthorityPrompt({
               className="w-full rounded-full"
               onClick={() =>
                 claim.mutate(undefined, {
-                  onSuccess: () => setClaimedOpen(true),
+                  onSuccess: onClaimed,
                   onError: (err) =>
                     toast.error(
                       toUserErrorMessage(err, copy.wallet.authorityClaimFailed),
@@ -155,11 +156,6 @@ export function AccessoryAuthorityPrompt({
             </Button>
           )
         }
-      />
-      <ClaimedSuccessDialog
-        open={claimedOpen}
-        onOpenChange={setClaimedOpen}
-        phygitalTokenPda={phygitalTokenPda}
       />
     </CeremonyShell>
   );

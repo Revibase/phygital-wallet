@@ -14,6 +14,8 @@
   --focus: #00c2b8;
   --radius: 24px;
   --pad: 20px;
+  /* Set by visualViewport when the software keyboard is open (iframe-safe). */
+  --keyboard-inset: 0px;
   font-family:
     "Space Grotesk",
     -apple-system,
@@ -38,6 +40,9 @@ body {
 body {
   display: flex;
   flex-direction: column;
+  /* Avoid rubber-banding the document instead of the sheet body. */
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 #app {
@@ -45,21 +50,26 @@ body {
   min-height: 0;
   width: 100%;
   height: 100%;
+  overflow: hidden;
 }
 
 .sheet {
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0;
+  overflow: hidden;
   background: var(--sheet);
   border-radius: var(--radius) var(--radius) 0 0;
-  padding: 8px var(--pad) calc(var(--pad) + env(safe-area-inset-bottom, 0px));
+  /* Keep actions above the software keyboard inside the parent iframe. */
+  padding: 8px var(--pad)
+    calc(var(--pad) + env(safe-area-inset-bottom, 0px) + var(--keyboard-inset));
 }
 
 @media (min-width: 640px) {
   .sheet {
     border-radius: var(--radius);
-    padding-bottom: var(--pad);
+    padding-bottom: calc(var(--pad) + var(--keyboard-inset));
   }
 }
 
@@ -84,6 +94,7 @@ body {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 8px;
+  flex: 0 0 auto;
 }
 
 .sheet-header .title {
@@ -134,9 +145,15 @@ body {
 }
 
 .body {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  /* Room to scroll the last field above sticky-feel actions while typing. */
+  padding-bottom: 12px;
 }
 
 .body p {
@@ -240,8 +257,9 @@ body {
   display: flex;
   flex-direction: column-reverse;
   gap: 8px;
-  margin-top: 16px;
+  margin-top: 8px;
   flex: 0 0 auto;
+  background: var(--sheet);
 }
 
 @media (min-width: 640px) {
@@ -298,12 +316,18 @@ body {
   border: 1px solid var(--line);
   background: #fff;
   color: var(--fg);
-  font-size: 1rem;
+  /* 16px avoids iOS focus-zoom that breaks nested iframe scroll. */
+  font-size: 16px;
+  line-height: 1.35;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .secret {
   min-height: 96px;
   resize: none;
+  /* Allow the sheet body to pan when dragging on the textarea. */
+  touch-action: pan-y;
 }
 
 .field-error {

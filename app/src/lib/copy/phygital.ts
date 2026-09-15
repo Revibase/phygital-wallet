@@ -146,16 +146,21 @@ export const copy = {
     setupStepPasskey: "Step 1 of 2 · This phone",
     setupStepLink: "Step 2 of 2 · Link accessory",
     setupStepConfirm: "Step 2 of 2 · Confirm on this phone",
-    continueWithPasskey: "Continue",
-    setUpThisPhone: "Set up this phone",
+    continueWithPasskey: "Continue with Passkey",
+    setUpThisPhone: "Set up on this phone",
+    setUpThisPhoneBody:
+      "Use a passkey already on this phone, or create one. Next you’ll hold the accessory to become the owner.",
+    passkeyUnlockCta: "Continue with Passkey",
+    passkeyCreateCta: "Create a new passkey",
+    passkeyCreating: "Follow the passkey prompt…",
     newPhoneHint: "New on this phone?",
     usernameLabel: "Username",
     usernamePlaceholder: "yourname",
     usernameHint: "4–15 characters · letters, numbers, underscores",
-    usernameContinue: "Continue",
+    usernameContinue: "Continue with Passkey",
     usernameTitle: "Choose a username",
     usernameBody:
-      "This name identifies your passkey. Pick something unique — like a Twitter handle.",
+      "This name identifies your passkey. Next, save a passkey on this phone.",
     usernameTaken: "That username is taken. Try another.",
     usernameInvalid:
       "Use 4–15 characters: letters, numbers, and underscores only.",
@@ -215,11 +220,15 @@ export const copy = {
     authorityClaimCta: "Hold to claim",
     authorityClaiming: "Hold your accessory…",
     authorityClaimFailed: "Couldn’t claim this item",
-    authorityBrowse: "Just browsing",
+    authorityBrowse: "Not now",
     /** Wallet home after browse-without-claim. */
     unclaimedBanner:
       "Everyday payments stay off until you claim this accessory.",
     unclaimedBannerAction: "Claim",
+    /** Claimed accessory, signed-out visitor — browse only. */
+    claimedVisitorBanner:
+      "This accessory has an owner. You can browse balances.",
+    claimedVisitorBannerAction: "Details",
     otherOwnerBanner: "Owned by another account on this phone.",
     otherOwnerBannerAction: "Details",
     ownershipLabel: "Ownership",
@@ -233,7 +242,7 @@ export const copy = {
       "Only the owner can change permissions or unlink. After they unlink, anyone holding the accessory can claim it.",
     ownershipUnlink: "Unlink accessory",
     ownershipUnlinkSubtitle:
-      "Removes the owner and disables the accessory until it is claimed again.",
+      "Disables the accessory until it is claimed again.",
     ownershipUnlinkTitle: "Unlink this accessory?",
     ownershipUnlinkBody:
       "This removes you as the owner and disables everyday payments. Funds in this wallet stay put — move them out first if you’re handing the accessory off. Anyone holding it can claim it again with a hold.",
@@ -481,7 +490,7 @@ export const copy = {
     spendingLimitsOn: "On",
     spendingLimitsOnBody: (
       mints: readonly { label: string; amount: string }[],
-      sol: string
+      sol: string,
     ) => {
       const parts: string[] = [];
       for (const m of mints) {
@@ -494,7 +503,7 @@ export const copy = {
       }
       const last = parts.pop()!;
       return `Up to ${parts.join(
-        ", "
+        ", ",
       )} and ${last} per built-in send without a one-time approval.`;
     },
     spendingLimitsInvalid: "Needs fix",

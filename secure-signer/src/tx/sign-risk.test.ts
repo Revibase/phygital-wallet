@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { PhygitalWalletInstruction } from "phygital-wallet-sdk";
 import {
   classifySignRisk,
-  HIGH_RISK_CONFIRM_PHRASE,
   instructionLabel,
   isHighRiskInstruction,
 } from "./sign-risk.js";
@@ -47,9 +46,5 @@ describe("sign-risk", () => {
         summary([PhygitalWalletInstruction.ExecuteWithAuthority]),
       ),
     ).toBe("high");
-  });
-
-  it("exports a stable typed confirm phrase", () => {
-    expect(HIGH_RISK_CONFIRM_PHRASE).toBe("AUTHORIZE");
   });
 });
