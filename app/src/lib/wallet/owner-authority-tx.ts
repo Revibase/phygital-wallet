@@ -53,6 +53,5 @@ export async function sendOwnerAuthorityTransaction(args: {
     instructions: [built],
     feePayer,
     fetchBlockhash: true,
-    applyResourceLimits: true,
   });
 }

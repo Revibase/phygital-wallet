@@ -91,7 +91,5 @@ export async function claimAccessory(args: {
     instructions: [secp256r1VerifyInstruction, setAuthorityIx],
     feePayer,
     fetchBlockhash: true,
-    // Direct paymaster path (no wallet wrap) — v1 needs explicit CU / data limits.
-    applyResourceLimits: true,
   });
 }

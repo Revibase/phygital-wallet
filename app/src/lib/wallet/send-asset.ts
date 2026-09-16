@@ -42,22 +42,17 @@ export async function sendAssetFromWallet(args: {
   recipient: Address | string;
   amountUi: string;
   asset: SendAssetFields;
-  /** Ceremony UI hooks from `getPhygitalWalletSigner`. */
-  signer?: PhygitalWalletSignerConfig;
-  /** Optional already-connected signer for a single transaction. */
-  walletSigner?: TransactionModifyingSigner;
+  signerConfig?: PhygitalWalletSignerConfig;
   abortSignal?: AbortSignal;
 }): Promise<{ signature: string; confirmed: Promise<void> }> {
   const rpc = getSolanaRpc();
   const tokenPda = address(String(args.phygitalTokenPda));
   const recipient = address(String(args.recipient));
-  args.signer?.onPhaseChange?.("preparing");
-  const walletSigner =
-    args.walletSigner ??
-    (await getPhygitalWalletSigner(rpc, tokenPda, {
-      ...args.signer,
-      fetch: appFeePayerApiFetch,
-    }));
+  args.signerConfig?.onPhaseChange?.("preparing");
+  const walletSigner = await getPhygitalWalletSigner(rpc, tokenPda, {
+    ...args.signerConfig,
+    fetch: appFeePayerApiFetch,
+  });
   const walletPda = walletSigner.address;
 
   const instructions = await buildSendInstructions({
@@ -86,8 +81,7 @@ export async function receiveAssetFromNearbyPayer(args: {
   recipientWallet: Address | string;
   amountUi: string;
   asset: SendAssetFields;
-  signer?: PhygitalWalletSignerConfig;
-  walletSigner?: TransactionModifyingSigner;
+  signerConfig?: PhygitalWalletSignerConfig;
 }): Promise<{ signature: string; confirmed: Promise<void> }> {
   const payerToken = address(String(args.payerPhygitalTokenPda));
   const walletPda = await walletPdaForToken(payerToken);
@@ -100,8 +94,7 @@ export async function receiveAssetFromNearbyPayer(args: {
     recipient: args.recipientWallet,
     amountUi: args.amountUi,
     asset: args.asset,
-    signer: args.signer,
-    walletSigner: args.walletSigner,
+    signerConfig: args.signerConfig,
   });
 }
 

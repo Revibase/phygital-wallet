@@ -84,7 +84,7 @@ type SendSnapshot = {
 function defaultAsset(
   portfolio: WalletPortfolio | undefined,
   initial: SendAssetRef | null | undefined,
-  tokensOnly: boolean
+  tokensOnly: boolean,
 ): SendAssetRef | null {
   if (initial) return initial;
   const holdings = portfolio?.holdings ?? [];
@@ -117,7 +117,7 @@ export function SendFlow({
   onClose: () => void;
   onHoldPhaseChange: (
     phase: "holding" | "success" | null,
-    recap?: SendHoldRecap
+    recap?: SendHoldRecap,
   ) => void;
   onSignPhaseChange?: (phase: PhygitalWalletSignPhase | null) => void;
   onSent: () => void;
@@ -126,11 +126,11 @@ export function SendFlow({
   const queryClient = useQueryClient();
   const walletTx = useWalletTransaction(phygitalTokenPda);
   const [asset, setAsset] = useState<SendAssetRef | null>(() =>
-    defaultAsset(portfolio, initialAsset, tokensOnly)
+    defaultAsset(portfolio, initialAsset, tokensOnly),
   );
   const [pickerOpen, setPickerOpen] = useState(false);
   const [amount, setAmount] = useState(() =>
-    initialAsset && isCollectibleSendKind(initialAsset.kind) ? "1" : ""
+    initialAsset && isCollectibleSendKind(initialAsset.kind) ? "1" : "",
   );
   const [recipient, setRecipient] = useState("");
   const [phase, setPhase] = useState<Phase>("form");
@@ -178,7 +178,7 @@ export function SendFlow({
   const invalidRecipient =
     trimmedRecipient.length > 0 && parsedRecipient == null;
   const selfSend = Boolean(
-    parsedRecipient && String(parsedRecipient) === walletAddress
+    parsedRecipient && String(parsedRecipient) === walletAddress,
   );
   const amountNum = Number(amount);
   const overBalance =
@@ -205,7 +205,7 @@ export function SendFlow({
       amountOk &&
       !selfSend &&
       !busy &&
-      !feeInsufficient
+      !feeInsufficient,
   );
 
   function recapForSend(signature?: string | null): SendHoldRecap {
@@ -286,7 +286,7 @@ export function SendFlow({
           amountUi,
           asset: assetFields,
           abortSignal: abort.signal,
-          signer: {
+          signerConfig: {
             onPhaseChange: (phase) => {
               onSignPhaseChange?.(phase);
               if (isWalletSignCeremonyPhase(phase)) showHolding();
@@ -336,11 +336,15 @@ export function SendFlow({
           });
         },
         rollback: (snap) => {
-          restoreFeeBalanceSnapshot(queryClient, phygitalTokenPda, snap.feeBefore);
+          restoreFeeBalanceSnapshot(
+            queryClient,
+            phygitalTokenPda,
+            snap.feeBefore,
+          );
           restorePortfolioSnapshot(
             queryClient,
             walletAddress,
-            snap.portfolioBefore
+            snap.portfolioBefore,
           );
           restoreWalletActivitySnapshot(queryClient, snap.activityBefore);
         },
@@ -353,7 +357,10 @@ export function SendFlow({
       },
       onFundingDenial: (e) => {
         setPhase("form");
-        setHardError({ code: e.code, message: copy.wallet.feeBalanceInsufficient });
+        setHardError({
+          code: e.code,
+          message: copy.wallet.feeBalanceInsufficient,
+        });
         invalidateWalletBalances(queryClient, { tokens: [phygitalTokenPda] });
       },
       onConfirmError: (err) => {
@@ -385,7 +392,12 @@ export function SendFlow({
   if (phase === "holding") {
     // Parent swaps to SendHoldStage for the NFC ceremony; the approval modal
     // still needs to surface over it if policy denies mid-ceremony.
-    return <WalletApprovalSheet approval={walletTx.approval} tokenSymbol={asset?.symbol} />;
+    return (
+      <WalletApprovalSheet
+        approval={walletTx.approval}
+        tokenSymbol={asset?.symbol}
+      />
+    );
   }
 
   const form = (
@@ -482,7 +494,7 @@ export function SendFlow({
                 aria-label={copy.wallet.send}
                 className={cn(
                   "max-w-full",
-                  amount ? "text-foreground" : "text-muted-foreground/50"
+                  amount ? "text-foreground" : "text-muted-foreground/50",
                 )}
               />
               <div className="flex items-center gap-2 text-sm text-muted-foreground">

@@ -64,7 +64,6 @@ import { GroupedList, GroupedRow } from "@/components/shared/grouped-list";
 type LinkedPayer = {
   walletPda: string;
   tokenPda: string;
-  signer: TransactionModifyingSigner;
 };
 
 type Phase =
@@ -99,17 +98,17 @@ export function ReceiveNearbyPanel({
   const [from, setFrom] = useState<LinkedPayer | null>(null);
   const [phase, setPhase] = useState<Phase>("form");
   const [signPhase, setSignPhase] = useState<PhygitalWalletSignPhase | null>(
-    null
+    null,
   );
   const [busy, setBusy] = useState(false);
   const [hardError, setHardError] = useState<string | null>(null);
   const [handoffDeny, setHandoffDeny] = useState<PolicyDeniedError | null>(
-    null
+    null,
   );
 
   const payerPortfolio = useWalletPortfolio(from?.walletPda ?? null);
   const payUrl = `solana:${recipientWallet.trim()}?label=${encodeURIComponent(
-    brand.company
+    brand.company,
   )}`;
 
   useEffect(() => {
@@ -137,7 +136,7 @@ export function ReceiveNearbyPanel({
       (t) =>
         t.symbol.toLowerCase().includes(q) ||
         t.name.toLowerCase().includes(q) ||
-        t.mint.toLowerCase().includes(q)
+        t.mint.toLowerCase().includes(q),
     );
   }, [catalog, search]);
 
@@ -157,16 +156,10 @@ export function ReceiveNearbyPanel({
       if (String(walletPda) === recipientWallet) {
         throw new Error(copy.wallet.cantReceiveFromSelf);
       }
-      const signer = await getPhygitalWalletSigner(getSolanaRpc(), tokenPda, {
-        onPhaseChange: (phase) => {
-          setSignPhase(phase);
-          if (isWalletSignCeremonyPhase(phase)) setPhase("holding");
-        },
-      });
+
       setFrom({
         walletPda: String(walletPda),
         tokenPda,
-        signer,
       });
       setHardError(null);
       setHandoffDeny(null);
@@ -231,7 +224,12 @@ export function ReceiveNearbyPanel({
             decimals: asset.decimals,
             tokenProgram: asset.tokenProgram,
           },
-          walletSigner: payer.signer,
+          signerConfig: {
+            onPhaseChange: (phase) => {
+              setSignPhase(phase);
+              if (isWalletSignCeremonyPhase(phase)) setPhase("holding");
+            },
+          },
         }),
       optimistic: {
         apply: (signature) => {
@@ -247,7 +245,9 @@ export function ReceiveNearbyPanel({
             timestamp: Math.floor(Date.now() / 1000),
             signature,
             mint: asset.mint,
-            balanceDeltas: [{ mint: asset.mint, direction: "in", amountUi: amount }],
+            balanceDeltas: [
+              { mint: asset.mint, direction: "in", amountUi: amount },
+            ],
             pending: true,
             source: "local",
           });
@@ -276,9 +276,13 @@ export function ReceiveNearbyPanel({
           restorePortfolioSnapshot(
             queryClient,
             recipientWallet,
-            snap.recipientBefore
+            snap.recipientBefore,
           );
-          restorePortfolioSnapshot(queryClient, payer.walletPda, snap.payerBefore);
+          restorePortfolioSnapshot(
+            queryClient,
+            payer.walletPda,
+            snap.payerBefore,
+          );
           restoreWalletActivitySnapshot(queryClient, snap.activityBefore);
         },
       },
