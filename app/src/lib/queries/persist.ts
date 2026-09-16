@@ -85,8 +85,9 @@ export function shouldDehydrateQuery(query: Query): boolean {
 }
 
 /**
- * Sync localStorage persister. No-op during SSR (Next may evaluate providers
- * on the server; PersistQueryClientProvider still needs a Persister object).
+ * Sync localStorage persister wrapped so restore/persist yield to the event
+ * loop (keeps PersistQueryClientProvider off the critical paint path).
+ * No-op during SSR (Next may evaluate providers on the server).
  */
 export function createQueryPersister(): Persister {
   if (typeof window === "undefined") {
@@ -97,10 +98,31 @@ export function createQueryPersister(): Persister {
     };
   }
 
-  return createSyncStoragePersister({
+  const sync = createSyncStoragePersister({
     storage: window.localStorage,
     key: STORAGE_KEY,
     serialize: serializeQueryCache,
     deserialize: deserializeQueryCache,
   });
+
+  const yieldTick = () =>
+    new Promise<void>((resolve) => {
+      if (typeof requestIdleCallback === "function") {
+        requestIdleCallback(() => resolve(), { timeout: 120 });
+      } else {
+        setTimeout(resolve, 0);
+      }
+    });
+
+  return {
+    persistClient: async (client) => {
+      await yieldTick();
+      return sync.persistClient(client);
+    },
+    restoreClient: async () => {
+      await yieldTick();
+      return sync.restoreClient();
+    },
+    removeClient: async () => sync.removeClient(),
+  };
 }

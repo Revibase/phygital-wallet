@@ -40,7 +40,8 @@ export function TokenAddressRoute({
   const restoring = useIsRestoring();
   const pathname = usePathname();
   const tokenQuery = usePhygitalTokenByAddress(tokenAddress);
-  const token = restoring ? undefined : tokenQuery.data;
+  // Prefer cached data during persist restore so we don't blank the tree.
+  const token = tokenQuery.data;
   const mint = token && tokenHasLinkedMint(token) ? String(token.mint) : null;
   const { collectible } = useResolvedDasCollectible(mint);
   const sessionValue = useMemo(

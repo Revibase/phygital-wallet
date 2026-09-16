@@ -5,11 +5,13 @@ import { useParams, useRouter } from "next/navigation";
 import { InAppBrowserGate } from "@/components/shared/in-app-browser-gate";
 import { CeremonyShell } from "@/components/shared/ceremony-shell";
 import { NfcHoldStatus } from "@/components/shared/nfc-hold-status";
+import { RevibaseMark } from "@/components/brand/revibase-mark";
+import { GateMessage } from "@/components/layout/gate-message";
 import { TokenRouteShell } from "@/components/token/token-route-shell";
 import { Button } from "@/components/ui/button";
 import { useAccessoryHold } from "@/hooks/token/use-accessory-hold";
 import { copy } from "@/lib/copy/phygital";
-import { tryParseAddress } from "@/lib/solana/address";
+import { tryParseRouteAddress } from "@/lib/solana/address";
 import { tokenHref } from "@/lib/wallet/token-routes";
 
 /**
@@ -19,13 +21,7 @@ import { tokenHref } from "@/lib/wallet/token-routes";
 export default function TokenUnlockPage() {
   const router = useRouter();
   const params = useParams();
-  const raw =
-    typeof params.address === "string"
-      ? params.address
-      : Array.isArray(params.address)
-        ? params.address[0]
-        : "";
-  const address = tryParseAddress(raw);
+  const address = tryParseRouteAddress(params, "address");
   const accessory = useAccessoryHold();
 
   async function holdToOpen() {
@@ -41,9 +37,11 @@ export default function TokenUnlockPage() {
   if (!address) {
     return (
       <TokenRouteShell layout="compact">
-        <p className="py-10 text-center text-sm text-muted-foreground">
-          {copy.token.itemNotOnChain}
-        </p>
+        <GateMessage
+          icon={<RevibaseMark className="size-5 text-muted-foreground" />}
+          title={copy.token.itemLoadFailed}
+          body={copy.token.itemNotOnChain}
+        />
       </TokenRouteShell>
     );
   }

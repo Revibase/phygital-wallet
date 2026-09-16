@@ -3,8 +3,6 @@
 import { useMemo, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
-import { useQueries } from "@tanstack/react-query";
-import { address } from "@solana/kit";
 
 import { InAppBrowserGate } from "@/components/shared/in-app-browser-gate";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,11 +11,11 @@ import { OwnerAccessoryCard } from "@/components/home/owner-accessory-card";
 import { OwnerAccountMenu } from "@/components/home/owner-account-menu";
 import { useTapToOpen } from "@/hooks/token/use-tap-to-open";
 import { useOwnedAccessories } from "@/hooks/wallet/use-owned-accessories";
+import { useOwnedAccessoryDetails } from "@/hooks/wallet/use-owned-accessory-details";
 import { copy } from "@/lib/copy/phygital";
 import { galleryAnimate, staggerStyle } from "@/lib/motion";
-import { fetchPhygitalToken, tokenHasLinkedMint } from "@/lib/phygital/token";
-import { queryKeys, queryOptions } from "@/lib/queries";
-import { getSolanaRpc } from "@/lib/solana/rpc";
+import { tokenHasLinkedMint } from "@/lib/phygital/token";
+import type { OwnedAccessoryDetails } from "@/hooks/wallet/use-owned-accessory-details";
 import { tokenHref } from "@/lib/wallet/token-routes";
 import { cn } from "@/lib/utils";
 
@@ -30,33 +28,35 @@ import { cn } from "@/lib/utils";
 export function OwnerDashboard({ owner }: { owner: string }) {
   const router = useRouter();
   const accessories = useOwnedAccessories(owner);
+  const tokens = accessories.data ?? [];
+  const details = useOwnedAccessoryDetails(
+    accessories.isSuccess && tokens.length > 0 ? tokens : undefined,
+  );
   const tap = useTapToOpen();
+
+  const sections = useMemo(() => {
+    const minted: string[] = [];
+    const unminted: string[] = [];
+    if (!details.data) {
+      // While details load, keep a single section so skeletons aren't split.
+      return { minted: [] as string[], unminted: tokens };
+    }
+    for (const pda of tokens) {
+      const token = details.data.tokens.get(pda);
+      if (token && tokenHasLinkedMint(token)) minted.push(pda);
+      else unminted.push(pda);
+    }
+    return { minted, unminted };
+  }, [details.data, tokens]);
 
   if (tap.showInAppGate) {
     return <InAppBrowserGate body={copy.gate.openInBrowserBody} />;
   }
 
-  const tokens = accessories.data ?? [];
-  const tokenQueries = useQueries({
-    queries: tokens.map((token) => ({
-      queryKey: queryKeys.phygitalToken.byAddress(token),
-      queryFn: () => fetchPhygitalToken(getSolanaRpc(), address(token)),
-      ...queryOptions.volatile,
-    })),
-  });
-  const sections = useMemo(() => {
-    const minted: string[] = [];
-    const unminted: string[] = [];
-    for (let i = 0; i < tokens.length; i++) {
-      const token = tokenQueries[i]?.data;
-      if (token && tokenHasLinkedMint(token)) minted.push(tokens[i]);
-      else unminted.push(tokens[i]);
-    }
-    return { minted, unminted };
-  }, [tokenQueries, tokens]);
   const isEmpty = accessories.isSuccess && tokens.length === 0;
   const showMinted = sections.minted.length > 0;
   const linkedCount = sections.minted.length + sections.unminted.length;
+  const detailsMap = details.data;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-5 py-1 sm:gap-6 sm:py-2">
@@ -120,12 +120,14 @@ export function OwnerDashboard({ owner }: { owner: string }) {
             <AccessorySection
               title={copy.home.cards}
               tokens={sections.minted}
+              details={detailsMap}
               onOpen={(t) => router.push(tokenHref(t))}
             />
           ) : null}
           <AccessorySection
             title={showMinted ? copy.home.accessories : undefined}
             tokens={sections.unminted}
+            details={detailsMap}
             onOpen={(t) => router.push(tokenHref(t))}
             trailingTile={
               <OpenAnotherTile
@@ -151,11 +153,13 @@ export function OwnerDashboard({ owner }: { owner: string }) {
 function AccessorySection({
   title,
   tokens,
+  details,
   trailingTile,
   onOpen,
 }: {
   title?: string;
   tokens: string[];
+  details?: OwnedAccessoryDetails;
   trailingTile?: ReactNode;
   onOpen: (phygitalToken: string) => void;
 }) {
@@ -169,15 +173,33 @@ function AccessorySection({
         </h2>
       ) : null}
       <ul className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
-        {tokens.map((token, index) => (
-          <li key={token}>
-            <OwnerAccessoryCard
-              phygitalToken={token}
-              index={index}
-              onOpen={onOpen}
-            />
-          </li>
-        ))}
+        {tokens.map((token, index) => {
+          const phygital = details?.tokens.get(token);
+          const mint =
+            phygital && tokenHasLinkedMint(phygital)
+              ? String(phygital.mint)
+              : null;
+          const collectible = mint
+            ? (details?.collectibles[mint] ?? null)
+            : null;
+          return (
+            <li key={token}>
+              <OwnerAccessoryCard
+                phygitalToken={token}
+                token={details ? (phygital ?? null) : undefined}
+                collectible={
+                  details
+                    ? mint
+                      ? collectible
+                      : null
+                    : undefined
+                }
+                index={index}
+                onOpen={onOpen}
+              />
+            </li>
+          );
+        })}
         {trailingTile ? <li>{trailingTile}</li> : null}
       </ul>
     </section>

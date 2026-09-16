@@ -29,6 +29,10 @@ import { copy } from "@/lib/copy/phygital";
 import { formatTokenAmount } from "@/lib/tokens/amount";
 import type { PaymentToken } from "@/lib/tokens/payment-token";
 import {
+  NATIVE_SOL_MINT,
+  SOL_ICON_URL,
+} from "@/lib/tokens/payment-token";
+import {
   lamportsToSol,
   nextResetDate,
   windowPhrase,
@@ -203,69 +207,93 @@ function LimitedCaps({
 }) {
   const tokens = useVerifiedTokens();
   const byMint = useMemo(() => indexByMint(tokens.data ?? []), [tokens.data]);
+  const hasAssets = Boolean(solCap) || mintCaps.length > 0;
 
   return (
     <div className="flex flex-col gap-4 px-1">
-      {solCap ? (
-        <div className="flex flex-col gap-0.5">
-          <p className="font-(family-name:--font-display) text-3xl tabular-nums">
-            {lamportsToSol(solCap.cap)} SOL
+      {hasAssets ? (
+        <>
+          <p className="text-xs text-muted-foreground">
+            {copy.wallet.policyAllowlistNote}
           </p>
-          <p className="text-sm text-muted-foreground">
-            {capRemainingLabel(
-              solCap.remaining,
-              solCap.lastReset,
-              solCap.windowSeconds,
-            )}
-          </p>
-        </div>
-      ) : null}
-
-      {mintCaps.length > 0 || solCap ? (
-        <p className="text-xs text-muted-foreground">
-          {copy.wallet.policyAllowlistNote}
-        </p>
-      ) : null}
-
-      {mintCaps.length > 0 ? (
-        <GroupedList label={copy.wallet.policyTokenLimits}>
-          {mintCaps.map((m) => {
-            const token = byMint.get(m.mint);
-            const decimals = token?.decimals ?? null;
-            const amount =
-              decimals != null ? formatTokenAmount(m.cap, decimals) : null;
-            const reset = nextResetDate(m.lastReset, m.windowSeconds);
-            return (
+          <GroupedList label={copy.wallet.policyTokenLimits}>
+            {solCap ? (
               <GroupedRow
-                key={m.mint}
                 leading={
                   <TokenIcon
                     token={{
-                      mint: m.mint,
-                      symbol: token?.symbol ?? "",
-                      icon: token?.icon ?? null,
+                      mint: NATIVE_SOL_MINT,
+                      symbol: copy.wallet.policySolLabel,
+                      icon: SOL_ICON_URL,
                     }}
                     className="size-8"
                   />
                 }
-                subtitle={
-                  reset
-                    ? copy.wallet.policyResetsOn(reset)
-                    : copy.wallet.policyNoReset
-                }
+                subtitle={capRemainingLabel(
+                  lamportsToSol(solCap.remaining),
+                  copy.wallet.policySolLabel,
+                  solCap.lastReset,
+                  solCap.windowSeconds,
+                )}
                 trailing={
                   <span className="text-sm tabular-nums text-muted-foreground">
-                    {amount != null
-                      ? `${amount} ${token?.symbol ?? ""}`.trim()
-                      : shortAddress(m.mint)}
+                    {lamportsToSol(solCap.cap)} {copy.wallet.policySolLabel}
                   </span>
                 }
               >
-                {token?.symbol ?? shortAddress(m.mint)}
+                {copy.wallet.policySolLabel}
               </GroupedRow>
-            );
-          })}
-        </GroupedList>
+            ) : null}
+            {mintCaps.map((m) => {
+              const token = byMint.get(m.mint);
+              const decimals = token?.decimals ?? null;
+              const symbol = token?.symbol ?? shortAddress(m.mint);
+              const amount =
+                decimals != null ? formatTokenAmount(m.cap, decimals) : null;
+              const remaining =
+                decimals != null
+                  ? formatTokenAmount(m.remaining, decimals)
+                  : null;
+              const reset = nextResetDate(m.lastReset, m.windowSeconds);
+              return (
+                <GroupedRow
+                  key={m.mint}
+                  leading={
+                    <TokenIcon
+                      token={{
+                        mint: m.mint,
+                        symbol: token?.symbol ?? "",
+                        icon: token?.icon ?? null,
+                      }}
+                      className="size-8"
+                    />
+                  }
+                  subtitle={
+                    remaining != null
+                      ? capRemainingLabel(
+                          remaining,
+                          symbol,
+                          m.lastReset,
+                          m.windowSeconds,
+                        )
+                      : reset
+                        ? copy.wallet.policyResetsOn(reset)
+                        : copy.wallet.policyNoReset
+                  }
+                  trailing={
+                    <span className="text-sm tabular-nums text-muted-foreground">
+                      {amount != null
+                        ? `${amount} ${symbol}`.trim()
+                        : shortAddress(m.mint)}
+                    </span>
+                  }
+                >
+                  {symbol}
+                </GroupedRow>
+              );
+            })}
+          </GroupedList>
+        </>
       ) : null}
 
       {programPermissions.length > 0 ? (
@@ -500,15 +528,15 @@ function RestoreEverydayPrimary({
 }
 
 function capRemainingLabel(
-  remaining: bigint,
+  amount: string,
+  symbol: string,
   lastReset: bigint,
   windowSeconds: bigint,
 ): string {
-  const amount = lamportsToSol(remaining);
   const reset = nextResetDate(lastReset, windowSeconds);
   return reset
-    ? copy.wallet.policyLeftUntil(amount, reset)
-    : copy.wallet.policyLeftLifetime(amount);
+    ? copy.wallet.policyLeftUntil(amount, symbol, reset)
+    : copy.wallet.policyLeftLifetime(amount, symbol);
 }
 
 function indexByMint(tokens: PaymentToken[]): Map<string, PaymentToken> {

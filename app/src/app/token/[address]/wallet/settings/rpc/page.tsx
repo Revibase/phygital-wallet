@@ -1,9 +1,5 @@
-"use client";
-
-import { useWalletNav } from "@/components/wallet/wallet-route-shell";
-import { RpcConnectionPanel } from "@/components/wallet/rpc-connection-panel";
+import { RpcPageClient } from "@/components/wallet/wallet-leaf-pages";
 
 export default function RpcPage() {
-  const { backSettings } = useWalletNav();
-  return <RpcConnectionPanel onBack={backSettings} />;
+  return <RpcPageClient />;
 }

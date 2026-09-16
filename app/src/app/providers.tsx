@@ -6,7 +6,7 @@ import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client
 
 import { Toaster } from "@/components/ui/sonner";
 import { PasskeySetupProvider } from "@/components/wallet/passkey-setup-sheet";
-import { SecureSignerHost } from "@/components/wallet/secure-signer-host";
+import { LazySecureSignerHost } from "@/components/wallet/secure-signer-host";
 import { useResumeQueryRefresh } from "@/hooks/layout/use-resume-query-refresh";
 import { OwnerWalletProvider } from "@/hooks/wallet/use-owner-wallet";
 import { RpcPreferenceProvider } from "@/hooks/wallet/use-rpc-preference";
@@ -48,7 +48,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
     >
       <RpcPreferenceProvider>
         <PasskeySetupProvider>
-          <SecureSignerHost />
+          <LazySecureSignerHost />
           <OwnerWalletProvider>
             <ResumeQueryRefresh />
             {children}

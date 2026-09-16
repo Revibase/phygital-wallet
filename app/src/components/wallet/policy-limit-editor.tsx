@@ -13,7 +13,7 @@ import { address as toAddress } from "@solana/kit";
 import { GroupedRow } from "@/components/shared/grouped-list";
 import { TokenIcon } from "@/components/shared/token-chip";
 import { Button } from "@/components/ui/button";
-import { FieldError, FieldLabel, Input } from "@/components/ui/input";
+import { FieldError, Input } from "@/components/ui/input";
 import {
   Sheet,
   SheetContent,
@@ -37,7 +37,12 @@ import {
   sanitizeDecimalInput,
   uiAmountToRaw,
 } from "@/lib/tokens/amount";
-import type { PaymentToken } from "@/lib/tokens/payment-token";
+import {
+  NATIVE_SOL_MINT,
+  NATIVE_SOL_TOKEN_PROGRAM,
+  SOL_ICON_URL,
+  type PaymentToken,
+} from "@/lib/tokens/payment-token";
 import {
   POLICY_WINDOW_PRESETS,
   SOL_DECIMALS,
@@ -55,7 +60,8 @@ import {
   type ProgramPermissionDraft,
 } from "./policy-types";
 
-type MintCapDraft = {
+/** UI draft for one spendable asset — SOL uses the on-chain solCap slot. */
+type AssetCapDraft = {
   mint: string;
   symbol: string;
   icon: string | null;
@@ -67,8 +73,19 @@ type MintCapDraft = {
   rawFallback: bigint;
 };
 
+const SOL_TOKEN: PaymentToken = {
+  mint: NATIVE_SOL_MINT,
+  symbol: "SOL",
+  name: "Solana",
+  icon: SOL_ICON_URL,
+  decimals: SOL_DECIMALS,
+  tokenProgram: NATIVE_SOL_TOKEN_PROGRAM,
+};
+
 /**
- * Limit / edit flow: preset chips → SOL → assets → summary → Extra apps → Save.
+ * Limit / edit flow: presets → unified asset list (SOL + tokens) → summary →
+ * Extra programs → Save. On-chain SOL still maps to `solCap`; other mints to
+ * `mintCaps`.
  */
 export function PolicyLimitEditor({
   phygitalTokenPda,
@@ -120,28 +137,11 @@ function PolicyLimitEditorForm({
   onDone: () => void;
 }) {
   const setPolicy = useSetWalletPolicy(phygitalTokenPda);
-  const byMint = useMemo(() => indexByMint(tokens), [tokens]);
+  const catalog = useMemo(() => assetCatalog(tokens), [tokens]);
+  const byMint = useMemo(() => indexByMint(catalog), [catalog]);
 
-  const [solAmount, setSolAmount] = useState(
-    solCap ? lamportsToSol(solCap.cap) : "",
-  );
-  const [solWindow, setSolWindow] = useState<bigint>(
-    solCap?.windowSeconds ?? DEFAULT_POLICY_WINDOW,
-  );
-  const [drafts, setDrafts] = useState<MintCapDraft[]>(() =>
-    mintCaps.map((m) => {
-      const token = byMint.get(m.mint);
-      const decimals = token?.decimals ?? null;
-      return {
-        mint: m.mint,
-        symbol: token?.symbol ?? shortAddress(m.mint),
-        icon: token?.icon ?? null,
-        decimals,
-        amount: decimals != null ? formatTokenAmount(m.cap, decimals) : "",
-        windowSeconds: m.windowSeconds,
-        rawFallback: m.cap,
-      };
-    }),
+  const [drafts, setDrafts] = useState<AssetCapDraft[]>(() =>
+    initialDrafts(solCap, mintCaps, byMint),
   );
   const [programs, setPrograms] = useState<ProgramPermissionDraft[]>(() =>
     programPermissions.map((p) => ({
@@ -159,18 +159,24 @@ function PolicyLimitEditorForm({
 
   const busy = setPolicy.isPending;
   const usedMints = useMemo(() => new Set(drafts.map((d) => d.mint)), [drafts]);
+  const mintDraftCount = drafts.filter((d) => d.mint !== NATIVE_SOL_MINT).length;
   const addable = useMemo(
     () =>
-      tokens.filter((t) => !isSolLikeMint(t.mint) && !usedMints.has(t.mint)),
-    [tokens, usedMints],
+      catalog.filter((t) => {
+        if (usedMints.has(t.mint)) return false;
+        // Wrapped SOL is covered by the native SOL cap — don't list it twice.
+        if (isSolLikeMint(t.mint) && t.mint !== NATIVE_SOL_MINT) return false;
+        if (t.mint !== NATIVE_SOL_MINT && mintDraftCount >= MAX_MINT_CAPS) {
+          return false;
+        }
+        return true;
+      }),
+    [catalog, usedMints, mintDraftCount],
   );
   const showPresets =
-    !solCap &&
-    mintCaps.length === 0 &&
-    drafts.length === 0 &&
-    solAmount.trim() === "";
+    !solCap && mintCaps.length === 0 && drafts.length === 0;
 
-  function updateDraft(mint: string, patch: Partial<MintCapDraft>) {
+  function updateDraft(mint: string, patch: Partial<AssetCapDraft>) {
     setDrafts((prev) =>
       prev.map((d) => (d.mint === mint ? { ...d, ...patch } : d)),
     );
@@ -201,23 +207,7 @@ function PolicyLimitEditorForm({
   }
 
   function applyPreset(preset: PolicyPreset) {
-    setSolAmount(preset.solCap ? lamportsToSol(preset.solCap.cap) : "");
-    setSolWindow(preset.solCap?.windowSeconds ?? DEFAULT_POLICY_WINDOW);
-    setDrafts(
-      preset.mintCaps.map((m) => {
-        const token = byMint.get(m.mint);
-        const decimals = token?.decimals ?? 6;
-        return {
-          mint: m.mint,
-          symbol: token?.symbol ?? "USDC",
-          icon: token?.icon ?? null,
-          decimals,
-          amount: formatTokenAmount(m.cap, decimals),
-          windowSeconds: m.windowSeconds,
-          rawFallback: m.cap,
-        };
-      }),
-    );
+    setDrafts(draftsFromPreset(preset, byMint));
   }
 
   function addProgram() {
@@ -262,23 +252,24 @@ function PolicyLimitEditorForm({
     const nextErrors: Record<string, string> = {};
 
     let solCapArg: { cap: bigint; windowSeconds: bigint } | null = null;
-    if (solAmount.trim() !== "") {
-      try {
-        solCapArg = {
-          cap: uiAmountToRaw(solAmount, SOL_DECIMALS),
-          windowSeconds: solWindow,
-        };
-      } catch (e) {
-        nextErrors.sol = toUserErrorMessage(e);
-      }
-    }
-
     const mintCapArgs: {
       mint: string;
       cap: bigint;
       windowSeconds: bigint;
     }[] = [];
+
     for (const d of drafts) {
+      if (d.mint === NATIVE_SOL_MINT) {
+        try {
+          solCapArg = {
+            cap: uiAmountToRaw(d.amount, SOL_DECIMALS),
+            windowSeconds: d.windowSeconds,
+          };
+        } catch (e) {
+          nextErrors[d.mint] = toUserErrorMessage(e);
+        }
+        continue;
+      }
       if (d.decimals == null) {
         mintCapArgs.push({
           mint: d.mint,
@@ -333,17 +324,8 @@ function PolicyLimitEditorForm({
   }
 
   const previewLines: string[] = [];
-  const solN = Number(solAmount);
-  if (solAmount.trim() !== "" && Number.isFinite(solN) && solN > 0) {
-    previewLines.push(
-      copy.wallet.policyPreviewSpend(
-        `${solAmount} SOL`,
-        windowPhrase(solWindow),
-      ),
-    );
-  }
   for (const d of drafts) {
-    if (d.decimals == null) {
+    if (d.decimals == null && d.mint !== NATIVE_SOL_MINT) {
       previewLines.push(
         copy.wallet.policyPreviewSpend(
           d.symbol,
@@ -369,31 +351,18 @@ function PolicyLimitEditorForm({
     <div className="flex flex-1 flex-col gap-6">
       {showPresets ? <PresetChips onPick={applyPreset} /> : null}
 
-      <div className="flex flex-col gap-2">
-        <FieldLabel className="px-1 normal-case tracking-normal text-xs">
-          {copy.wallet.policyAmountLabel}
-        </FieldLabel>
-        <Input
-          inputMode="decimal"
-          value={solAmount}
-          onChange={(e) => setSolAmount(sanitizeDecimalInput(e.target.value))}
-          placeholder="0.5"
-          aria-invalid={errors.sol ? true : undefined}
-        />
-        {errors.sol ? (
-          <FieldError className="px-1">{errors.sol}</FieldError>
-        ) : null}
-        <WindowPills value={solWindow} onChange={setSolWindow} />
-        <p className="px-1 text-xs text-muted-foreground">
-          {copy.wallet.policyWindowHint}
-        </p>
-      </div>
-
       <div className="flex flex-col gap-3">
-        <h2 className="text-section-label px-1">{copy.wallet.policyTokenLimits}</h2>
+        <div className="flex flex-col gap-1 px-1">
+          <h2 className="text-section-label px-0">
+            {copy.wallet.policyTokenLimits}
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            {copy.wallet.policyTokenLimitsHint}
+          </p>
+        </div>
 
         {drafts.map((d) => (
-          <MintCapEditorRow
+          <AssetCapEditorRow
             key={d.mint}
             draft={d}
             error={errors[d.mint]}
@@ -410,7 +379,7 @@ function PolicyLimitEditorForm({
           variant="outline"
           size="lg"
           className="w-full rounded-xl"
-          disabled={drafts.length >= MAX_MINT_CAPS || addable.length === 0}
+          disabled={addable.length === 0}
           onClick={() => setPickerOpen(true)}
         >
           {copy.wallet.policyAddToken}
@@ -444,7 +413,7 @@ function PolicyLimitEditorForm({
         )}
         {programs.length > 0 ? (
           <p className="mt-2 text-xs text-muted-foreground">
-            {copy.wallet.policyPreviewApps(programs.length)}
+            {copy.wallet.policyPreviewPrograms(programs.length)}
           </p>
         ) : null}
       </div>
@@ -573,19 +542,20 @@ function PresetChips({ onPick }: { onPick: (preset: PolicyPreset) => void }) {
   );
 }
 
-function MintCapEditorRow({
+function AssetCapEditorRow({
   draft,
   error,
   onChangeAmount,
   onChangeWindow,
   onRemove,
 }: {
-  draft: MintCapDraft;
+  draft: AssetCapDraft;
   error?: string;
   onChangeAmount: (amount: string) => void;
   onChangeWindow: (windowSeconds: bigint) => void;
   onRemove: () => void;
 }) {
+  const editable = draft.decimals != null || draft.mint === NATIVE_SOL_MINT;
   return (
     <div className="flex flex-col gap-2 rounded-2xl border border-border/30 bg-grouped p-3">
       <div className="flex items-center gap-3">
@@ -607,7 +577,7 @@ function MintCapEditorRow({
         </Button>
       </div>
 
-      {draft.decimals != null ? (
+      {editable ? (
         <>
           <Input
             inputMode="decimal"
@@ -782,8 +752,83 @@ function TokenPickerSheet({
   );
 }
 
+function assetCatalog(tokens: PaymentToken[]): PaymentToken[] {
+  const withoutWrappedSol = tokens.filter(
+    (t) => !(isSolLikeMint(t.mint) && t.mint !== NATIVE_SOL_MINT),
+  );
+  if (withoutWrappedSol.some((t) => t.mint === NATIVE_SOL_MINT)) {
+    return withoutWrappedSol;
+  }
+  return [SOL_TOKEN, ...withoutWrappedSol];
+}
+
 function indexByMint(tokens: PaymentToken[]): Map<string, PaymentToken> {
   return new Map(tokens.map((t) => [t.mint, t]));
+}
+
+function initialDrafts(
+  solCap: SpendCapView | null,
+  mintCaps: (SpendCapView & { mint: string })[],
+  byMint: Map<string, PaymentToken>,
+): AssetCapDraft[] {
+  const out: AssetCapDraft[] = [];
+  if (solCap) {
+    out.push({
+      mint: NATIVE_SOL_MINT,
+      symbol: SOL_TOKEN.symbol,
+      icon: SOL_TOKEN.icon,
+      decimals: SOL_DECIMALS,
+      amount: lamportsToSol(solCap.cap),
+      windowSeconds: solCap.windowSeconds,
+      rawFallback: solCap.cap,
+    });
+  }
+  for (const m of mintCaps) {
+    const token = byMint.get(m.mint);
+    const decimals = token?.decimals ?? null;
+    out.push({
+      mint: m.mint,
+      symbol: token?.symbol ?? shortAddress(m.mint),
+      icon: token?.icon ?? null,
+      decimals,
+      amount: decimals != null ? formatTokenAmount(m.cap, decimals) : "",
+      windowSeconds: m.windowSeconds,
+      rawFallback: m.cap,
+    });
+  }
+  return out;
+}
+
+function draftsFromPreset(
+  preset: PolicyPreset,
+  byMint: Map<string, PaymentToken>,
+): AssetCapDraft[] {
+  const out: AssetCapDraft[] = [];
+  if (preset.solCap) {
+    out.push({
+      mint: NATIVE_SOL_MINT,
+      symbol: SOL_TOKEN.symbol,
+      icon: SOL_TOKEN.icon,
+      decimals: SOL_DECIMALS,
+      amount: lamportsToSol(preset.solCap.cap),
+      windowSeconds: preset.solCap.windowSeconds,
+      rawFallback: preset.solCap.cap,
+    });
+  }
+  for (const m of preset.mintCaps) {
+    const token = byMint.get(m.mint);
+    const decimals = token?.decimals ?? 6;
+    out.push({
+      mint: m.mint,
+      symbol: token?.symbol ?? "USDC",
+      icon: token?.icon ?? null,
+      decimals,
+      amount: formatTokenAmount(m.cap, decimals),
+      windowSeconds: m.windowSeconds,
+      rawFallback: m.cap,
+    });
+  }
+  return out;
 }
 
 function programAccessArg(draft: ProgramPermissionDraft): ProgramAccessArgs {

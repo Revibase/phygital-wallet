@@ -66,7 +66,10 @@ import {
 import { sanitizeDecimalInput } from "@/lib/tokens/amount";
 import { resolveTokenIconSrc } from "@/lib/tokens/payment-token";
 import { snapEnter, snapEnterTransition } from "@/lib/motion";
-import type { SendHoldRecap } from "@/components/wallet/send-hold-stage";
+import type {
+  SendCeremonyState,
+  SendHoldRecap,
+} from "@/components/wallet/send-hold-stage";
 import { Spinner } from "@/components/ui/spinner";
 import { GroupedList, GroupedRow } from "@/components/shared/grouped-list";
 
@@ -104,8 +107,7 @@ export function SendFlow({
   initialAsset,
   tokensOnly = false,
   onClose,
-  onHoldPhaseChange,
-  onSignPhaseChange,
+  onCeremonyChange,
   onSent,
   onChangeLimits,
 }: {
@@ -115,12 +117,8 @@ export function SendFlow({
   initialAsset?: SendAssetRef | null;
   tokensOnly?: boolean;
   onClose: () => void;
-  onHoldPhaseChange: (
-    phase: "holding" | "success" | null,
-    recap?: SendHoldRecap,
-  ) => void;
-  onSignPhaseChange?: (phase: PhygitalWalletSignPhase | null) => void;
-  onSent: () => void;
+  onCeremonyChange: (state: SendCeremonyState) => void;
+  onSent?: () => void;
   onChangeLimits?: (code?: string) => void;
 }) {
   const queryClient = useQueryClient();
@@ -264,9 +262,9 @@ export function SendFlow({
       tokenProgram: asset.tokenProgram,
     };
 
-    const showHolding = () => {
+    const showHolding = (signPhase: PhygitalWalletSignPhase | null = null) => {
       setPhase("holding");
-      onHoldPhaseChange("holding", recap);
+      onCeremonyChange({ stage: "holding", signPhase, recap });
     };
 
     const outcome = await walletTx.run<SendSnapshot>({
@@ -288,8 +286,7 @@ export function SendFlow({
           abortSignal: abort.signal,
           signerConfig: {
             onPhaseChange: (phase) => {
-              onSignPhaseChange?.(phase);
-              if (isWalletSignCeremonyPhase(phase)) showHolding();
+              if (isWalletSignCeremonyPhase(phase)) showHolding(phase);
             },
           },
         });
@@ -350,9 +347,11 @@ export function SendFlow({
         },
       },
       onSent: (signature) => {
-        onHoldPhaseChange("success", recapForSend(signature));
-        onSignPhaseChange?.(null);
-        onSent();
+        onCeremonyChange({
+          stage: "success",
+          recap: recapForSend(signature),
+        });
+        onSent?.();
       },
       onFundingDenial: (e) => {
         setPhase("form");
@@ -367,8 +366,7 @@ export function SendFlow({
       },
       onError: (e) => {
         setPhase("form");
-        onSignPhaseChange?.(null);
-        onHoldPhaseChange(null);
+        onCeremonyChange({ stage: "idle" });
         toast.error(toUserErrorMessage(e));
       },
     });
@@ -377,8 +375,7 @@ export function SendFlow({
       // Aborted / rejected (visitor / owner denied) / error — drop back to the
       // form. Funding denials keep their own inline error (set above).
       setPhase("form");
-      onSignPhaseChange?.(null);
-      onHoldPhaseChange(null);
+      onCeremonyChange({ stage: "idle" });
     }
 
     if (sendAbortRef.current === abort) sendAbortRef.current = null;

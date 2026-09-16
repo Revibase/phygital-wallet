@@ -1,19 +1,19 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import type { ReactNode } from "react";
 
+import { TokenAddressLayout } from "@/components/token/token-address-layout";
 import { RouteBoot } from "@/components/layout/route-boot";
+import { Suspense } from "react";
 
-/** Client-only token tree; middleware already verified browse-unlock. */
-const TokenAddressLayout = dynamic(
-  () =>
-    import("@/components/token/token-address-layout").then(
-      (m) => m.TokenAddressLayout
-    ),
-  { ssr: false, loading: () => <RouteBoot /> }
-);
-
+/**
+ * Client boundary for `/token/[address]/**`. SSR is enabled — the layout is a
+ * client component that hydrates with params from the request.
+ */
 export default function AddressLayout({ children }: { children: ReactNode }) {
-  return <TokenAddressLayout>{children}</TokenAddressLayout>;
+  return (
+    <Suspense fallback={<RouteBoot />}>
+      <TokenAddressLayout>{children}</TokenAddressLayout>
+    </Suspense>
+  );
 }

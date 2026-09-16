@@ -11,7 +11,7 @@ import {
   type TokenSessionValue,
 } from "@/components/token/token-session";
 import { TokenAddressRoute } from "@/components/token/token-address-route";
-import { tryParseAddress } from "@/lib/solana/address";
+import { tryParseRouteAddress } from "@/lib/solana/address";
 import { copy } from "@/lib/copy/phygital";
 
 /**
@@ -23,13 +23,7 @@ import { copy } from "@/lib/copy/phygital";
 export function TokenAddressLayout({ children }: { children: ReactNode }) {
   const params = useParams();
   const pathname = usePathname();
-  const raw =
-    typeof params.address === "string"
-      ? params.address
-      : Array.isArray(params.address)
-        ? params.address[0]
-        : "";
-  const address = tryParseAddress(raw);
+  const address = tryParseRouteAddress(params, "address");
   const isUnlock = /\/unlock\/?$/.test(pathname);
 
   if (!address) {

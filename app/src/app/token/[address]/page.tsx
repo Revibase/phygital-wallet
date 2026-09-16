@@ -3,15 +3,13 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
+import { RouteBoot } from "@/components/layout/route-boot";
 import { TokenMintedHome } from "@/components/token/token-minted-home";
 import { useTokenSession } from "@/components/token/token-session";
 import { tokenHasLinkedMint } from "@/lib/phygital/token";
 import { walletHref } from "@/lib/wallet/token-routes";
-import { RouteBoot } from "@/components/layout/route-boot";
 
-/**
- * `/token/[address]` — minted card; unminted accessories redirect to wallet.
- */
+/** Minted card landing; unminted accessories redirect to wallet. */
 export default function TokenAddressPage() {
   const session = useTokenSession();
   const router = useRouter();

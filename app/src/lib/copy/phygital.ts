@@ -192,7 +192,7 @@ export const copy = {
     policy: "Accessory permissions",
     policyStatusStandard: "Everyday payments",
     policyStatusStandardBody:
-      "A tap can send SOL and standard tokens. Other apps stay blocked.",
+      "A tap can send SOL and standard tokens. Other programs stay blocked.",
     policyStatusOpen: "Protections off",
     policyStatusOpenBody: "A tap isn’t checked until you restore everyday payments.",
     policyStatusLimited: "Custom limits",
@@ -225,7 +225,7 @@ export const copy = {
     ownershipSignInSubtitle:
       "Unlock on this phone to claim or manage this accessory.",
     ownershipClaimFooter:
-      "Claiming sets you as the owner and turns on everyday payments: a tap can send SOL and standard tokens; other apps stay blocked until you allow them.",
+      "Claiming sets you as the owner and turns on everyday payments: a tap can send SOL and standard tokens; other programs stay blocked until you allow them.",
     ownershipOtherTitle: "Owned by another account",
     ownershipOtherSubtitle: (short: string) => `Owner · ${short}`,
     ownershipOtherFooter:
@@ -242,13 +242,14 @@ export const copy = {
     ownershipUnlinkFailed: "Couldn’t unlink this item",
     ownershipDangerZone: "Danger zone",
     /** One-line allow-list reminder when any asset limit is set. */
-    policyAllowlistNote: "Only assets you list can be spent.",
+    policyAllowlistNote: "Only assets you list can be spent with a tap.",
     policySolLabel: "SOL",
     /** Remaining allowance until the reset date (recurring window). */
-    policyLeftUntil: (amount: string, date: string) =>
-      `${amount} SOL left · resets ${date}`,
+    policyLeftUntil: (amount: string, symbol: string, date: string) =>
+      `${amount} ${symbol} left · resets ${date}`,
     /** Remaining allowance for a one-time (lifetime) budget. */
-    policyLeftLifetime: (amount: string) => `${amount} SOL left · one-time`,
+    policyLeftLifetime: (amount: string, symbol: string) =>
+      `${amount} ${symbol} left · one-time`,
     policyResetsOn: (date: string) => `Resets ${date}`,
     policyNoReset: "One-time — doesn’t reset",
     policyAssetsSummary: (count: number) =>
@@ -261,18 +262,17 @@ export const copy = {
     // Pre-save preview of what a tap will be allowed to do
     policyPreviewTitle: "After saving, a tap can:",
     policyPreviewStandard:
-      "Send SOL and standard tokens. Other apps stay blocked.",
+      "Send SOL and standard tokens. Other programs stay blocked.",
     policyPreviewSpend: (amount: string, phrase: string) =>
       `Spend up to ${amount}, ${phrase}`,
     policyPreviewBlocked: "All other assets are blocked",
-    policyPreviewApps: (n: number) =>
-      `${n} extra app rule${n === 1 ? "" : "s"}`,
+    policyPreviewPrograms: (n: number) =>
+      `${n} extra program rule${n === 1 ? "" : "s"}`,
     policyWindowDay: "Every day",
     policyWindowWeek: "Every week",
     policyWindowMonth: "Every month",
     policyWindowLifetime: "One-time",
     policyWindowHint: "Resets on a fixed UTC schedule.",
-    policyAmountLabel: "SOL a tap can spend",
     policyWindowLabel: "Renew this limit",
     policyEdit: "Edit limits",
     policySet: "Limit what a tap can spend",
@@ -280,7 +280,7 @@ export const copy = {
     policyPresetApplied: "Spend limits applied",
     policyClaimedTitle: "Everyday payments are on",
     policyClaimedBody:
-      "A tap can send SOL and standard tokens. Other apps stay blocked. You can add spend limits anytime.",
+      "A tap can send SOL and standard tokens. Other programs stay blocked. You can add spend limits anytime.",
     policyClaimedStay: "Looks good",
     policyClaimedLimit: "Limit what a tap can spend",
     policySave: "Save",
@@ -289,7 +289,7 @@ export const copy = {
     policyRestored: "Everyday payments restored",
     policyRestoreConfirmTitle: "Restore everyday payments?",
     policyRestoreConfirmBody:
-      "Removes your asset limits and extra app rules. A tap can again send SOL and standard tokens; other apps stay blocked.",
+      "Removes your asset limits and extra program rules. A tap can again send SOL and standard tokens; other programs stay blocked.",
     policyTurnOff: "Turn off protections",
     policyTurnedOff: "Protections turned off",
     policyTurnOffConfirmTitle: "Turn off accessory protections?",
@@ -297,23 +297,26 @@ export const copy = {
       "A tap won’t be checked until you restore everyday payments. Your owner key stays.",
     policySignInToEdit: "Unlock on this phone to change permissions.",
     policyTokenLimits: "Spendable assets",
+    policyTokenLimitsHint:
+      "Add SOL or any token. A tap can only spend what you list.",
     policyAddToken: "Add an asset",
     policyPickToken: "Choose an asset",
     policyNoTokensToAdd: "No more assets to add",
     policyRemoveTokenAria: (symbol: string) => `Remove ${symbol}`,
     policyTokenAmountLabel: (symbol: string) => `${symbol} a tap can spend`,
-    // Advanced — app/program permissions
-    policyAdvanced: "Extra apps",
-    policyProgramsHint: "Allow or block apps beyond everyday payments.",
-    policyProgramsNone: "No extra apps",
+    // Advanced — on-chain program permissions
+    policyAdvanced: "Extra programs",
+    policyProgramsHint:
+      "Allow or block Solana programs beyond everyday payments.",
+    policyProgramsNone: "No extra programs",
     policyAddProgram: "Add",
-    policyProgramIdPlaceholder: "App address",
-    policyProgramInvalid: "Enter a valid app address",
-    policyProgramDuplicate: "That app is already listed",
+    policyProgramIdPlaceholder: "Program ID",
+    policyProgramInvalid: "Enter a valid program ID",
+    policyProgramDuplicate: "That program is already listed",
     policyAccessAllow: "Allow",
     policyAccessDeny: "Block",
     policyAccessCustom: "Custom rules",
-    policyRemoveProgramAria: (id: string) => `Remove ${id}`,
+    policyRemoveProgramAria: (id: string) => `Remove program ${id}`,
     interfaceNft: "NFT",
     interfacePnft: "pNFT",
     interfaceCnft: "cNFT",
@@ -359,7 +362,7 @@ export const copy = {
     approveSendBodyInstruction:
       "This action isn’t allowed by your accessory permissions.",
     approveSendBodyProgram:
-      "This app isn’t allowed by your accessory permissions.",
+      "This program isn’t allowed by your accessory permissions.",
     approveSendBodyUnexpected:
       "This transaction couldn’t be checked against your settings.",
     approveSendSignInBody:

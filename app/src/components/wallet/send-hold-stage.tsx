@@ -30,6 +30,16 @@ export type SendHoldRecap = {
   imageSrc?: string | null;
 };
 
+/** Parent send page ceremony — one state instead of hold + sign + recap. */
+export type SendCeremonyState =
+  | { stage: "idle" }
+  | {
+      stage: "holding";
+      signPhase: PhygitalWalletSignPhase | null;
+      recap: SendHoldRecap;
+    }
+  | { stage: "success"; recap: SendHoldRecap };
+
 export function SendHoldStage({
   phase,
   signPhase,

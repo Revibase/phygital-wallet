@@ -13,6 +13,21 @@ import { SECURE_SIGNER_ORIGIN } from "@/lib/wallet/owner-backend";
 import { getSecureSignerClient } from "@/lib/wallet/secure-signer-client";
 
 /**
+ * Soft-lazy secure-signer host. Mounts on first `ensureHost` / auth need so
+ * the cross-origin iframe is not loaded on every page boot.
+ */
+export function LazySecureSignerHost() {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    return getSecureSignerClient().onNeedHost(() => setMounted(true));
+  }, []);
+
+  if (!mounted) return null;
+  return <SecureSignerHost />;
+}
+
+/**
  * Secure-signer host.
  *
  * - shadcn Sheet → dimmed backdrop + scroll/focus lock (modal).

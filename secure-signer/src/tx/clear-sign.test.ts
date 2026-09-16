@@ -51,7 +51,7 @@ describe("clear-sign", () => {
       mintCaps: [
         {
           mint: address("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"),
-          cap: 100n,
+          cap: 50_000_000n,
           windowSeconds: 0n,
         },
       ],
@@ -64,9 +64,21 @@ describe("clear-sign", () => {
     });
     expect(rows[0]?.value).toContain("1.5 SOL");
     expect(rows[0]?.value).toContain("every day");
-    expect(rows[1]?.value).toContain("raw");
+    expect(rows[1]?.value).toContain("50 USDC");
+    expect(rows[1]?.value).not.toMatch(/raw/i);
     expect(rows[1]?.value).toContain("lifetime");
     expect(rows[2]?.value).toContain("Denied");
+  });
+
+  it("formats transfer-checked with mint symbol when known", () => {
+    const data = Uint8Array.from([12, 80, 195, 0, 0, 0, 0, 0, 0, 6]);
+    const cleared = describeInnerInstruction(
+      TOKEN,
+      ["SrcAta", "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", "DstAta", "Owner"],
+      data,
+    );
+    expect(cleared.title).toContain("0.05 USDC");
+    expect(cleared.title).not.toMatch(/raw/i);
   });
 
   it("describes absent sol cap", () => {

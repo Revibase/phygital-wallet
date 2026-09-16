@@ -1,3 +1,5 @@
+import type { Address } from "@solana/kit";
+
 import { tryParseAddress } from "@/lib/solana/address";
 import type { SettingsTarget } from "@/components/wallet/settings-hub";
 
@@ -85,6 +87,27 @@ export function walletSendHref(
   if (asset.collectible) q.set("collectible", asset.mint);
   else q.set("mint", asset.mint);
   return `${base}?${q.toString()}`;
+}
+
+/** Inverse of `walletSendHref` query keys — validated addresses only. */
+export function parseSendSearchParams(searchParams: {
+  get(name: string): string | null;
+}): { mint: Address | null; collectible: Address | null } {
+  return {
+    mint: tryParseAddress(searchParams.get("mint")),
+    collectible: tryParseAddress(searchParams.get("collectible")),
+  };
+}
+
+/** Settings target from a pathname under `/token/…/wallet/settings(…)`. */
+export function settingsTargetFromPathname(
+  pathname: string,
+): SettingsTarget | null {
+  const parsed = parseTokenWalletPath(pathname);
+  if (!parsed || parsed.kind !== "wallet") return null;
+  if (parsed.segments[0] !== "settings") return null;
+  if (parsed.segments.length === 1) return null;
+  return settingsFromSegment(parsed.segments[1] ?? "") ?? null;
 }
 
 function rejectUnsafeReturn(raw: string): boolean {

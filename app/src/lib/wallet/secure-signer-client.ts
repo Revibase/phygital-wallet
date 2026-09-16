@@ -66,6 +66,22 @@ class SecureSignerClient {
     resolve: () => void;
     reject: (err: Error) => void;
   }> = [];
+  private readonly needHostListeners = new Set<() => void>();
+
+  /**
+   * Subscribe to “mount the signer host” requests. Used so React can lazy-mount
+   * `SecureSignerHost` until the first auth call.
+   */
+  onNeedHost(listener: () => void): () => void {
+    this.needHostListeners.add(listener);
+    return () => {
+      this.needHostListeners.delete(listener);
+    };
+  }
+
+  private requestHostMount(): void {
+    for (const listener of this.needHostListeners) listener();
+  }
 
   /** Called by `SecureSignerHost` once the iframe is in the DOM. */
   attachHost(bridge: SecureSignerHostBridge): void {
@@ -141,6 +157,7 @@ class SecureSignerClient {
           reject(err);
         },
       });
+      this.requestHostMount();
     });
     if (!this.host) throw new SecureSignerError("INTERNAL_ERROR");
     return this.host;

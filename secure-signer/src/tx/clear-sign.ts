@@ -33,6 +33,54 @@ const METADATA = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s";
 const BUBBLEGUM = "BGUMAp9Gq7iTEuizy4pqaxsTyUCBK68MDfK752saRPUY";
 const CORE = "CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d";
 
+/**
+ * Mint → decimals/symbol for clear-signing. Policy caps and some token transfers
+ * only carry raw amounts; the signer never trusts parent-supplied decimals.
+ */
+const KNOWN_MINT_META: ReadonlyMap<string, { decimals: number; symbol: string }> =
+  new Map([
+    [
+      "So11111111111111111111111111111111111111112",
+      { decimals: 9, symbol: "SOL" },
+    ],
+    [
+      "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      { decimals: 6, symbol: "USDC" },
+    ],
+    [
+      "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDnm3",
+      { decimals: 6, symbol: "USDC" },
+    ],
+    [
+      "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
+      { decimals: 6, symbol: "USDT" },
+    ],
+  ]);
+
+export function mintMeta(
+  mint: string,
+): { decimals: number; symbol: string } | null {
+  return KNOWN_MINT_META.get(mint) ?? null;
+}
+
+/** UI amount + symbol when decimals are known; otherwise a clear fallback. */
+export function formatTokenAmount(
+  raw: bigint,
+  mint: string,
+  decimalsHint?: number | null,
+): string {
+  const known = mintMeta(mint);
+  const decimals = known?.decimals ?? decimalsHint ?? null;
+  const symbol = known?.symbol;
+  if (decimals == null) {
+    return symbol
+      ? `${raw.toString()} ${symbol}`
+      : `${raw.toString()} · mint ${shorten(mint)}`;
+  }
+  const amount = formatUnits(raw, decimals);
+  return symbol ? `${amount} ${symbol}` : `${amount} · mint ${shorten(mint)}`;
+}
+
 function readU32LE(data: Uint8Array, o: number): number | null {
   if (o + 4 > data.length) return null;
   return (
@@ -124,10 +172,11 @@ export function describeWalletPolicy(data: {
     rows.push({ label: "Token spend caps", value: "None" });
   } else {
     for (const [i, m] of data.mintCaps.entries()) {
+      const mint = String(m.mint);
       rows.push({
         label:
           data.mintCaps.length === 1 ? "Token spend cap" : `Token cap ${i + 1}`,
-        value: `${m.cap.toString()} raw · mint ${shorten(m.mint)} · ${windowPhrase(m.windowSeconds)}`,
+        value: `${formatTokenAmount(m.cap, mint)} · ${windowPhrase(m.windowSeconds)}`,
       });
     }
   }
@@ -202,11 +251,15 @@ export function describeInnerInstruction(
     if (disc === 12 && data.length >= 10) {
       const amount = readU64LE(data, 1);
       const decimals = data[9]!;
+      const mint = accounts[1] ? String(accounts[1]) : "";
       if (amount !== null) {
+        const amountLabel = mint
+          ? formatTokenAmount(amount, mint, decimals)
+          : formatUnits(amount, decimals);
         return {
-          title: `Send ${formatUnits(amount, decimals)} tokens (${kind})`,
+          title: `Send ${amountLabel} (${kind})`,
           details: [
-            { label: "Mint", value: accounts[1] ? shorten(accounts[1]) : "?" },
+            { label: "Mint", value: mint ? shorten(mint) : "?" },
             { label: "From", value: accounts[0] ? shorten(accounts[0]) : "?" },
             { label: "To", value: accounts[2] ? shorten(accounts[2]) : "?" },
           ],
@@ -216,9 +269,11 @@ export function describeInnerInstruction(
     if (disc === 3 && data.length >= 9) {
       const amount = readU64LE(data, 1);
       if (amount !== null) {
+        // Transfer (unchecked) has no mint/decimals in the ix — amount stays opaque.
         return {
-          title: `Send ${amount.toString()} raw tokens (${kind})`,
+          title: `Send tokens (${kind})`,
           details: [
+            { label: "Amount", value: amount.toString() },
             { label: "From", value: accounts[0] ? shorten(accounts[0]) : "?" },
             { label: "To", value: accounts[1] ? shorten(accounts[1]) : "?" },
           ],

@@ -9,10 +9,10 @@ import {
   useWalletSession,
 } from "@/components/wallet/wallet-route-shell";
 import { settingsDesktopClass } from "@/lib/layout";
-import { settingsFromSegment } from "@/lib/wallet/token-routes";
+import { settingsTargetFromPathname } from "@/lib/wallet/token-routes";
 
 /**
- * Hub (`/settings`): children fill the main pane (wide 2-col list).
+ * Hub (`/settings`): children fill the main pane.
  * Detail (`/settings/…`): desktop master–detail — compact index + form.
  */
 export default function WalletSettingsLayout({
@@ -23,15 +23,13 @@ export default function WalletSettingsLayout({
   const pathname = usePathname();
   const { tokenAddress } = useWalletSession();
   const { backHome, goSettings } = useWalletNav();
+  const activeTarget = settingsTargetFromPathname(pathname);
 
-  const segment = pathname.split("/").pop() ?? "";
-  const activeTarget =
-    segment === "settings" ? null : settingsFromSegment(segment);
-  const isHub = activeTarget === null;
+  if (activeTarget === null) {
+    return <div className="flex min-w-0 flex-1 flex-col">{children}</div>;
+  }
 
-  const content = isHub ? (
-    <div className="flex min-w-0 flex-1 flex-col">{children}</div>
-  ) : (
+  return (
     <div className={settingsDesktopClass}>
       <aside className="hidden lg:block lg:sticky lg:top-4 lg:max-h-[calc(100dvh-3rem)] lg:overflow-y-auto">
         <SettingsHub
@@ -45,6 +43,4 @@ export default function WalletSettingsLayout({
       <div className="flex min-w-0 flex-1 flex-col lg:max-w-xl">{children}</div>
     </div>
   );
-
-  return content;
 }

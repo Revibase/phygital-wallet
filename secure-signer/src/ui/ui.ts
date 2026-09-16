@@ -12,6 +12,7 @@
  */
 
 import type { TransactionSummary } from "../tx/policy.js";
+import { formatUnits } from "../tx/clear-sign.js";
 import {
   classifySignRisk,
   highRiskWarning,
@@ -429,7 +430,10 @@ export function confirmSignTransaction(
 
     if (summary.config.priorityFeeLamports !== undefined)
       rows.push(
-        row("Priority fee", `${summary.config.priorityFeeLamports} lamports`),
+        row(
+          "Priority fee",
+          `${formatUnits(BigInt(summary.config.priorityFeeLamports), 9)} SOL`,
+        ),
       );
     if (summary.config.computeUnitLimit !== undefined)
       rows.push(row("Compute units", String(summary.config.computeUnitLimit)));

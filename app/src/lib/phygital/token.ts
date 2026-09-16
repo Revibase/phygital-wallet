@@ -5,6 +5,7 @@ import {
   type SolanaRpcApi,
 } from "@solana/kit";
 import {
+  fetchAllMaybePhygitalToken,
   fetchMaybePhygitalToken,
   fetchPhygitalToken as fetchPhygitalTokenAccount,
   fetchPhygitalTokenByIdentifier as fetchPhygitalTokenAccountByIdentifier,
@@ -54,6 +55,29 @@ export async function fetchPhygitalToken(
 ): Promise<PhygitalToken> {
   const { data } = await fetchPhygitalTokenAccount(rpc, tokenAddress);
   return phygitalTokenFromAccount(tokenAddress, data);
+}
+
+/**
+ * Batch-load phygital tokens by PDA (`getMultipleAccounts`). Missing accounts
+ * are omitted from the map.
+ */
+export async function fetchPhygitalTokensByAddresses(
+  rpc: Rpc<SolanaRpcApi>,
+  tokenAddresses: readonly Address[],
+): Promise<Map<string, PhygitalToken>> {
+  const out = new Map<string, PhygitalToken>();
+  if (tokenAddresses.length === 0) return out;
+  const accounts = await fetchAllMaybePhygitalToken(rpc, [...tokenAddresses]);
+  for (let i = 0; i < tokenAddresses.length; i++) {
+    const maybe = accounts[i];
+    const tokenAddress = tokenAddresses[i]!;
+    if (!maybe?.exists) continue;
+    out.set(
+      String(tokenAddress),
+      phygitalTokenFromAccount(tokenAddress, maybe.data),
+    );
+  }
+  return out;
 }
 
 /**

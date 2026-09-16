@@ -10,36 +10,48 @@ import { useResolvedDasCollectible } from "@/hooks/token/use-das-collectible";
 import { usePhygitalTokenByAddress } from "@/hooks/token/use-phygital-token";
 import { copy } from "@/lib/copy/phygital";
 import { galleryAnimate, staggerStyle } from "@/lib/motion";
-import { tokenHasLinkedMint } from "@/lib/phygital/token";
+import {
+  tokenHasLinkedMint,
+  type PhygitalToken,
+} from "@/lib/phygital/token";
+import type { Collectible } from "@/lib/tokens/collectible";
 import { cn, shortAddress } from "@/lib/utils";
 
 /**
- * One accessory tile on the owner dashboard. Resolves display metadata
- * (phygital token PDA → linked `mint` → DAS collectible). Click navigates to
- * `/token/:address`; middleware enforces browse-unlock (or redirects to Hold).
+ * One accessory tile on the owner dashboard. Prefer prefetched `token` /
+ * `collectible` from the batched home query; falls back to per-card hooks.
  */
 export const OwnerAccessoryCard = memo(function OwnerAccessoryCard({
   phygitalToken,
+  token: tokenProp,
+  collectible: collectibleProp,
   busy = false,
   index = 0,
   onOpen,
 }: {
   phygitalToken: string;
+  token?: PhygitalToken | null;
+  collectible?: Collectible | null;
   busy?: boolean;
   index?: number;
   onOpen: (phygitalToken: string) => void;
 }) {
-  const tokenQuery = usePhygitalTokenByAddress(phygitalToken);
-  const token = tokenQuery.data;
+  const tokenQuery = usePhygitalTokenByAddress(
+    tokenProp === undefined ? phygitalToken : null,
+  );
+  const token = tokenProp !== undefined ? tokenProp : tokenQuery.data;
   const hasMint = Boolean(token && tokenHasLinkedMint(token));
   const mint = hasMint && token?.mint ? String(token.mint) : null;
-  const { collectible, loading: collectibleLoading } =
-    useResolvedDasCollectible(mint, {
-      enabled: Boolean(mint),
+  const { collectible: collectibleHook, loading: collectibleLoading } =
+    useResolvedDasCollectible(collectibleProp === undefined ? mint : null, {
+      enabled: collectibleProp === undefined && Boolean(mint),
     });
+  const collectible =
+    collectibleProp !== undefined ? collectibleProp : collectibleHook;
 
   const resolving =
-    tokenQuery.isPending || (Boolean(mint) && collectibleLoading);
+    (tokenProp === undefined && tokenQuery.isPending) ||
+    (collectibleProp === undefined && Boolean(mint) && collectibleLoading);
   const hasArt = Boolean(collectible?.image);
   const title =
     collectible?.name?.trim() ||

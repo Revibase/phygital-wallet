@@ -47,6 +47,19 @@ export default function WalletHomePage() {
     ownership.isClaimed &&
     !ownership.isSignedIn &&
     !ownership.isOwner;
+  const visitor = showOtherOwner
+    ? {
+        notice: copy.wallet.otherOwnerBanner,
+        action: copy.wallet.otherOwnerBannerAction,
+        onNotice: () => goSettings(),
+      }
+    : showClaimedVisitor
+      ? {
+          notice: copy.wallet.claimedVisitorBanner,
+          action: copy.wallet.claimedVisitorBannerAction,
+          onNotice: () => goSettings(),
+        }
+      : null;
 
   return (
     <div className="flex flex-1 flex-col">
@@ -118,25 +131,9 @@ export default function WalletHomePage() {
               )
             : null
         }
-        visitorNotice={
-          showOtherOwner
-            ? copy.wallet.otherOwnerBanner
-            : showClaimedVisitor
-              ? copy.wallet.claimedVisitorBanner
-              : null
-        }
-        visitorNoticeAction={
-          showOtherOwner
-            ? copy.wallet.otherOwnerBannerAction
-            : showClaimedVisitor
-              ? copy.wallet.claimedVisitorBannerAction
-              : undefined
-        }
-        onVisitorNotice={
-          showOtherOwner || showClaimedVisitor
-            ? () => goSettings()
-            : undefined
-        }
+        visitorNotice={visitor?.notice ?? null}
+        visitorNoticeAction={visitor?.action}
+        onVisitorNotice={visitor?.onNotice}
       />
     </div>
   );
