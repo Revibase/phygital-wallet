@@ -25,7 +25,7 @@ export function ReceiveHub({
 }) {
   const queryClient = useQueryClient();
   const payUrl = `solana:${walletAddress.trim()}?label=${encodeURIComponent(
-    brand.company
+    brand.company,
   )}`;
 
   useEffect(() => {
@@ -68,7 +68,7 @@ export function ReceiveHub({
             type="button"
             variant="ghost"
             onClick={onReceiveNearby}
-            className="h-auto min-h-0 w-full justify-start gap-3 rounded-3xl bg-muted/25 px-4 py-4 text-left font-normal hover:bg-muted/40 lg:min-h-[12rem] lg:flex-col lg:items-start lg:justify-between lg:border lg:border-border/40 lg:bg-card/70 lg:px-5 lg:py-5 lg:shadow-[0_12px_40px_-28px_var(--card-shadow)]"
+            className="h-auto min-h-0 w-full justify-start gap-3 rounded-3xl bg-muted/25 px-4 py-4 text-left font-normal hover:bg-muted/40 lg:min-h-48 lg:flex-col lg:items-start lg:justify-between lg:border lg:border-border/40 lg:bg-card/70 lg:px-5 lg:py-5 lg:shadow-[0_12px_40px_-28px_var(--card-shadow)]"
           >
             <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-background text-muted-foreground">
               <QrCode className="size-5" aria-hidden />

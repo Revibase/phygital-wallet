@@ -167,6 +167,7 @@ export const copy = {
     activityFailed: "Failed",
     ofAvailableAsset: (available: string, symbol: string) =>
       `${available} ${symbol} available`,
+    checkingPayerBalance: "Checking their balance…",
     selectAsset: "Choose asset",
     sendCollectible: "Sending 1 collectible",
     insufficientBalance: "Not enough balance",

@@ -46,6 +46,7 @@ import {
   runWalletTransaction,
 } from "@/lib/wallet/wallet-transaction";
 import { resolveTokenIconSrc } from "@/lib/tokens/payment-token";
+import { uiAmountToRaw } from "@/lib/tokens/amount";
 import { getSolanaRpc } from "@/lib/solana/rpc";
 import { connectAccessory } from "@/lib/wallet/connect-accessory";
 import { walletPdaForToken } from "@/lib/wallet/pda";
@@ -121,13 +122,18 @@ export function ReceiveNearbyPanel({
     setAsset((prev) => prev ?? paymentTokenToSendAsset(first));
   }, [verified.data]);
 
-  const payerBalanceUi = useMemo(() => {
+  const payerHolding = useMemo(() => {
     if (!from || !asset || !payerPortfolio.data) return null;
     return (
-      payerPortfolio.data.holdings.find((x) => x.mint === asset.mint)
-        ?.balanceUi ?? "0"
+      payerPortfolio.data.holdings.find((x) => x.mint === asset.mint) ?? null
     );
   }, [from, asset, payerPortfolio.data]);
+
+  const payerBalanceKnown = Boolean(from && asset && payerPortfolio.data);
+  const payerBalanceUi = payerBalanceKnown
+    ? (payerHolding?.balanceUi ?? "0")
+    : null;
+  const payerBalanceRaw = payerHolding?.balanceRaw ?? "0";
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -141,9 +147,31 @@ export function ReceiveNearbyPanel({
   }, [catalog, search]);
 
   const amountOk = Number(amount) > 0;
+  const overBalance = (() => {
+    if (!payerBalanceKnown || !asset || !amountOk) return false;
+    try {
+      return uiAmountToRaw(amount, asset.decimals) > BigInt(payerBalanceRaw);
+    } catch {
+      return true;
+    }
+  })();
   const canIdentify = Boolean(asset && amountOk && !busy);
-  const canConfirm = Boolean(from && asset && amountOk && !busy);
+  const canConfirm = Boolean(
+    from &&
+      asset &&
+      amountOk &&
+      !busy &&
+      payerBalanceKnown &&
+      !overBalance &&
+      !payerPortfolio.isError,
+  );
   const showSearch = catalog.length >= ALL_LIST_SEARCH_THRESHOLD;
+
+  useEffect(() => {
+    if (payerPortfolio.isError) {
+      toast.error(toUserErrorMessage(payerPortfolio.error));
+    }
+  }, [payerPortfolio.isError, payerPortfolio.error]);
 
   async function identifyFrom() {
     if (!canIdentify) return;
@@ -186,7 +214,9 @@ export function ReceiveNearbyPanel({
   }
 
   async function runReceive() {
-    if (!from || !asset || !amountOk) return;
+    if (!from || !asset || !amountOk || !payerBalanceKnown || overBalance) {
+      return;
+    }
     const payer = from;
     setBusy(true);
     setHardError(null);
@@ -491,18 +521,30 @@ export function ReceiveNearbyPanel({
               </p>
             </div>
             {payerBalanceUi != null ? (
-              <div className="flex items-center justify-between px-1">
-                <p className="text-sm text-muted-foreground">
-                  {copy.wallet.ofAvailableAsset(payerBalanceUi, asset.symbol)}
-                </p>
-                <Button
-                  type="button"
-                  variant="link"
-                  className="h-auto min-h-0 px-0 text-xs font-medium"
-                  onClick={() => setAmount(payerBalanceUi)}
-                >
-                  {copy.wallet.max}
-                </Button>
+              <div className="space-y-1 px-1">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    {copy.wallet.ofAvailableAsset(payerBalanceUi, asset.symbol)}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="h-auto min-h-0 px-0 text-xs font-medium"
+                    onClick={() => setAmount(payerBalanceUi)}
+                  >
+                    {copy.wallet.max}
+                  </Button>
+                </div>
+                {overBalance ? (
+                  <p className="text-xs text-destructive">
+                    {copy.wallet.insufficientBalance}
+                  </p>
+                ) : null}
+              </div>
+            ) : payerPortfolio.isLoading ? (
+              <div className="flex items-center gap-2 px-1 text-sm text-muted-foreground">
+                <Spinner className="size-3.5" />
+                <span>{copy.wallet.checkingPayerBalance}</span>
               </div>
             ) : null}
           </div>
