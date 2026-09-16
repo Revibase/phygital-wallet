@@ -10,9 +10,8 @@ api/src/
   shared/           Cross-cutting: HTTP helpers, D1, Solana cluster, crypto
   tokens/           Verified catalog, fee-balance (proxied to DO)
   auth/             Device session + link index + policy HTTP (WebAuthn → DO)
-  verifier/         POST /connect, /connect/tap, /preview, /sign
-  fees/             Helius fee accounting → DO applyFeeEvents
-  webhooks/         POST /webhooks/helius
+  fees/             Subscribe-tx fee accounting → DO applyFeeEvents
+  webhooks/         POST /webhooks/transactions (+ wallet activity)
 
 api-signer/         Private Worker: TokenSigner Durable Object (per token)
 ```
@@ -58,7 +57,8 @@ one is present). Login also sets `revibase_device_refresh` (~30d); use
 | POST           | `/auth/device-session/refresh`               | Public     | Refresh cookie → new access (+ rotate refresh)                             |
 | GET            | `/auth/device-session`                       | Public     | Current access session (silent refresh if needed)                          |
 | POST           | `/auth/app-session`                          | Public     | Verifier bearer → browse-unlock session cookie (app origins only)          |
-| POST           | `/webhooks/helius`                           | Protected  | Shared secret (`HELIUS_WEBHOOK_AUTH`)                                      |
+| POST           | `/webhooks/transactions`                     | Protected  | HMAC (`WALLET_WEBHOOK_SECRET`) — activity index + fee credit/debit         |
+| GET            | `/wallets/:address/activity`                 | Protected  | Self-indexed wallet activity from D1                                       |
 | GET            | `/auth/device/links`                         | Protected  | Listing index                                                              |
 | POST           | `/auth/device/links`                         | Protected  | Link → WebAuthn → DO `addOwner`                                            |
 | POST           | `/auth/device/links/:token/mutation-options` | Protected  | Claim WebAuthn challenge                                                   |
@@ -77,10 +77,17 @@ one is present). Login also sets `revibase_device_refresh` (~30d); use
 
 Per-token prepaid balance lives in the **TokenSigner DO** (not D1):
 
-1. **Top-up:** SOL → `TOP_UP_ACCUMULATOR` + memo; Helius webhook → DO credit  
+1. **Top-up:** SOL → `TOP_UP_ACCUMULATOR` + memo; `POST /webhooks/transactions` → queue → DO credit  
    (new token ledgers start with 0.001 SOL)
 2. **Gate:** DO on preview/sign (`execute`: fee + policy; config: owner WebAuthn + fee)
-3. **Debit:** webhook → DO debit on confirmed execute
+3. **Debit:** same transactions webhook → DO debit on confirmed execute sponsored by a default fee payer
+
+**Watch-list prerequisite (helius-wallet-service):** the subscribe feed must include:
+
+- `TOP_UP_ACCUMULATOR`
+- every pubkey in `DEFAULT_VERIFIER_PUBKEYS`
+
+Without those watches, top-ups and sponsored executes never reach this Worker.
 
 ## Env / bindings
 
@@ -89,7 +96,11 @@ Per-token prepaid balance lives in the **TokenSigner DO** (not D1):
 | `TOKEN_SIGNER`          | DO binding      | `TokenSigner` on `revibase-verifier-signer`                           |
 | `VERIFIER_SECRET_KEYS`  | **api-signer**  | verifier seeds                                                        |
 | `POLICY_SESSION_SECRET` | api **and app** | device session + browse-unlock HMAC (app middleware verifies cookies) |
-| `phygital_token`        | D1              | credentials, link index                                               |
+| `WALLET_WEBHOOK_SECRET` | api secret      | HMAC for `/webhooks/transactions`                                     |
+| `TOP_UP_ACCUMULATOR`    | api (+ app)     | Fee top-up destination                                                |
+| `DEFAULT_VERIFIER_PUBKEYS` | api          | Default fee-payer set (debit attribution)                             |
+| `WALLET_TX_QUEUE`       | Queue           | `wallet-tx-ingest` — activity + fee processing                        |
+| `phygital_token`        | D1              | credentials, link index, wallet_activity                              |
 
 ## Deploy
 

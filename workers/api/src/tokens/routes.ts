@@ -1,11 +1,12 @@
 import { Hono } from "hono";
 
 import { readBrowseUnlock } from "@/auth/browse-unlock-session";
+import { readOwnerBrowse } from "@/auth/owner-browse-session";
+import { FEE_BALANCE_LOW_LAMPORTS, lamportsToSolUi } from "@/fees/constants";
 import { getErrorMessage } from "@/shared/errors";
 import { json } from "@/shared/http";
 import { tryParseAddress } from "@/shared/solana/address";
 import { fetchVerifiedTokens } from "@/tokens/verified-tokens";
-import { FEE_BALANCE_LOW_LAMPORTS, lamportsToSolUi } from "@/fees/constants";
 import { tokenSigner } from "@/transactions/token-signer";
 
 /**
@@ -26,8 +27,10 @@ tokenRoutes.get("/tokens/fee-balance", async (c) => {
 
   const token = String(phygitalToken);
   const browse = await readBrowseUnlock(c);
-  const browseOk = browse?.phygitalToken === token;
-  if (!browseOk) {
+  const ownerBrowse = await readOwnerBrowse(c);
+  const admitOk =
+    browse?.phygitalToken === token || ownerBrowse?.phygitalToken === token;
+  if (!admitOk) {
     return json(
       { error: "Unlock this item to continue.", code: "session_required" },
       { status: 401 },

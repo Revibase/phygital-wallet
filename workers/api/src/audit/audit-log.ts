@@ -34,7 +34,7 @@ export type AuditEvent =
 /**
  * Who performed the action. `accessory` = the physical chip's own credential
  * (a `/connect` proof, a bearer-scoped preview/sign — the token is derived from
- * it). `system` = server-side, e.g. a fee event from the Helius webhook.
+ * it). `system` = server-side, e.g. a fee event from the transactions webhook.
  */
 export type AuditActor =
   | "accessory"

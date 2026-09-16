@@ -1,5 +1,8 @@
 /**
  * Outer API floor: browse-unlock or owner-browse, except public routes.
+ *
+ * `owner_session` is not an admit cookie — it only exists so the client can
+ * mint per-item `owner_browse`.
  */
 import type { Context } from "hono";
 
@@ -24,8 +27,8 @@ const PUBLIC_ROUTES: ReadonlyArray<{ method: string; path: string }> = [
   { method: "GET", path: "/accessory/session" },
   { method: "GET", path: "/getFeePayer" },
   { method: "POST", path: "/sign" },
-  { method: "POST", path: "/webhooks/helius" },
   // Wallet tx ingest — authenticated by its own HMAC signature, not the cookie.
+  // Also drives fee credit/debit (TOP_UP_ACCUMULATOR + default fee payers).
   { method: "POST", path: "/webhooks/transactions" },
   // Owner encrypted-blob backup — GET hash-only; PUT proves via ed25519 and
   // mints owner_session. Signing ciphertext lives in the signer origin only.
@@ -71,8 +74,6 @@ export function extractPhygitalTokenFromRequest(
 ): string | null {
   const q = queryToken?.trim();
   if (q) return q;
-
-  const p = normalizeApiPath(path);
 
   return null;
 }

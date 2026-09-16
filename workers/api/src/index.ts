@@ -15,7 +15,6 @@ import { runWithRequestStore } from "@/shared/request-context";
 import { ownerWalletRoutes } from "@/owner-wallet/routes";
 import { tokenRoutes } from "@/tokens/routes";
 import { transactions } from "@/transactions";
-import { heliusWebhookRoutes } from "@/webhooks/helius";
 import { walletTxRoutes } from "@/webhooks/transactions";
 import {
   handleWalletTxQueue,
@@ -88,7 +87,6 @@ app.route("/", ownerSessionRoutes);
 app.route("/", ownerWalletRoutes);
 app.route("/", tokenRoutes);
 app.route("/", transactions);
-app.route("/", heliusWebhookRoutes);
 app.route("/", walletTxRoutes);
 
 app.notFound((c) => c.json({ error: "Not found" }, 404));
