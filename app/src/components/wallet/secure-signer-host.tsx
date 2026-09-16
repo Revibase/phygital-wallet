@@ -69,7 +69,7 @@ export function SecureSignerHost() {
         overlayClassName="z-60"
         onOpenAutoFocus={(e) => e.preventDefault()}
         onCloseAutoFocus={(e) => e.preventDefault()}
-        className="z-60 gap-0 overflow-hidden border-0 bg-[#f7f4ef] p-0 shadow-[0_-8px_40px_rgba(0,0,0,.18)] sm:max-w-[400px] sm:rounded-3xl sm:shadow-[0_20px_60px_rgba(26,31,30,.18)]"
+        className="z-60 gap-0 overflow-hidden rounded-t-3xl border-0 bg-[#f7f4ef] p-0 shadow-[0_-8px_40px_rgba(0,0,0,.18)] sm:max-w-100 sm:rounded-3xl sm:shadow-[0_20px_60px_rgba(26,31,30,.18)]"
       >
         <SheetTitle className="sr-only">Secure signer</SheetTitle>
         <SheetDescription className="sr-only">
