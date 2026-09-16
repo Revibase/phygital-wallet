@@ -46,7 +46,7 @@ export function lamportsToSol(lamports: bigint): string {
 
 /** Short calendar date, e.g. "Sep 22". */
 export function formatResetDate(unixSeconds: bigint): string {
-  return new Date(Number(unixSeconds) * 1000).toLocaleDateString(undefined, {
+  return new Date(Number(unixSeconds) * 1000).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
   });

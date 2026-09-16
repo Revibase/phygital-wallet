@@ -8,7 +8,6 @@ import {
   SheetDescription,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { SECURE_SIGNER_ORIGIN } from "@/lib/wallet/owner-backend";
 import { getSecureSignerClient } from "@/lib/wallet/secure-signer-client";
 
 /**
@@ -76,10 +75,13 @@ export function SecureSignerHost() {
         <SheetDescription className="sr-only">
           Passkey unlock and transaction approval
         </SheetDescription>
+        {/*
+          Do not set `src` here — SecureSignerClient.attachIframe assigns it once
+          so SIGNER_READY is not raced against a double navigation.
+        */}
         <iframe
           ref={attachIframe}
           title="Secure signer"
-          src={`${SECURE_SIGNER_ORIGIN}/`}
           allow="publickey-credentials-get"
           className="block h-[min(560px,88vh)] w-full border-0 sm:h-[min(520px,90vh)]"
         />

@@ -57,9 +57,7 @@ export function OwnerOwnershipSection({
         toast.success(copy.wallet.ownershipUnlinked);
       },
       onError: (err) =>
-        toast.error(
-          toUserErrorMessage(err, copy.wallet.ownershipUnlinkFailed),
-        ),
+        toast.error(toUserErrorMessage(err, copy.wallet.ownershipUnlinkFailed)),
     });
   }
 
@@ -136,10 +134,7 @@ export function OwnerOwnershipSection({
   }
 
   return (
-    <GroupedList
-      label={copy.wallet.ownershipDangerZone}
-      footer={copy.wallet.ownershipUnlinkBody}
-    >
+    <GroupedList label={copy.wallet.ownershipDangerZone}>
       <GroupedRow
         destructive
         onClick={runUnlink}

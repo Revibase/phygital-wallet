@@ -37,7 +37,7 @@ function formatActivityTime(timestamp: number | null): string {
   if (diffMs < 3_600_000) return `${Math.floor(diffMs / 60_000)}m`;
   if (diffMs < 86_400_000) return `${Math.floor(diffMs / 3_600_000)}h`;
   if (diffMs < 86_400_000 * 7) return `${Math.floor(diffMs / 86_400_000)}d`;
-  return new Date(timestamp * 1000).toLocaleDateString(undefined, {
+  return new Date(timestamp * 1000).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
   });

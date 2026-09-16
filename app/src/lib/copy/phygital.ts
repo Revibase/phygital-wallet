@@ -181,8 +181,7 @@ export const copy = {
     selectAsset: "Choose asset",
     sendCollectible: "Sending 1 collectible",
     insufficientBalance: "Not enough balance",
-    insufficientAtaRent:
-      "They need a little SOL to open your token account",
+    insufficientAtaRent: "They need a little SOL to open your token account",
     insufficientAtaRentSend:
       "You need a little SOL to open their token account",
     selfSend: "Can’t send to this wallet",
@@ -252,8 +251,6 @@ export const copy = {
     ownershipUnlinkSubtitle:
       "Disables the accessory until it is claimed again.",
     ownershipUnlinkTitle: "Unlink this accessory?",
-    ownershipUnlinkBody:
-      "This removes you as the owner and disables everyday payments. Funds in this wallet stay put — move them out first if you’re handing the accessory off. Anyone holding it can claim it again with a hold.",
     ownershipUnlinkCta: "Unlink",
     ownershipUnlinking: "Unlinking…",
     ownershipUnlinked: "Accessory unlinked",
@@ -534,6 +531,10 @@ export const errorCopy = {
     title: "Locked",
     body: "Claim this accessory before a tap can send.",
   },
+  accessoryNeedsHold: {
+    title: "Hold required",
+    body: "Hold the accessory flat against your phone, then try again.",
+  },
   signerCancelled: {
     title: "Cancelled",
     body: "Setup was cancelled. Try again when you’re ready.",
@@ -545,6 +546,14 @@ export const errorCopy = {
   signerFailed: {
     title: "Couldn’t continue",
     body: "Something went wrong unlocking this phone. Try again.",
+  },
+  signerNeedsRelogin: {
+    title: "Sign in again",
+    body: "This phone’s wallet isn’t available here. Sign in again, then retry.",
+  },
+  signerPolicyRejected: {
+    title: "Not allowed",
+    body: "This phone can’t approve that transaction. Try again from settings.",
   },
   sessionEnded: {
     title: "Timed out",

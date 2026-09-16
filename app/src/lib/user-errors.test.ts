@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { toUserFacingError, toUserErrorMessage } from "./user-errors";
 import { errorCopy } from "@/lib/copy/phygital";
+import { SecureSignerError } from "@/lib/wallet/secure-signer-client";
 
 describe("toUserFacingError", () => {
   it("names insufficient balance", () => {
@@ -45,5 +46,19 @@ describe("toUserFacingError", () => {
     expect(
       toUserErrorMessage(new Error("Can't find variable: alphabet4")),
     ).toBe(errorCopy.fallback.body);
+  });
+
+  it("maps TokenIsCurrentlyUnLocked to hold-required copy", () => {
+    expect(
+      toUserErrorMessage(
+        new Error("Token must be lockable and currently locked"),
+      ),
+    ).toBe(errorCopy.accessoryNeedsHold.title);
+  });
+
+  it("maps SecureSigner INVALID_WALLET_BLOB to re-login copy", () => {
+    expect(
+      toUserErrorMessage(new SecureSignerError("INVALID_WALLET_BLOB")),
+    ).toBe(errorCopy.signerNeedsRelogin.body);
   });
 });

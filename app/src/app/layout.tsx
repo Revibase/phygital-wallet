@@ -57,8 +57,9 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${spaceGrotesk.variable} min-h-dvh antialiased`}
+      suppressHydrationWarning
     >
-      <body className="flex min-h-dvh flex-col font-sans">
+      <body className="flex min-h-dvh flex-col font-sans" suppressHydrationWarning>
         <AppProviders>{children}</AppProviders>
       </body>
     </html>

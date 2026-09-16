@@ -16,7 +16,7 @@ import { useFeeBalance } from "@/hooks/wallet/use-fee-balance";
 import { useRpcPreference } from "@/hooks/wallet/use-rpc-preference";
 import { copy } from "@/lib/copy/phygital";
 
-const timeFormatter = new Intl.DateTimeFormat(undefined, {
+const timeFormatter = new Intl.DateTimeFormat("en-US", {
   hour: "numeric",
   minute: "2-digit",
 });

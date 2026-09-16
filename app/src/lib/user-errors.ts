@@ -35,6 +35,10 @@ const RULES: Rule[] = [
     facing: errorCopy.paymentFailed,
   },
   {
+    test: /TokenIsCurrentlyUnLocked|must be lockable and currently locked|token must be lockable/i,
+    facing: errorCopy.accessoryNeedsHold,
+  },
+  {
     test: /accessory is locked|TokenIsCurrentlyLocked|currently locked|unlock the phygital token/i,
     facing: errorCopy.accessoryLocked,
   },
@@ -172,6 +176,15 @@ export function toUserErrorMessage(
       error.code === "AUTHENTICATION_FAILED"
     ) {
       return errorCopy.signerUnsupported.body;
+    }
+    if (
+      error.code === "INVALID_WALLET_BLOB" ||
+      error.code === "BLOB_UNAVAILABLE"
+    ) {
+      return errorCopy.signerNeedsRelogin.body;
+    }
+    if (error.code === "POLICY_REJECTED") {
+      return errorCopy.signerPolicyRejected.body;
     }
     return errorCopy.signerFailed.body;
   }

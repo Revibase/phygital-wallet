@@ -33,7 +33,7 @@ function symbolForMint(
 
 function formatReceiptTime(timestamp: number | null): string {
   if (!timestamp) return "—";
-  return new Date(timestamp * 1000).toLocaleString(undefined, {
+  return new Date(timestamp * 1000).toLocaleString("en-US", {
     dateStyle: "medium",
     timeStyle: "short",
   });

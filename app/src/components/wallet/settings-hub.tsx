@@ -1,5 +1,7 @@
 "use client";
 
+import { useIsRestoring } from "@tanstack/react-query";
+
 import { NavBar, NavBarBack } from "@/components/shared/nav-bar";
 import { GroupedList, GroupedRow } from "@/components/shared/grouped-list";
 import { OwnerOwnershipSection } from "@/components/wallet/owner-ownership-section";
@@ -29,25 +31,28 @@ export function SettingsHub({
   variant?: "page" | "panel";
   activeTarget?: SettingsTarget | null;
 }) {
+  const restoring = useIsRestoring();
   const fee = useFeeBalance(phygitalTokenPda ?? null);
   const rpc = useRpcPreference();
   const policy = useWalletPolicy(phygitalTokenPda ?? null);
   const session = useWalletSessionMode(phygitalTokenPda ?? null);
-  const feeSubtitle = fee.data
-    ? `${fee.data.balanceUi} SOL`
-    : copy.common.loading;
+  const feeSubtitle =
+    restoring || !fee.data
+      ? copy.common.loading
+      : `${fee.data.balanceUi} SOL`;
   const rpcSubtitle = rpc.isCustom
     ? copy.wallet.rpcCustom
     : copy.wallet.rpcDefault;
-  const policySubtitle = policy.isLoading
-    ? copy.common.loading
-    : policy.data?.status === "none"
-      ? copy.wallet.policyHubLocked
-      : policy.data?.status === "limited"
-        ? policyHubLimitedSubtitle(policy.data)
-        : policy.data?.status === "open"
-          ? copy.wallet.policyHubOpen
-          : copy.wallet.policyHubStandard;
+  const policySubtitle =
+    restoring || policy.isLoading
+      ? copy.common.loading
+      : policy.data?.status === "none"
+        ? copy.wallet.policyHubLocked
+        : policy.data?.status === "limited"
+          ? policyHubLimitedSubtitle(policy.data)
+          : policy.data?.status === "open"
+            ? copy.wallet.policyHubOpen
+            : copy.wallet.policyHubStandard;
   const approveWith =
     session.data === "owner"
       ? copy.wallet.approveWithPhone

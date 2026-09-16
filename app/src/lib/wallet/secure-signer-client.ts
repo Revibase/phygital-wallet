@@ -93,17 +93,20 @@ class SecureSignerClient {
     this.ready = null;
   }
 
-  /** Called when Sheet opens and the iframe enters the DOM. */
+  /**
+   * Called when Sheet opens and the iframe enters the DOM.
+   * Host must NOT set `src` in JSX — we assign it once here so READY is not
+   * raced against a double navigation.
+   */
   attachIframe(iframe: HTMLIFrameElement): void {
     this.iframeEl = iframe;
     if (!this.listening) {
       this.listening = true;
       window.addEventListener("message", (event) => this.onMessage(event));
     }
-    this.ready = this.waitForReady(iframe);
-    iframe.src = `${SECURE_SIGNER_ORIGIN}/?r=${Date.now()}`;
+    this.armReady(iframe);
     for (const w of this.iframeWaiters) {
-      void this.ready.then(w.resolve, w.reject);
+      void this.ready!.then(w.resolve, w.reject);
     }
     this.iframeWaiters = [];
   }
@@ -142,10 +145,15 @@ class SecureSignerClient {
     });
   }
 
+  /** Single navigation + READY waiter bound to this frame. */
+  private armReady(frame: HTMLIFrameElement): void {
+    this.ready = this.waitForReady(frame);
+    frame.src = `${SECURE_SIGNER_ORIGIN}/?r=${Date.now()}`;
+  }
+
   private remountSigner(): void {
     if (!this.iframeEl) return;
-    this.ready = this.waitForReady(this.iframeEl);
-    this.iframeEl.src = `${SECURE_SIGNER_ORIGIN}/?r=${Date.now()}`;
+    this.armReady(this.iframeEl);
   }
 
   private async ensureShell(): Promise<SecureSignerShell> {
@@ -170,37 +178,50 @@ class SecureSignerClient {
     return this.shell;
   }
 
+  private async waitForIframeAttach(): Promise<void> {
+    if (this.iframeEl && this.ready) return;
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        reject(new SecureSignerError("INTERNAL_ERROR"));
+      }, READY_TIMEOUT_MS);
+      this.iframeWaiters.push({
+        resolve: () => {
+          clearTimeout(timer);
+          resolve();
+        },
+        reject: (err) => {
+          clearTimeout(timer);
+          reject(err);
+        },
+      });
+      // Sheet may already be open with iframe mid-attach.
+      if (this.iframeEl && this.ready) {
+        clearTimeout(timer);
+        this.iframeWaiters.pop();
+        resolve();
+      }
+    });
+  }
+
   private async ensureReady(): Promise<void> {
     const shell = await this.ensureShell();
     shell.setOpen(true);
-    if (!this.iframeEl || !this.ready) {
-      await new Promise<void>((resolve, reject) => {
-        const timer = setTimeout(() => {
-          reject(new SecureSignerError("INTERNAL_ERROR"));
-        }, READY_TIMEOUT_MS);
-        this.iframeWaiters.push({
-          resolve: () => {
-            clearTimeout(timer);
-            resolve();
-          },
-          reject: (err) => {
-            clearTimeout(timer);
-            reject(err);
-          },
-        });
-        // Sheet may already be open with iframe mid-attach.
-        if (this.iframeEl && this.ready) {
-          clearTimeout(timer);
-          this.iframeWaiters.pop();
-          resolve();
-        }
-      });
+    await this.waitForIframeAttach();
+
+    const ready = this.ready;
+    if (!this.iframeEl || !ready) {
+      throw new SecureSignerError("INTERNAL_ERROR");
     }
+
     try {
-      await this.ready;
+      await ready;
     } catch {
       this.remountSigner();
-      await this.ready;
+      const retry = this.ready;
+      if (!this.iframeEl || !retry) {
+        throw new SecureSignerError("INTERNAL_ERROR");
+      }
+      await retry;
     }
   }
 
@@ -292,6 +313,11 @@ class SecureSignerClient {
       this.hide();
       throw err;
     }
+    const frame = this.iframeEl;
+    if (!frame?.contentWindow) {
+      this.hide();
+      throw new SecureSignerError("INTERNAL_ERROR");
+    }
     const requestId = randomRequestId();
     const message = {
       type,
@@ -313,11 +339,12 @@ class SecureSignerClient {
         onBlobNeeded: opts?.onBlobNeeded,
       });
     });
-    this.iframeEl!.contentWindow!.postMessage(message, SECURE_SIGNER_ORIGIN);
+    frame.contentWindow.postMessage(message, SECURE_SIGNER_ORIGIN);
     try {
       return await result;
     } catch (err) {
-      this.remountSigner();
+      // Only remount while the Sheet (and iframe) are still open.
+      if (this.iframeEl) this.remountSigner();
       throw err;
     } finally {
       this.hide();
