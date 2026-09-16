@@ -10,10 +10,7 @@ import { useResolvedDasCollectible } from "@/hooks/token/use-das-collectible";
 import { usePhygitalTokenByAddress } from "@/hooks/token/use-phygital-token";
 import { copy } from "@/lib/copy/phygital";
 import { galleryAnimate, staggerStyle } from "@/lib/motion";
-import {
-  tokenHasLinkedMint,
-  type PhygitalToken,
-} from "@/lib/phygital/token";
+import { tokenHasLinkedMint, type PhygitalToken } from "@/lib/phygital/token";
 import type { Collectible } from "@/lib/tokens/collectible";
 import { cn, shortAddress } from "@/lib/utils";
 
@@ -59,8 +56,8 @@ export const OwnerAccessoryCard = memo(function OwnerAccessoryCard({
   const subtitle = token?.owner
     ? shortAddress(String(token.owner))
     : resolving
-      ? copy.home.loadingWallet
-      : copy.home.walletUnknown;
+    ? copy.home.loadingWallet
+    : copy.home.walletUnknown;
 
   return (
     <Button
@@ -70,7 +67,7 @@ export const OwnerAccessoryCard = memo(function OwnerAccessoryCard({
       onClick={() => onOpen(phygitalToken)}
       style={staggerStyle(index)}
       className={cn(
-        "group h-auto min-h-0 w-full flex-col items-stretch gap-0 overflow-hidden rounded-[1.25rem] p-0 text-left font-normal",
+        "group h-auto min-h-0 w-full flex-col items-stretch gap-0 overflow-hidden p-0 text-left font-normal",
         "hover:bg-transparent focus-visible:ring-2 focus-visible:ring-ring/60",
         galleryAnimate.rise,
       )}
@@ -85,7 +82,7 @@ export const OwnerAccessoryCard = memo(function OwnerAccessoryCard({
         )}
       >
         {resolving && !hasArt ? (
-          <Skeleton className="absolute inset-0 rounded-[1.25rem]" />
+          <Skeleton className="absolute inset-0" />
         ) : hasArt ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -119,7 +116,7 @@ export const OwnerAccessoryCard = memo(function OwnerAccessoryCard({
       <span className="mt-2.5 flex min-w-0 flex-col gap-0.5 px-0.5">
         <span className="truncate text-sm font-medium tracking-tight text-foreground">
           {resolving && !collectible?.name ? (
-            <Skeleton className="h-4 w-3/5 rounded" />
+            <Skeleton className="h-4 w-3/5" />
           ) : (
             title
           )}

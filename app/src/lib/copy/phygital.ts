@@ -194,11 +194,13 @@ export const copy = {
     policyStatusStandardBody:
       "A tap can send SOL and standard tokens. Other programs stay blocked.",
     policyStatusOpen: "Protections off",
-    policyStatusOpenBody: "A tap isn’t checked until you restore everyday payments.",
+    policyStatusOpenBody:
+      "A tap isn’t checked until you restore everyday payments.",
     policyStatusLimited: "Custom limits",
     policyStatusLimitedBody: "Only listed assets can leave with a tap.",
     policyStatusLocked: "Locked",
-    policyStatusLockedBody: "Claim this accessory to turn on everyday payments.",
+    policyStatusLockedBody:
+      "Claim this accessory to turn on everyday payments.",
     policyLockedClaimCta: "Claim to unlock",
     /** Post-tap: no on-chain authority yet. */
     authorityChecking: "Checking ownership…",
@@ -241,8 +243,6 @@ export const copy = {
     ownershipUnlinked: "Accessory unlinked",
     ownershipUnlinkFailed: "Couldn’t unlink this item",
     ownershipDangerZone: "Danger zone",
-    /** One-line allow-list reminder when any asset limit is set. */
-    policyAllowlistNote: "Only assets you list can be spent with a tap.",
     policySolLabel: "SOL",
     /** Remaining allowance until the reset date (recurring window). */
     policyLeftUntil: (amount: string, symbol: string, date: string) =>
