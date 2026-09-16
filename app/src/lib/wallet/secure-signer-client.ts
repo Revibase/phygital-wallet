@@ -7,6 +7,9 @@
  *
  * Passkey *create* runs on the app (shared RP ID); the signer performs get+PRF
  * and wraps the seed.
+ *
+ * Host lifecycle: shell (`setOpen`) mounts first; iframe exists only while the
+ * Sheet is open. Every request is interactive (opens the Sheet).
  */
 
 import { SECURE_SIGNER_ORIGIN } from "@/lib/wallet/owner-backend";
@@ -39,9 +42,8 @@ type Pending = {
   ) => string | null | Promise<string | null>;
 };
 
-/** React host bridge — iframe lives inside a modal Sheet (not body-inert). */
-export type SecureSignerHostBridge = {
-  iframe: HTMLIFrameElement;
+/** Open/close the Sheet — available as soon as `SecureSignerHost` mounts. */
+export type SecureSignerShell = {
   setOpen: (open: boolean) => void;
   isOpen: () => boolean;
 };
@@ -52,20 +54,21 @@ function randomRequestId(): string {
 }
 
 class SecureSignerClient {
-  private host: SecureSignerHostBridge | null = null;
+  private shell: SecureSignerShell | null = null;
+  private iframeEl: HTMLIFrameElement | null = null;
   private ready: Promise<void> | null = null;
   private listening = false;
   private readonly pending = new Map<string, Pending>();
-  private readyWaiters: Array<{
+  private shellWaiters: Array<{
+    resolve: () => void;
+    reject: (err: Error) => void;
+  }> = [];
+  private iframeWaiters: Array<{
     resolve: () => void;
     reject: (err: Error) => void;
   }> = [];
   private readonly needHostListeners = new Set<() => void>();
 
-  /**
-   * Subscribe to “mount the signer host” requests. Used so React can lazy-mount
-   * `SecureSignerHost` until the first auth call.
-   */
   onNeedHost(listener: () => void): () => void {
     this.needHostListeners.add(listener);
     return () => {
@@ -77,36 +80,46 @@ class SecureSignerClient {
     for (const listener of this.needHostListeners) listener();
   }
 
-  /** Called by `SecureSignerHost` once the iframe is in the DOM. */
-  attachHost(bridge: SecureSignerHostBridge): void {
-    this.host = bridge;
+  /** Called when `SecureSignerHost` mounts (Sheet may still be closed). */
+  attachShell(shell: SecureSignerShell): void {
+    this.shell = shell;
+    for (const w of this.shellWaiters) w.resolve();
+    this.shellWaiters = [];
+  }
+
+  detachShell(): void {
+    this.shell = null;
+    this.iframeEl = null;
+    this.ready = null;
+  }
+
+  /** Called when Sheet opens and the iframe enters the DOM. */
+  attachIframe(iframe: HTMLIFrameElement): void {
+    this.iframeEl = iframe;
     if (!this.listening) {
       this.listening = true;
       window.addEventListener("message", (event) => this.onMessage(event));
     }
-    // Always re-arm READY. The iframe may have posted SIGNER_READY before
-    // attach (boot race); bumping src guarantees we observe it.
-    this.ready = this.waitForReady(bridge.iframe);
-    bridge.iframe.src = `${SECURE_SIGNER_ORIGIN}/?r=${Date.now()}`;
-    for (const w of this.readyWaiters) {
+    this.ready = this.waitForReady(iframe);
+    iframe.src = `${SECURE_SIGNER_ORIGIN}/?r=${Date.now()}`;
+    for (const w of this.iframeWaiters) {
       void this.ready.then(w.resolve, w.reject);
     }
-    this.readyWaiters = [];
+    this.iframeWaiters = [];
   }
 
-  detachHost(iframe?: HTMLIFrameElement | null): void {
-    if (iframe && this.host?.iframe !== iframe) return;
-    this.host = null;
+  detachIframe(iframe?: HTMLIFrameElement | null): void {
+    if (iframe && this.iframeEl !== iframe) return;
+    this.iframeEl = null;
     this.ready = null;
   }
 
-  /** Sheet backdrop / Escape — cancel in-flight interactive work. */
   cancelFromHost(): void {
     this.cancelAllPending();
   }
 
   private get iframe(): HTMLIFrameElement | null {
-    return this.host?.iframe ?? null;
+    return this.iframeEl;
   }
 
   private waitForReady(frame: HTMLIFrameElement): Promise<void> {
@@ -130,18 +143,18 @@ class SecureSignerClient {
   }
 
   private remountSigner(): void {
-    if (!this.iframe) return;
-    this.ready = this.waitForReady(this.iframe);
-    this.iframe.src = `${SECURE_SIGNER_ORIGIN}/?r=${Date.now()}`;
+    if (!this.iframeEl) return;
+    this.ready = this.waitForReady(this.iframeEl);
+    this.iframeEl.src = `${SECURE_SIGNER_ORIGIN}/?r=${Date.now()}`;
   }
 
-  private async ensureHost(): Promise<SecureSignerHostBridge> {
-    if (this.host) return this.host;
+  private async ensureShell(): Promise<SecureSignerShell> {
+    if (this.shell) return this.shell;
     await new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => {
         reject(new SecureSignerError("INTERNAL_ERROR"));
       }, READY_TIMEOUT_MS);
-      this.readyWaiters.push({
+      this.shellWaiters.push({
         resolve: () => {
           clearTimeout(timer);
           resolve();
@@ -153,12 +166,36 @@ class SecureSignerClient {
       });
       this.requestHostMount();
     });
-    if (!this.host) throw new SecureSignerError("INTERNAL_ERROR");
-    return this.host;
+    if (!this.shell) throw new SecureSignerError("INTERNAL_ERROR");
+    return this.shell;
   }
 
   private async ensureReady(): Promise<void> {
-    await this.ensureHost();
+    const shell = await this.ensureShell();
+    shell.setOpen(true);
+    if (!this.iframeEl || !this.ready) {
+      await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          reject(new SecureSignerError("INTERNAL_ERROR"));
+        }, READY_TIMEOUT_MS);
+        this.iframeWaiters.push({
+          resolve: () => {
+            clearTimeout(timer);
+            resolve();
+          },
+          reject: (err) => {
+            clearTimeout(timer);
+            reject(err);
+          },
+        });
+        // Sheet may already be open with iframe mid-attach.
+        if (this.iframeEl && this.ready) {
+          clearTimeout(timer);
+          this.iframeWaiters.pop();
+          resolve();
+        }
+      });
+    }
     try {
       await this.ready;
     } catch {
@@ -177,7 +214,7 @@ class SecureSignerClient {
 
   private onMessage(event: MessageEvent): void {
     if (event.origin !== SECURE_SIGNER_ORIGIN) return;
-    if (!this.iframe || event.source !== this.iframe.contentWindow) return;
+    if (!this.iframeEl || event.source !== this.iframeEl.contentWindow) return;
     const data = event.data as Record<string, unknown>;
     const requestId = data?.["requestId"];
     if (typeof requestId !== "string") return;
@@ -218,7 +255,7 @@ class SecureSignerClient {
     blob: string | null,
     errorCode?: string,
   ): void {
-    if (!this.iframe?.contentWindow) return;
+    if (!this.iframeEl?.contentWindow) return;
     const message: Record<string, unknown> = {
       type: "BLOB_PROVIDED",
       protocolVersion: PROTOCOL_VERSION,
@@ -227,20 +264,16 @@ class SecureSignerClient {
     };
     if (blob) message.encryptedWalletBlob = blob;
     if (errorCode) message.errorCode = errorCode;
-    this.iframe.contentWindow.postMessage(message, SECURE_SIGNER_ORIGIN);
-  }
-
-  private show(): void {
-    this.host?.setOpen(true);
+    this.iframeEl.contentWindow.postMessage(message, SECURE_SIGNER_ORIGIN);
   }
 
   private hide(): void {
-    this.host?.setOpen(false);
+    this.shell?.setOpen(false);
   }
 
-  /** Warm the iframe (host force-mounts it even while the Sheet is closed). */
+  /** Mount the Sheet host shell (iframe loads on first interactive request). */
   preload(): void {
-    void this.ensureReady().catch(() => {
+    void this.ensureShell().catch(() => {
       /* first interactive call remounts */
     });
   }
@@ -249,16 +282,14 @@ class SecureSignerClient {
     type: string,
     resultType: string,
     payload: Record<string, unknown>,
-    interactive: boolean,
     opts?: {
       onBlobNeeded?: Pending["onBlobNeeded"];
     },
   ): Promise<Record<string, unknown>> {
-    if (interactive) this.show();
     try {
       await this.ensureReady();
     } catch (err) {
-      if (interactive) this.hide();
+      this.hide();
       throw err;
     }
     const requestId = randomRequestId();
@@ -282,27 +313,15 @@ class SecureSignerClient {
         onBlobNeeded: opts?.onBlobNeeded,
       });
     });
-    this.iframe!.contentWindow!.postMessage(message, SECURE_SIGNER_ORIGIN);
+    this.iframeEl!.contentWindow!.postMessage(message, SECURE_SIGNER_ORIGIN);
     try {
       return await result;
     } catch (err) {
-      if (interactive) this.remountSigner();
+      this.remountSigner();
       throw err;
     } finally {
-      if (interactive) this.hide();
+      this.hide();
     }
-  }
-
-  async probeLocal(): Promise<{ publicKey: string } | null> {
-    const r = await this.request(
-      "PROBE_LOCAL",
-      "PROBE_LOCAL_RESULT",
-      {},
-      false,
-    );
-    if (!r["hasLocalWallet"]) return null;
-    const publicKey = r["publicKey"];
-    return typeof publicKey === "string" ? { publicKey } : null;
   }
 
   async authenticate(opts: {
@@ -318,18 +337,12 @@ class SecureSignerClient {
       putChallenge: opts.putChallenge,
     };
     if (opts.credentialId) payload.credentialId = opts.credentialId;
-    const r = await this.request(
-      "AUTH_START",
-      "AUTH_COMPLETE",
-      payload,
-      true,
-      {
-        onBlobNeeded: async (credentialId) => {
-          if (opts.resolveBlob) return opts.resolveBlob(credentialId);
-          return null;
-        },
+    const r = await this.request("AUTH_START", "AUTH_COMPLETE", payload, {
+      onBlobNeeded: async (credentialId) => {
+        if (opts.resolveBlob) return opts.resolveBlob(credentialId);
+        return null;
       },
-    );
+    });
     if (typeof r["putSignature"] !== "string") {
       throw new SecureSignerError("INTERNAL_ERROR");
     }
@@ -344,12 +357,9 @@ class SecureSignerClient {
     signature: string;
     publicKey: string;
   }> {
-    const r = await this.request(
-      "SIGN_TRANSACTION",
-      "SIGN_TRANSACTION_RESULT",
-      { transaction: bytesToBase64(txBytes) },
-      true,
-    );
+    const r = await this.request("SIGN_TRANSACTION", "SIGN_TRANSACTION_RESULT", {
+      transaction: bytesToBase64(txBytes),
+    });
     return {
       signature: String(r["signature"]),
       publicKey: String(r["publicKey"]),
@@ -361,7 +371,6 @@ class SecureSignerClient {
       "EXPORT_PRIVATE_KEY",
       "EXPORT_PRIVATE_KEY_RESULT",
       {},
-      true,
     );
     return { completed: Boolean(r["completed"]) };
   }

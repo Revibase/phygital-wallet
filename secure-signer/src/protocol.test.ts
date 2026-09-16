@@ -115,10 +115,6 @@ describe("validateInbound", () => {
     ).toBe(true);
   });
 
-  it("accepts PROBE_LOCAL", () => {
-    expect(validateInbound({ ...base, type: "PROBE_LOCAL" }).ok).toBe(true);
-  });
-
   it("accepts EXPORT_PRIVATE_KEY", () => {
     expect(validateInbound({ ...base, type: "EXPORT_PRIVATE_KEY" }).ok).toBe(
       true,

@@ -68,14 +68,14 @@ hatch by design. See `tx/policy.ts` and the threat model.
 
 ## postMessage API
 
-Request → result: `PROBE_LOCAL` → `{ hasLocalWallet, publicKey? }` (no WebAuthn),
-`AUTH_START` → `AUTH_COMPLETE`, `SIGN_TRANSACTION`, `EXPORT_PRIVATE_KEY`.
-Mid-flow: `BLOB_NEEDED` (signer → parent) / `BLOB_PROVIDED` (parent → signer) for
-discoverable restore when signer-origin localStorage has no ciphertext.
+Request → result: `AUTH_START` → `AUTH_COMPLETE`, `SIGN_TRANSACTION`,
+`EXPORT_PRIVATE_KEY`. Mid-flow: `BLOB_NEEDED` (signer → parent) /
+`BLOB_PROVIDED` (parent → signer) for discoverable restore when signer-origin
+localStorage has no ciphertext.
 
-Sign / export use **signer localStorage only**. Parent skips the create/unlock
-sheet when `PROBE_LOCAL` finds a valid local blob. `AUTH_COMPLETE` returns
-ciphertext so the parent can PUT the D1 backup (and mint `owner_session`).
+Sign / export use **signer localStorage only**. The parent always shows the
+create/unlock sheet before `AUTH_START`. `AUTH_COMPLETE` returns ciphertext so
+the parent can PUT the D1 backup (and mint `owner_session`).
 
 All requests carry `{ protocolVersion: 1, requestId, timestamp? }`; blobs are
 base64url, transactions base64. Errors are generic `{ type: "ERROR", requestId, code }`.

@@ -213,20 +213,6 @@ window.addEventListener("message", (event: MessageEvent) => {
 async function handle(request: InboundRequest): Promise<void> {
   const rpId = currentRpId();
 
-  // Non-interactive: structural localStorage probe (pubkey from blob header).
-  if (request.type === "PROBE_LOCAL") {
-    const local = readLocalBlob();
-    if (!local) {
-      ok(request.requestId, RESULT_TYPE.PROBE_LOCAL, { hasLocalWallet: false });
-      return;
-    }
-    ok(request.requestId, RESULT_TYPE.PROBE_LOCAL, {
-      hasLocalWallet: true,
-      publicKey: toBase58Pubkey(local.parsed.publicKey),
-    });
-    return;
-  }
-
   // Sensitive, interactive flows — one at a time (§15, §33).
   const opFor = {
     AUTH_START: "AUTH_PENDING",

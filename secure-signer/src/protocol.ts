@@ -32,7 +32,6 @@ export type ErrorCode =
   | "BLOB_UNAVAILABLE";
 
 export const REQUEST_TYPES = [
-  "PROBE_LOCAL",
   "SIGN_TRANSACTION",
   "EXPORT_PRIVATE_KEY",
   "AUTH_START",
@@ -43,7 +42,6 @@ export type RequestType = (typeof REQUEST_TYPES)[number];
 /** Maps a request type to its success-response type (BLOB_PROVIDED is a reply). */
 export const RESULT_TYPE: Record<Exclude<RequestType, "BLOB_PROVIDED">, string> =
   {
-    PROBE_LOCAL: "PROBE_LOCAL_RESULT",
     SIGN_TRANSACTION: "SIGN_TRANSACTION_RESULT",
     EXPORT_PRIVATE_KEY: "EXPORT_PRIVATE_KEY_RESULT",
     AUTH_START: "AUTH_COMPLETE",
@@ -58,7 +56,6 @@ interface Common {
 
 export type InboundRequest = Common &
   (
-    | { type: "PROBE_LOCAL" }
     | { type: "SIGN_TRANSACTION"; transaction: string }
     | { type: "EXPORT_PRIVATE_KEY" }
     | {
@@ -80,7 +77,6 @@ export type ValidationResult =
 
 // Allowed top-level keys per type. Any extra key => INVALID_MESSAGE (§9 strict).
 const ALLOWED_KEYS: Record<RequestType, ReadonlySet<string>> = {
-  PROBE_LOCAL: new Set(["type", "protocolVersion", "requestId", "timestamp"]),
   SIGN_TRANSACTION: new Set([
     "type",
     "protocolVersion",
@@ -264,8 +260,6 @@ export function validateInbound(data: unknown): ValidationResult {
         },
       };
     }
-    case "PROBE_LOCAL":
-      return { ok: true, request: { ...common, type: "PROBE_LOCAL" } };
     case "EXPORT_PRIVATE_KEY":
       return { ok: true, request: { ...common, type: "EXPORT_PRIVATE_KEY" } };
     case "SIGN_TRANSACTION": {

@@ -96,33 +96,23 @@ export function useSecureSignerWallet(): OwnerWallet {
       const client = getSecureSignerClient();
       const putChallengePromise = issueOwnerWalletPutChallenge();
 
-      // Returning device: signer-origin localStorage already has ciphertext.
-      let hasLocal = false;
-      try {
-        hasLocal = (await client.probeLocal()) !== null;
-      } catch {
-        /* iframe not ready — fall through to setup sheet */
-      }
-
-      if (!hasLocal) {
-        const choice = await promptSetup();
-        if (choice.mode === "cancel") return;
-        const putChallenge = await putChallengePromise;
-        if (choice.mode === "create") {
-          const result = await client.authenticate({
-            authMode: "create",
-            credentialId: choice.credentialId,
-            putChallenge: putChallenge.challenge,
-          });
-          await finishAuth({
-            ...result,
-            challengeId: putChallenge.challengeId,
-          });
-          return;
-        }
-      }
+      const choice = await promptSetup();
+      if (choice.mode === "cancel") return;
 
       const putChallenge = await putChallengePromise;
+      if (choice.mode === "create") {
+        const result = await client.authenticate({
+          authMode: "create",
+          credentialId: choice.credentialId,
+          putChallenge: putChallenge.challenge,
+        });
+        await finishAuth({
+          ...result,
+          challengeId: putChallenge.challengeId,
+        });
+        return;
+      }
+
       try {
         const result = await client.authenticate({
           authMode: "unlock",
