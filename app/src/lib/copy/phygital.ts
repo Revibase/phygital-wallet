@@ -117,8 +117,14 @@ export const copy = {
     configChangeConfirmPending: "Waiting for passkey…",
     save: "Save",
     holdToOpenTitle: "Hold to open",
-    holdToOpenBody: "Hold your accessory to unlock this wallet on this phone.",
+    holdToOpenBody: "Hold this accessory against your phone.",
+    holdToOpenBodyNamed: (name: string) => `Hold ${name} against your phone.`,
     holdToOpenCta: "Hold to open",
+    holdMismatchTitle: "Different accessory",
+    holdMismatchBody: (expected: string) =>
+      `Hold ${expected} to continue, or open the one you just held.`,
+    holdMismatchRetry: (expected: string) => `Hold ${expected}`,
+    holdMismatchOpenHeld: (held: string) => `Open ${held} instead`,
     /** Shared Hold placement body — titles carry intent (DD-004). */
     holdCeremonyTitle: "Hold your accessory",
     holdCeremonyBody: "Hold it to the top of your phone until this finishes.",

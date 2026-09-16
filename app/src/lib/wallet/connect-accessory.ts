@@ -5,8 +5,9 @@
  *   POST /accessory/unlock/challenge → startAuthentication(challenge)
  *     → POST /accessory/unlock/webauthn → browse-unlock cookie
  *
- * The api worker verifies the assertion server-side and resolves the token PDA;
- * we only enforce that the resolved token matches the one the route expected.
+ * When `expectedPhygitalToken` is set and the held item differs, throws
+ * {@link AccessoryMismatchError} with the held PDA so UI can offer recovery
+ * (retry expected vs open held). Cookie is already issued for the held item.
  */
 import { startAuthentication } from "phygital-token-sdk";
 
@@ -14,9 +15,20 @@ import { queryFetch, readJson } from "@/lib/queries/http";
 import { getSolanaRpc } from "@/lib/solana/rpc";
 
 export class AccessoryMismatchError extends Error {
-  constructor() {
+  readonly heldPhygitalToken: string;
+  readonly expectedPhygitalToken: string;
+  readonly expiresAt: number;
+
+  constructor(args: {
+    heldPhygitalToken: string;
+    expectedPhygitalToken: string;
+    expiresAt: number;
+  }) {
     super("The tapped accessory does not match the expected phygital token");
     this.name = "AccessoryMismatchError";
+    this.heldPhygitalToken = args.heldPhygitalToken;
+    this.expectedPhygitalToken = args.expectedPhygitalToken;
+    this.expiresAt = args.expiresAt;
   }
 }
 
@@ -27,6 +39,7 @@ export type AccessoryConnection = {
 };
 
 export async function connectAccessory(opts?: {
+  /** When set, reject a tap that resolves to a different token PDA. */
   expectedPhygitalToken?: string;
 }): Promise<AccessoryConnection> {
   const rpc = getSolanaRpc();
@@ -58,15 +71,22 @@ export async function connectAccessory(opts?: {
     throw new Error("Couldn’t verify this accessory");
   }
 
+  const expiresAt = body.expiresAt ?? Date.now();
+  const connection: AccessoryConnection = {
+    phygitalToken: body.phygitalToken,
+    expiresAt,
+  };
+
   if (
     opts?.expectedPhygitalToken &&
     opts.expectedPhygitalToken !== body.phygitalToken
   ) {
-    throw new AccessoryMismatchError();
+    throw new AccessoryMismatchError({
+      heldPhygitalToken: body.phygitalToken,
+      expectedPhygitalToken: opts.expectedPhygitalToken,
+      expiresAt,
+    });
   }
 
-  return {
-    phygitalToken: body.phygitalToken,
-    expiresAt: body.expiresAt ?? Date.now(),
-  };
+  return connection;
 }
