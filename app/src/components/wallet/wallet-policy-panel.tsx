@@ -23,6 +23,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { FieldError, FieldLabel, Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
@@ -74,7 +80,7 @@ const DEFAULT_WINDOW = 604_800n; // weekly
  * wallet is this accessory's on-chain authority (`useTokenOwner().isOwner`).
  * Unclaimed accessories (`status === "none"`) show locked — no transactions.
  */
-export function WalletPolicySheet({
+export function WalletPolicyPanel({
   phygitalTokenPda,
   onBack,
 }: {
@@ -1182,36 +1188,47 @@ function TokenPickerSheet({
   onPick: (token: PaymentToken) => void;
 }) {
   return (
-    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
-      <DialogContent showCloseButton={false}>
-        <DialogHeader>
-          <DialogTitle>{copy.wallet.policyPickToken}</DialogTitle>
-        </DialogHeader>
-        {tokens.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">
-            {copy.wallet.policyNoTokensToAdd}
-          </p>
-        ) : (
-          <ul className="max-h-[60vh] overflow-y-auto overflow-hidden rounded-2xl border border-border/30 bg-grouped">
-            {tokens.map((t) => (
-              <GroupedRow
-                key={t.mint}
-                onClick={() => onPick(t)}
-                leading={
-                  <TokenIcon
-                    token={{ mint: t.mint, symbol: t.symbol, icon: t.icon }}
-                    className="size-8"
-                  />
-                }
-                subtitle={t.name}
-              >
-                {t.symbol}
-              </GroupedRow>
-            ))}
-          </ul>
-        )}
-      </DialogContent>
-    </Dialog>
+    <Sheet
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+    >
+      <SheetContent
+        side="bottom"
+        showCloseButton={false}
+        className="mx-auto max-h-[80vh] max-w-lg overflow-y-auto rounded-t-3xl md:rounded-3xl"
+      >
+        <SheetHeader className="text-left">
+          <SheetTitle>{copy.wallet.policyPickToken}</SheetTitle>
+        </SheetHeader>
+        <div className="px-4 pb-6">
+          {tokens.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              {copy.wallet.policyNoTokensToAdd}
+            </p>
+          ) : (
+            <ul className="overflow-hidden rounded-2xl border border-border/30 bg-grouped">
+              {tokens.map((t) => (
+                <GroupedRow
+                  key={t.mint}
+                  onClick={() => onPick(t)}
+                  leading={
+                    <TokenIcon
+                      token={{ mint: t.mint, symbol: t.symbol, icon: t.icon }}
+                      className="size-8"
+                    />
+                  }
+                  subtitle={t.name}
+                >
+                  {t.symbol}
+                </GroupedRow>
+              ))}
+            </ul>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }
 

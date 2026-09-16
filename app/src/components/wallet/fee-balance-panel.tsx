@@ -29,7 +29,7 @@ import {
   topUpFeeBalance,
 } from "@/lib/wallet/top-up-fee-balance";
 import { useWalletTransaction } from "@/hooks/wallet/use-wallet-transaction";
-import { WalletApprovalModal } from "@/components/wallet/wallet-approval-modal";
+import { WalletApprovalSheet } from "@/components/wallet/wallet-approval-sheet";
 import {
   NATIVE_SOL_MINT,
   resolveTokenIconSrc,
@@ -52,7 +52,7 @@ type TopUpSnapshot = {
 };
 
 /** Settings → network fees: show balance + Hold to top up. */
-export function FeeBalanceSheet({
+export function FeeBalancePanel({
   phygitalTokenPda,
   onBack,
 }: {
@@ -230,7 +230,7 @@ export function FeeBalanceSheet({
           }
         />
       </CeremonyShell>
-      <WalletApprovalModal approval={walletTx.approval} tokenSymbol="SOL" />
+      <WalletApprovalSheet approval={walletTx.approval} tokenSymbol="SOL" />
       </>
     );
   }
@@ -277,7 +277,7 @@ export function FeeBalanceSheet({
       >
         {busy ? <Spinner className="size-4" /> : copy.wallet.holdToTopUp}
       </Button>
-      <WalletApprovalModal approval={walletTx.approval} tokenSymbol="SOL" />
+      <WalletApprovalSheet approval={walletTx.approval} tokenSymbol="SOL" />
     </div>
   );
 }

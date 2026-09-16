@@ -79,7 +79,7 @@ type Phase =
  * Receive nearby — amount → Hold (identify) → summary → Hold (confirm pay).
  * Both holds use the same primary CTA pattern.
  */
-export function ReceiveNearbySheet({
+export function ReceiveNearbyPanel({
   recipientWallet,
   onClose,
   onReceived,

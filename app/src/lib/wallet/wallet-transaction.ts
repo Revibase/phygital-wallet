@@ -1,7 +1,7 @@
 /**
  * Centralized wallet-transaction flow shared by every tx-sending mutation.
  *
- * Contract (see the send-dialog / receive / top-up call sites):
+ * Contract (see the send-flow / receive / top-up call sites):
  *  1. Optimistic by default — a *sent* tx is treated as success immediately: the
  *     UI is updated, then confirmation runs asynchronously. On confirm success
  *     nothing changes; on confirm failure the optimistic state is rolled back

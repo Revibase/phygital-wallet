@@ -4,12 +4,12 @@ import {
   useWalletNav,
   useWalletSession,
 } from "@/components/wallet/wallet-route-shell";
-import { FeeBalanceSheet } from "@/components/wallet/fee-balance-sheet";
+import { FeeBalancePanel } from "@/components/wallet/fee-balance-panel";
 
 export default function FeeBalancePage() {
   const { tokenAddress } = useWalletSession();
   const { backSettings } = useWalletNav();
   return (
-    <FeeBalanceSheet phygitalTokenPda={tokenAddress} onBack={backSettings} />
+    <FeeBalancePanel phygitalTokenPda={tokenAddress} onBack={backSettings} />
   );
 }

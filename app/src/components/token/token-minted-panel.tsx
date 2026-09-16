@@ -35,7 +35,7 @@ export function TokenMintedPanel({
 }) {
   const mint = tokenHasLinkedMint(token) ? String(token.mint) : null;
   const { collectible, shortcuts, loading } = useMintedCollectibleView(mint);
-  const { openCollectibleShortcut, iframeSheet } = useShortcutOpener();
+  const { openCollectibleShortcut, iframeDialog } = useShortcutOpener();
   const [detailsOpen, setDetailsOpen] = useState(false);
 
   const shortcutCtx = useMemo(
@@ -59,7 +59,7 @@ export function TokenMintedPanel({
 
   return (
     <div className="flex flex-1 flex-col">
-      {iframeSheet}
+      {iframeDialog}
       <div className={detailSplitClass}>
         <CollectibleHero
           src={collectible?.image ?? null}

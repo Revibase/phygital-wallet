@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 
-import { ShortcutIframeSheet } from "@/components/token/shortcut-iframe-sheet";
+import { ShortcutIframeDialog } from "@/components/token/shortcut-iframe-dialog";
 import { openShortcut } from "@/lib/tokens/open-shortcut";
 import type {
   CollectibleShortcut,
@@ -14,7 +14,7 @@ type IframeState = {
   label: string;
 } | null;
 
-/** Shared shortcut open state — iframe sheet + external popup routing. */
+/** Shared shortcut open state — iframe dialog + external popup routing. */
 export function useShortcutOpener() {
   const [iframe, setIframe] = useState<IframeState>(null);
 
@@ -33,8 +33,8 @@ export function useShortcutOpener() {
     []
   );
 
-  const iframeSheet = iframe ? (
-    <ShortcutIframeSheet
+  const iframeDialog = iframe ? (
+    <ShortcutIframeDialog
       open
       uri={iframe.uri}
       label={iframe.label}
@@ -42,5 +42,5 @@ export function useShortcutOpener() {
     />
   ) : null;
 
-  return { openCollectibleShortcut, iframeSheet };
+  return { openCollectibleShortcut, iframeDialog };
 }

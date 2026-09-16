@@ -1,6 +1,6 @@
 "use client";
 
-import { CollectiblesAllSheet } from "@/components/wallet/collectibles-all-sheet";
+import { CollectiblesAllPanel } from "@/components/wallet/collectibles-all-panel";
 import {
   useWalletNav,
   useWalletSession,
@@ -13,7 +13,7 @@ export default function WalletCollectiblesPage() {
   const portfolio = useWalletPortfolio(walletAddress);
 
   return (
-    <CollectiblesAllSheet
+    <CollectiblesAllPanel
       collectibles={portfolio.data?.collectibles ?? []}
       linkedMint={mint}
       onBack={backHome}

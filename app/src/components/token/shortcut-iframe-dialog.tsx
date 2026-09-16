@@ -17,7 +17,7 @@ import { Spinner } from "@/components/ui/spinner";
 const LOAD_TIMEOUT_MS = 12_000;
 
 /** Full-screen in-app iframe for same-origin shortcuts (`prefersExternalTarget: false`). */
-export function ShortcutIframeSheet({
+export function ShortcutIframeDialog({
   open,
   uri,
   label,

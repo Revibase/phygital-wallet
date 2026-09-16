@@ -1,6 +1,6 @@
 "use client";
 
-import { TokensAllSheet } from "@/components/wallet/tokens-all-sheet";
+import { TokensAllPanel } from "@/components/wallet/tokens-all-panel";
 import {
   useWalletNav,
   useWalletSession,
@@ -13,7 +13,7 @@ export default function WalletTokensPage() {
   const portfolio = useWalletPortfolio(walletAddress);
 
   return (
-    <TokensAllSheet
+    <TokensAllPanel
       holdings={portfolio.data?.holdings ?? []}
       onBack={backHome}
       onSelect={(asset) => goSend(asset)}

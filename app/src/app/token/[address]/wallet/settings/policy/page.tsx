@@ -4,7 +4,7 @@ import {
   useWalletNav,
   useWalletSession,
 } from "@/components/wallet/wallet-route-shell";
-import { WalletPolicySheet } from "@/components/wallet/wallet-policy-sheet";
+import { WalletPolicyPanel } from "@/components/wallet/wallet-policy-panel";
 
 /**
  * Spend-policy panel. Publicly viewable behind the browse-unlock cookie (the
@@ -14,6 +14,6 @@ export default function WalletPolicyPage() {
   const { tokenAddress } = useWalletSession();
   const { backSettings } = useWalletNav();
   return (
-    <WalletPolicySheet phygitalTokenPda={tokenAddress} onBack={backSettings} />
+    <WalletPolicyPanel phygitalTokenPda={tokenAddress} onBack={backSettings} />
   );
 }

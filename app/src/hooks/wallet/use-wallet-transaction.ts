@@ -18,7 +18,7 @@ import {
   type WalletTransactionOutcome,
 } from "@/lib/wallet/wallet-transaction";
 
-/** State for the shared <WalletApprovalModal>. */
+/** State for the shared <WalletApprovalSheet>. */
 export type WalletApprovalState = {
   open: boolean;
   /**
@@ -67,7 +67,7 @@ const CLOSED: Omit<WalletApprovalState, "onApprove" | "onSignIn" | "onCancel"> =
  * Centralized transaction mutation controller. Wires `runWalletTransaction` to
  * the connected owner/authority and a shared approval/rejection modal so every
  * mutation gets identical optimistic + confirm + rollback + policy/authority
- * behavior. Render the returned `approval` via <WalletApprovalModal>.
+ * behavior. Render the returned `approval` via <WalletApprovalSheet>.
  */
 export function useWalletTransaction(
   phygitalToken: string,

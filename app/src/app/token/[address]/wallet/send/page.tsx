@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
-import { SendDialog } from "@/components/wallet/send-dialog";
+import { SendFlow } from "@/components/wallet/send-flow";
 import {
   SendHoldStage,
   type SendHoldRecap,
@@ -66,7 +66,7 @@ export default function WalletSendPage() {
           onClose={backHome}
         />
       ) : (
-        <SendDialog
+        <SendFlow
           phygitalTokenPda={tokenAddress}
           walletAddress={walletAddress}
           portfolio={portfolio.data}

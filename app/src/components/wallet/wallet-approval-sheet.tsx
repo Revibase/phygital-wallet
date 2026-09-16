@@ -17,7 +17,7 @@ import type { WalletApprovalState } from "@/hooks/wallet/use-wallet-transaction"
  * - `mode="signIn"`: soft-deny while unsigned — prompt to sign in, then retry.
  * - `mode="visitor"`: the connected wallet isn't the authority → rejection only.
  */
-export function WalletApprovalModal({
+export function WalletApprovalSheet({
   approval,
   tokenSymbol,
 }: {

@@ -8,7 +8,7 @@ import { copy } from "@/lib/copy/phygital";
 import { useWalletActivity } from "@/hooks/wallet/use-wallet-activity";
 import type { WalletActivityItem } from "@/lib/wallet/portfolio-types";
 
-export function ActivityAllSheet({
+export function ActivityAllPanel({
   walletAddress,
   onBack,
 }: {

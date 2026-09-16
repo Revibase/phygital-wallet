@@ -10,7 +10,7 @@ import type { WalletCollectible } from "@/lib/wallet/portfolio-types";
 import { collectibleInterfaceLabel } from "@/lib/wallet/send-asset-ref";
 
 /** Collectible detail — stacked on phone, art | dossier on desktop. */
-export function CollectibleDetailSheet({
+export function CollectibleDetailPanel({
   collectible,
   onBack,
   onSend,

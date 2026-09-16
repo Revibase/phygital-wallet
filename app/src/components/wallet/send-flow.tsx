@@ -47,7 +47,7 @@ import {
   sendAssetFromWallet,
 } from "@/lib/wallet/send-asset";
 import { useWalletTransaction } from "@/hooks/wallet/use-wallet-transaction";
-import { WalletApprovalModal } from "@/components/wallet/wallet-approval-modal";
+import { WalletApprovalSheet } from "@/components/wallet/wallet-approval-sheet";
 import {
   isWalletSignCeremonyPhase,
   type PhygitalWalletSignPhase,
@@ -97,7 +97,7 @@ function defaultAsset(
   return null;
 }
 
-export function SendDialog({
+export function SendFlow({
   phygitalTokenPda,
   walletAddress,
   portfolio,
@@ -385,7 +385,7 @@ export function SendDialog({
   if (phase === "holding") {
     // Parent swaps to SendHoldStage for the NFC ceremony; the approval modal
     // still needs to surface over it if policy denies mid-ceremony.
-    return <WalletApprovalModal approval={walletTx.approval} tokenSymbol={asset?.symbol} />;
+    return <WalletApprovalSheet approval={walletTx.approval} tokenSymbol={asset?.symbol} />;
   }
 
   const form = (
@@ -744,7 +744,7 @@ export function SendDialog({
   return (
     <>
       {form}
-      <WalletApprovalModal
+      <WalletApprovalSheet
         approval={walletTx.approval}
         tokenSymbol={asset?.symbol}
       />

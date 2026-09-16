@@ -3,28 +3,31 @@
 import { useMemo, useState } from "react";
 
 import { NavBar, NavBarBack } from "@/components/shared/nav-bar";
-import { GroupedList } from "@/components/shared/grouped-list";
-import { TokenHoldingRow } from "@/components/wallet/token-holding-row";
+import { CollectiblesGrid } from "@/components/wallet/collectibles-grid";
 import { Input } from "@/components/ui/input";
 import { copy } from "@/lib/copy/phygital";
-import type { PaymentTokenHolding } from "@/lib/tokens/payment-token";
-import type { SendAssetRef } from "@/lib/wallet/send-asset-ref";
+import type { WalletCollectible } from "@/lib/wallet/portfolio-types";
 import {
   ALL_LIST_SEARCH_THRESHOLD,
-  sortHoldings,
+  sortCollectibles,
 } from "@/lib/wallet/portfolio-preview";
 
-/** Full token inventory — search when the list is long. */
-export function TokensAllSheet({
-  holdings,
+/** Full collectibles inventory — search when the list is long. */
+export function CollectiblesAllPanel({
+  collectibles,
+  linkedMint,
   onBack,
   onSelect,
 }: {
-  holdings: PaymentTokenHolding[];
+  collectibles: WalletCollectible[];
+  linkedMint?: string | null;
   onBack: () => void;
-  onSelect: (asset: SendAssetRef) => void;
+  onSelect: (c: WalletCollectible) => void;
 }) {
-  const sorted = useMemo(() => sortHoldings(holdings), [holdings]);
+  const sorted = useMemo(
+    () => sortCollectibles(collectibles, linkedMint),
+    [collectibles, linkedMint]
+  );
   const [query, setQuery] = useState("");
   const showSearch = sorted.length >= ALL_LIST_SEARCH_THRESHOLD;
 
@@ -32,10 +35,10 @@ export function TokensAllSheet({
     const q = query.trim().toLowerCase();
     if (!q) return sorted;
     return sorted.filter(
-      (h) =>
-        h.symbol.toLowerCase().includes(q) ||
-        h.name.toLowerCase().includes(q) ||
-        h.mint.toLowerCase().includes(q)
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        (c.collectionName?.toLowerCase().includes(q) ?? false) ||
+        c.mint.toLowerCase().includes(q)
     );
   }, [sorted, query]);
 
@@ -44,14 +47,14 @@ export function TokensAllSheet({
       <NavBar
         align="start"
         leading={<NavBarBack onClick={onBack} desktopHidden />}
-        title={copy.wallet.tokens}
+        title={copy.wallet.collectibles}
       />
 
       {showSearch ? (
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder={copy.wallet.searchTokens}
+          placeholder={copy.wallet.searchCollectibles}
           className="mx-1"
           autoCapitalize="off"
           autoCorrect="off"
@@ -60,14 +63,14 @@ export function TokensAllSheet({
 
       {filtered.length === 0 ? (
         <p className="px-4 py-8 text-center text-sm text-muted-foreground">
-          {copy.wallet.noMatchingTokens}
+          {copy.wallet.noMatchingCollectibles}
         </p>
       ) : (
-        <GroupedList>
-          {filtered.map((h) => (
-            <TokenHoldingRow key={h.mint} holding={h} onSelect={onSelect} />
-          ))}
-        </GroupedList>
+        <CollectiblesGrid
+          collectibles={filtered}
+          onSelect={onSelect}
+          className="px-1 pb-4"
+        />
       )}
     </div>
   );

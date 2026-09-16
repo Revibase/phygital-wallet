@@ -1,6 +1,6 @@
 "use client";
 
-import { ActivityAllSheet } from "@/components/wallet/activity-all-sheet";
+import { ActivityAllPanel } from "@/components/wallet/activity-all-panel";
 import {
   useWalletNav,
   useWalletSession,
@@ -9,5 +9,5 @@ import {
 export default function WalletActivityPage() {
   const { walletAddress } = useWalletSession();
   const { backHome } = useWalletNav();
-  return <ActivityAllSheet walletAddress={walletAddress} onBack={backHome} />;
+  return <ActivityAllPanel walletAddress={walletAddress} onBack={backHome} />;
 }

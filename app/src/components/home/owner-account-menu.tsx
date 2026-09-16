@@ -7,11 +7,11 @@ import { toast } from "sonner";
 import { GroupedList, GroupedRow } from "@/components/shared/grouped-list";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { useOwnerWallet } from "@/hooks/wallet/use-owner-wallet";
 import { copy } from "@/lib/copy/phygital";
 import { toUserErrorMessage } from "@/lib/user-errors";
@@ -19,7 +19,7 @@ import { cn, shortAddress } from "@/lib/utils";
 
 /**
  * Owner account control on the dashboard: shows the signed-in address and,
- * in a sheet, lets the owner export their private key or sign out.
+ * in a bottom sheet, lets the owner export their private key or sign out.
  */
 export function OwnerAccountMenu({ className }: { className?: string }) {
   const { address, logout, exportWallet } = useOwnerWallet();
@@ -47,35 +47,41 @@ export function OwnerAccountMenu({ className }: { className?: string }) {
         {address ? shortAddress(address) : copy.home.account}
       </Button>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent showCloseButton={false}>
-          <DialogHeader>
-            <DialogTitle>{copy.home.account}</DialogTitle>
-          </DialogHeader>
-          <GroupedList>
-            <GroupedRow
-              leading={<KeyRound className="size-4" />}
-              subtitle={copy.home.accountExportKeySubtitle}
-              onClick={() => {
-                setOpen(false);
-                void onExport();
-              }}
-            >
-              {copy.home.accountExportKey}
-            </GroupedRow>
-            <GroupedRow
-              destructive
-              leading={<LogOut className="size-4" />}
-              onClick={() => {
-                setOpen(false);
-                void logout();
-              }}
-            >
-              {copy.home.accountSignOut}
-            </GroupedRow>
-          </GroupedList>
-        </DialogContent>
-      </Dialog>
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetContent
+          side="bottom"
+          showCloseButton={false}
+          className="mx-auto max-w-lg rounded-t-3xl md:rounded-3xl"
+        >
+          <SheetHeader className="text-left">
+            <SheetTitle>{copy.home.account}</SheetTitle>
+          </SheetHeader>
+          <div className="px-4 pb-6">
+            <GroupedList>
+              <GroupedRow
+                leading={<KeyRound className="size-4" />}
+                subtitle={copy.home.accountExportKeySubtitle}
+                onClick={() => {
+                  setOpen(false);
+                  void onExport();
+                }}
+              >
+                {copy.home.accountExportKey}
+              </GroupedRow>
+              <GroupedRow
+                destructive
+                leading={<LogOut className="size-4" />}
+                onClick={() => {
+                  setOpen(false);
+                  void logout();
+                }}
+              >
+                {copy.home.accountSignOut}
+              </GroupedRow>
+            </GroupedList>
+          </div>
+        </SheetContent>
+      </Sheet>
     </>
   );
 }

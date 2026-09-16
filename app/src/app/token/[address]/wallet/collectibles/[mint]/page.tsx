@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 
-import { CollectibleDetailSheet } from "@/components/wallet/collectible-detail-sheet";
+import { CollectibleDetailPanel } from "@/components/wallet/collectible-detail-panel";
 import {
   useWalletNav,
   useWalletSession,
@@ -39,7 +39,7 @@ export default function WalletCollectibleDetailPage() {
   }
 
   return (
-    <CollectibleDetailSheet
+    <CollectibleDetailPanel
       collectible={detail}
       onBack={() => backTo(walletHref(tokenAddress, "collectibles"))}
       onSend={(c) => goSend(collectibleToSendAsset(c))}

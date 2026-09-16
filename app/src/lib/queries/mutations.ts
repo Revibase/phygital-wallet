@@ -26,7 +26,7 @@ import {
 
 import { queryKeys } from "./keys";
 
-/** First-page sizes used by `useWalletActivity` (default) and ActivityAllSheet. */
+/** First-page sizes used by `useWalletActivity` (default) and ActivityAllPanel. */
 const ACTIVITY_FIRST_PAGE_LIMITS = [20, 40] as const;
 
 type WalletActivityPage = {
