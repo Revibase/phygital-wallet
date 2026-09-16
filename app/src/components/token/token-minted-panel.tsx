@@ -41,10 +41,10 @@ export function TokenMintedPanel({
   const shortcutCtx = useMemo(
     () => ({
       tokenId: mint,
-      ownerAddress: String(token.currentOwner),
+      ownerAddress: String(token.owner),
       collectionId: collectible?.collectionMint ?? null,
     }),
-    [mint, token.currentOwner, collectible?.collectionMint]
+    [mint, token.owner, collectible?.collectionMint]
   );
 
   const attributes = collectible?.attributes ?? [];

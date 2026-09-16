@@ -10,6 +10,7 @@ Prefer package-root exports. Do not deep-import `wallet/*` or `wallet-standard/*
 | Browser wallet | `registerPhygitalWallet({ rpc, … })` once |
 | Accessory auth | `startAuthentication` + `verifyResponse` + `findPhygitalTokenPda` (`phygital-token-sdk`) |
 | Authority / policy | Generated `getSet*` / `getClear*` / `getExecute*` |
+| Tokens by authority | `fetchPhygitalTokensByAuthority(rpc, authority)` |
 | Decode / PDAs | Generated `fetch*` / `decode*` / `find*Pda` |
 
 ## Flow

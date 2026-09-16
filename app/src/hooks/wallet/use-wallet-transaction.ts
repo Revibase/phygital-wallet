@@ -9,7 +9,7 @@ import { useOwnerWallet } from "@/hooks/wallet/use-owner-wallet";
 import { useTokenAuthority } from "@/hooks/token/use-token-authority";
 import { errorCopy } from "@/lib/copy/phygital";
 import type { SentTransaction } from "@/lib/solana/tx";
-import { sendViaAuthority } from "@/lib/wallet/execute-with-authority";
+import { sendViaAuthority } from "@/lib/wallet/send-via-authority";
 import { toUserErrorMessage } from "@/lib/user-errors";
 import {
   runWalletTransaction,
@@ -116,7 +116,7 @@ export function useWalletTransaction(
       }
       return sendViaAuthority({
         phygitalToken,
-        owner: signer,
+        authority: signer,
         instructions,
         abortSignal,
       });

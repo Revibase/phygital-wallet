@@ -12,8 +12,18 @@ import "./styles.css";
 import { getAddressDecoder, getBase58Decoder } from "@solana/kit";
 import { pickForAuth, pickForSensitiveOp } from "./blob-merge.js";
 import { readLocalBlob, writeLocalBlob } from "./blob-store.js";
-import { EXPECTED_PARENT_ORIGIN, MAX_CREDENTIAL_ID_BYTES, MAX_TX_BYTES, PUT_CHALLENGE_PREFIX } from "./constants.js";
-import { base64ToBytes, bytesEqual, bytesToBase64, utf8ToBytes } from "./encoding.js";
+import {
+  EXPECTED_PARENT_ORIGIN,
+  MAX_CREDENTIAL_ID_BYTES,
+  MAX_TX_BYTES,
+  PUT_CHALLENGE_PREFIX,
+} from "./constants.js";
+import {
+  base64ToBytes,
+  bytesEqual,
+  bytesToBase64,
+  utf8ToBytes,
+} from "./encoding.js";
 import { ed25519Sign } from "./crypto.js";
 import {
   errorResponse,
@@ -25,7 +35,11 @@ import {
 import { digestHex, SignerState } from "./state.js";
 import { decodeV1Transaction } from "./tx/decode-v1.js";
 import { evaluatePolicy } from "./tx/policy.js";
-import { BrowserPrfProvider, currentRpId, WebAuthnUnsupported } from "./webauthn.js";
+import {
+  BrowserPrfProvider,
+  currentRpId,
+  WebAuthnUnsupported,
+} from "./webauthn.js";
 import {
   decryptWallet,
   enrollExistingCredential,
@@ -73,7 +87,9 @@ function signPutChallenge(
   }
 }
 
-function authCompleteExtra(putSignature: string | undefined): Record<string, unknown> {
+function authCompleteExtra(
+  putSignature: string | undefined,
+): Record<string, unknown> {
   return putSignature ? { putSignature } : {};
 }
 
@@ -126,7 +142,10 @@ function parseRemoteBlob(
   }
 }
 
-function waitForBlobProvided(requestId: string, timeoutMs = 30_000): Promise<BlobReply> {
+function waitForBlobProvided(
+  requestId: string,
+  timeoutMs = 30_000,
+): Promise<BlobReply> {
   return new Promise((resolve, reject) => {
     const timer = window.setTimeout(() => {
       blobWaiters.delete(requestId);
@@ -160,9 +179,13 @@ window.addEventListener("message", (event: MessageEvent) => {
 
   // BLOB_PROVIDED continues an in-flight AUTH_START — resolve the waiter only.
   if (request.type === "BLOB_PROVIDED") {
-    const replay = state.checkFreshnessAndReplay(request.requestId, request.timestamp, {
-      continuation: true,
-    });
+    const replay = state.checkFreshnessAndReplay(
+      request.requestId,
+      request.timestamp,
+      {
+        continuation: true,
+      },
+    );
     if (replay) {
       fail(request.requestId, replay);
       return;
@@ -395,7 +418,8 @@ async function handleAuth(
 
   if (pick.kind === "conflict") {
     const decision = await ui.confirmConflict();
-    if (decision === "cancel" || !local) return fail(requestId, "USER_CANCELLED");
+    if (decision === "cancel" || !local)
+      return fail(requestId, "USER_CANCELLED");
     await unlockAndComplete(
       requestId,
       rpId,
@@ -408,10 +432,7 @@ async function handleAuth(
   }
 
   if (pick.kind === "use") {
-    const raw =
-      pick.source === "local" && local
-        ? local.raw
-        : remote!.raw;
+    const raw = pick.source === "local" && local ? local.raw : remote!.raw;
     await unlockAndComplete(
       requestId,
       rpId,
@@ -425,7 +446,7 @@ async function handleAuth(
 
   // No local/remote blob: discoverable passkey → ask parent for ciphertext.
   if (!(await ui.confirmImport())) return fail(requestId, "USER_CANCELLED");
-  let busy = beginBusy(requestId, "Waiting for passkey…");
+  let busy = beginBusy(requestId, "Use Face ID or Touch ID to approve");
   let disc;
   try {
     disc = await prf.getDiscoverable(rpId);
@@ -498,7 +519,11 @@ async function handleAuth(
       disc.prfOutput.fill(0);
       return fail(requestId, "WALLET_MISMATCH");
     }
-    const { seed, publicKey } = await unwrapWallet(disc.prfOutput, parsed, rpId);
+    const { seed, publicKey } = await unwrapWallet(
+      disc.prfOutput,
+      parsed,
+      rpId,
+    );
     disc.prfOutput.fill(0);
     if (busy.wasDismissed()) {
       seed.fill(0);
@@ -534,7 +559,7 @@ async function unlockAndComplete(
   putChallengeB64: string | undefined,
 ): Promise<void> {
   if (!(await ui.confirmImport())) return fail(requestId, "USER_CANCELLED");
-  const busy = beginBusy(requestId, "Waiting for passkey…");
+  const busy = beginBusy(requestId, "Use Face ID or Touch ID to approve");
   try {
     const { seed, publicKey } = await decryptWallet(prf, rpId, parsed);
     if (busy.wasDismissed()) {
@@ -590,10 +615,19 @@ async function handleImport(
   if (pick.kind === "conflict" && local) {
     const decision = await ui.confirmConflict();
     if (decision === "cancel") return fail(requestId, "USER_CANCELLED");
-    await unlockAndCompleteImport(requestId, rpId, local.raw, local.parsed, false);
+    await unlockAndCompleteImport(
+      requestId,
+      rpId,
+      local.raw,
+      local.parsed,
+      false,
+    );
     return;
   }
-  const raw = pick.kind === "use" && pick.source === "local" && local ? local.raw : remote.raw;
+  const raw =
+    pick.kind === "use" && pick.source === "local" && local
+      ? local.raw
+      : remote.raw;
   const parsed = pick.kind === "use" ? pick.parsed : remote.parsed;
   const writeLocal = pick.kind === "use" ? pick.writeLocal : true;
   await unlockAndCompleteImport(requestId, rpId, raw, parsed, writeLocal);
@@ -607,7 +641,7 @@ async function unlockAndCompleteImport(
   writeLocal: boolean,
 ): Promise<void> {
   if (!(await ui.confirmImport())) return fail(requestId, "USER_CANCELLED");
-  const busy = beginBusy(requestId, "Waiting for passkey…");
+  const busy = beginBusy(requestId, "Use Face ID or Touch ID to approve");
   try {
     const { seed, publicKey } = await decryptWallet(prf, rpId, parsed);
     if (busy.wasDismissed()) {
@@ -635,7 +669,10 @@ function resolveBlobForOp(parentBlobB64: string): {
 } {
   const remote = parseRemoteBlob(parentBlobB64);
   const local = readLocalBlob();
-  const chosen = pickForSensitiveOp(local?.parsed ?? null, remote?.parsed ?? null);
+  const chosen = pickForSensitiveOp(
+    local?.parsed ?? null,
+    remote?.parsed ?? null,
+  );
   if (!chosen) throw new ServiceError("INVALID_WALLET_BLOB");
   if (local && bytesEqual(local.parsed.publicKey, chosen.publicKey)) {
     return local;
@@ -679,7 +716,7 @@ async function handleSign(
     createdAt: Date.now(),
   });
 
-  const busy = beginBusy(requestId, "Waiting for passkey…");
+  const busy = beginBusy(requestId, "Use Face ID or Touch ID to approve");
   try {
     const { seed } = await decryptWallet(prf, rpId, parsed); // fresh WebAuthn (§24)
     if (busy.wasDismissed()) {
@@ -725,7 +762,7 @@ async function handleExportPrivateKey(
   // Dedicated ceremony BEFORE WebAuthn (§14) — warning + explicit continue.
   if (!(await ui.confirmExportPrivateKey()))
     return fail(requestId, "USER_CANCELLED");
-  const busy = beginBusy(requestId, "Waiting for passkey…");
+  const busy = beginBusy(requestId, "Use Face ID or Touch ID to approve");
   try {
     const { seed, publicKey } = await decryptWallet(prf, rpId, parsed); // fresh WebAuthn
     if (busy.wasDismissed()) {

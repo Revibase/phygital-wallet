@@ -10,7 +10,7 @@ import { CeremonyShell } from "@/components/shared/ceremony-shell";
 import { NfcHoldStatus } from "@/components/shared/nfc-hold-status";
 import { TokenRouteShell } from "@/components/token/token-route-shell";
 import { Button } from "@/components/ui/button";
-import { AccessoryAuthorityPrompt } from "@/components/wallet/accessory-authority-prompt";
+import { RequireClaimedAccessory } from "@/components/wallet/require-claimed-accessory";
 import { useResolvedDasCollectible } from "@/hooks/token/use-das-collectible";
 import { usePhygitalTokenByAddress } from "@/hooks/token/use-phygital-token";
 import { copy } from "@/lib/copy/phygital";
@@ -54,11 +54,11 @@ export function TokenAddressRoute({
   return (
     <TokenRouteShell layout={layout}>
       {sessionValue ? (
-        <AccessoryAuthorityPrompt phygitalTokenPda={tokenAddress}>
+        <RequireClaimedAccessory phygitalTokenPda={tokenAddress}>
           {typeof children === "function"
             ? children(sessionValue)
             : children ?? null}
-        </AccessoryAuthorityPrompt>
+        </RequireClaimedAccessory>
       ) : restoring || tokenQuery.isPending ? (
         <CeremonyShell>
           <NfcHoldStatus

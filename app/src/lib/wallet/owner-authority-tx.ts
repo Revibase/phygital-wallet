@@ -31,7 +31,7 @@ export type OwnerAuthorityContext = {
 
 export async function sendOwnerAuthorityTransaction(args: {
   phygitalToken: string;
-  owner: TransactionPartialSigner;
+  authority: TransactionPartialSigner;
   build: (ctx: OwnerAuthorityContext) => Instruction;
 }): Promise<SentTransaction> {
   const rpc = getSolanaRpc();
@@ -42,7 +42,7 @@ export async function sendOwnerAuthorityTransaction(args: {
   const feePayer = await createDefaultFeePayer({ fetch: appFeePayerApiFetch });
 
   const built = args.build({
-    authoritySigner: args.owner,
+    authoritySigner: args.authority,
     feePayer,
     phygitalToken,
     authorityPda,

@@ -33,7 +33,7 @@ function withRemainingAccounts(
  */
 export async function sendViaAuthority(args: {
   phygitalToken: Address | string;
-  owner: TransactionPartialSigner;
+  authority: TransactionPartialSigner;
   instructions: Instruction[];
   abortSignal?: AbortSignal;
 }): Promise<SentTransaction> {
@@ -49,7 +49,7 @@ export async function sendViaAuthority(args: {
 
   const executeIx = withRemainingAccounts(
     getExecuteWithAuthorityInstruction({
-      authority: args.owner,
+      authority: args.authority,
       phygitalToken,
       authorityAccount: authorityPda,
       wallet: walletPda,

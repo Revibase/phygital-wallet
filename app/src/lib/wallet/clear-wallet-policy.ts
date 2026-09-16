@@ -11,11 +11,11 @@ import { TransactionPartialSigner } from "@solana/kit";
 
 export async function clearWalletPolicy(args: {
   phygitalToken: string;
-  owner: TransactionPartialSigner;
+  authority: TransactionPartialSigner;
 }): Promise<SentTransaction> {
   return sendOwnerAuthorityTransaction({
     phygitalToken: args.phygitalToken,
-    owner: args.owner,
+    authority: args.authority,
     build: ({ authoritySigner, phygitalToken, authorityPda, rentReceiver }) =>
       getClearWalletPolicyInstruction({
         authority: authoritySigner,

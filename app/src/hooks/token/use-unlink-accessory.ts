@@ -33,7 +33,7 @@ export function useUnlinkAccessory(phygitalToken: string) {
       }
       const sent = await unlinkAccessory({
         phygitalToken,
-        owner: signer,
+        authority: signer,
       });
 
       const authorityBefore = applyOptimisticTokenAuthority(

@@ -26,7 +26,7 @@ export type PhygitalToken = {
   /** On-chain token PDA. */
   address: Address;
   isLocked: boolean;
-  currentOwner: Address;
+  owner: Address;
   lastSignCount: number;
   mint: Address;
 };
@@ -41,7 +41,7 @@ export function phygitalTokenFromAccount(
     secp256r1PublicKey: bytesToBase64Url(new Uint8Array(account.publicKey[0])),
     address: tokenAddress,
     isLocked: account.isLocked !== 0,
-    currentOwner: account.owner,
+    owner: account.owner,
     lastSignCount: account.lastSignCount,
     mint: account.mint,
   };

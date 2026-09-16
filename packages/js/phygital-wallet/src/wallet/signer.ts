@@ -15,7 +15,7 @@ import {
   findAuthorityAccountPda,
   findWalletPda,
 } from "../generated/index.js";
-import { createDefaultFeePayer } from "./feePayer.js";
+import { createDefaultFeePayer } from "./fee-payer.js";
 
 export type PhygitalWalletSignPhase =
   | "preparing"

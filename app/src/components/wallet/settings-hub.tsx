@@ -3,6 +3,7 @@
 import { NavBar, NavBarBack } from "@/components/shared/nav-bar";
 import { GroupedList, GroupedRow } from "@/components/shared/grouped-list";
 import { OwnerOwnershipSection } from "@/components/wallet/owner-ownership-section";
+import { policyHubLimitedSubtitle } from "@/components/wallet/policy-status-view";
 import { useFeeBalance } from "@/hooks/wallet/use-fee-balance";
 import { useRpcPreference } from "@/hooks/wallet/use-rpc-preference";
 import { useWalletPolicy } from "@/hooks/token/use-wallet-policy";
@@ -41,9 +42,7 @@ export function SettingsHub({
     : policy.data?.status === "none"
       ? copy.wallet.policyHubLocked
       : policy.data?.status === "limited"
-        ? copy.wallet.policyAssetsSummary(
-            policy.data.mintCaps.length + (policy.data.solCap ? 1 : 0),
-          )
+        ? policyHubLimitedSubtitle(policy.data)
         : policy.data?.status === "open"
           ? copy.wallet.policyHubOpen
           : copy.wallet.policyHubStandard;

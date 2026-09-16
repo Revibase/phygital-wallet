@@ -124,7 +124,8 @@ stale across an interval boundary without a charge.
 | `152 + 64N` | variable | Borsh `Vec<ProgramPermission>` |
 
 `BASE_LEN = 156`. Policy present when `policy_version == 8` (vs `0`). GPA: filter
-Authority discriminator + authority pubkey at offset **8** (token at **40**).
+Authority discriminator + authority pubkey at offset **8** + `version == 1`
+(`AUTHORITY_VERSION`) at offset **106** (token at **40**).
 
 Config limits: 16 program overrides, 16 rules/program, 16 account/arg constraints
 per rule, 16 data constraints per account, 64-byte matchers, 4096 permission

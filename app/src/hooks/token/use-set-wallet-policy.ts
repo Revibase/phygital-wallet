@@ -40,7 +40,7 @@ export function useSetWalletPolicy(phygitalToken: string) {
       }
       const sent = await setWalletPolicy({
         phygitalToken,
-        owner: signer,
+        authority: signer,
         solCap: input.solCap,
         mintCaps: input.mintCaps,
         programPermissions: input.programPermissions,

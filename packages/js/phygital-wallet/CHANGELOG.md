@@ -4,6 +4,9 @@
 
 ### Added
 
+- `fetchPhygitalTokensByAuthority(rpc, authority)` — GPA discovery of phygital
+  token PDAs for an ed25519 authority (filters discriminator, owner, and
+  `AUTHORITY_VERSION`). Also exports `AUTHORITY_VERSION` and `AUTHORITY_GPA`.
 - `execute_with_authority_using_policies`, used by the SDK to simulate the same
   policy checks as `execute` without requiring a secp256r1 signature.
 - Optional `feePayer` configuration for `getPhygitalWalletSigner` and

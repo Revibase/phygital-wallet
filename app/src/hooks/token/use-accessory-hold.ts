@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useIsInAppBrowser } from "@/hooks/layout/use-is-in-app-browser";
 import { copy } from "@/lib/copy/phygital";
 import { toUserErrorMessage } from "@/lib/user-errors";
-import { completeAccessoryConnection } from "@/lib/wallet/connect-accessory";
+import { connectAccessory } from "@/lib/wallet/connect-accessory";
 import { AccessoryMismatchError } from "@/lib/wallet/connect-accessory";
 
 /**
@@ -26,7 +26,7 @@ export function useAccessoryHold() {
     setError(null);
     setPending(true);
     try {
-      return await completeAccessoryConnection(args);
+      return await connectAccessory(args);
     } catch (e) {
       setError(
         toUserErrorMessage(

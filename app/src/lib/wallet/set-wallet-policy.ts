@@ -26,7 +26,7 @@ export type MintCapInput = {
 
 export async function setWalletPolicy(args: {
   phygitalToken: string;
-  owner: TransactionPartialSigner;
+  authority: TransactionPartialSigner;
   /** null clears the SOL cap; omit to also clear it. */
   solCap?: SolCapInput | null;
   mintCaps?: MintCapInput[];
@@ -35,7 +35,7 @@ export async function setWalletPolicy(args: {
 }): Promise<SentTransaction> {
   return sendOwnerAuthorityTransaction({
     phygitalToken: args.phygitalToken,
-    owner: args.owner,
+    authority: args.authority,
     build: ({
       authoritySigner,
       feePayer,

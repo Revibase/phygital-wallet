@@ -56,7 +56,6 @@ export function OwnerDashboard({ owner }: { owner: string }) {
   }, [tokenQueries, tokens]);
   const isEmpty = accessories.isSuccess && tokens.length === 0;
   const showMinted = sections.minted.length > 0;
-  const showUnminted = sections.unminted.length > 0;
   const linkedCount = sections.minted.length + sections.unminted.length;
 
   return (
@@ -116,46 +115,27 @@ export function OwnerDashboard({ owner }: { owner: string }) {
           ) : null}
         </div>
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col gap-4">
+        <div className="flex min-h-0 flex-1 flex-col gap-6">
           {showMinted ? (
             <AccessorySection
               title={copy.home.cards}
-              count={sections.minted.length}
               tokens={sections.minted}
               onOpen={(t) => router.push(tokenHref(t))}
             />
           ) : null}
-          {showUnminted ? (
-            <AccessorySection
-              title={copy.home.accessories}
-              count={sections.unminted.length}
-              tokens={sections.unminted}
-              onOpen={(t) => router.push(tokenHref(t))}
-              trailingTile={
-                <OpenAnotherTile
-                  index={sections.unminted.length}
-                  holding={tap.holding}
-                  error={tap.error}
-                  onOpen={() => void tap.open()}
-                />
-              }
-            />
-          ) : (
-            <AccessorySection
-              title={copy.home.addMoreTitle}
-              count={0}
-              tokens={[]}
-              onOpen={(t) => router.push(tokenHref(t))}
-              trailingTile={
-                <OpenAnotherTile
-                  index={0}
-                  holding={tap.holding}
-                  error={tap.error}
-                  onOpen={() => void tap.open()}
-                />
-              }
-            />
-          )}
+          <AccessorySection
+            title={showMinted ? copy.home.accessories : undefined}
+            tokens={sections.unminted}
+            onOpen={(t) => router.push(tokenHref(t))}
+            trailingTile={
+              <OpenAnotherTile
+                index={sections.unminted.length}
+                holding={tap.holding}
+                error={tap.error}
+                onOpen={() => void tap.open()}
+              />
+            }
+          />
         </div>
       )}
 
@@ -170,13 +150,11 @@ export function OwnerDashboard({ owner }: { owner: string }) {
 
 function AccessorySection({
   title,
-  count,
   tokens,
   trailingTile,
   onOpen,
 }: {
-  title: string;
-  count: number;
+  title?: string;
   tokens: string[];
   trailingTile?: ReactNode;
   onOpen: (phygitalToken: string) => void;
@@ -185,16 +163,11 @@ function AccessorySection({
 
   return (
     <section className="space-y-3">
-      <div className="space-y-0.5">
-        <h2 className="text-sm font-medium tracking-tight text-foreground">
+      {title ? (
+        <h2 className="px-0.5 text-sm font-medium tracking-tight text-foreground">
           {title}
         </h2>
-        {count > 0 ? (
-          <p className="text-xs text-muted-foreground">
-            {count === 1 ? copy.home.oneItem : copy.home.manyItems(count)}
-          </p>
-        ) : null}
-      </div>
+      ) : null}
       <ul className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
         {tokens.map((token, index) => (
           <li key={token}>

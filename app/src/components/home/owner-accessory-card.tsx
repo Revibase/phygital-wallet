@@ -30,7 +30,9 @@ export const OwnerAccessoryCard = memo(function OwnerAccessoryCard({
   onOpen: (phygitalToken: string) => void;
 }) {
   const tokenQuery = usePhygitalTokenByAddress(phygitalToken);
-  const mint = tokenQuery.data?.mint ? String(tokenQuery.data.mint) : null;
+  const token = tokenQuery.data;
+  const hasMint = Boolean(token && tokenHasLinkedMint(token));
+  const mint = hasMint && token?.mint ? String(token.mint) : null;
   const { collectible, loading: collectibleLoading } =
     useResolvedDasCollectible(mint, {
       enabled: Boolean(mint),
@@ -38,13 +40,12 @@ export const OwnerAccessoryCard = memo(function OwnerAccessoryCard({
 
   const resolving =
     tokenQuery.isPending || (Boolean(mint) && collectibleLoading);
-  const token = tokenQuery.data;
   const hasArt = Boolean(collectible?.image);
   const title =
     collectible?.name?.trim() ||
-    (token && tokenHasLinkedMint(token) ? copy.home.card : copy.home.accessory);
-  const subtitle = token?.currentOwner
-    ? shortAddress(String(token.currentOwner))
+    (hasMint ? copy.home.card : copy.home.accessory);
+  const subtitle = token?.owner
+    ? shortAddress(String(token.owner))
     : resolving
       ? copy.home.loadingWallet
       : copy.home.walletUnknown;
@@ -111,7 +112,7 @@ export const OwnerAccessoryCard = memo(function OwnerAccessoryCard({
             title
           )}
         </span>
-        <span className="truncate font-mono text-[11px] tracking-tight text-muted-foreground">
+        <span className="truncate font-mono text-[11px] leading-4 tracking-tight text-muted-foreground">
           {subtitle}
         </span>
       </span>

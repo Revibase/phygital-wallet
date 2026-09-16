@@ -529,12 +529,12 @@ export function restoreWalletPolicySnapshot(
 
 export function applyOptimisticOwnedAccessories(
   queryClient: QueryClient,
-  owner: string | null | undefined,
+  authority: string | null | undefined,
   token: string,
   direction: "add" | "remove",
 ): string[] | undefined {
-  if (!owner) return undefined;
-  const key = queryKeys.ownedAccessories.byOwner(owner);
+  if (!authority) return undefined;
+  const key = queryKeys.ownedAccessories.byAuthority(authority);
   const previous = queryClient.getQueryData<string[]>(key);
   if (previous === undefined) {
     if (direction === "add") queryClient.setQueryData(key, [token]);
@@ -552,11 +552,11 @@ export function applyOptimisticOwnedAccessories(
 
 export function restoreOwnedAccessoriesSnapshot(
   queryClient: QueryClient,
-  owner: string | null | undefined,
+  authority: string | null | undefined,
   previous: string[] | undefined,
 ): void {
-  if (!owner) return;
-  const key = queryKeys.ownedAccessories.byOwner(owner);
+  if (!authority) return;
+  const key = queryKeys.ownedAccessories.byAuthority(authority);
   if (previous === undefined) {
     queryClient.removeQueries({ queryKey: key });
     return;

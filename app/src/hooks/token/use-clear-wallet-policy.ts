@@ -30,7 +30,7 @@ export function useClearWalletPolicy(phygitalToken: string) {
       }
       const sent = await clearWalletPolicy({
         phygitalToken,
-        owner: signer,
+        authority: signer,
       });
 
       const policyBefore = applyOptimisticWalletPolicy(

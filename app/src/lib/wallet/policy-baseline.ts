@@ -1,7 +1,7 @@
 /**
  * Built-in accessory allow-list when a policy is active and a program has no
- * explicit override. Kept in the app (not on-chain rows) so settings can show
- * what a tap may call by default.
+ * explicit override. Kept for product reference; the status UI implies this via
+ * the Everyday payments one-liner (DD-018) rather than listing each action.
  */
 export const POLICY_BASELINE_ACTIONS = [
   {

@@ -10,9 +10,9 @@ import { walletClaimHref } from "@/lib/wallet/token-routes";
 
 /**
  * After browse-unlock: unclaimed accessories go straight to `/wallet/claim`.
- * No dismissible prompt — first tap is unlock → claim → wallet.
+ * Not dismissible — first tap is unlock → claim → wallet.
  */
-export function AccessoryAuthorityPrompt({
+export function RequireClaimedAccessory({
   phygitalTokenPda,
   children,
 }: {

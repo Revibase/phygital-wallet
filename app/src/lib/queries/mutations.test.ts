@@ -270,7 +270,7 @@ describe("claim / unlink optimistic cache helpers", () => {
       authority: null,
     });
     qc.setQueryData(queryKeys.walletPolicy.byToken(token), NONE_POLICY_VIEW);
-    qc.setQueryData(queryKeys.ownedAccessories.byOwner(owner), []);
+    qc.setQueryData(queryKeys.ownedAccessories.byAuthority(owner), []);
 
     const authorityBefore = applyOptimisticTokenAuthority(qc, token, {
       isClaimed: true,
@@ -295,7 +295,7 @@ describe("claim / unlink optimistic cache helpers", () => {
     expect(qc.getQueryData(queryKeys.walletPolicy.byToken(token))).toEqual(
       STANDARD_POLICY_VIEW,
     );
-    expect(qc.getQueryData(queryKeys.ownedAccessories.byOwner(owner))).toEqual([
+    expect(qc.getQueryData(queryKeys.ownedAccessories.byAuthority(owner))).toEqual([
       token,
     ]);
 
@@ -310,7 +310,7 @@ describe("claim / unlink optimistic cache helpers", () => {
     expect(qc.getQueryData(queryKeys.walletPolicy.byToken(token))).toEqual(
       NONE_POLICY_VIEW,
     );
-    expect(qc.getQueryData(queryKeys.ownedAccessories.byOwner(owner))).toEqual(
+    expect(qc.getQueryData(queryKeys.ownedAccessories.byAuthority(owner))).toEqual(
       [],
     );
   });

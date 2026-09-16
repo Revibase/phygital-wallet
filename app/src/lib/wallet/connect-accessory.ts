@@ -70,5 +70,3 @@ export async function connectAccessory(opts?: {
     expiresAt: body.expiresAt ?? Date.now(),
   };
 }
-
-export const completeAccessoryConnection = connectAccessory;

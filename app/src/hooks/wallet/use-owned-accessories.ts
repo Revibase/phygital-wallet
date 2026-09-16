@@ -6,14 +6,14 @@ import { queryKeys, queryOptions } from "@/lib/queries";
 import { fetchOwnedAccessories } from "@/lib/wallet/owned-accessories-client";
 
 /**
- * Every phygital token the signed-in owner is the on-chain authority of.
- * Client-side `getProgramAccounts` — needs no session, only the owner address.
+ * Every phygital token the signed-in ed25519 authority controls on-chain.
+ * Client-side GPA — needs no session, only the authority address.
  */
-export function useOwnedAccessories(owner: string | null) {
+export function useOwnedAccessories(authority: string | null) {
   return useQuery({
-    queryKey: queryKeys.ownedAccessories.byOwner(owner),
-    queryFn: () => fetchOwnedAccessories(owner!),
-    enabled: Boolean(owner),
+    queryKey: queryKeys.ownedAccessories.byAuthority(authority),
+    queryFn: () => fetchOwnedAccessories(authority!),
+    enabled: Boolean(authority),
     ...queryOptions.volatile,
   });
 }

@@ -1,7 +1,7 @@
 import { address } from "@solana/kit";
 import { describe, expect, it, vi } from "vitest";
 
-import { createDefaultFeePayer } from "./feePayer.js";
+import { createDefaultFeePayer } from "./fee-payer.js";
 
 describe("createDefaultFeePayer", () => {
   it("discovers the default fee payer from the Revibase API", async () => {

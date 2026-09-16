@@ -190,18 +190,15 @@ export const copy = {
     topUpSuccess: "Top-up submitted",
     // Accessory policy (what a tap may do)
     policy: "Accessory permissions",
-    policyHint:
-      "Control what this item can do with a tap. Start with everyday payments; add spendable assets or apps when you need them.",
     policyStatusStandard: "Everyday payments",
     policyStatusStandardBody:
-      "A tap can send SOL and standard tokens with no amount cap. Other apps stay blocked until you allow them. Token-account takeovers (standing approvals) are blocked.",
+      "A tap can send SOL and standard tokens. Other apps stay blocked.",
     policyStatusOpen: "Protections off",
-    policyStatusOpenBody:
-      "Accessory checks are turned off. A tap can call any program this wallet can sign for. Restore everyday payments unless you intend this.",
+    policyStatusOpenBody: "A tap isn’t checked until you restore everyday payments.",
     policyStatusLimited: "Custom limits",
+    policyStatusLimitedBody: "Only listed assets can leave with a tap.",
     policyStatusLocked: "Locked",
-    policyStatusLockedBody:
-      "No transactions until someone claims this accessory. Claim it to turn on everyday payments.",
+    policyStatusLockedBody: "Claim this accessory to turn on everyday payments.",
     policyLockedClaimCta: "Claim to unlock",
     /** Post-tap: no on-chain authority yet. */
     authorityChecking: "Checking ownership…",
@@ -244,12 +241,8 @@ export const copy = {
     ownershipUnlinked: "Accessory unlinked",
     ownershipUnlinkFailed: "Couldn’t unlink this item",
     ownershipDangerZone: "Danger zone",
-    policyBaselineTitle: "Included by default",
-    policyBaselineHint:
-      "These stay allowed while protections are on, unless you block them under Advanced.",
-    /** The allow-list surprise, stated plainly — shown wherever asset limits are set. */
-    policyAllowlistNote:
-      "Listing any asset turns this into an allow-list: a tap can only spend assets you add here. Unlisted assets are blocked.",
+    /** One-line allow-list reminder when any asset limit is set. */
+    policyAllowlistNote: "Only assets you list can be spent.",
     policySolLabel: "SOL",
     /** Remaining allowance until the reset date (recurring window). */
     policyLeftUntil: (amount: string, date: string) =>
@@ -260,13 +253,15 @@ export const copy = {
     policyNoReset: "One-time — doesn’t reset",
     policyAssetsSummary: (count: number) =>
       `${count} spendable asset${count === 1 ? "" : "s"}`,
+    policyHubLimited: (detail: string) => `Custom limits · ${detail}`,
     policyHubStandard: "Everyday payments",
     policyHubOpen: "Protections off",
     policyHubLocked: "Locked · no transactions",
+    policyMore: "More",
     // Pre-save preview of what a tap will be allowed to do
     policyPreviewTitle: "After saving, a tap can:",
     policyPreviewStandard:
-      "Send SOL and standard tokens with no amount cap. Other apps stay blocked.",
+      "Send SOL and standard tokens. Other apps stay blocked.",
     policyPreviewSpend: (amount: string, phrase: string) =>
       `Spend up to ${amount}, ${phrase}`,
     policyPreviewBlocked: "All other assets are blocked",
@@ -276,19 +271,16 @@ export const copy = {
     policyWindowWeek: "Every week",
     policyWindowMonth: "Every month",
     policyWindowLifetime: "One-time",
-    policyWindowHint:
-      "Resets on a fixed UTC schedule (daily at 00:00 UTC), not from the moment you save.",
+    policyWindowHint: "Resets on a fixed UTC schedule.",
     policyAmountLabel: "SOL a tap can spend",
     policyWindowLabel: "Renew this limit",
-    policyEdit: "Edit permissions",
-    policySet: "Customize permissions",
+    policyEdit: "Edit limits",
+    policySet: "Limit what a tap can spend",
     policyPresetsTitle: "Quick setups",
-    policyPresetsHint:
-      "One tap applies an allow-list. You can edit amounts anytime.",
     policyPresetApplied: "Spend limits applied",
     policyClaimedTitle: "Everyday payments are on",
     policyClaimedBody:
-      "A tap can send SOL and standard tokens with no amount cap. Other apps stay blocked. You can add spend limits anytime.",
+      "A tap can send SOL and standard tokens. Other apps stay blocked. You can add spend limits anytime.",
     policyClaimedStay: "Looks good",
     policyClaimedLimit: "Limit what a tap can spend",
     policySave: "Save",
@@ -297,31 +289,23 @@ export const copy = {
     policyRestored: "Everyday payments restored",
     policyRestoreConfirmTitle: "Restore everyday payments?",
     policyRestoreConfirmBody:
-      "Removes your asset limits and extra app rules. A tap can again send SOL and standard tokens with no amount cap; other apps stay blocked.",
+      "Removes your asset limits and extra app rules. A tap can again send SOL and standard tokens; other apps stay blocked.",
     policyTurnOff: "Turn off protections",
     policyTurnedOff: "Protections turned off",
     policyTurnOffConfirmTitle: "Turn off accessory protections?",
     policyTurnOffConfirmBody:
-      "Removes spending limits and the built-in payment-only rules. A tap won’t be checked until you restore everyday payments. Your owner key stays.",
+      "A tap won’t be checked until you restore everyday payments. Your owner key stays.",
     policySignInToEdit: "Unlock on this phone to change permissions.",
     policyTokenLimits: "Spendable assets",
-    policyTokenLimitsHint:
-      "Only assets you list can leave with a tap. Add SOL above and any tokens here — up to 8 tokens.",
     policyAddToken: "Add an asset",
     policyPickToken: "Choose an asset",
     policyNoTokensToAdd: "No more assets to add",
     policyRemoveTokenAria: (symbol: string) => `Remove ${symbol}`,
     policyTokenAmountLabel: (symbol: string) => `${symbol} a tap can spend`,
     // Advanced — app/program permissions
-    policyAdvanced: "Advanced",
-    policyAdvancedHint:
-      "Most people don’t need this. Allow or block specific apps beyond everyday payments.",
-    policyPrograms: "Extra apps",
-    policyProgramsHint:
-      "Everyday payments (SOL and standard tokens) are already included. Add an app to allow or block it.",
+    policyAdvanced: "Extra apps",
+    policyProgramsHint: "Allow or block apps beyond everyday payments.",
     policyProgramsNone: "No extra apps",
-    policyProgramsBaseline:
-      "Everyday payment programs stay allowed unless you block them here.",
     policyAddProgram: "Add",
     policyProgramIdPlaceholder: "App address",
     policyProgramInvalid: "Enter a valid app address",
