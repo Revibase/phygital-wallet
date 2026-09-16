@@ -37,6 +37,7 @@ export function WalletApprovalSheet({
     >
       <SheetContent
         side="bottom"
+        showCloseButton={false}
         className="mx-auto max-w-lg rounded-t-3xl md:rounded-3xl"
       >
         {error ? (

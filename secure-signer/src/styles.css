@@ -258,11 +258,11 @@ body {
 
 .btn {
   appearance: none;
-  min-height: 48px;
-  padding: 12px 18px;
+  min-height: 44px;
+  padding: 10px 18px;
   border-radius: 999px;
   border: 1px solid transparent;
-  font-size: 0.98rem;
+  font-size: 0.9375rem;
   font-weight: 600;
   cursor: pointer;
   background: transparent;

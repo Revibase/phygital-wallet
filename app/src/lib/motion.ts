@@ -1,13 +1,24 @@
 /**
  * Luminous Object motion — Apple-fast, compositor-friendly.
  * Prefer opacity + tiny translate. Never animate filter/blur (feels soft and laggy).
+ *
+ * Durations mirror CSS vars in globals.css (UX-028):
+ * --duration-fast 120ms · --duration-normal 180ms · --duration-slow 280ms · --duration-reveal 420ms
  */
 
-/** Shared ease — iOS-like deceleration. */
+/** Shared ease — iOS-like deceleration (= --ease-out-expo). */
 export const easeOut = [0.22, 1, 0.36, 1] as const;
 
+/** Seconds — keep in sync with --duration-* in globals.css. */
+export const duration = {
+  fast: 0.12,
+  normal: 0.18,
+  slow: 0.28,
+  reveal: 0.42,
+} as const;
+
 export const snapEnterTransition = {
-  duration: 0.18,
+  duration: duration.normal,
   ease: easeOut,
 };
 
@@ -40,38 +51,39 @@ export const stageMotion = {
   initial: { opacity: 0, y: 8 },
   animate: { opacity: 1, y: 0 },
   exit: { opacity: 0, y: -4 },
-  transition: { duration: 0.18, ease: easeOut },
+  transition: { duration: duration.normal, ease: easeOut },
 } as const;
 
 export const stageFadeMotion = {
   initial: { opacity: 0 },
   animate: { opacity: 1 },
   exit: { opacity: 0 },
-  transition: { duration: 0.14, ease: easeOut },
+  transition: { duration: duration.fast, ease: easeOut },
 } as const;
 
 export const galleryAnimate = {
-  rise: "motion-safe:animate-[gallery-rise_0.22s_cubic-bezier(0.22,1,0.36,1)_both]",
-  fade: "motion-safe:animate-[gallery-fade_0.16s_ease-out_both]",
+  rise: "motion-safe:animate-[gallery-rise_var(--duration-normal)_var(--ease-out-expo)_both]",
+  fade: "motion-safe:animate-[gallery-fade_var(--duration-fast)_ease-out_both]",
   scaleIn:
-    "motion-safe:animate-[gallery-scale-in_0.22s_cubic-bezier(0.22,1,0.36,1)_both]",
+    "motion-safe:animate-[gallery-scale-in_var(--duration-normal)_var(--ease-out-expo)_both]",
   check:
-    "motion-safe:animate-[gallery-check_0.22s_cubic-bezier(0.22,1,0.36,1)_both]",
+    "motion-safe:animate-[gallery-check_var(--duration-normal)_var(--ease-out-expo)_both]",
   shimmer: "motion-safe:animate-[gallery-shimmer_1.1s_ease-in-out_infinite]",
   pulse: "motion-safe:animate-[gallery-pulse_1.2s_ease-out]",
   successRing:
-    "motion-safe:animate-[gallery-rise_0.22s_cubic-bezier(0.22,1,0.36,1)]",
+    "motion-safe:animate-[gallery-rise_var(--duration-normal)_var(--ease-out-expo)]",
   slideUp:
-    "motion-safe:animate-[gallery-slide-up_0.24s_cubic-bezier(0.22,1,0.36,1)_both]",
+    "motion-safe:animate-[gallery-slide-up_0.24s_var(--ease-out-expo)_both]",
   stage:
-    "motion-safe:animate-[gallery-stage_0.2s_cubic-bezier(0.22,1,0.36,1)_both]",
+    "motion-safe:animate-[gallery-stage_var(--duration-normal)_var(--ease-out-expo)_both]",
   /** Opacity-only — preferred for wrappers that contain sticky. */
-  stageFade: "motion-safe:animate-[gallery-stage-fade_0.16s_ease-out_both]",
+  stageFade:
+    "motion-safe:animate-[gallery-stage-fade_var(--duration-fast)_ease-out_both]",
   /** Object / key reveal — short spring, not a slow flourish. */
   reveal:
-    "motion-safe:animate-[luminous-reveal_0.42s_cubic-bezier(0.22,1,0.36,1)_both]",
+    "motion-safe:animate-[luminous-reveal_var(--duration-reveal)_var(--ease-out-expo)_both]",
   /** Authenticity seal tick. */
-  seal: "motion-safe:animate-[luminous-seal_0.28s_cubic-bezier(0.34,1.4,0.64,1)_both]",
+  seal: "motion-safe:animate-[luminous-seal_var(--duration-slow)_var(--ease-spring)_both]",
   /** Soft aura breath on boot. */
   auraBreath:
     "motion-safe:animate-[luminous-aura-breath_4s_ease-in-out_infinite]",

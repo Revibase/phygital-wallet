@@ -40,7 +40,7 @@ function DialogOverlay({
       className={cn(
         "fixed inset-0 z-50 bg-black/10 backdrop-blur-xs",
         "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-        className
+        className,
       )}
       {...props}
     />
@@ -69,20 +69,26 @@ function DialogContent({
           "data-[state=open]:animate-in data-[state=closed]:animate-out",
           "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
           "data-[state=open]:slide-in-from-bottom-10 data-[state=closed]:slide-out-to-bottom-10",
-          "p-4 sm:p-6",
-          "md:inset-auto md:top-1/2 md:left-1/2 md:bottom-auto md:max-h-[min(85vh,40rem)] md:w-full md:-translate-x-1/2 md:-translate-y-1/2 md:overflow-y-auto md:rounded-3xl md:shadow-xl",
+          // Roomier padding + home-indicator safe area on phone.
+          "px-5 pt-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:p-6",
+          "md:inset-auto md:top-1/2 md:left-1/2 md:bottom-auto md:max-h-[min(85vh,40rem)] md:w-full md:-translate-x-1/2 md:-translate-y-1/2 md:overflow-y-auto md:rounded-3xl md:shadow-xl md:pb-6",
           "md:data-[state=open]:slide-in-from-bottom-0 md:data-[state=closed]:slide-out-to-bottom-0 md:data-[state=open]:zoom-in-95 md:data-[state=closed]:zoom-out-95",
-          className
+          className,
         )}
         onOpenAutoFocus={onOpenAutoFocus}
         {...props}
       >
-        <div className="relative">
+        <div
+          className={cn(
+            "relative flex flex-col gap-5",
+            showCloseButton && "**:data-[slot=dialog-header]:pr-10",
+          )}
+        >
           {children}
           {showCloseButton ? (
             <DialogPrimitive.Close
               asChild
-              className="absolute top-1 right-1 rounded-full"
+              className="absolute top-0 right-0 rounded-full"
             >
               <Button
                 type="button"
@@ -104,7 +110,8 @@ function DialogContent({
 function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
-      className={cn("flex flex-col gap-1.5 px-0 text-left", className)}
+      data-slot="dialog-header"
+      className={cn("flex flex-col gap-2.5 text-left", className)}
       {...props}
     />
   );
@@ -114,8 +121,8 @@ function DialogFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       className={cn(
-        "flex flex-col-reverse sm:flex-row sm:justify-end gap-2",
-        className
+        "flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end sm:gap-3",
+        className,
       )}
       {...props}
     />
@@ -129,8 +136,8 @@ function DialogTitle({
   return (
     <DialogPrimitive.Title
       className={cn(
-        "text-base font-medium leading-none tracking-tight",
-        className
+        "text-base font-semibold leading-snug tracking-tight",
+        className,
       )}
       {...props}
     />
@@ -143,7 +150,7 @@ function DialogDescription({
 }: React.ComponentProps<typeof DialogPrimitive.Description>) {
   return (
     <DialogPrimitive.Description
-      className={cn("text-sm text-muted-foreground", className)}
+      className={cn("text-sm leading-relaxed text-muted-foreground", className)}
       {...props}
     />
   );

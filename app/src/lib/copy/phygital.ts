@@ -82,10 +82,9 @@ export const copy = {
     noMatchingCollectibles: "No matches",
     noActivity: "No activity yet",
     settings: "Settings",
-    settingsAccess: "Access",
     settingsFees: "Fees",
-    settingsSafety: "Safety",
-    settingsSendProtections: "Send protections",
+    /** Settings hub group for accessory permissions (DD-011). */
+    settingsPermissions: "Permissions",
     rpcConnection: "Network",
     rpcBody: "Where this wallet loads balances and collectibles from.",
     rpcDefault: "Default",
@@ -103,7 +102,8 @@ export const copy = {
     advanced: "Advanced",
     toWalletChip: "Wallet",
     openWalletAriaLabel: "Open wallet",
-    holdToSend: "Hold to confirm",
+    /** Form CTA — Hold UI appears only at awaitingPasskey (DD-004). */
+    holdToSend: "Hold to send",
     holdToReceive: "Hold to confirm",
     holdToReceiveDesktopHint: "They’ll hold their accessory to confirm",
     holdToIdentifyPayer: "Hold their accessory",
@@ -113,19 +113,17 @@ export const copy = {
     nearbyChangeDetails: "Change amount",
     nearbyChangePayer: "Use a different item",
     holdToSave: "Hold to save",
-    /** NFC step when policy changes also need passkey confirm on this phone. */
-    configChangeHoldBody:
-      "Hold your accessory, then confirm on this phone with Face ID, fingerprint, or screen lock.",
+    /** Owner-signed config: confirm on this phone (DD-006). */
     configChangeConfirmTitle: "Confirm on this phone",
     configChangeConfirmBody:
-      "Tap below, then use Face ID, fingerprint, or screen lock to finish saving.",
-    configChangeConfirmCta: "Confirm with Passkey",
-    configChangeConfirmPending:
-      "Waiting for Face ID, fingerprint, or screen lock…",
+      "Tap below, then use your passkey to finish saving.",
+    configChangeConfirmCta: "Confirm with passkey",
+    configChangeConfirmPending: "Waiting for passkey…",
     save: "Save",
     holdToOpenTitle: "Hold to open",
     holdToOpenBody: "Hold your accessory to unlock this wallet on this phone.",
     holdToOpenCta: "Hold to open",
+    /** Shared Hold placement body — titles carry intent (DD-004). */
     holdCeremonyTitle: "Hold your accessory",
     holdCeremonyBody: "Hold it to the top of your phone until this finishes.",
     signPreparingTitle: "Preparing",
@@ -144,24 +142,23 @@ export const copy = {
     setupStepPasskey: "Step 1 of 2 · This phone",
     setupStepLink: "Step 2 of 2 · Link accessory",
     setupStepConfirm: "Step 2 of 2 · Confirm on this phone",
-    continueWithPasskey: "Continue with Passkey",
     setUpThisPhone: "Set up on this phone",
     setUpThisPhoneBody:
-      "Use a passkey already on this phone, or create one. Next you’ll hold the accessory to become the owner.",
-    passkeyUnlockCta: "Continue with Passkey",
+      "Unlock with a passkey already on this phone, or create one. Next you’ll hold the accessory to become the owner.",
+    passkeyUnlockCta: "Unlock with passkey",
     passkeyCreateCta: "Create a new passkey",
-    passkeyCreating: "Follow the passkey prompt…",
-    newPhoneHint: "New on this phone?",
+    passkeyCreating: "Waiting for passkey…",
     usernameLabel: "Username",
     usernamePlaceholder: "yourname",
-    usernameHint: "4–15 characters · letters, numbers, underscores",
-    usernameContinue: "Continue with Passkey",
+    usernameHint:
+      "3–32 characters · letters, numbers, periods, underscores, hyphens",
+    usernameContinue: "Create passkey",
     usernameTitle: "Choose a username",
     usernameBody:
       "This name identifies your passkey. Next, save a passkey on this phone.",
     usernameTaken: "That username is taken. Try another.",
     usernameInvalid:
-      "Use 4–15 characters: letters, numbers, and underscores only.",
+      "Use 3–32 characters: letters, numbers, periods, underscores, and hyphens only.",
     max: "Max",
     restoreDefault: "Use Revibase",
     add: "Add",
@@ -208,10 +205,10 @@ export const copy = {
     policyLockedClaimCta: "Claim to unlock",
     /** Post-tap: no on-chain authority yet. */
     authorityChecking: "Checking ownership…",
-    authoritySignInTitle: "Claim this accessory",
+    authoritySignInTitle: "Set up this phone to claim",
     authoritySignInBody:
-      "Set up this phone first. Next you’ll hold the accessory once to become the owner.",
-    authoritySignInCta: "Continue",
+      "Unlock or create a passkey on this phone. Next you’ll hold the accessory once to become the owner.",
+    authoritySignInCta: "Set up this phone",
     authorityClaimBody:
       "Become the owner to turn on everyday payments. You’ll hold your accessory on the next step.",
     authorityClaimTitle: "Hold to claim",
@@ -227,8 +224,9 @@ export const copy = {
     otherOwnerBanner: "Owned by another account on this phone.",
     otherOwnerBannerAction: "Details",
     ownershipLabel: "Ownership",
-    ownershipSignIn: "Continue",
-    ownershipSignInSubtitle: "Continue to claim or manage this accessory.",
+    ownershipSignIn: "Continue on this phone",
+    ownershipSignInSubtitle:
+      "Unlock on this phone to claim or manage this accessory.",
     ownershipClaimFooter:
       "Claiming sets you as the owner and turns on everyday payments: a tap can send SOL and standard tokens; other apps stay blocked until you allow them.",
     ownershipOtherTitle: "Owned by another account",
@@ -305,7 +303,7 @@ export const copy = {
     policyTurnOffConfirmTitle: "Turn off accessory protections?",
     policyTurnOffConfirmBody:
       "Removes spending limits and the built-in payment-only rules. A tap won’t be checked until you restore everyday payments. Your owner key stays.",
-    policySignInToEdit: "Continue as the owner to change permissions.",
+    policySignInToEdit: "Unlock on this phone to change permissions.",
     policyTokenLimits: "Spendable assets",
     policyTokenLimitsHint:
       "Only assets you list can leave with a tap. Add SOL above and any tokens here — up to 8 tokens.",
@@ -351,11 +349,6 @@ export const copy = {
     refresh: "Refresh",
     refreshing: "Refreshing…",
     lastUpdated: (value: string) => `Updated ${value}`,
-    firstRunTitle: "Nothing here yet",
-    firstRunBody:
-      "Receive money here. Hold your accessory to your phone when you send.",
-    firstRunCta: "Receive",
-    firstRunDismiss: "Not now",
     copySignature: "Copy signature",
     viewOnExplorer: "View on explorer",
     receiptPending: "Pending",
@@ -363,45 +356,6 @@ export const copy = {
     receiptTime: "Time",
     receiptType: "Type",
     receiptFee: "Network fee",
-    accessRecoveryRow: "Recovery address",
-    recoveryWallet: "Recovery address",
-    recoveryWalletBody:
-      "Paste a Solana address you control. That wallet can move all funds from this accessory — without the accessory or Revibase — on the recover site.",
-    recoveryWalletPubkey: "Address",
-    recoveryWalletPubkeyPlaceholder: "Paste Solana address",
-    recoveryWalletSave: "Hold to save",
-    recoveryWalletReplace: "Hold to replace",
-    recoveryWalletClear: "Clear address",
-    recoveryWalletClearConfirmTitle: "Clear recovery address?",
-    recoveryWalletClearConfirmBody:
-      "That wallet can no longer recover funds here. You’ll need this accessory to set a new address.",
-    recoveryWalletClearConfirmCta: "Clear",
-    recoveryWalletSaved: "Recovery address saved",
-    recoveryWalletCleared: "Recovery address cleared",
-    recoveryWalletInvalid: "Enter a valid address",
-    recoveryWalletSame: "Already set to this address",
-    recoveryWalletConfigured: "Set",
-    recoveryWalletNotConfigured: "Not set",
-    recoveryWalletCurrent: "Current",
-    recoveryWalletHint:
-      "Public address only — never a private key or seed. Prefer a cold wallet.",
-    recoveryWalletRecoverSiteNote:
-      "Anyone with this key can empty the vault. Keep it offline and safe. Recover site coming soon.",
-    recoveryWalletAck:
-      "I understand this address can move all funds without this accessory.",
-    recoveryAckTitle: "Add a recovery address?",
-    recoveryAckBody:
-      "If you lose this accessory, that address can restore funds. It can also move everything — choose a key you fully control.",
-    recoveryAckCta: "Add address",
-    recoveryAckSkip: "Not now",
-    limitsStatusOff: "Not set",
-    limitsStatusOn: "On",
-    limitsStatusInvalid: "Needs fix",
-    limitsInvalidBody:
-      "Saved limits are invalid. Save again to restore protection.",
-    limitsTurnOff: "Turn off spend caps",
-    limitsTurnedOff: "Spend caps off",
-    openApprovalContinue: "Approved — they can hold to finish",
     nearbyPolicyTitle: "Needs approval",
     nearbyPolicyBody:
       "Over their limits. Ask them to approve once on their linked phone, then try again.",
@@ -413,27 +367,6 @@ export const copy = {
     visitorNeedsApprovalHint: "Requests will expire in about 5 minutes.",
     visitorDeniedTitle: "Send not approved",
     visitorDeniedBody: "The owner declined this send.",
-    openApprovalDenied: "Declined",
-    policyDefaultSigningOnly:
-      "Caps apply to built-in wallet sends. Exception programs are unrestricted.",
-    policySection: "Limits",
-    sendProtections: "Send protections",
-    sendProtectionsHint:
-      "When on, this wallet can only call built-in wallet and collectible programs — unless you add exceptions.",
-    sendProtectionsOff: "Off",
-    sendProtectionsOffBody: "Any program is allowed. No spend caps.",
-    sendProtectionsOn: "On",
-    sendProtectionsOnBody:
-      "Built-in wallet programs are allowed. Set spend caps and exceptions below.",
-    sendProtectionsTurnOn: "Turn on send protections",
-    sendProtectionsTurnOff: "Turn off send protections",
-    sendProtectionsTurnOffConfirm:
-      "This removes spend caps and exceptions. Any program will be allowed again.",
-    sendProtectionsRequired:
-      "Turn on send protections first to set spend caps or exceptions.",
-    unrestrictedAppsWarn:
-      "Exception programs can move funds without your spend caps.",
-    unrestrictedAppsHint: "Exceptions",
     approveSendTitle: "Approve this send?",
     approveSendBodyLimit: (limit: string) => `Over your $${limit} limit.`,
     approveSendBodyTime: "Sending isn’t allowed right now.",
@@ -446,8 +379,8 @@ export const copy = {
     approveSendBodyUnexpected:
       "This transaction couldn’t be checked against your settings.",
     approveSendSignInBody:
-      "Unlock as the owner to approve once, then try again.",
-    approveSendSignInCta: "Continue",
+      "Unlock on this phone as the owner to approve once, then try again.",
+    approveSendSignInCta: "Unlock on this phone",
     approveSendSignInNotNow: "Not now",
     approveSendAmount: "Amount",
     approveSendDestination: "To",
@@ -459,93 +392,6 @@ export const copy = {
     changeLimits: "Change settings",
     sendBlockedHard:
       "This can’t be approved once — change permissions or try a different send.",
-    spendingLimits: "Spending limits",
-    spendingLimitsHint:
-      "Caps cover SOL and verified tokens you add on built-in wallet sends. Larger sends need a one-time approval. They do not apply to exceptions.",
-    spendingLimitsOff: "Off",
-    spendingLimitsOffBody: "No mint or SOL spend caps on built-in sends.",
-    spendingLimitsOn: "On",
-    spendingLimitsOnBody: (
-      mints: readonly { label: string; amount: string }[],
-      sol: string,
-    ) => {
-      const parts: string[] = [];
-      for (const m of mints) {
-        if (m.amount !== "—") parts.push(`${m.amount} ${m.label}`);
-      }
-      if (sol !== "—") parts.push(`${sol} SOL`);
-      if (parts.length === 0) return "Spend caps are on.";
-      if (parts.length === 1) {
-        return `Up to ${parts[0]} per built-in send without a one-time approval.`;
-      }
-      const last = parts.pop()!;
-      return `Up to ${parts.join(
-        ", ",
-      )} and ${last} per built-in send without a one-time approval.`;
-    },
-    spendingLimitsInvalid: "Needs fix",
-    spendingLimitsInvalidBody:
-      "Saved limits are invalid. Save again to restore protection.",
-    spendingLimitsAdvanced: "Set caps",
-    spendingLimitsAdvancedHide: "Hide caps",
-    spendingLimitsAdvancedHint:
-      "Add a SOL cap and mint caps from verified tokens. Suggested start: 50 USDC and 0.1 SOL.",
-    spendingLimitsSaveTurnsOn: "Saving turns on these spend caps.",
-    spendingLimitsSaveNeedsCap:
-      "Add a mint cap or SOL cap to turn spend limits on.",
-    spendingLimitsMintAlreadyAdded: "That mint is already in your list.",
-    spendingLimitsUseSolField: "Use the SOL field for native SOL caps.",
-    mintSpendCaps: "Mint caps",
-    mintSpendCapsEmpty: "No mint caps yet.",
-    mintSpendCapsAddCta: "Add mint cap",
-    mintSpendCapsAddUsdc: "Add USDC cap",
-    mintSpendCapsRemove: "Remove mint cap",
-    mintSpendCapsPickTitle: "Choose a token",
-    mintSpendCapsNoneLeft: "Every verified token already has a cap.",
-    maxMintPerSend: "Max per send",
-    maxSolPerSend: "Max SOL per send",
-    extraPrograms: "Exceptions",
-    extraProgramsHint:
-      "Send protections allow built-in wallet programs. Add an exception only if you need another program (for example a DEX).",
-    extraProgramsAllAllowed: "All programs",
-    extraProgramsAllAllowedBody:
-      "Send protections are off — any program is allowed.",
-    extraProgramsBuiltIn: "Built-in only",
-    extraProgramsBuiltInBody:
-      "Standard wallet and collectible programs. Spend caps apply here.",
-    extraProgramsWithUnrestricted: (count: number) =>
-      count === 1 ? "Built-in + 1 exception" : `Built-in + ${count} exceptions`,
-    extraProgramsWithUnrestrictedBody:
-      "Exception programs can move funds without your spend caps.",
-    extraProgramsProtected: "Built-in",
-    extraProgramsProtectedHint: "Included with send protections.",
-    extraProgramsUnrestricted: "Exceptions",
-    extraProgramsUnrestrictedHint:
-      "Any instruction on these programs is allowed — no spend-cap checks.",
-    extraProgramsAddCta: "Add exception",
-    extraProgramsAddConfirm:
-      "This program can move funds without your spend caps. Continue?",
-    extraProgramsAddConfirmCta: "Add exception",
-    extraProgramsEmpty: "None",
-    extraProgramsAlreadyBuiltIn: "That program is already in the built-in set.",
-    extraProgramsShowBuiltIn: "Show built-in programs",
-    extraProgramsHideBuiltIn: "Hide built-in programs",
-    invalidProgramId: "Enter a valid program ID",
-    programId: "Program ID",
-    allowedSites: "Allowed sites",
-    allowedSitesHint:
-      "Restrict signing to specific websites. When the list is empty, any site you tap into can request signatures.",
-    allowedSitesStatusAny: "Any site",
-    allowedSitesStatusOn: (count: number) =>
-      count === 1 ? "1 site" : `${count} sites`,
-    allowedSitesListLabel: "Allowed sites",
-    allowedSitesEmpty: "None — any site can sign",
-    allowedSitesLockedNote:
-      "Only these origins can sign. A site not on the list — and any server request with no site origin — is blocked.",
-    allowedSitesAddCta: "Add site",
-    allowedSitesAddPlaceholder: "https://example.com",
-    allowedSitesAddLabel: "Site URL",
-    invalidOrigin: "Enter a valid site URL, e.g. https://example.com",
     settingsSaved: "Saved",
     statusAuthentic: "Authentic",
     statusAuthenticLive: "Authentic · Live tap",
@@ -561,7 +407,7 @@ export const copy = {
     welcomeTitle: "Your accessories, one place",
     welcomeBody:
       "Set up this phone to manage what you own — or open an accessory you’re holding.",
-    welcomeSignIn: "Continue",
+    welcomeSignIn: "Continue on this phone",
     welcomeHaveAccessory: "I have an accessory",
     emptyTitle: "No accessories yet",
     emptyBody: "Hold an accessory to open it, then claim it to see it here.",

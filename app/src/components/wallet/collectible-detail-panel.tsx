@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { StatusPill } from "@/components/shared/status-pill";
 import { NavBar, NavBarBack } from "@/components/shared/nav-bar";
 import { Separator } from "@/components/ui/separator";
 import { copy } from "@/lib/copy/phygital";
@@ -65,7 +65,7 @@ export function CollectibleDetailPanel({
                 {collectible.collectionName}
               </p>
             ) : null}
-            <Badge variant="secondary">{badge}</Badge>
+            <StatusPill label={badge} tone="neutral" />
           </div>
 
           <Separator />

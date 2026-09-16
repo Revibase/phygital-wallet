@@ -1279,7 +1279,7 @@ function RestoreStandardButton({
           if (!setPolicy.isPending) setOpen(next);
         }}
       >
-        <DialogContent className="space-y-4">
+        <DialogContent showCloseButton={false}>
           <DialogHeader>
             <DialogTitle>{copy.wallet.policyRestoreConfirmTitle}</DialogTitle>
             <DialogDescription>
@@ -1291,6 +1291,7 @@ function RestoreStandardButton({
               <Button
                 type="button"
                 variant="outline"
+                className="w-full rounded-full sm:w-auto"
                 disabled={setPolicy.isPending}
               >
                 {copy.common.cancel}
@@ -1298,6 +1299,7 @@ function RestoreStandardButton({
             </DialogClose>
             <Button
               type="button"
+              className="w-full rounded-full sm:w-auto"
               disabled={setPolicy.isPending}
               onClick={() =>
                 setPolicy.mutate(
@@ -1351,7 +1353,7 @@ function TurnOffProtectionsButton({
           if (!clear.isPending) setOpen(next);
         }}
       >
-        <DialogContent>
+        <DialogContent showCloseButton={false}>
           <DialogHeader>
             <DialogTitle>{copy.wallet.policyTurnOffConfirmTitle}</DialogTitle>
             <DialogDescription>
@@ -1363,6 +1365,7 @@ function TurnOffProtectionsButton({
               <Button
                 type="button"
                 variant="outline"
+                className="w-full rounded-full sm:w-auto"
                 disabled={clear.isPending}
               >
                 {copy.common.cancel}
@@ -1371,6 +1374,7 @@ function TurnOffProtectionsButton({
             <Button
               type="button"
               variant="destructive"
+              className="w-full rounded-full sm:w-auto"
               disabled={clear.isPending}
               onClick={() =>
                 clear.mutate(undefined, {

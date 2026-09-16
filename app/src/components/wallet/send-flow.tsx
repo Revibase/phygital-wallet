@@ -352,7 +352,6 @@ export function SendFlow({
       onSent: (signature) => {
         onHoldPhaseChange("success", recapForSend(signature));
         onSignPhaseChange?.(null);
-        toast.success(copy.wallet.sent);
         onSent();
       },
       onFundingDenial: (e) => {
@@ -425,17 +424,11 @@ export function SendFlow({
         />
 
         <Button
-          asChild
+          type="button"
           variant="secondary"
           className="mx-auto h-auto min-h-0 gap-2 rounded-full bg-muted/40 px-3 py-1.5 text-sm hover:bg-muted/60"
+          onClick={() => setPickerOpen(true)}
         >
-          <m.button
-            type="button"
-            onClick={() => setPickerOpen(true)}
-            whileHover={{ y: -1, scale: 1.01 }}
-            whileTap={{ scale: 0.985 }}
-            transition={{ duration: 0.18, ease: "easeOut" }}
-          >
             {asset ? (
               nft ? (
                 <Avatar className="size-6">
@@ -463,7 +456,6 @@ export function SendFlow({
                 : copy.wallet.selectAsset}
             </span>
             <ChevronDown className="size-4 text-muted-foreground" />
-          </m.button>
         </Button>
 
         <m.div
@@ -565,7 +557,7 @@ export function SendFlow({
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -4 }}
-                transition={{ duration: 0.18, ease: "easeOut" }}
+                transition={snapEnterTransition}
               >
                 {shortAddress(String(parsedRecipient), 6)}
               </m.p>
@@ -630,7 +622,7 @@ export function SendFlow({
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
+              transition={snapEnterTransition}
             >
               <p>{hardError.message}</p>
               {onChangeLimits ? (
@@ -655,17 +647,22 @@ export function SendFlow({
           animate={{ opacity: 1, y: 0 }}
           transition={snapEnterTransition}
         >
-          <m.div whileTap={{ scale: canSend ? 0.995 : 1 }}>
-            <Button
-              type="button"
-              size="lg"
-              className="w-full"
-              disabled={!canSend}
-              onClick={() => void runSend()}
-            >
-              {busy ? <Spinner className="size-4" /> : copy.wallet.holdToSend}
-            </Button>
-          </m.div>
+          <Button
+            type="button"
+            size="lg"
+            className="w-full"
+            disabled={!canSend}
+            onClick={() => void runSend()}
+          >
+            {busy ? (
+              <>
+                <Spinner className="size-4" />
+                {copy.wallet.signPreparingTitle}
+              </>
+            ) : (
+              copy.wallet.holdToSend
+            )}
+          </Button>
         </m.div>
 
         <Sheet open={pickerOpen} onOpenChange={setPickerOpen}>

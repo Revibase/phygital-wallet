@@ -9,7 +9,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CollectiblesGrid } from "@/components/wallet/collectibles-grid";
 import { TokenHoldingRow } from "@/components/wallet/token-holding-row";
 import { GroupedList } from "@/components/shared/grouped-list";
-import { useLocalFlag } from "@/lib/local-flag";
 import { copy } from "@/lib/copy/phygital";
 import type {
   WalletCollectible,
@@ -26,10 +25,8 @@ import { formatUsd, sumUsd } from "@/lib/currency/usd";
 import { formatCompactTokenAmount } from "@/lib/tokens/amount";
 import { isDefaultMint } from "@/lib/tokens/payment-token";
 import { walletPortfolioSplitClass } from "@/lib/layout";
-import { snapEnter, snapEnterTransition, easeOut } from "@/lib/motion";
+import { snapEnter, snapEnterTransition, easeOut, duration } from "@/lib/motion";
 import { cn } from "@/lib/utils";
-
-const FIRST_RUN_FLAG = "revibase.first-run.wallet.v1";
 
 /** Shared Wallet panel — calm home: capped tokens + collectibles, See All. */
 const EMPTY_HOLDINGS: WalletPortfolio["holdings"] = [];
@@ -64,7 +61,6 @@ export function WalletHomePanel({
   visitorNotice,
   onVisitorNotice,
   visitorNoticeAction,
-  suppressFirstRun = false,
   status = "live",
   className,
 }: {
@@ -90,8 +86,6 @@ export function WalletHomePanel({
   visitorNotice?: string | null;
   visitorNoticeAction?: string;
   onVisitorNotice?: () => void;
-  /** A parent ceremony may suppress the empty-wallet first-run. */
-  suppressFirstRun?: boolean;
   status?: "live" | "refreshing" | "error";
   className?: string;
 }) {
@@ -109,14 +103,10 @@ export function WalletHomePanel({
         hidden: { opacity: 0, y: 6 },
         show: { opacity: 1, y: 0 },
       };
-  const [firstRunDismissed, setFirstRunDismissed] =
-    useLocalFlag(FIRST_RUN_FLAG);
-  const showFirstRun =
-    empty && !linkedMint && !firstRunDismissed && !suppressFirstRun;
   const tokenPreview = useMemo(() => previewHoldings(holdings), [holdings]);
   const collectiblePreview = useMemo(
     () => previewCollectibles(collectibles, linkedMint),
-    [collectibles, linkedMint]
+    [collectibles, linkedMint],
   );
   const moreTokens = holdings.length > HOME_TOKEN_PREVIEW;
   const moreCollectibles = collectibles.length > HOME_COLLECTIBLE_PREVIEW;
@@ -125,7 +115,7 @@ export function WalletHomePanel({
   const usdcHolding = holdings.find((h) => isDefaultMint(h.mint));
 
   const hasUsd = holdings.some(
-    (h) => typeof h.valueUsd === "number" && Number.isFinite(h.valueUsd)
+    (h) => typeof h.valueUsd === "number" && Number.isFinite(h.valueUsd),
   );
   const totalUsd = hasUsd ? sumUsd(holdings.map((h) => h.valueUsd)) : 0;
 
@@ -143,13 +133,13 @@ export function WalletHomePanel({
           usdcHolding.symbol
         }`
       : showUsdHero
-      ? null
-      : primaryCryptoLine;
+        ? null
+        : primaryCryptoLine;
   const heroValue = showUsdHero
     ? formatUsd(totalUsd)
     : primaryCryptoLine
-    ? primaryCryptoLine
-    : formatUsd(0);
+      ? primaryCryptoLine
+      : formatUsd(0);
   const refreshing = status === "refreshing";
 
   if (loading && !portfolio) {
@@ -202,157 +192,119 @@ export function WalletHomePanel({
           },
         }}
       >
-        {!showFirstRun ? (
-          <m.div
-            className="flex flex-col items-center gap-1.5 py-1 text-center lg:items-start lg:text-left"
-            variants={sectionVariants}
-            transition={sectionTransition}
+        <m.div
+          className="flex flex-col items-center gap-1.5 py-1 text-center lg:items-start lg:text-left"
+          variants={sectionVariants}
+          transition={sectionTransition}
+        >
+          <m.h1
+            className="text-balance-hero tabular-nums"
+            initial={
+              prefersReducedMotion
+                ? { opacity: 0 }
+                : { opacity: 0, scale: 0.985, y: 8 }
+            }
+            animate={
+              prefersReducedMotion
+                ? { opacity: 1 }
+                : { opacity: 1, scale: 1, y: 0 }
+            }
+            transition={{ duration: duration.normal, ease: easeOut }}
           >
-            <m.h1
-              className="text-balance-hero tabular-nums"
-              initial={
-                prefersReducedMotion
-                  ? { opacity: 0 }
-                  : { opacity: 0, scale: 0.985, y: 8 }
-              }
-              animate={
-                prefersReducedMotion
-                  ? { opacity: 1 }
-                  : { opacity: 1, scale: 1, y: 0 }
-              }
-              transition={{ duration: 0.22, ease: easeOut }}
-            >
-              {heroValue}
-            </m.h1>
-            {empty ? (
-              <Button
-                type="button"
-                variant="link"
-                onClick={onReceive}
-                className="h-auto min-h-0 px-0 text-sm font-medium text-primary"
-              >
-                {copy.wallet.addMoney}
-              </Button>
-            ) : (
-              <>
-                <p className="text-xs font-medium tracking-wide text-muted-foreground">
-                  {copy.wallet.available}
-                </p>
-                {heroSubtitle ? (
-                  <p className="text-sm text-muted-foreground tabular-nums">
-                    {heroSubtitle}
-                  </p>
-                ) : null}
-              </>
-            )}
-            {lastUpdatedLabel || onRefresh ? (
-              <div className="flex items-center justify-center gap-1 lg:justify-start">
-                {lastUpdatedLabel ? (
-                  <p className="text-xs text-muted-foreground">
-                    {lastUpdatedLabel}
-                  </p>
-                ) : null}
-                {onRefresh ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={copy.wallet.refresh}
-                    className="size-7 min-h-7 min-w-7 rounded-full text-muted-foreground hover:text-foreground"
-                    onClick={onRefresh}
-                  >
-                    <RefreshCcw
-                      className={cn(
-                        "size-3.5",
-                        refreshing ? "animate-spin" : ""
-                      )}
-                      aria-hidden
-                    />
-                  </Button>
-                ) : null}
-              </div>
-            ) : null}
-          </m.div>
-        ) : null}
-
-        {showFirstRun ? (
-          <m.div
-            className="mx-4 flex flex-col gap-4 rounded-3xl border border-border/30 bg-card/70 px-5 py-6 text-center shadow-[0_16px_48px_-28px_var(--card-shadow)] backdrop-blur-md"
-            variants={sectionVariants}
-            transition={sectionTransition}
-          >
-            <div className="space-y-2">
-              <p className="text-large-title">{copy.wallet.firstRunTitle}</p>
-              <p className="mx-auto max-w-xs text-sm leading-relaxed text-muted-foreground">
-                {copy.wallet.firstRunBody}
-              </p>
-            </div>
-            <div className="flex flex-col gap-2">
-              <Button
-                type="button"
-                size="lg"
-                className="w-full"
-                onClick={onReceive}
-              >
-                {copy.wallet.firstRunCta}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="lg"
-                className="w-full"
-                onClick={() => setFirstRunDismissed(true)}
-              >
-                {copy.wallet.firstRunDismiss}
-              </Button>
-            </div>
-          </m.div>
-        ) : null}
-
-        {!showFirstRun ? (
-          <m.div
-            className="mx-auto flex w-full max-w-xl items-center justify-center gap-3 px-2 lg:hidden"
-            variants={sectionVariants}
-            transition={sectionTransition}
-          >
+            {heroValue}
+          </m.h1>
+          {empty ? (
             <Button
               type="button"
-              size="lg"
-              disabled={!hasFungible}
-              title={!hasFungible ? copy.wallet.sendNeedsFunds : undefined}
-              aria-label={
-                !hasFungible
-                  ? `${copy.wallet.send}. ${copy.wallet.sendNeedsFunds}`
-                  : copy.wallet.send
-              }
-              onClick={onSend}
-              className="h-12 min-h-12 flex-1 rounded-full text-[0.9375rem] font-semibold shadow-sm"
-            >
-              <ArrowUp className="size-4" aria-hidden />
-              {copy.wallet.send}
-            </Button>
-            <Button
-              type="button"
-              size="lg"
-              variant="secondary"
+              variant="link"
               onClick={onReceive}
-              className="h-12 min-h-12 flex-1 rounded-full border border-border/50 bg-card/80 text-[0.9375rem] font-semibold backdrop-blur-sm"
+              className="h-auto min-h-0 px-0 text-sm font-medium text-primary"
             >
-              <ArrowDown className="size-4" aria-hidden />
-              {copy.wallet.receive}
+              {copy.wallet.addMoney}
             </Button>
-            <Button
-              type="button"
-              size="lg"
-              variant="secondary"
-              onClick={onSeeAllActivity}
-              className="h-12 min-h-12 flex-1 rounded-full border border-border/50 bg-card/80 text-[0.9375rem] font-semibold backdrop-blur-sm"
-            >
-              <Clock3 className="size-4" aria-hidden />
-              {copy.wallet.activity}
-            </Button>
-          </m.div>
-        ) : null}
+          ) : (
+            <>
+              <p className="text-xs font-medium tracking-wide text-muted-foreground">
+                {copy.wallet.available}
+              </p>
+              {heroSubtitle ? (
+                <p className="text-sm text-muted-foreground tabular-nums">
+                  {heroSubtitle}
+                </p>
+              ) : null}
+            </>
+          )}
+          {lastUpdatedLabel || onRefresh ? (
+            <div className="flex items-center justify-center gap-1 lg:justify-start">
+              {lastUpdatedLabel ? (
+                <p className="text-xs text-muted-foreground">
+                  {lastUpdatedLabel}
+                </p>
+              ) : null}
+              {onRefresh ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={copy.wallet.refresh}
+                  className="size-7 min-h-7 min-w-7 rounded-full text-muted-foreground hover:text-foreground"
+                  onClick={onRefresh}
+                >
+                  <RefreshCcw
+                    className={cn(
+                      "size-3.5",
+                      refreshing ? "animate-spin" : "",
+                    )}
+                    aria-hidden
+                  />
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
+        </m.div>
+
+        <m.div
+          className="mx-auto flex w-full max-w-xl items-center justify-center gap-3 px-2 lg:hidden"
+          variants={sectionVariants}
+          transition={sectionTransition}
+        >
+          <Button
+            type="button"
+            size="lg"
+            disabled={!hasFungible}
+            title={!hasFungible ? copy.wallet.sendNeedsFunds : undefined}
+            aria-label={
+              !hasFungible
+                ? `${copy.wallet.send}. ${copy.wallet.sendNeedsFunds}`
+                : copy.wallet.send
+            }
+            onClick={onSend}
+            className="h-12 min-h-12 flex-1 rounded-full text-[0.9375rem] font-semibold shadow-sm"
+          >
+            <ArrowUp className="size-4" aria-hidden />
+            {copy.wallet.send}
+          </Button>
+          <Button
+            type="button"
+            size="lg"
+            variant="secondary"
+            onClick={onReceive}
+            className="h-12 min-h-12 flex-1 rounded-full border border-border/50 bg-card/80 text-[0.9375rem] font-semibold backdrop-blur-sm"
+          >
+            <ArrowDown className="size-4" aria-hidden />
+            {copy.wallet.receive}
+          </Button>
+          <Button
+            type="button"
+            size="lg"
+            variant="secondary"
+            onClick={onSeeAllActivity}
+            className="h-12 min-h-12 flex-1 rounded-full border border-border/50 bg-card/80 text-[0.9375rem] font-semibold backdrop-blur-sm"
+          >
+            <Clock3 className="size-4" aria-hidden />
+            {copy.wallet.activity}
+          </Button>
+        </m.div>
 
         {visitorNotice ? (
           <QuietNotice
@@ -384,7 +336,7 @@ export function WalletHomePanel({
             className={cn(
               tokenPreview.length > 0 && collectiblePreview.length > 0
                 ? walletPortfolioSplitClass
-                : "flex flex-col gap-6"
+                : "flex flex-col gap-6",
             )}
             variants={sectionVariants}
             transition={sectionTransition}
@@ -474,24 +426,15 @@ function QuietNotice({
     <Button
       type="button"
       variant="ghost"
-      asChild
       className="mx-4 h-auto min-h-0 w-[calc(100%-2rem)] justify-between gap-3 rounded-2xl bg-muted/20 px-4 py-2.5 text-left hover:bg-muted/30"
+      onClick={onClick}
     >
-      <m.button
-        type="button"
-        onClick={onClick}
-        initial={enter.initial}
-        animate={enter.animate}
-        whileTap={{ scale: 0.99 }}
-        transition={snapEnterTransition}
-      >
-        <p className="min-w-0 flex-1 truncate text-xs font-normal text-muted-foreground">
-          {label}
-        </p>
-        <span className="shrink-0 text-xs font-medium text-primary">
-          {action}
-        </span>
-      </m.button>
+      <p className="min-w-0 flex-1 truncate text-xs font-normal text-muted-foreground">
+        {label}
+      </p>
+      <span className="shrink-0 text-xs font-medium text-primary">
+        {action}
+      </span>
     </Button>
   );
 }

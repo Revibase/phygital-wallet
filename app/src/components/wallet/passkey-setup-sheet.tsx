@@ -25,6 +25,7 @@ import { copy, errorCopy } from "@/lib/copy/phygital";
 import { registerOwnerPasskey } from "@/lib/wallet/register-owner-passkey";
 import { toUserErrorMessage } from "@/lib/user-errors";
 
+/** Keep in sync with secure-signer `user-name.ts` (DD-010). */
 const USER_NAME_MIN = 3;
 const USER_NAME_MAX = 32;
 const USER_NAME_RE = /^[a-zA-Z0-9._-]+$/;
@@ -141,14 +142,12 @@ export function PasskeySetupProvider({ children }: { children: ReactNode }) {
           side="bottom"
           showCloseButton={false}
           className="gap-0 rounded-t-3xl border-border/50 bg-background p-0 md:max-w-md"
-          onOpenAutoFocus={(e) => {
-            if (phase?.kind === "username") e.preventDefault();
-          }}
         >
           <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-muted md:hidden" />
           {phase?.kind === "chooser" ? (
             <>
               <SheetHeader className="gap-1.5 px-5 pt-4 pb-2 text-left">
+                <p className="text-section-label">{copy.wallet.setupStepPasskey}</p>
                 <SheetTitle>{copy.wallet.setUpThisPhone}</SheetTitle>
                 <SheetDescription>
                   {copy.wallet.setUpThisPhoneBody}
@@ -181,6 +180,7 @@ export function PasskeySetupProvider({ children }: { children: ReactNode }) {
           ) : phase?.kind === "username" ? (
             <>
               <SheetHeader className="gap-1.5 px-5 pt-4 pb-2 text-left">
+                <p className="text-section-label">{copy.wallet.setupStepPasskey}</p>
                 <SheetTitle>{copy.wallet.usernameTitle}</SheetTitle>
                 <SheetDescription>{copy.wallet.usernameBody}</SheetDescription>
               </SheetHeader>
@@ -190,6 +190,7 @@ export function PasskeySetupProvider({ children }: { children: ReactNode }) {
                 </Label>
                 <Input
                   id="passkey-username"
+                  autoFocus
                   autoComplete="username"
                   autoCapitalize="none"
                   spellCheck={false}
@@ -233,9 +234,13 @@ export function PasskeySetupProvider({ children }: { children: ReactNode }) {
                   variant="outline"
                   className="w-full rounded-full"
                   disabled={creating}
-                  onClick={() => close({ mode: "cancel" })}
+                  onClick={() =>
+                    setPhase((p) =>
+                      p ? { kind: "chooser", resolve: p.resolve } : null,
+                    )
+                  }
                 >
-                  {copy.common.cancel}
+                  {copy.common.back}
                 </Button>
               </SheetFooter>
             </>

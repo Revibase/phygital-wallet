@@ -9,7 +9,7 @@ import {
   useReducedMotion,
 } from "framer-motion";
 
-import { easeOut, galleryAnimate } from "@/lib/motion";
+import { galleryAnimate, stageFadeMotion, stageMotion } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 const fillClass = "flex min-h-0 flex-1 flex-col";
@@ -39,8 +39,7 @@ export function StageTransition({
     );
   }
 
-  const enter = variant === "fade" ? { opacity: 0 } : { opacity: 0, y: 6 };
-  const animate = variant === "fade" ? { opacity: 1 } : { opacity: 1, y: 0 };
+  const motion = variant === "fade" ? stageFadeMotion : stageMotion;
 
   return (
     <LazyMotion features={domAnimation}>
@@ -48,13 +47,10 @@ export function StageTransition({
         <m.div
           key={stageKey}
           className={cn(fillClass, className)}
-          initial={enter}
-          animate={animate}
-          exit={{ opacity: 0 }}
-          transition={{
-            duration: 0.14,
-            ease: easeOut,
-          }}
+          initial={motion.initial}
+          animate={motion.animate}
+          exit={motion.exit}
+          transition={motion.transition}
         >
           {children}
         </m.div>

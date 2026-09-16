@@ -425,7 +425,7 @@ async function handleAuth(
 
   // No local/remote blob: discoverable passkey → ask parent for ciphertext.
   if (!(await ui.confirmImport())) return fail(requestId, "USER_CANCELLED");
-  let busy = beginBusy(requestId, "Follow your device’s passkey prompt…");
+  let busy = beginBusy(requestId, "Waiting for passkey…");
   let disc;
   try {
     disc = await prf.getDiscoverable(rpId);
@@ -534,7 +534,7 @@ async function unlockAndComplete(
   putChallengeB64: string | undefined,
 ): Promise<void> {
   if (!(await ui.confirmImport())) return fail(requestId, "USER_CANCELLED");
-  const busy = beginBusy(requestId, "Follow your device’s passkey prompt…");
+  const busy = beginBusy(requestId, "Waiting for passkey…");
   try {
     const { seed, publicKey } = await decryptWallet(prf, rpId, parsed);
     if (busy.wasDismissed()) {
@@ -607,7 +607,7 @@ async function unlockAndCompleteImport(
   writeLocal: boolean,
 ): Promise<void> {
   if (!(await ui.confirmImport())) return fail(requestId, "USER_CANCELLED");
-  const busy = beginBusy(requestId, "Follow your device’s passkey prompt…");
+  const busy = beginBusy(requestId, "Waiting for passkey…");
   try {
     const { seed, publicKey } = await decryptWallet(prf, rpId, parsed);
     if (busy.wasDismissed()) {
@@ -679,7 +679,7 @@ async function handleSign(
     createdAt: Date.now(),
   });
 
-  const busy = beginBusy(requestId, "Follow your device’s passkey prompt…");
+  const busy = beginBusy(requestId, "Waiting for passkey…");
   try {
     const { seed } = await decryptWallet(prf, rpId, parsed); // fresh WebAuthn (§24)
     if (busy.wasDismissed()) {
@@ -725,7 +725,7 @@ async function handleExportPrivateKey(
   // Dedicated ceremony BEFORE WebAuthn (§14) — warning + explicit continue.
   if (!(await ui.confirmExportPrivateKey()))
     return fail(requestId, "USER_CANCELLED");
-  const busy = beginBusy(requestId, "Follow your device’s passkey prompt…");
+  const busy = beginBusy(requestId, "Waiting for passkey…");
   try {
     const { seed, publicKey } = await decryptWallet(prf, rpId, parsed); // fresh WebAuthn
     if (busy.wasDismissed()) {

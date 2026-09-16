@@ -161,7 +161,6 @@ export function FeeBalancePanel({
       onSent: () => {
         setPhase("success");
         setSignPhase(null);
-        toast.success(copy.wallet.topUpSuccess);
       },
       onConfirmError: (err) => {
         toast.error(toUserErrorMessage(err));

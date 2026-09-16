@@ -58,10 +58,7 @@ function FieldLabel({
 }: React.ComponentProps<typeof Label>) {
   return (
     <Label
-      className={cn(
-        "text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground",
-        className
-      )}
+      className={cn("text-eyebrow text-muted-foreground", className)}
       {...props}
     />
   );

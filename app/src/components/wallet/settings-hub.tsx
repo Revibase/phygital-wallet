@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 
 export type SettingsTarget = "rpcConnection" | "feeBalance" | "walletPolicy";
 
-/** Wallet settings hub — Access / Fees / Advanced. */
+/** Wallet settings hub — Permissions / Fees / Advanced. */
 export function SettingsHub({
   onBack,
   onOpen,
@@ -61,6 +61,16 @@ export function SettingsHub({
         variant === "panel" ? settingsPanelListClass : settingsHubClass
       }
     >
+      <GroupedList label={copy.wallet.settingsPermissions}>
+        <GroupedRow
+          onClick={() => onOpen("walletPolicy")}
+          subtitle={policySubtitle}
+          className={rowClass("walletPolicy")}
+        >
+          {copy.wallet.policy}
+        </GroupedRow>
+      </GroupedList>
+
       <GroupedList label={copy.wallet.settingsFees}>
         <GroupedRow
           onClick={() => onOpen("feeBalance")}
@@ -72,16 +82,6 @@ export function SettingsHub({
           className={rowClass("feeBalance")}
         >
           {copy.wallet.feeBalance}
-        </GroupedRow>
-      </GroupedList>
-
-      <GroupedList label={copy.wallet.settingsSafety}>
-        <GroupedRow
-          onClick={() => onOpen("walletPolicy")}
-          subtitle={policySubtitle}
-          className={rowClass("walletPolicy")}
-        >
-          {copy.wallet.policy}
         </GroupedRow>
       </GroupedList>
 

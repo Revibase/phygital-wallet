@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-/** Grouped inset rows — iOS Settings-style metadata card. */
+/** Grouped inset rows — same surface language as GroupedList (UX-033). */
 export function CollectibleMetadataGroup({
   children,
   className,
@@ -16,7 +16,7 @@ export function CollectibleMetadataGroup({
   return (
     <div
       className={cn(
-        "divide-y divide-border/50 overflow-hidden rounded-xl border border-border/50 bg-muted/25",
+        "divide-y divide-border/50 overflow-hidden rounded-2xl border border-border/30 bg-grouped text-grouped-foreground shadow-[0_1px_0_rgba(255,255,255,0.4)_inset]",
         className
       )}
     >
@@ -42,14 +42,14 @@ export function CollectibleMetadataRow({
 }) {
   const content = (
     <>
-      <span className="shrink-0 text-muted-foreground">{label}</span>
+      <span className="shrink-0 text-sm text-muted-foreground">{label}</span>
       <div className="flex min-w-0 flex-1 flex-col items-end gap-0.5 text-right">
         <div className="flex min-w-0 items-center justify-end gap-2">
-          <div className="min-w-0">{children}</div>
+          <div className="min-w-0 text-sm font-medium">{children}</div>
           {trailing ? <div className="shrink-0">{trailing}</div> : null}
         </div>
         {subtitle ? (
-          <div className="text-[11px] leading-snug text-muted-foreground">
+          <div className="text-xs leading-snug text-muted-foreground">
             {subtitle}
           </div>
         ) : null}
@@ -58,7 +58,7 @@ export function CollectibleMetadataRow({
   );
 
   const rowClasses = cn(
-    "h-auto min-h-0 w-full justify-between gap-3 rounded-none px-0 py-2 text-left text-xs font-normal",
+    "h-auto min-h-11 w-full justify-between gap-3 rounded-none px-4 py-3 text-left font-normal",
     className
   );
 
@@ -68,7 +68,7 @@ export function CollectibleMetadataRow({
         type="button"
         variant="ghost"
         onClick={onPress}
-        className={cn(rowClasses, "hover:bg-muted/40 active:bg-muted/50")}
+        className={cn(rowClasses, "hover:bg-muted/50 active:bg-muted/70")}
       >
         {content}
       </Button>
@@ -78,7 +78,7 @@ export function CollectibleMetadataRow({
   return (
     <div
       className={cn(
-        "flex items-center justify-between gap-3 py-2 text-xs",
+        "flex min-h-11 items-center justify-between gap-3 px-4 py-3",
         className
       )}
     >

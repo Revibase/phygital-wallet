@@ -262,7 +262,7 @@ export function setBusyDismiss(handler: (() => void) | null): void {
 
 export function renderBusy(message: string): void {
   statusScreen({
-    title: "Continue on your device",
+    title: "Waiting for passkey",
     body: message,
     tone: "busy",
     dismissible: true,
@@ -276,7 +276,7 @@ export function renderBusy(message: string): void {
 
 export function renderError(message: string, onDismiss?: () => void): void {
   statusScreen({
-    title: "Something went wrong",
+    title: "Couldn’t continue",
     body: message,
     tone: "error",
     ...(onDismiss
@@ -293,7 +293,7 @@ export function confirmImport(): Promise<boolean> {
         text: "Use your passkey to unlock this wallet on this phone.",
       }),
     ],
-    primary: { label: "Continue with passkey", value: true },
+    primary: { label: "Unlock with passkey", value: true },
     secondary: { label: "Cancel", value: false },
     cancelValue: false,
   });
@@ -302,17 +302,17 @@ export function confirmImport(): Promise<boolean> {
 /** After the app created a passkey — iframe needs a tap for WebAuthn get+PRF. */
 export function confirmFinishCreate(): Promise<boolean> {
   return promptChoice({
-    title: "Finish setup",
+    title: "Confirm on this phone",
     body: [
       el("p", {
         text: "Confirm with the passkey you just created to lock your wallet key on this phone.",
       }),
       el("p", {
         class: "muted",
-        text: "Your signing key never leaves this secure window.",
+        text: "Step 2 of 2 · Your signing key never leaves this secure window.",
       }),
     ],
-    primary: { label: "Continue with passkey", value: true },
+    primary: { label: "Confirm with passkey", value: true },
     secondary: { label: "Cancel", value: false },
     cancelValue: false,
   });

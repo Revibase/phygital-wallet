@@ -18,9 +18,12 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTokenOwner } from "@/hooks/token/use-token-owner";
 import { useUnlinkAccessory } from "@/hooks/token/use-unlink-accessory";
-import { useOwnerWallet } from "@/hooks/wallet/use-owner-wallet";
-import { copy, errorCopy } from "@/lib/copy/phygital";
-import { walletClaimHref } from "@/lib/wallet/token-routes";
+import { copy } from "@/lib/copy/phygital";
+import { setPendingReturn } from "@/lib/wallet/claim-return";
+import {
+  walletClaimHref,
+  walletSettingsHref,
+} from "@/lib/wallet/token-routes";
 import { toUserErrorMessage } from "@/lib/user-errors";
 import { shortAddress } from "@/lib/utils";
 
@@ -34,26 +37,19 @@ export function OwnerOwnershipSection({
   phygitalTokenPda: string;
 }) {
   const router = useRouter();
-  const { login } = useOwnerWallet();
   const { isSignedIn, isClaimed, isOwner, authority, isLoading } =
     useTokenOwner(phygitalTokenPda);
   const unlink = useUnlinkAccessory(phygitalTokenPda);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [signingIn, setSigningIn] = useState(false);
 
   function goClaim() {
     router.push(walletClaimHref(phygitalTokenPda));
   }
 
-  async function onSignIn() {
-    setSigningIn(true);
-    try {
-      await login();
-    } catch (err) {
-      toast.error(toUserErrorMessage(err, errorCopy.signerFailed.body));
-    } finally {
-      setSigningIn(false);
-    }
+  /** Resume settings after home sign-in (UX-029). */
+  function goHomeToSignIn() {
+    setPendingReturn(walletSettingsHref(phygitalTokenPda));
+    router.push("/");
   }
 
   if (isLoading) {
@@ -71,12 +67,11 @@ export function OwnerOwnershipSection({
       <GroupedList label={copy.wallet.ownershipLabel}>
         <GroupedRow
           onClick={() => {
-            if (signingIn) return;
             if (!isClaimed) {
               goClaim();
               return;
             }
-            void onSignIn();
+            goHomeToSignIn();
           }}
           subtitle={copy.wallet.ownershipSignInSubtitle}
         >
@@ -143,7 +138,7 @@ export function OwnerOwnershipSection({
           if (!unlink.isPending) setConfirmOpen(next);
         }}
       >
-        <DialogContent className="space-y-4">
+        <DialogContent showCloseButton={false}>
           <DialogHeader>
             <DialogTitle>{copy.wallet.ownershipUnlinkTitle}</DialogTitle>
             <DialogDescription>
@@ -155,6 +150,7 @@ export function OwnerOwnershipSection({
               <Button
                 type="button"
                 variant="outline"
+                className="w-full rounded-full sm:w-auto"
                 disabled={unlink.isPending}
               >
                 {copy.common.cancel}
@@ -163,6 +159,7 @@ export function OwnerOwnershipSection({
             <Button
               type="button"
               variant="destructive"
+              className="w-full rounded-full sm:w-auto"
               disabled={unlink.isPending}
               onClick={() =>
                 unlink.mutate(undefined, {
