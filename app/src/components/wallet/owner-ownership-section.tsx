@@ -18,12 +18,9 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTokenOwner } from "@/hooks/token/use-token-owner";
 import { useUnlinkAccessory } from "@/hooks/token/use-unlink-accessory";
-import { copy } from "@/lib/copy/phygital";
-import { setPendingReturn } from "@/lib/wallet/claim-return";
-import {
-  walletClaimHref,
-  walletSettingsHref,
-} from "@/lib/wallet/token-routes";
+import { useOwnerWallet } from "@/hooks/wallet/use-owner-wallet";
+import { copy, errorCopy } from "@/lib/copy/phygital";
+import { walletClaimHref } from "@/lib/wallet/token-routes";
 import { toUserErrorMessage } from "@/lib/user-errors";
 import { shortAddress } from "@/lib/utils";
 
@@ -37,19 +34,27 @@ export function OwnerOwnershipSection({
   phygitalTokenPda: string;
 }) {
   const router = useRouter();
+  const { login } = useOwnerWallet();
   const { isSignedIn, isClaimed, isOwner, authority, isLoading } =
     useTokenOwner(phygitalTokenPda);
   const unlink = useUnlinkAccessory(phygitalTokenPda);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [signingIn, setSigningIn] = useState(false);
 
   function goClaim() {
     router.push(walletClaimHref(phygitalTokenPda));
   }
 
-  /** Resume settings after home sign-in (UX-029). */
-  function goHomeToSignIn() {
-    setPendingReturn(walletSettingsHref(phygitalTokenPda));
-    router.push("/");
+  async function signInHere() {
+    if (signingIn) return;
+    setSigningIn(true);
+    try {
+      await login();
+    } catch (err) {
+      toast.error(toUserErrorMessage(err, errorCopy.signerFailed.body));
+    } finally {
+      setSigningIn(false);
+    }
   }
 
   if (isLoading) {
@@ -71,9 +76,13 @@ export function OwnerOwnershipSection({
               goClaim();
               return;
             }
-            goHomeToSignIn();
+            void signInHere();
           }}
-          subtitle={copy.wallet.ownershipSignInSubtitle}
+          subtitle={
+            signingIn
+              ? copy.common.loading
+              : copy.wallet.ownershipSignInSubtitle
+          }
         >
           {copy.wallet.ownershipSignIn}
         </GroupedRow>

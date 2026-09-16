@@ -131,7 +131,7 @@ export function ReceiveNearbyPanel({
 
   const payerBalanceKnown = Boolean(from && asset && payerPortfolio.data);
   const payerBalanceUi = payerBalanceKnown
-    ? (payerHolding?.balanceUi ?? "0")
+    ? payerHolding?.balanceUi ?? "0"
     : null;
   const payerBalanceRaw = payerHolding?.balanceRaw ?? "0";
 
@@ -556,40 +556,15 @@ export function ReceiveNearbyPanel({
           ) : null}
         </div>
 
-        <div className="flex flex-col gap-2">
-          <Button
-            type="button"
-            size="lg"
-            className="w-full rounded-full"
-            disabled={!canConfirm}
-            onClick={() => void runReceive()}
-          >
-            {busy ? <Spinner className="size-4" /> : copy.wallet.holdToReceive}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="lg"
-            className="w-full rounded-full"
-            disabled={busy}
-            onClick={backToForm}
-          >
-            {copy.wallet.nearbyChangeDetails}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="w-full text-muted-foreground"
-            disabled={busy}
-            onClick={changePayer}
-          >
-            {copy.wallet.nearbyChangePayer}
-          </Button>
-          <p className="hidden text-center text-xs text-muted-foreground md:block">
-            {copy.wallet.holdToReceiveDesktopHint}
-          </p>
-        </div>
+        <Button
+          type="button"
+          size="lg"
+          className="w-full rounded-full"
+          disabled={!canConfirm}
+          onClick={() => void runReceive()}
+        >
+          {busy ? <Spinner className="size-4" /> : copy.wallet.holdToReceive}
+        </Button>
       </div>
     );
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -9,19 +9,17 @@ import { GateMessage } from "@/components/layout/gate-message";
 import { CeremonyShell } from "@/components/shared/ceremony-shell";
 import { NfcHoldStatus } from "@/components/shared/nfc-hold-status";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { useClaimAccessory } from "@/hooks/token/use-claim-accessory";
 import { useTokenOwner } from "@/hooks/token/use-token-owner";
-import { copy } from "@/lib/copy/phygital";
-import { setPendingReturn } from "@/lib/wallet/claim-return";
-import { walletClaimHref, walletHref } from "@/lib/wallet/token-routes";
+import { useOwnerWallet } from "@/hooks/wallet/use-owner-wallet";
+import { copy, errorCopy } from "@/lib/copy/phygital";
+import { walletHref } from "@/lib/wallet/token-routes";
 import { toUserErrorMessage } from "@/lib/user-errors";
 
 /**
  * Canonical `set_authority` ceremony — sign in (if needed) then Hold to claim.
- * First-run lands here after unlock; no browse-unclaimed side path.
- *
- * Phone setup goes through home (`setPendingReturn`) so create/unlock uses the
- * same welcome ceremony, then resumes here (UX-029).
+ * First-run lands here after unlock; phone setup runs inline (no home bounce).
  */
 export function ClaimAccessoryPanel({
   phygitalTokenPda,
@@ -29,8 +27,10 @@ export function ClaimAccessoryPanel({
   phygitalTokenPda: string;
 }) {
   const router = useRouter();
+  const { login } = useOwnerWallet();
   const { isSignedIn, isClaimed, isLoading } = useTokenOwner(phygitalTokenPda);
   const claim = useClaimAccessory(phygitalTokenPda);
+  const [signingIn, setSigningIn] = useState(false);
 
   useEffect(() => {
     if (!isLoading && isClaimed) {
@@ -38,12 +38,20 @@ export function ClaimAccessoryPanel({
     }
   }, [isClaimed, isLoading, phygitalTokenPda, router]);
 
-  function onSignIn() {
-    setPendingReturn(walletClaimHref(phygitalTokenPda));
-    router.push("/");
+  async function onSignIn() {
+    if (signingIn) return;
+    setSigningIn(true);
+    try {
+      await login();
+    } catch (err) {
+      toast.error(toUserErrorMessage(err, errorCopy.signerFailed.body));
+    } finally {
+      setSigningIn(false);
+    }
   }
 
   function onClaimed() {
+    toast.success(copy.wallet.policyClaimedTitle);
     router.replace(walletHref(phygitalTokenPda));
   }
 
@@ -78,15 +86,21 @@ export function ClaimAccessoryPanel({
                 type="button"
                 size="lg"
                 className="w-full rounded-full"
-                onClick={onSignIn}
+                disabled={signingIn}
+                onClick={() => void onSignIn()}
               >
-                {copy.wallet.authoritySignInCta}
+                {signingIn ? (
+                  <Spinner className="size-4" />
+                ) : (
+                  copy.wallet.authoritySignInCta
+                )}
               </Button>
               <Button
                 type="button"
                 size="lg"
                 variant="ghost"
                 className="w-full rounded-full"
+                disabled={signingIn}
                 onClick={leaveToken}
               >
                 {copy.common.cancel}

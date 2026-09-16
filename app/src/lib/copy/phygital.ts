@@ -105,14 +105,10 @@ export const copy = {
     /** Form CTA — Hold UI appears only at awaitingPasskey (DD-004). */
     holdToSend: "Hold to send",
     holdToReceive: "Hold to confirm",
-    holdToReceiveDesktopHint: "They’ll hold their accessory to confirm",
     holdToIdentifyPayer: "Hold their accessory",
     holdToIdentifyPayerHint: "They hold once to link, then again to pay",
     nearbySummaryTitle: "Confirm receive",
     nearbySummaryBody: "Have them hold again to send this amount.",
-    nearbyChangeDetails: "Change amount",
-    nearbyChangePayer: "Use a different item",
-    holdToSave: "Hold to save",
     /** Owner-signed config: confirm on this phone (DD-006). */
     configChangeConfirmTitle: "Confirm on this phone",
     configChangeConfirmBody:
@@ -207,8 +203,8 @@ export const copy = {
     authorityChecking: "Checking ownership…",
     authoritySignInTitle: "Set up this phone to claim",
     authoritySignInBody:
-      "Unlock or create a passkey on this phone. Next you’ll hold the accessory once to become the owner.",
-    authoritySignInCta: "Set up this phone",
+      "Continue with a passkey, then hold your accessory once to become the owner.",
+    authoritySignInCta: "Continue",
     authorityClaimBody:
       "Become the owner to turn on everyday payments. You’ll hold your accessory on the next step.",
     authorityClaimTitle: "Hold to claim",
