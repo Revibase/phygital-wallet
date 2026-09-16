@@ -25,6 +25,23 @@ export const queryKeys = {
       [...queryKeys.walletPortfolio.all(), owner] as const,
   },
 
+  recipientAtaFunding: {
+    all: () => ["recipientAtaFunding"] as const,
+    byRecipientMint: (
+      recipient: string | null,
+      mint: string | null,
+      tokenProgram: string | null,
+      kind: string | null,
+    ) =>
+      [
+        ...queryKeys.recipientAtaFunding.all(),
+        recipient,
+        mint,
+        tokenProgram,
+        kind,
+      ] as const,
+  },
+
   walletActivity: {
     all: () => ["walletActivity"] as const,
     byOwner: (owner: string | null, limit = 20, cursor?: string | null) =>

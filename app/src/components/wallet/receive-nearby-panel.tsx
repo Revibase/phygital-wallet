@@ -1,14 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { address, type TransactionModifyingSigner } from "@solana/kit";
-import { useQueryClient } from "@tanstack/react-query";
+import { address } from "@solana/kit";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
-import {
-  getPhygitalWalletSigner,
-  PolicyDeniedError,
-} from "phygital-wallet-sdk";
+import { PolicyDeniedError } from "phygital-wallet-sdk";
 
 import { CeremonyShell } from "@/components/shared/ceremony-shell";
 import { NfcHoldStatus } from "@/components/shared/nfc-hold-status";
@@ -31,6 +28,8 @@ import {
   applyOptimisticWalletActivity,
   invalidateWalletBalances,
   patchOptimisticWalletActivity,
+  queryKeys,
+  queryOptions,
   restorePortfolioSnapshot,
   restoreWalletActivitySnapshot,
   type WalletActivitySnapshot,
@@ -45,11 +44,14 @@ import {
   isFundingDenial,
   runWalletTransaction,
 } from "@/lib/wallet/wallet-transaction";
-import { resolveTokenIconSrc } from "@/lib/tokens/payment-token";
+import {
+  isNativeSolHolding,
+  resolveTokenIconSrc,
+} from "@/lib/tokens/payment-token";
 import { uiAmountToRaw } from "@/lib/tokens/amount";
-import { getSolanaRpc } from "@/lib/solana/rpc";
 import { connectAccessory } from "@/lib/wallet/connect-accessory";
 import { walletPdaForToken } from "@/lib/wallet/pda";
+import { resolveRecipientAtaFunding } from "@/lib/wallet/recipient-ata-funding";
 import {
   isWalletSignCeremonyPhase,
   walletSignPhaseCopy,
@@ -131,9 +133,45 @@ export function ReceiveNearbyPanel({
 
   const payerBalanceKnown = Boolean(from && asset && payerPortfolio.data);
   const payerBalanceUi = payerBalanceKnown
-    ? payerHolding?.balanceUi ?? "0"
+    ? (payerHolding?.balanceUi ?? "0")
     : null;
   const payerBalanceRaw = payerHolding?.balanceRaw ?? "0";
+  const payerSolLamports = useMemo(() => {
+    if (!payerPortfolio.data) return null;
+    const sol = payerPortfolio.data.holdings.find(isNativeSolHolding);
+    return BigInt(sol?.balanceRaw ?? "0");
+  }, [payerPortfolio.data]);
+
+  const ataFunding = useQuery({
+    queryKey: queryKeys.recipientAtaFunding.byRecipientMint(
+      recipientWallet,
+      asset?.mint ?? null,
+      asset?.tokenProgram ?? null,
+      asset?.kind ?? null,
+    ),
+    queryFn: () =>
+      resolveRecipientAtaFunding({
+        recipientWallet,
+        mint: asset!.mint,
+        tokenProgram: asset!.tokenProgram,
+        kind: asset!.kind,
+      }),
+    enabled: Boolean(
+      from && asset && phase === "summary" && asset.kind !== "native",
+    ),
+    ...queryOptions.volatile,
+  });
+
+  const ataFundingKnown =
+    !asset ||
+    asset.kind === "native" ||
+    ataFunding.data != null ||
+    ataFunding.isError;
+  const insufficientAtaRent = Boolean(
+    ataFunding.data?.needsCreate &&
+      payerSolLamports != null &&
+      payerSolLamports < ataFunding.data.rentLamports,
+  );
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -163,7 +201,10 @@ export function ReceiveNearbyPanel({
       !busy &&
       payerBalanceKnown &&
       !overBalance &&
-      !payerPortfolio.isError,
+      !payerPortfolio.isError &&
+      ataFundingKnown &&
+      !insufficientAtaRent &&
+      !ataFunding.isError,
   );
   const showSearch = catalog.length >= ALL_LIST_SEARCH_THRESHOLD;
 
@@ -172,6 +213,12 @@ export function ReceiveNearbyPanel({
       toast.error(toUserErrorMessage(payerPortfolio.error));
     }
   }, [payerPortfolio.isError, payerPortfolio.error]);
+
+  useEffect(() => {
+    if (ataFunding.isError) {
+      toast.error(toUserErrorMessage(ataFunding.error));
+    }
+  }, [ataFunding.isError, ataFunding.error]);
 
   async function identifyFrom() {
     if (!canIdentify) return;
@@ -214,7 +261,15 @@ export function ReceiveNearbyPanel({
   }
 
   async function runReceive() {
-    if (!from || !asset || !amountOk || !payerBalanceKnown || overBalance) {
+    if (
+      !from ||
+      !asset ||
+      !amountOk ||
+      !payerBalanceKnown ||
+      overBalance ||
+      !ataFundingKnown ||
+      insufficientAtaRent
+    ) {
       return;
     }
     const payer = from;
@@ -540,8 +595,14 @@ export function ReceiveNearbyPanel({
                     {copy.wallet.insufficientBalance}
                   </p>
                 ) : null}
+                {insufficientAtaRent ? (
+                  <p className="text-xs text-destructive">
+                    {copy.wallet.insufficientAtaRent}
+                  </p>
+                ) : null}
               </div>
-            ) : payerPortfolio.isLoading ? (
+            ) : payerPortfolio.isLoading ||
+              (asset.kind !== "native" && ataFunding.isLoading) ? (
               <div className="flex items-center gap-2 px-1 text-sm text-muted-foreground">
                 <Spinner className="size-3.5" />
                 <span>{copy.wallet.checkingPayerBalance}</span>

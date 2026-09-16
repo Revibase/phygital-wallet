@@ -167,6 +167,10 @@ export const copy = {
     selectAsset: "Choose asset",
     sendCollectible: "Sending 1 collectible",
     insufficientBalance: "Not enough balance",
+    insufficientAtaRent:
+      "They need a little SOL to open your token account",
+    insufficientAtaRentSend:
+      "You need a little SOL to open their token account",
     selfSend: "Can’t send to this wallet",
     cantReceiveFromSelf: "Can’t receive from this item",
     viewReceipt: "Receipt",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AnimatePresence,
   LazyMotion,
@@ -30,6 +30,8 @@ import {
   applyOptimisticWalletActivity,
   invalidateWalletBalances,
   patchOptimisticWalletActivity,
+  queryKeys,
+  queryOptions,
   restoreFeeBalanceSnapshot,
   restorePortfolioSnapshot,
   restoreWalletActivitySnapshot,
@@ -46,6 +48,7 @@ import {
   buildSendAssetInstructions,
   sendAssetFromWallet,
 } from "@/lib/wallet/send-asset";
+import { resolveRecipientAtaFunding } from "@/lib/wallet/recipient-ata-funding";
 import { useWalletTransaction } from "@/hooks/wallet/use-wallet-transaction";
 import { WalletApprovalSheet } from "@/components/wallet/wallet-approval-sheet";
 import {
@@ -64,7 +67,10 @@ import {
   MIN_ATTEMPT_FEE_LAMPORTS,
 } from "@/lib/wallet/network-fee";
 import { sanitizeDecimalInput } from "@/lib/tokens/amount";
-import { resolveTokenIconSrc } from "@/lib/tokens/payment-token";
+import {
+  isNativeSolHolding,
+  resolveTokenIconSrc,
+} from "@/lib/tokens/payment-token";
 import { snapEnter, snapEnterTransition } from "@/lib/motion";
 import type {
   SendCeremonyState,
@@ -170,6 +176,12 @@ export function SendFlow({
     return h?.balanceUi ?? "0";
   }, [asset, portfolio, nft]);
 
+  const senderSolLamports = useMemo(() => {
+    if (!portfolio) return null;
+    const sol = portfolio.holdings.find(isNativeSolHolding);
+    return BigInt(sol?.balanceRaw ?? "0");
+  }, [portfolio]);
+
   const balanceNum = Number(balanceUi);
   const trimmedRecipient = recipient.trim();
   const parsedRecipient = tryParseAddress(trimmedRecipient);
@@ -183,6 +195,40 @@ export function SendFlow({
     !nft && amount.length > 0 && amountNum > balanceNum + 1e-9;
   const amountOk =
     nft || (amountNum > 0 && Number.isFinite(amountNum) && !overBalance);
+
+  const needsAtaFundingCheck = Boolean(
+    asset &&
+      parsedRecipient &&
+      !selfSend &&
+      asset.kind !== "native" &&
+      asset.kind !== "cnft" &&
+      asset.kind !== "core",
+  );
+  const ataFunding = useQuery({
+    queryKey: queryKeys.recipientAtaFunding.byRecipientMint(
+      parsedRecipient ? String(parsedRecipient) : null,
+      asset?.mint ?? null,
+      asset?.tokenProgram ?? null,
+      asset?.kind ?? null,
+    ),
+    queryFn: () =>
+      resolveRecipientAtaFunding({
+        recipientWallet: String(parsedRecipient!),
+        mint: asset!.mint,
+        tokenProgram: asset!.tokenProgram,
+        kind: asset!.kind,
+      }),
+    enabled: needsAtaFundingCheck,
+    ...queryOptions.volatile,
+  });
+  const ataFundingKnown =
+    !needsAtaFundingCheck || ataFunding.data != null || ataFunding.isError;
+  const insufficientAtaRent = Boolean(
+    ataFunding.data?.needsCreate &&
+      senderSolLamports != null &&
+      senderSolLamports < ataFunding.data.rentLamports,
+  );
+
   const feeBalanceLamports = feeBalance.data?.balanceLamports;
   const feeBalanceKnown = typeof feeBalanceLamports === "number";
   const feeInsufficient =
@@ -203,8 +249,17 @@ export function SendFlow({
       amountOk &&
       !selfSend &&
       !busy &&
-      !feeInsufficient,
+      !feeInsufficient &&
+      ataFundingKnown &&
+      !insufficientAtaRent &&
+      !ataFunding.isError,
   );
+
+  useEffect(() => {
+    if (ataFunding.isError) {
+      toast.error(toUserErrorMessage(ataFunding.error));
+    }
+  }, [ataFunding.isError, ataFunding.error]);
 
   function recapForSend(signature?: string | null): SendHoldRecap {
     const recipientLabel = parsedRecipient
@@ -245,7 +300,16 @@ export function SendFlow({
   }
 
   async function runSend() {
-    if (!asset || !parsedRecipient || !amountOk || selfSend) return;
+    if (
+      !asset ||
+      !parsedRecipient ||
+      !amountOk ||
+      selfSend ||
+      !ataFundingKnown ||
+      insufficientAtaRent
+    ) {
+      return;
+    }
 
     setBusy(true);
     setHardError(null);
@@ -568,6 +632,11 @@ export function SendFlow({
           {selfSend ? (
             <p className="px-1 text-xs text-destructive">
               {copy.wallet.selfSend}
+            </p>
+          ) : null}
+          {insufficientAtaRent ? (
+            <p className="px-1 text-xs text-destructive">
+              {copy.wallet.insufficientAtaRentSend}
             </p>
           ) : null}
         </m.div>
