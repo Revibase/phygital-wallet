@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Ban, Check, ChevronRight, X } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -34,11 +35,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useClearWalletPolicy } from "@/hooks/token/use-clear-wallet-policy";
-import { useClaimAccessory } from "@/hooks/token/use-claim-accessory";
 import { useSetWalletPolicy } from "@/hooks/token/use-set-wallet-policy";
 import { useTokenOwner } from "@/hooks/token/use-token-owner";
 import { useWalletPolicy } from "@/hooks/token/use-wallet-policy";
-import { announceClaimedSuccess } from "@/lib/wallet/announce-claimed-success";
 import { useVerifiedTokens } from "@/hooks/wallet/use-verified-tokens";
 import type {
   ProgramAccessKind,
@@ -65,6 +64,8 @@ import {
   policyPresets,
   type PolicyPreset,
 } from "@/lib/wallet/policy-presets";
+import { setPendingReturn } from "@/lib/wallet/claim-return";
+import { walletClaimHref } from "@/lib/wallet/token-routes";
 import { toUserErrorMessage } from "@/lib/user-errors";
 import { cn, shortAddress } from "@/lib/utils";
 
@@ -87,14 +88,23 @@ export function WalletPolicyPanel({
   phygitalTokenPda: string;
   onBack: () => void;
 }) {
+  const router = useRouter();
   const policy = useWalletPolicy(phygitalTokenPda);
   const { isOwner, isSignedIn, isClaimed } = useTokenOwner(phygitalTokenPda);
-  const claim = useClaimAccessory(phygitalTokenPda);
   const [mode, setMode] = useState<Mode>("view");
 
   const data = policy.data;
   const status = data?.status ?? "none";
   const hasLimits = Boolean(data?.hasLimits);
+
+  function goClaim() {
+    if (!isSignedIn) {
+      setPendingReturn(walletClaimHref(phygitalTokenPda));
+      router.push("/");
+      return;
+    }
+    router.push(walletClaimHref(phygitalTokenPda));
+  }
 
   const header = (
     <NavBar
@@ -143,25 +153,16 @@ export function WalletPolicyPanel({
             body={copy.wallet.policyStatusLockedBody}
             tone="warn"
           />
-          {isSignedIn && !isClaimed ? (
+          {!isClaimed ? (
             <Button
               type="button"
               size="lg"
               className="w-full"
-              disabled={claim.isPending}
-              onClick={() =>
-                claim.mutate(undefined, {
-                  onSuccess: () => announceClaimedSuccess(),
-                  onError: (err) =>
-                    toast.error(
-                      toUserErrorMessage(err, copy.wallet.authorityClaimFailed),
-                    ),
-                })
-              }
+              onClick={goClaim}
             >
-              {claim.isPending
-                ? copy.wallet.holdCeremonyTitle
-                : copy.wallet.policyLockedClaimCta}
+              {isSignedIn
+                ? copy.wallet.policyLockedClaimCta
+                : copy.wallet.authoritySignInCta}
             </Button>
           ) : null}
         </div>

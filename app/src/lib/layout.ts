@@ -107,5 +107,8 @@ export const touchTargetClass = "min-h-11 min-w-11";
 
 /** Wallet routes that should stay in the phone ceremony frame. */
 export function isWalletCeremonyPath(pathname: string): boolean {
-  return /\/wallet\/receive\/nearby(?:\/|$)/.test(pathname);
+  return (
+    /\/wallet\/receive\/nearby(?:\/|$)/.test(pathname) ||
+    /\/wallet\/claim(?:\/|$)/.test(pathname)
+  );
 }

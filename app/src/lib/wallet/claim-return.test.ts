@@ -4,7 +4,7 @@ import { consumePendingReturn, setPendingReturn } from "./claim-return";
 
 // A real base58 Solana address so parseTokenWalletPath accepts the path.
 const TOKEN = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
-const SETTINGS_PATH = `/token/${TOKEN}/wallet/settings`;
+const CLAIM_PATH = `/token/${TOKEN}/wallet/claim`;
 
 function installMemorySessionStorage() {
   const store = new Map<string, string>();
@@ -30,8 +30,8 @@ describe("claim-return", () => {
   });
 
   it("stores and consumes a valid token path once", () => {
-    setPendingReturn(SETTINGS_PATH);
-    expect(consumePendingReturn()).toBe(SETTINGS_PATH);
+    setPendingReturn(CLAIM_PATH);
+    expect(consumePendingReturn()).toBe(CLAIM_PATH);
     // Single-use: cleared after consume.
     expect(consumePendingReturn()).toBeNull();
   });

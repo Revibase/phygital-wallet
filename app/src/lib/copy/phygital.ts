@@ -214,8 +214,10 @@ export const copy = {
     authoritySignInBody:
       "Set up this phone first. Next you’ll hold the accessory once to become the owner.",
     authoritySignInCta: "Continue",
-    authorityClaimTitle: "Hold to claim",
     authorityClaimBody:
+      "Become the owner to turn on everyday payments. You’ll hold your accessory on the next step.",
+    authorityClaimTitle: "Hold to claim",
+    authorityClaimHoldBody:
       "Hold your accessory to the top of this phone to become the owner and turn on everyday payments.",
     authorityClaimCta: "Hold to claim",
     authorityClaiming: "Hold your accessory…",

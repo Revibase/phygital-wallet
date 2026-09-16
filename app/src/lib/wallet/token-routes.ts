@@ -12,7 +12,7 @@ const SEGMENT_TO_SETTINGS = new Map<string, SettingsTarget>(
 );
 
 /** Single-segment wallet leaves (not receive/collectibles/settings trees). */
-const WALLET_LEAF_SEGMENTS = new Set(["send", "tokens", "activity"]);
+const WALLET_LEAF_SEGMENTS = new Set(["send", "tokens", "activity", "claim"]);
 
 export function settingsSegment(target: SettingsTarget): string {
   return SETTINGS_TO_SEGMENT[target];
@@ -56,6 +56,14 @@ export function walletSettingsHref(
 ): string {
   if (!target) return walletHref(phygitalToken, "settings");
   return walletHref(phygitalToken, "settings", settingsSegment(target));
+}
+
+/**
+ * Canonical claim / `set_authority` destination. All “Claim” entry points
+ * navigate here — Hold ceremony lives on `/wallet/claim`.
+ */
+export function walletClaimHref(phygitalToken: string): string {
+  return walletHref(phygitalToken, "claim");
 }
 
 /** Soft-deny / fee codes → settings leaf (or hub). */

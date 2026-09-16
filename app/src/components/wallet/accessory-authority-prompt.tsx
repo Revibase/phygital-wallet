@@ -1,28 +1,23 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { usePathname, useRouter } from "next/navigation";
 
 import { RevibaseMark } from "@/components/brand/revibase-mark";
 import { GateMessage } from "@/components/layout/gate-message";
 import { CeremonyShell } from "@/components/shared/ceremony-shell";
-import { NfcHoldStatus } from "@/components/shared/nfc-hold-status";
 import { Button } from "@/components/ui/button";
-import { useClaimAccessory } from "@/hooks/token/use-claim-accessory";
 import { useTokenOwner } from "@/hooks/token/use-token-owner";
-import { useOwnerWallet } from "@/hooks/wallet/use-owner-wallet";
-import { copy, errorCopy } from "@/lib/copy/phygital";
-import { announceClaimedSuccess } from "@/lib/wallet/announce-claimed-success";
-import { walletSettingsHref } from "@/lib/wallet/token-routes";
-import { toUserErrorMessage } from "@/lib/user-errors";
+import { copy } from "@/lib/copy/phygital";
+import { setPendingReturn } from "@/lib/wallet/claim-return";
+import { walletClaimHref } from "@/lib/wallet/token-routes";
 
 /**
- * After browse-unlock, if this accessory has no on-chain authority, prompt the
- * user to become it. Unsigned users sign in / create an account first (sheet →
- * signer iframe). Claim uses the same Hold ceremony as open/send — accessory
- * NFC, not Face ID. Dismissible so balances can still be browsed; permissions
- * stay locked until claimed. Success lands quietly — no blocking dialog.
+ * After browse-unlock, if this accessory has no on-chain authority, nudge the
+ * user toward the canonical claim route (`/wallet/claim`).
+ *
+ * Does not run `set_authority` itself. Skips the gate on the claim path so
+ * that ceremony is reachable.
  */
 export function AccessoryAuthorityPrompt({
   phygitalTokenPda,
@@ -32,20 +27,22 @@ export function AccessoryAuthorityPrompt({
   children: ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { isClaimed, isLoading, isSignedIn } = useTokenOwner(phygitalTokenPda);
-  const { login, isLoading: ownerLoading } = useOwnerWallet();
-  const claim = useClaimAccessory(phygitalTokenPda);
   const [dismissed, setDismissed] = useState(false);
 
-  function onClaimed() {
-    setDismissed(true);
-    announceClaimedSuccess({
-      onLimitSpend: () =>
-        router.push(walletSettingsHref(phygitalTokenPda, "walletPolicy")),
-    });
+  const onClaimRoute = /\/wallet\/claim(?:\/|$)/.test(pathname);
+
+  function goClaim() {
+    if (!isSignedIn) {
+      setPendingReturn(walletClaimHref(phygitalTokenPda));
+      router.push("/");
+      return;
+    }
+    router.push(walletClaimHref(phygitalTokenPda));
   }
 
-  if (isClaimed || dismissed) {
+  if (isClaimed || dismissed || onClaimRoute) {
     return <>{children}</>;
   }
 
@@ -63,98 +60,38 @@ export function AccessoryAuthorityPrompt({
 
   const icon = <RevibaseMark className="size-5 text-muted-foreground" />;
 
-  if (!isSignedIn) {
-    return (
-      <CeremonyShell>
-        <GateMessage
-          icon={icon}
-          title={copy.wallet.authoritySignInTitle}
-          body={copy.wallet.authoritySignInBody}
-          action={
-            <div className="flex flex-col gap-2.5">
-              <Button
-                type="button"
-                size="lg"
-                className="w-full rounded-full"
-                disabled={ownerLoading}
-                onClick={() =>
-                  void login().catch((err) =>
-                    toast.error(
-                      toUserErrorMessage(err, errorCopy.signerFailed.body),
-                    ),
-                  )
-                }
-              >
-                {copy.wallet.authoritySignInCta}
-              </Button>
-              <Button
-                type="button"
-                size="lg"
-                variant="ghost"
-                className="w-full rounded-full"
-                onClick={() => setDismissed(true)}
-              >
-                {copy.wallet.authorityBrowse}
-              </Button>
-            </div>
-          }
-        />
-      </CeremonyShell>
-    );
-  }
-
-  const holding = claim.isPending;
-
   return (
-    <CeremonyShell
-      leading={
-        holding ? undefined : (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="self-start"
-            onClick={() => setDismissed(true)}
-          >
-            {copy.wallet.authorityBrowse}
-          </Button>
-        )
-      }
-    >
-      <NfcHoldStatus
-        size="lg"
-        pulsing={holding}
-        busy={holding}
-        progress={holding}
-        title={
-          holding
-            ? copy.wallet.holdCeremonyTitle
-            : copy.wallet.authorityClaimTitle
-        }
+    <CeremonyShell>
+      <GateMessage
+        icon={icon}
+        title={copy.wallet.authoritySignInTitle}
         body={
-          holding
-            ? copy.wallet.holdCeremonyBody
-            : copy.wallet.authorityClaimBody
+          isSignedIn
+            ? copy.wallet.authorityClaimBody
+            : copy.wallet.authoritySignInBody
         }
         action={
-          holding ? undefined : (
+          <div className="flex flex-col gap-2.5">
             <Button
               type="button"
               size="lg"
               className="w-full rounded-full"
-              onClick={() =>
-                claim.mutate(undefined, {
-                  onSuccess: onClaimed,
-                  onError: (err) =>
-                    toast.error(
-                      toUserErrorMessage(err, copy.wallet.authorityClaimFailed),
-                    ),
-                })
-              }
+              onClick={goClaim}
             >
-              {copy.wallet.authorityClaimCta}
+              {isSignedIn
+                ? copy.wallet.unclaimedBannerAction
+                : copy.wallet.authoritySignInCta}
             </Button>
-          )
+            <Button
+              type="button"
+              size="lg"
+              variant="ghost"
+              className="w-full rounded-full"
+              onClick={() => setDismissed(true)}
+            >
+              {copy.wallet.authorityBrowse}
+            </Button>
+          </div>
         }
       />
     </CeremonyShell>

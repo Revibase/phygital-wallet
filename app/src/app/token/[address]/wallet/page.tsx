@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { ChevronLeft, Settings } from "lucide-react";
 
 import { CopyableAddress } from "@/components/shared/copyable-address";
@@ -15,6 +16,7 @@ import { useWalletPortfolio } from "@/hooks/wallet/use-wallet-portfolio";
 import { useFeeBalance } from "@/hooks/wallet/use-fee-balance";
 import { useRpcPreference } from "@/hooks/wallet/use-rpc-preference";
 import { copy } from "@/lib/copy/phygital";
+import { walletClaimHref } from "@/lib/wallet/token-routes";
 
 const timeFormatter = new Intl.DateTimeFormat(undefined, {
   hour: "numeric",
@@ -24,6 +26,7 @@ const timeFormatter = new Intl.DateTimeFormat(undefined, {
 export default function WalletHomePage() {
   const { tokenAddress, walletAddress, mint, collectible } = useWalletSession();
   const { go, goSettings, goSend, goCard, refresh } = useWalletNav();
+  const router = useRouter();
   const portfolio = useWalletPortfolio(walletAddress);
   const feeBalance = useFeeBalance(tokenAddress);
   const rpc = useRpcPreference();
@@ -138,9 +141,11 @@ export default function WalletHomePage() {
                 : undefined
         }
         onVisitorNotice={
-          showUnclaimed || showOtherOwner || showClaimedVisitor
-            ? () => go("settings")
-            : undefined
+          showUnclaimed
+            ? () => router.push(walletClaimHref(tokenAddress))
+            : showOtherOwner || showClaimedVisitor
+              ? () => goSettings()
+              : undefined
         }
       />
     </div>

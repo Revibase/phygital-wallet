@@ -5,8 +5,6 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { GroupedList, GroupedRow } from "@/components/shared/grouped-list";
-import { CeremonyShell } from "@/components/shared/ceremony-shell";
-import { NfcHoldStatus } from "@/components/shared/nfc-hold-status";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,22 +16,17 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useClaimAccessory } from "@/hooks/token/use-claim-accessory";
 import { useTokenOwner } from "@/hooks/token/use-token-owner";
 import { useUnlinkAccessory } from "@/hooks/token/use-unlink-accessory";
 import { copy } from "@/lib/copy/phygital";
-import { announceClaimedSuccess } from "@/lib/wallet/announce-claimed-success";
 import { setPendingReturn } from "@/lib/wallet/claim-return";
-import { walletSettingsHref } from "@/lib/wallet/token-routes";
+import { walletClaimHref } from "@/lib/wallet/token-routes";
 import { toUserErrorMessage } from "@/lib/user-errors";
 import { shortAddress } from "@/lib/utils";
 
 /**
- * Ownership controls in settings. Self-guards via the frontend ownership check
- * (`useTokenOwner`): signed out → send to home to sign in and return; signed in
- * and unclaimed → claim; owner → unlink (danger); signed in but not the owner →
- * show who owns it. Settings itself is no longer owner-gated — only the policy
- * route is — so this block manages the whole ownership lifecycle inline.
+ * Ownership controls on the settings hub. Claim / `set_authority` lives on
+ * {@link walletClaimHref}; this section links there and handles unlink.
  */
 export function OwnerOwnershipSection({
   phygitalTokenPda,
@@ -43,20 +36,16 @@ export function OwnerOwnershipSection({
   const router = useRouter();
   const { isSignedIn, isClaimed, isOwner, authority, isLoading } =
     useTokenOwner(phygitalTokenPda);
-  const claim = useClaimAccessory(phygitalTokenPda);
   const unlink = useUnlinkAccessory(phygitalTokenPda);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   function goSignIn() {
-    setPendingReturn(walletSettingsHref(phygitalTokenPda));
+    setPendingReturn(walletClaimHref(phygitalTokenPda));
     router.push("/");
   }
 
-  function onClaimed() {
-    announceClaimedSuccess({
-      onLimitSpend: () =>
-        router.push(walletSettingsHref(phygitalTokenPda, "walletPolicy")),
-    });
+  function goClaim() {
+    router.push(walletClaimHref(phygitalTokenPda));
   }
 
   if (isLoading) {
@@ -84,51 +73,21 @@ export function OwnerOwnershipSection({
 
   if (!isClaimed) {
     return (
-      <>
-        <GroupedList
-          label={copy.wallet.ownershipLabel}
-          footer={copy.wallet.ownershipClaimFooter}
-        >
-          <div className="px-4 py-3">
-            <Button
-              type="button"
-              size="lg"
-              className="w-full rounded-full"
-              disabled={claim.isPending}
-              onClick={() =>
-                claim.mutate(undefined, {
-                  onSuccess: onClaimed,
-                  onError: (err) =>
-                    toast.error(
-                      toUserErrorMessage(err, copy.wallet.authorityClaimFailed),
-                    ),
-                })
-              }
-            >
-              {claim.isPending
-                ? copy.wallet.holdCeremonyTitle
-                : copy.wallet.authorityClaimCta}
-            </Button>
-            <p className="mt-2 text-xs text-muted-foreground">
-              {copy.wallet.holdCeremonyBody}
-            </p>
-          </div>
-        </GroupedList>
-        {claim.isPending ? (
-          <div className="fixed inset-0 z-50 bg-background">
-            <CeremonyShell>
-              <NfcHoldStatus
-                size="lg"
-                pulsing
-                busy
-                progress
-                title={copy.wallet.holdCeremonyTitle}
-                body={copy.wallet.holdCeremonyBody}
-              />
-            </CeremonyShell>
-          </div>
-        ) : null}
-      </>
+      <GroupedList
+        label={copy.wallet.ownershipLabel}
+        footer={copy.wallet.ownershipClaimFooter}
+      >
+        <div className="px-4 py-3">
+          <Button
+            type="button"
+            size="lg"
+            className="w-full rounded-full"
+            onClick={goClaim}
+          >
+            {copy.wallet.authorityClaimCta}
+          </Button>
+        </div>
+      </GroupedList>
     );
   }
 
