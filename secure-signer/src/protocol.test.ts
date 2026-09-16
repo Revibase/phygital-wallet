@@ -10,9 +10,32 @@ describe("validateInbound", () => {
     expect(r.ok).toBe(true);
   });
 
-  it("accepts SIGN_TRANSACTION with blob + tx", () => {
-    const r = validateInbound({ ...base, type: "SIGN_TRANSACTION", encryptedWalletBlob: "AAAA", transaction: "AQID" });
+  it("accepts SIGN_TRANSACTION with tx only (local blob)", () => {
+    const r = validateInbound({
+      ...base,
+      type: "SIGN_TRANSACTION",
+      transaction: "AQID",
+    });
     expect(r.ok).toBe(true);
+  });
+
+  it("rejects SIGN_TRANSACTION with parent blob (strict schema)", () => {
+    const r = validateInbound({
+      ...base,
+      type: "SIGN_TRANSACTION",
+      encryptedWalletBlob: "AAAA",
+      transaction: "AQID",
+    });
+    expect(r).toMatchObject({ ok: false, code: "INVALID_MESSAGE" });
+  });
+
+  it("rejects AUTH_START with parent blob (strict schema)", () => {
+    const r = validateInbound({
+      ...base,
+      type: "AUTH_START",
+      encryptedWalletBlob: "AAAA",
+    });
+    expect(r).toMatchObject({ ok: false, code: "INVALID_MESSAGE" });
   });
 
   it("rejects wrong protocol version", () => {
@@ -21,7 +44,7 @@ describe("validateInbound", () => {
   });
 
   it("rejects unknown operation", () => {
-    const r = validateInbound({ ...base, type: "signBytes" });
+    const r = validateInbound({ ...base, type: "IMPORT_KEY" });
     expect(r).toMatchObject({ ok: false, code: "INVALID_MESSAGE" });
   });
 
@@ -30,13 +53,12 @@ describe("validateInbound", () => {
     expect(r).toMatchObject({ ok: false, code: "INVALID_MESSAGE" });
   });
 
-  it("rejects missing blob where required", () => {
-    const r = validateInbound({ ...base, type: "IMPORT_KEY" });
-    expect(r).toMatchObject({ ok: false, code: "INVALID_WALLET_BLOB" });
-  });
-
   it("rejects a bad requestId", () => {
-    const r = validateInbound({ protocolVersion: 1, requestId: "short", type: "AUTH_START" });
+    const r = validateInbound({
+      protocolVersion: 1,
+      requestId: "short",
+      type: "AUTH_START",
+    });
     expect(r).toMatchObject({ ok: false, code: "INVALID_MESSAGE" });
   });
 
@@ -47,25 +69,22 @@ describe("validateInbound", () => {
   });
 
   it("rejects an oversized message", () => {
-    const r = validateInbound({ ...base, type: "SIGN_TRANSACTION", encryptedWalletBlob: "A", transaction: "A".repeat(50_000) });
+    const r = validateInbound({
+      ...base,
+      type: "SIGN_TRANSACTION",
+      transaction: "A".repeat(50_000),
+    });
     expect(r.ok).toBe(false);
   });
 
   it("rejects an oversized transaction string", () => {
     const tx = "A".repeat(4096 * 2);
-    const r = validateInbound({ ...base, type: "SIGN_TRANSACTION", encryptedWalletBlob: "AAAA", transaction: tx });
+    const r = validateInbound({
+      ...base,
+      type: "SIGN_TRANSACTION",
+      transaction: tx,
+    });
     expect(r).toMatchObject({ ok: false });
-  });
-
-  it("accepts AUTH_START with and without blob", () => {
-    expect(validateInbound({ ...base, type: "AUTH_START" }).ok).toBe(true);
-    expect(
-      validateInbound({
-        ...base,
-        type: "AUTH_START",
-        encryptedWalletBlob: "AAAA",
-      }).ok,
-    ).toBe(true);
   });
 
   it("accepts AUTH_START create with credentialId", () => {
@@ -94,5 +113,15 @@ describe("validateInbound", () => {
         errorCode: "BLOB_UNAVAILABLE",
       }).ok,
     ).toBe(true);
+  });
+
+  it("accepts PROBE_LOCAL", () => {
+    expect(validateInbound({ ...base, type: "PROBE_LOCAL" }).ok).toBe(true);
+  });
+
+  it("accepts EXPORT_PRIVATE_KEY", () => {
+    expect(validateInbound({ ...base, type: "EXPORT_PRIVATE_KEY" }).ok).toBe(
+      true,
+    );
   });
 });

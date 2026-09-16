@@ -6,13 +6,8 @@
  * parent XSS must not see wrapping material (secure-signer threat model).
  */
 
+import { bytesToBase64Url } from "@/lib/crypto/base64";
 import { resolveWebAuthnRpId } from "@/lib/wallet/webauthn-rp-id";
-
-function bytesToBase64Url(bytes: Uint8Array): string {
-  let s = "";
-  for (const b of bytes) s += String.fromCharCode(b);
-  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
 
 function randomBytes(n: number): Uint8Array {
   return crypto.getRandomValues(new Uint8Array(n));

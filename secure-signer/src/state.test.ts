@@ -20,9 +20,9 @@ describe("SignerState", () => {
     const s = new SignerState();
     expect(s.begin("SIGN_PENDING", "r1")).toBe(true);
     expect(s.isBusy()).toBe(true);
-    expect(s.begin("IMPORT_PENDING", "r2")).toBe(false); // busy
+    expect(s.begin("AUTH_PENDING", "r2")).toBe(false); // busy
     s.end();
-    expect(s.begin("IMPORT_PENDING", "r2")).toBe(true);
+    expect(s.begin("AUTH_PENDING", "r2")).toBe(true);
   });
 
   it("authorization is single-use and digest-bound", async () => {

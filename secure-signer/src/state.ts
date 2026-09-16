@@ -18,7 +18,6 @@ import {
 
 export type OperationState =
   | "IDLE"
-  | "IMPORT_PENDING"
   | "SIGN_PENDING"
   | "PRIVATE_EXPORT_PENDING"
   | "AUTH_PENDING";

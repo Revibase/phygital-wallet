@@ -154,6 +154,10 @@ export const copy = {
     passkeyUnlockCta: "Unlock with passkey",
     passkeyCreateCta: "Create a new passkey",
     passkeyCreating: "Waiting for passkey…",
+    passkeyLostTitle: "Can’t unlock this wallet",
+    passkeyLostBody:
+      "The passkey for this wallet isn’t available on this phone. Creating a new passkey starts a new wallet — it won’t recover the old one.",
+    passkeyLostCreateCta: "Create a new wallet",
     usernameLabel: "Username",
     usernamePlaceholder: "yourname",
     usernameHint:

@@ -14,7 +14,6 @@ function summary(
 ): TransactionSummary {
   return {
     walletAddress: "Wallet111111111111111111111111111111111",
-    ownerSignerIndex: 0,
     instructions: kinds.map((kind) => ({
       kind,
       authority: null,

@@ -2,10 +2,9 @@
  * Kit partial signer backed by the secure-signer iframe — the owner/authority
  * signature source (parallel to `createDefaultFeePayer`, the paymaster signer).
  *
- * Unlike the WaaS signer, this uses the RAW 64-byte signature the signer returns,
- * so it does NOT need to decode the signed transaction. That matters: the signer
- * produces transaction v1, which @solana/kit@8.1.0 cannot decode. Kit assembles
- * the multi-signer transaction itself from this signature dictionary.
+ * Uses the RAW 64-byte signature the signer returns so Kit can assemble the
+ * multi-signer transaction from this signature dictionary. The signer decodes
+ * and signs transaction v1 via `@solana/kit` codecs.
  */
 
 import {

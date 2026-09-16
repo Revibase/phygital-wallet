@@ -13,7 +13,7 @@ import {
   PhygitalWalletInstruction,
 } from "phygital-wallet-sdk";
 import { ed25519PublicKey, ed25519Sign, generateEd25519Seed, randomBytes } from "../crypto.js";
-import { compileV1, encodeV1Wire } from "../testing/encode-v1.js";
+import { encodeV1Wire } from "../testing/encode-v1.js";
 import { decodeV1Transaction } from "./decode-v1.js";
 import { evaluatePolicy } from "./policy.js";
 import { ed25519 } from "@noble/curves/ed25519.js";
@@ -49,8 +49,12 @@ function buildExecuteWithAuthorityWire(ownerPub: Uint8Array, dest: Address) {
   });
   const ix = { ...base, accounts: [...base.accounts, ...remainingAccounts] };
 
-  const compiled = compileV1({ feePayer: randomAddress(), instructions: [ix] });
-  return { wire: encodeV1Wire(compiled), ownerAddress, wallet, phygitalToken };
+  return {
+    wire: encodeV1Wire({ feePayer: randomAddress(), instructions: [ix] }),
+    ownerAddress,
+    wallet,
+    phygitalToken,
+  };
 }
 
 describe("evaluatePolicy (executeWithAuthority)", () => {
@@ -102,8 +106,9 @@ describe("evaluatePolicy (executeWithAuthority)", () => {
       accounts: [{ address: ownerAddress, role: AccountRole.WRITABLE_SIGNER }],
       data: Uint8Array.from([1, 2, 3]),
     };
-    const compiled = compileV1({ feePayer: ownerAddress, instructions: [ix] });
-    const tx = decodeV1Transaction(encodeV1Wire(compiled));
+    const tx = decodeV1Transaction(
+      encodeV1Wire({ feePayer: ownerAddress, instructions: [ix] }),
+    );
     expect(evaluatePolicy(tx, ownerPub)).toMatchObject({ ok: false, code: "POLICY_REJECTED" });
   });
 
@@ -116,8 +121,9 @@ describe("evaluatePolicy (executeWithAuthority)", () => {
       accounts: [] as AccountMeta[],
       data: Uint8Array.from([2, 64, 66, 15, 0]),
     };
-    const compiled = compileV1({ feePayer: ownerAddress, instructions: [ix] });
-    const tx = decodeV1Transaction(encodeV1Wire(compiled));
+    const tx = decodeV1Transaction(
+      encodeV1Wire({ feePayer: ownerAddress, instructions: [ix] }),
+    );
     expect(evaluatePolicy(tx, ownerPub)).toMatchObject({ ok: false, code: "POLICY_REJECTED" });
   });
 });

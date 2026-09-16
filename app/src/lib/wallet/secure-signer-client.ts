@@ -10,6 +10,7 @@
  */
 
 import { SECURE_SIGNER_ORIGIN } from "@/lib/wallet/owner-backend";
+import { bytesToBase64 } from "@/lib/crypto/base64";
 
 const PROTOCOL_VERSION = 1;
 const REQUEST_TIMEOUT_MS = 120_000;
@@ -18,9 +19,7 @@ const READY_TIMEOUT_MS = 20_000;
 export type AuthResult = {
   publicKey: string;
   encryptedWalletBlob: string;
-  created: boolean;
-  putSignature?: string;
-  sessionSignature?: string;
+  putSignature: string;
 };
 
 export class SecureSignerError extends Error {
@@ -46,12 +45,6 @@ export type SecureSignerHostBridge = {
   setOpen: (open: boolean) => void;
   isOpen: () => boolean;
 };
-
-function bytesToBase64(bytes: Uint8Array): string {
-  let s = "";
-  for (const b of bytes) s += String.fromCharCode(b);
-  return btoa(s);
-}
 
 function randomRequestId(): string {
   const b = crypto.getRandomValues(new Uint8Array(16));
@@ -300,25 +293,31 @@ class SecureSignerClient {
     }
   }
 
-  async authenticate(
-    encryptedWalletBlob?: string | null,
-    opts?: {
-      resolveBlob?: (
-        credentialId: string,
-      ) => string | null | Promise<string | null>;
-      putChallenge?: string;
-      sessionChallenge?: string;
-      authMode?: "create" | "unlock";
-      credentialId?: string;
-    },
-  ): Promise<AuthResult> {
+  async probeLocal(): Promise<{ publicKey: string } | null> {
+    const r = await this.request(
+      "PROBE_LOCAL",
+      "PROBE_LOCAL_RESULT",
+      {},
+      false,
+    );
+    if (!r["hasLocalWallet"]) return null;
+    const publicKey = r["publicKey"];
+    return typeof publicKey === "string" ? { publicKey } : null;
+  }
+
+  async authenticate(opts: {
+    resolveBlob?: (
+      credentialId: string,
+    ) => string | null | Promise<string | null>;
+    putChallenge: string;
+    authMode?: "create" | "unlock";
+    credentialId?: string;
+  }): Promise<AuthResult> {
     const payload: Record<string, unknown> = {
-      authMode: opts?.authMode ?? "unlock",
+      authMode: opts.authMode ?? "unlock",
+      putChallenge: opts.putChallenge,
     };
-    if (encryptedWalletBlob) payload.encryptedWalletBlob = encryptedWalletBlob;
-    if (opts?.putChallenge) payload.putChallenge = opts.putChallenge;
-    if (opts?.sessionChallenge) payload.sessionChallenge = opts.sessionChallenge;
-    if (opts?.credentialId) payload.credentialId = opts.credentialId;
+    if (opts.credentialId) payload.credentialId = opts.credentialId;
     const r = await this.request(
       "AUTH_START",
       "AUTH_COMPLETE",
@@ -326,72 +325,42 @@ class SecureSignerClient {
       true,
       {
         onBlobNeeded: async (credentialId) => {
-          if (opts?.resolveBlob) return opts.resolveBlob(credentialId);
-          return encryptedWalletBlob ?? null;
+          if (opts.resolveBlob) return opts.resolveBlob(credentialId);
+          return null;
         },
       },
     );
+    if (typeof r["putSignature"] !== "string") {
+      throw new SecureSignerError("INTERNAL_ERROR");
+    }
     return {
       publicKey: String(r["publicKey"]),
       encryptedWalletBlob: String(r["encryptedWalletBlob"]),
-      created: Boolean(r["created"]),
-      ...(typeof r["putSignature"] === "string"
-        ? { putSignature: String(r["putSignature"]) }
-        : {}),
-      ...(typeof r["sessionSignature"] === "string"
-        ? { sessionSignature: String(r["sessionSignature"]) }
-        : {}),
+      putSignature: String(r["putSignature"]),
     };
   }
 
-  async getPublicKey(blob: string): Promise<{ publicKey: string }> {
-    const r = await this.request(
-      "GET_PUBLIC_KEY",
-      "GET_PUBLIC_KEY_RESULT",
-      { encryptedWalletBlob: blob },
-      false,
-    );
-    return { publicKey: String(r["publicKey"]) };
-  }
-
-  async signTransaction(
-    blob: string,
-    txBytes: Uint8Array,
-  ): Promise<{
+  async signTransaction(txBytes: Uint8Array): Promise<{
     signature: string;
     publicKey: string;
-    signedTransaction: string;
   }> {
     const r = await this.request(
       "SIGN_TRANSACTION",
       "SIGN_TRANSACTION_RESULT",
-      { encryptedWalletBlob: blob, transaction: bytesToBase64(txBytes) },
+      { transaction: bytesToBase64(txBytes) },
       true,
     );
     return {
       signature: String(r["signature"]),
       publicKey: String(r["publicKey"]),
-      signedTransaction: String(r["signedTransaction"]),
     };
   }
 
-  async exportEncryptedWallet(
-    blob: string,
-  ): Promise<{ encryptedWalletBlob: string }> {
-    const r = await this.request(
-      "EXPORT_ENCRYPTED_WALLET",
-      "EXPORT_ENCRYPTED_WALLET_RESULT",
-      { encryptedWalletBlob: blob },
-      false,
-    );
-    return { encryptedWalletBlob: String(r["encryptedWalletBlob"]) };
-  }
-
-  async exportPrivateKey(blob: string): Promise<{ completed: boolean }> {
+  async exportPrivateKey(): Promise<{ completed: boolean }> {
     const r = await this.request(
       "EXPORT_PRIVATE_KEY",
       "EXPORT_PRIVATE_KEY_RESULT",
-      { encryptedWalletBlob: blob },
+      {},
       true,
     );
     return { completed: Boolean(r["completed"]) };

@@ -1,9 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { usePasskeySetup } from "@/components/wallet/passkey-setup-sheet";
 import type { OwnerWallet } from "@/hooks/wallet/use-owner-wallet";
+import { base64ToBytes } from "@/lib/crypto/base64";
+import { queryKeys } from "@/lib/queries";
 import {
   backupOwnerWalletBlob,
   fetchOwnerWalletBlob,
@@ -11,8 +14,7 @@ import {
 } from "@/lib/wallet/owner-wallet-blob";
 import {
   clearOwnerSession,
-  issueOwnerSessionChallenge,
-  mintOwnerSession,
+  fetchOwnerSession,
 } from "@/lib/wallet/owner-session";
 import {
   getSecureSignerClient,
@@ -23,114 +25,44 @@ import { createSecureSignerSigner } from "@/lib/wallet/secure-signer-signer";
 /**
  * `OwnerWallet` backed by the secure-signer iframe (see `secure-signer/`).
  *
- * Create: passkey is registered on the **app** (shared RP ID). The signer iframe
- * only runs get+PRF and wraps the ed25519 seed — parent never sees key material.
- * Unlock / sign: iframe only.
+ * Login: httpOnly `revibase_owner_session` via GET /owner-session.
+ * Signing ciphertext lives only in the signer's origin localStorage; D1 is the
+ * durable backup used during AUTH restore (`BLOB_NEEDED`).
  */
-const BLOB_KEY = "revibase.owner.blob";
-const PUBKEY_KEY = "revibase.owner.pubkey";
 
-function readLS(key: string): string | null {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
+function isLoginCancelled(err: unknown): boolean {
+  if (err instanceof SecureSignerError && err.code === "USER_CANCELLED") {
+    return true;
   }
-}
-function writeLS(key: string, value: string | null): void {
-  try {
-    if (value === null) localStorage.removeItem(key);
-    else localStorage.setItem(key, value);
-  } catch {
-    /* private mode / blocked storage — non-fatal */
+  if (
+    err instanceof DOMException &&
+    (err.name === "NotAllowedError" || err.name === "AbortError")
+  ) {
+    return true;
   }
+  return (
+    err instanceof Error && /passkey creation was cancelled/i.test(err.message)
+  );
 }
-
-function base64ToBytes(b64: string): Uint8Array {
-  const bin = atob(b64);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
-}
-
-function requireBlob(): string {
-  const blob = readLS(BLOB_KEY);
-  if (!blob)
-    throw new Error("No wallet on this device — create or restore one first");
-  return blob;
-}
-
-/** Backup / session challenges are best-effort — never block the signer ceremony. */
-async function issueChallengeSoft(
-  issue: () => Promise<{ challengeId: string; challenge: string }>,
-  timeoutMs = 2_500,
-): Promise<{ challengeId: string; challenge: string } | null> {
-  try {
-    return await Promise.race([
-      issue(),
-      new Promise<null>((resolve) => {
-        window.setTimeout(() => resolve(null), timeoutMs);
-      }),
-    ]);
-  } catch {
-    return null;
-  }
-}
-
-type Session = { address: string | null; status: OwnerWallet["status"] };
 
 export function useSecureSignerWallet(): OwnerWallet {
-  const { promptSetup } = usePasskeySetup();
-  const [session, setSession] = useState<Session>({
-    address: null,
-    status: "loading",
-  });
-  const { address, status } = session;
+  const { promptSetup, promptLostPasskey } = usePasskeySetup();
+  const queryClient = useQueryClient();
 
-  const finishAuth = useCallback(
-    async (
-      result: {
-        publicKey: string;
-        encryptedWalletBlob: string;
-        putSignature?: string;
-        sessionSignature?: string;
-      },
-      putChallengeId?: string | null,
-      sessionChallengeId?: string | null,
-    ) => {
-      writeLS(BLOB_KEY, result.encryptedWalletBlob);
-      writeLS(PUBKEY_KEY, result.publicKey);
-      setSession({ address: result.publicKey, status: "authenticated" });
-      if (putChallengeId && result.putSignature) {
-        void backupOwnerWalletBlob({
-          encryptedWalletBlob: result.encryptedWalletBlob,
-          publicKey: result.publicKey,
-          challengeId: putChallengeId,
-          signature: result.putSignature,
-        }).catch(() => {});
-      }
-      if (sessionChallengeId && result.sessionSignature) {
-        try {
-          await mintOwnerSession({
-            publicKey: result.publicKey,
-            challengeId: sessionChallengeId,
-            signature: result.sessionSignature,
-          });
-        } catch {
-          /* cookie mint failed — home open will re-login */
-        }
-      }
-    },
-    [],
-  );
+  const sessionQuery = useQuery({
+    queryKey: queryKeys.ownerSession.all(),
+    queryFn: fetchOwnerSession,
+    staleTime: 30_000,
+  });
+
+  const publicKey = sessionQuery.data?.publicKey ?? null;
+  const status: OwnerWallet["status"] = sessionQuery.isPending
+    ? "loading"
+    : publicKey
+      ? "authenticated"
+      : "unauthenticated";
 
   useEffect(() => {
-    const pk = readLS(PUBKEY_KEY);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSession({
-      address: pk,
-      status: pk ? "authenticated" : "unauthenticated",
-    });
     try {
       getSecureSignerClient().preload();
     } catch {
@@ -138,136 +70,126 @@ export function useSecureSignerWallet(): OwnerWallet {
     }
   }, []);
 
-  const login = useCallback(async () => {
-    const client = getSecureSignerClient();
-    const existing = readLS(BLOB_KEY);
-
-    const unlock = async (blob: string | null) => {
-      // Short wait only — never stall the unlock sheet on a slow API.
-      const [putChallenge, sessionChallenge] = await Promise.all([
-        issueChallengeSoft(() => issueOwnerWalletPutChallenge(), 400),
-        issueChallengeSoft(() => issueOwnerSessionChallenge(), 400),
-      ]);
-      const result = await client.authenticate(blob, {
-        authMode: "unlock",
-        ...(putChallenge?.challenge
-          ? { putChallenge: putChallenge.challenge }
-          : {}),
-        ...(sessionChallenge?.challenge
-          ? { sessionChallenge: sessionChallenge.challenge }
-          : {}),
-        resolveBlob: async (credentialId) => {
-          const local = readLS(BLOB_KEY);
-          if (local) return local;
-          try {
-            return await fetchOwnerWalletBlob(credentialId);
-          } catch {
-            return null;
-          }
-        },
+  const finishAuth = useCallback(
+    async (result: {
+      publicKey: string;
+      encryptedWalletBlob: string;
+      putSignature: string;
+      challengeId: string;
+    }) => {
+      const { expiresAt } = await backupOwnerWalletBlob({
+        encryptedWalletBlob: result.encryptedWalletBlob,
+        publicKey: result.publicKey,
+        challengeId: result.challengeId,
+        signature: result.putSignature,
       });
-      await finishAuth(
-        result,
-        putChallenge?.challengeId,
-        sessionChallenge?.challengeId,
-      );
-    };
+      queryClient.setQueryData(queryKeys.ownerSession.all(), {
+        publicKey: result.publicKey,
+        expiresAt,
+      });
+    },
+    [queryClient],
+  );
 
-    if (existing) {
-      await unlock(existing);
-      return;
-    }
+  const login = useCallback(async () => {
+    try {
+      const client = getSecureSignerClient();
+      const putChallengePromise = issueOwnerWalletPutChallenge();
 
-    const choice = await promptSetup();
-    if (choice.mode === "cancel") {
-      throw new SecureSignerError("USER_CANCELLED");
-    }
-    if (choice.mode === "unlock") {
-      await unlock(null);
-      return;
-    }
+      // Returning device: signer-origin localStorage already has ciphertext.
+      let hasLocal = false;
+      try {
+        hasLocal = (await client.probeLocal()) !== null;
+      } catch {
+        /* iframe not ready — fall through to setup sheet */
+      }
 
-    // Create: passkey was already registered in the setup sheet click handler
-    // (user gesture). Open the signer for get+PRF — that ceremony has its own tap.
-    const [putChallenge, sessionChallenge] = await Promise.all([
-      issueChallengeSoft(() => issueOwnerWalletPutChallenge()),
-      issueChallengeSoft(() => issueOwnerSessionChallenge()),
-    ]);
-    const result = await client.authenticate(null, {
-      authMode: "create",
-      credentialId: choice.credentialId,
-      ...(putChallenge?.challenge
-        ? { putChallenge: putChallenge.challenge }
-        : {}),
-      ...(sessionChallenge?.challenge
-        ? { sessionChallenge: sessionChallenge.challenge }
-        : {}),
-    });
-    await finishAuth(
-      result,
-      putChallenge?.challengeId,
-      sessionChallenge?.challengeId,
-    );
-  }, [finishAuth, promptSetup]);
+      if (!hasLocal) {
+        const choice = await promptSetup();
+        if (choice.mode === "cancel") return;
+        const putChallenge = await putChallengePromise;
+        if (choice.mode === "create") {
+          const result = await client.authenticate({
+            authMode: "create",
+            credentialId: choice.credentialId,
+            putChallenge: putChallenge.challenge,
+          });
+          await finishAuth({
+            ...result,
+            challengeId: putChallenge.challengeId,
+          });
+          return;
+        }
+      }
+
+      const putChallenge = await putChallengePromise;
+      try {
+        const result = await client.authenticate({
+          authMode: "unlock",
+          putChallenge: putChallenge.challenge,
+          resolveBlob: (credentialId) => fetchOwnerWalletBlob(credentialId),
+        });
+        await finishAuth({ ...result, challengeId: putChallenge.challengeId });
+      } catch (err) {
+        if (isLoginCancelled(err)) return;
+        // Unlock failed after WebAuthn (e.g. passkey deleted) — offer create.
+        if (
+          !(err instanceof SecureSignerError) ||
+          err.code !== "AUTHENTICATION_FAILED"
+        ) {
+          throw err;
+        }
+        const recovery = await promptLostPasskey();
+        if (recovery.mode === "cancel") return;
+        const createChallenge = await issueOwnerWalletPutChallenge();
+        const result = await client.authenticate({
+          authMode: "create",
+          credentialId: recovery.credentialId,
+          putChallenge: createChallenge.challenge,
+        });
+        await finishAuth({
+          ...result,
+          challengeId: createChallenge.challengeId,
+        });
+      }
+    } catch (err) {
+      if (isLoginCancelled(err)) return;
+      throw err;
+    }
+  }, [finishAuth, promptLostPasskey, promptSetup]);
 
   const logout = useCallback(async () => {
-    writeLS(PUBKEY_KEY, null);
-    setSession({ address: null, status: "unauthenticated" });
-    void clearOwnerSession().catch(() => {});
-  }, []);
+    await clearOwnerSession();
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.ownerSession.all(),
+    });
+  }, [queryClient]);
 
   const signer = useMemo(
     () =>
-      address
+      publicKey
         ? createSecureSignerSigner({
-            address: address,
+            address: publicKey,
             signRaw: async (tx) => {
               const { signature } =
-                await getSecureSignerClient().signTransaction(
-                  requireBlob(),
-                  tx,
-                );
+                await getSecureSignerClient().signTransaction(tx);
               return base64ToBytes(signature);
             },
           })
         : null,
-    [address],
+    [publicKey],
   );
 
   const exportWallet = useCallback(async () => {
-    await getSecureSignerClient().exportPrivateKey(requireBlob());
+    await getSecureSignerClient().exportPrivateKey();
   }, []);
 
-  const loginWrapped = useCallback(async () => {
-    try {
-      await login();
-    } catch (err) {
-      if (err instanceof SecureSignerError && err.code === "USER_CANCELLED") {
-        return;
-      }
-      // OS passkey create/get dismissed — not an app failure.
-      if (
-        err instanceof DOMException &&
-        (err.name === "NotAllowedError" || err.name === "AbortError")
-      ) {
-        return;
-      }
-      if (
-        err instanceof Error &&
-        /passkey creation was cancelled/i.test(err.message)
-      ) {
-        return;
-      }
-      throw err;
-    }
-  }, [login]);
-
   return {
-    address,
+    address: publicKey,
     status,
     isAuthenticated: status === "authenticated",
     isLoading: status === "loading",
-    login: loginWrapped,
+    login,
     logout,
     exportWallet,
     signer,

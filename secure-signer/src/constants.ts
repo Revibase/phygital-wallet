@@ -42,7 +42,7 @@ export const RP_ID: string = resolveRpId(
     ? (globalThis as { location?: { hostname: string } }).location?.hostname ??
         "localhost"
     : "localhost",
-  import.meta.env?.VITE_RP_ID as string | undefined,
+  import.meta.env?.VITE_RP_ID as string | undefined
 );
 
 // ---------------------------------------------------------------------------
@@ -70,16 +70,11 @@ export const ED25519_PUBKEY_BYTES = 32 as const;
 export const KDF_SALT_BYTES = 32 as const;
 
 /**
- * Domain prefix for ed25519 messages proving possession for D1 blob PUT.
+ * Domain prefix for ed25519 messages proving possession for D1 blob PUT
+ * (and owner_session mint on the same PUT).
  * Must match workers/api `putChallengeMessage`.
  */
 export const PUT_CHALLENGE_PREFIX = "revibase.owner-wallet.put.v1" as const;
-
-/**
- * Domain prefix for ed25519 messages proving possession for owner-session mint.
- * Must match workers/api `OWNER_SESSION_CHALLENGE_PREFIX`.
- */
-export const SESSION_CHALLENGE_PREFIX = "revibase.owner-session.v1" as const;
 
 // ---------------------------------------------------------------------------
 // Portable wallet blob format.
@@ -102,36 +97,6 @@ export const MAX_BLOB_BYTES = 1024;
 export const MAX_CREDENTIAL_ID_BYTES = 256;
 /** Max serialized transaction size. Solana v1 message limit is 4096 bytes. */
 export const MAX_TX_BYTES = 4096;
-/**
- * Structural caps on a decoded transaction (defense against parser DoS). These
- * mirror the SIMD-0385 v1 Sanitize limits — the runtime rejects anything above
- * them, so accepting more would only be a signer-side liability.
- */
-export const MAX_SIGNATURES = 12; // v1: num_required_signatures <= 12
-export const MAX_STATIC_ACCOUNTS = 64; // v1: num addresses <= 64
-export const MAX_INSTRUCTIONS = 64; // v1: num instructions <= 64
-export const MAX_ACCOUNTS_PER_INSTRUCTION = 255; // v1: u8 count
-export const MAX_INNER_INSTRUCTIONS = 64;
-
-// ---------------------------------------------------------------------------
-// Transaction v1 resource-limit ceilings. Independently enforced (§20). Values
-// are generous but finite; a structurally valid tx with absurd resource asks is
-// still rejected. BigInt for lamport-scale values (§20 safe integer handling).
-// ---------------------------------------------------------------------------
-
-export const MAX_COMPUTE_UNIT_LIMIT = 1_400_000; // Solana per-tx CU ceiling.
-/**
- * v1 priority fee is a TOTAL lamports u64 in the message (NOT micro-lamports/CU).
- * Fees here are paid by the paymaster, not the owner, so this is a sanity ceiling
- * that also bounds what we clear-sign. 1 SOL.
- */
-export const MAX_PRIORITY_FEE_LAMPORTS = 1_000_000_000n;
-export const MAX_LOADED_ACCOUNTS_DATA_BYTES = 64 * 1024 * 1024; // 64 MiB cap.
-/** v1 heap size default is 32 KiB (MIN_HEAP_FRAME_BYTES); cap the ask at 256 KiB. */
-export const MIN_HEAP_FRAME_BYTES = 32 * 1024;
-export const MAX_HEAP_BYTES = 256 * 1024;
-/** Reserved config-mask bits [5,31] must be zero (§20 reject unknown config). */
-export const CONFIG_MASK_KNOWN_BITS = 0b11111; // bits 0..4
 
 // ---------------------------------------------------------------------------
 // Freshness / replay.

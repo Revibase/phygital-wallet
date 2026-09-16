@@ -17,9 +17,8 @@ const PUBLIC_ROUTES: ReadonlyArray<{ method: string; path: string }> = [
   { method: "POST", path: "/accessory/unlock/tap" },
   { method: "POST", path: "/accessory/unlock/challenge" },
   { method: "POST", path: "/accessory/unlock/webauthn" },
-  // Owner session / browse mint — prove via challenge or owner_session cookie.
-  { method: "POST", path: "/owner-session/challenge" },
-  { method: "POST", path: "/owner-session" },
+  // Owner session (cookie is login source of truth) + browse admit.
+  { method: "GET", path: "/owner-session" },
   { method: "DELETE", path: "/owner-session" },
   { method: "POST", path: "/accessory/owner-browse" },
   { method: "GET", path: "/accessory/session" },
@@ -28,7 +27,8 @@ const PUBLIC_ROUTES: ReadonlyArray<{ method: string; path: string }> = [
   { method: "POST", path: "/webhooks/helius" },
   // Wallet tx ingest — authenticated by its own HMAC signature, not the cookie.
   { method: "POST", path: "/webhooks/transactions" },
-  // Owner encrypted-blob backup — GET is hash-only; PUT proves via ed25519.
+  // Owner encrypted-blob backup — GET hash-only; PUT proves via ed25519 and
+  // mints owner_session. Signing ciphertext lives in the signer origin only.
   { method: "GET", path: "/owner-wallet/blob" },
   { method: "POST", path: "/owner-wallet/blob/challenge" },
   { method: "PUT", path: "/owner-wallet/blob" },

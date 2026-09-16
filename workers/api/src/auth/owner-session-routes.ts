@@ -1,17 +1,17 @@
 /**
  * Owner session + per-item owner browse.
  *
- *   POST /owner-session/challenge  {} → { challengeId, challenge }
- *   POST /owner-session            { challengeId, signature, publicKey }
+ * Session mint happens on PUT /owner-wallet/blob (same possession proof).
+ *
+ *   GET    /owner-session          → { publicKey, expiresAt } | null
  *   DELETE /owner-session          — clear owner_session (+ owner_browse)
- *   POST /accessory/owner-browse   { phygitalToken } — requires owner_session
- *   GET  /accessory/session        → { mode, phygitalToken }
+ *   POST   /accessory/owner-browse { phygitalToken } — requires owner_session
+ *   GET    /accessory/session      → { mode, phygitalToken }
  */
 import { Hono } from "hono";
 import {
   address,
   createSolanaRpc,
-  getAddressEncoder,
 } from "@solana/kit";
 import {
   fetchMaybeAuthority,
@@ -28,16 +28,9 @@ import {
   readOwnerBrowse,
 } from "@/auth/owner-browse-session";
 import {
-  consumeOwnerSessionChallenge,
-  issueOwnerSessionChallenge,
-  ownerSessionChallengeMessage,
-} from "@/auth/owner-session-challenge";
-import {
   clearOwnerSessionCookie,
-  issueOwnerSessionCookie,
   readOwnerSession,
 } from "@/auth/owner-session";
-import { verifyConsumedChallengeProof } from "@/auth/possession-proof";
 import { getErrorMessage } from "@/shared/errors";
 import { json } from "@/shared/http";
 import { tryParseAddress } from "@/shared/solana/address";
@@ -45,86 +38,16 @@ import { getRpcUrl } from "@/shared/solana/cluster";
 
 export const ownerSessionRoutes = new Hono<{ Bindings: Env }>();
 
-const encodeAddress = getAddressEncoder();
-
-/** POST /owner-session/challenge */
-ownerSessionRoutes.post("/owner-session/challenge", async () => {
-  const issued = await issueOwnerSessionChallenge();
-  return json(issued);
-});
-
-/**
- * POST /owner-session — mint cookie after ed25519 proof over session challenge.
- * Signature domain: `revibase.owner-session.v1 || challengeBytes`.
- */
-ownerSessionRoutes.post("/owner-session", async (c) => {
-  let body: unknown;
-  try {
-    body = await c.req.json();
-  } catch {
-    return json({ error: "Invalid JSON body" }, { status: 400 });
+/** GET /owner-session — cookie is the login source of truth. */
+ownerSessionRoutes.get("/owner-session", async (c) => {
+  const session = await readOwnerSession(c);
+  if (!session) {
+    return json({ publicKey: null, expiresAt: null });
   }
-  if (!body || typeof body !== "object" || Array.isArray(body)) {
-    return json({ error: "Invalid JSON body" }, { status: 400 });
-  }
-  const record = body as Record<string, unknown>;
-  const publicKeyRaw = record["publicKey"];
-  const challengeId =
-    typeof record["challengeId"] === "string"
-      ? record["challengeId"].trim()
-      : "";
-  const signatureB64 =
-    typeof record["signature"] === "string"
-      ? record["signature"].trim()
-      : "";
-
-  if (!challengeId || !signatureB64) {
-    return json(
-      {
-        error: "challengeId and signature are required",
-        code: "proof_required",
-      },
-      { status: 401 },
-    );
-  }
-  if (typeof publicKeyRaw !== "string" || !tryParseAddress(publicKeyRaw)) {
-    return json(
-      {
-        error: "publicKey must be a valid Solana address",
-        code: "invalid_public_key",
-      },
-      { status: 400 },
-    );
-  }
-  const publicKey = publicKeyRaw.trim();
-
-  let pubkeyBytes: Uint8Array;
-  try {
-    pubkeyBytes = new Uint8Array(encodeAddress.encode(address(publicKey)));
-  } catch {
-    return json(
-      { error: "Invalid proof", code: "invalid_proof" },
-      { status: 400 },
-    );
-  }
-
-  const proof = await verifyConsumedChallengeProof({
-    challengeId,
-    signatureB64,
-    publicKeyBytes: pubkeyBytes,
-    consume: consumeOwnerSessionChallenge,
-    buildMessage: ownerSessionChallengeMessage,
-    expiredError: "This unlock request expired. Try again.",
+  return json({
+    publicKey: session.publicKey,
+    expiresAt: session.exp,
   });
-  if (!proof.ok) {
-    return json(
-      { error: proof.error, code: proof.code },
-      { status: proof.status },
-    );
-  }
-
-  const { expiresAt } = await issueOwnerSessionCookie(c, publicKey);
-  return json({ ok: true, publicKey, expiresAt });
 });
 
 /** DELETE /owner-session — logout clears owner cookies. */

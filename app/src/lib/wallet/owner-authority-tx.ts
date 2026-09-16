@@ -1,6 +1,6 @@
 /**
  * Shared builder for owner/authority-signed, paymaster-fee-paid transactions
- * (unlink, set/clear wallet policy). The signed-in Helius WaaS owner co-signs as
+ * (unlink, set/clear wallet policy). The signed-in owner co-signs as
  * `authority`; the paymaster is the fee payer and co-signs via `/sign`. Rent for
  * account growth/shrink is refunded to the Authority account's original payer.
  */

@@ -3,7 +3,7 @@
  * disabling the accessory until it is claimed again (re-`set_authority`).
  *
  * No accessory tap: `clear_authority` is authorized by the current authority
- * (the signed-in Helius WaaS owner). Paymaster-fee-paid; rent refunded to the
+ * (the signed-in owner). Paymaster-fee-paid; rent refunded to the
  * Authority account's original payer. See `sendOwnerAuthorityTransaction`.
  */
 import { getClearAuthorityInstruction } from "phygital-wallet-sdk";

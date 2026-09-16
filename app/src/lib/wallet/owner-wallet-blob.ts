@@ -3,34 +3,26 @@
  * Ciphertext only — never private keys.
  *
  * GET is hash-only (optional privacy). PUT requires an ed25519 signature over a
- * server challenge, produced inside the secure-signer during auth.
+ * server challenge, produced inside the secure-signer during auth — and mints
+ * owner_session on success.
  */
 
+import { base64UrlToBytes } from "@/lib/crypto/base64";
 import { queryFetch, readJson } from "@/lib/queries/http";
-
-function base64UrlToBytes(input: string): Uint8Array {
-  const padded = input.replace(/-/g, "+").replace(/_/g, "/");
-  const pad = (4 - (padded.length % 4)) % 4;
-  const bin = atob(padded + "=".repeat(pad));
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
-}
-
-async function sha256Hex(bytes: Uint8Array): Promise<string> {
-  const digest = new Uint8Array(
-    await crypto.subtle.digest("SHA-256", bytes as BufferSource),
-  );
-  let s = "";
-  for (const b of digest) s += b.toString(16).padStart(2, "0");
-  return s;
-}
 
 /** sha256(credentialId) hex — matches the API lookup key. */
 export async function credentialIdHashFromBase64Url(
   credentialIdB64Url: string,
 ): Promise<string> {
-  return sha256Hex(base64UrlToBytes(credentialIdB64Url));
+  const digest = new Uint8Array(
+    await crypto.subtle.digest(
+      "SHA-256",
+      base64UrlToBytes(credentialIdB64Url) as BufferSource,
+    ),
+  );
+  let s = "";
+  for (const b of digest) s += b.toString(16).padStart(2, "0");
+  return s;
 }
 
 /** Mint a single-use challenge for PUT. */
@@ -61,13 +53,13 @@ export async function fetchOwnerWalletBlob(
   return body.encryptedWalletBlob;
 }
 
-/** PUT with ed25519 possession proof from the secure signer. */
+/** PUT with ed25519 possession proof — also mints owner_session cookie. */
 export async function backupOwnerWalletBlob(params: {
   encryptedWalletBlob: string;
   publicKey: string;
   challengeId: string;
   signature: string;
-}): Promise<void> {
+}): Promise<{ expiresAt: number }> {
   const res = await queryFetch("/owner-wallet/blob", {
     method: "PUT",
     headers: { "content-type": "application/json" },
@@ -78,5 +70,5 @@ export async function backupOwnerWalletBlob(params: {
       signature: params.signature,
     }),
   });
-  await readJson(res, "Failed to store wallet backup");
+  return readJson(res, "Failed to store wallet backup");
 }

@@ -51,17 +51,28 @@ export type PasskeySetupChoice =
   | { mode: "unlock" }
   | { mode: "cancel" };
 
+/** After unlock auth fails — create a new wallet or bail (no unlock retry). */
+export type PasskeyLostChoice =
+  | { mode: "create"; userName: string; credentialId: string }
+  | { mode: "cancel" };
+
+type SheetResolve = (v: PasskeySetupChoice | PasskeyLostChoice) => void;
+
 type Phase =
-  | { kind: "chooser"; resolve: (v: PasskeySetupChoice) => void }
+  | { kind: "chooser"; resolve: SheetResolve }
+  | { kind: "lost"; resolve: SheetResolve }
   | {
       kind: "username";
-      resolve: (v: PasskeySetupChoice) => void;
+      back: "chooser" | "lost";
+      resolve: SheetResolve;
     }
   | null;
 
 type PasskeySetupApi = {
   /** First-time Continue: unlock vs create (app UI, then signer iframe). */
   promptSetup: () => Promise<PasskeySetupChoice>;
+  /** Unlock failed (passkey missing) — honest dead-end + create escape. */
+  promptLostPasskey: () => Promise<PasskeyLostChoice>;
 };
 
 const PasskeySetupContext = createContext<PasskeySetupApi | null>(null);
@@ -77,7 +88,7 @@ export function PasskeySetupProvider({ children }: { children: ReactNode }) {
   const [userError, setUserError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
-  const close = useCallback((choice: PasskeySetupChoice) => {
+  const close = useCallback((choice: PasskeySetupChoice | PasskeyLostChoice) => {
     setPhase((p) => {
       if (p) {
         // Wait for Radix Sheet exit + remove-scroll/inert cleanup before the
@@ -96,7 +107,22 @@ export function PasskeySetupProvider({ children }: { children: ReactNode }) {
       setUserName("");
       setUserError(null);
       setCreating(false);
-      setPhase({ kind: "chooser", resolve });
+      setPhase({
+        kind: "chooser",
+        resolve: (v) => resolve(v as PasskeySetupChoice),
+      });
+    });
+  }, []);
+
+  const promptLostPasskey = useCallback((): Promise<PasskeyLostChoice> => {
+    return new Promise((resolve) => {
+      setUserName("");
+      setUserError(null);
+      setCreating(false);
+      setPhase({
+        kind: "lost",
+        resolve: (v) => resolve(v as PasskeyLostChoice),
+      });
     });
   }, []);
 
@@ -125,7 +151,10 @@ export function PasskeySetupProvider({ children }: { children: ReactNode }) {
     }
   }, [close, userName]);
 
-  const api = useMemo(() => ({ promptSetup }), [promptSetup]);
+  const api = useMemo(
+    () => ({ promptSetup, promptLostPasskey }),
+    [promptSetup, promptLostPasskey],
+  );
   const open = phase !== null;
 
   return (
@@ -169,11 +198,56 @@ export function PasskeySetupProvider({ children }: { children: ReactNode }) {
                   className="w-full rounded-full"
                   onClick={() =>
                     setPhase((p) =>
-                      p ? { kind: "username", resolve: p.resolve } : null,
+                      p?.kind === "chooser"
+                        ? {
+                            kind: "username",
+                            back: "chooser",
+                            resolve: p.resolve,
+                          }
+                        : p,
                     )
                   }
                 >
                   {copy.wallet.passkeyCreateCta}
+                </Button>
+              </SheetFooter>
+            </>
+          ) : phase?.kind === "lost" ? (
+            <>
+              <SheetHeader className="gap-1.5 px-5 pt-4 pb-2 text-left">
+                <p className="text-section-label">{copy.wallet.setupStepPasskey}</p>
+                <SheetTitle>{copy.wallet.passkeyLostTitle}</SheetTitle>
+                <SheetDescription>
+                  {copy.wallet.passkeyLostBody}
+                </SheetDescription>
+              </SheetHeader>
+              <SheetFooter className="flex-col gap-2.5 px-5 pt-2 pb-5 sm:flex-col">
+                <Button
+                  type="button"
+                  size="lg"
+                  className="w-full rounded-full"
+                  onClick={() =>
+                    setPhase((p) =>
+                      p?.kind === "lost"
+                        ? {
+                            kind: "username",
+                            back: "lost",
+                            resolve: p.resolve,
+                          }
+                        : p,
+                    )
+                  }
+                >
+                  {copy.wallet.passkeyLostCreateCta}
+                </Button>
+                <Button
+                  type="button"
+                  size="lg"
+                  variant="outline"
+                  className="w-full rounded-full"
+                  onClick={() => close({ mode: "cancel" })}
+                >
+                  {copy.common.cancel}
                 </Button>
               </SheetFooter>
             </>
@@ -235,9 +309,12 @@ export function PasskeySetupProvider({ children }: { children: ReactNode }) {
                   className="w-full rounded-full"
                   disabled={creating}
                   onClick={() =>
-                    setPhase((p) =>
-                      p ? { kind: "chooser", resolve: p.resolve } : null,
-                    )
+                    setPhase((p) => {
+                      if (!p || p.kind !== "username") return p;
+                      return p.back === "lost"
+                        ? { kind: "lost", resolve: p.resolve }
+                        : { kind: "chooser", resolve: p.resolve };
+                    })
                   }
                 >
                   {copy.common.back}

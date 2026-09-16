@@ -59,17 +59,15 @@ export interface PrfProvider {
 export interface CreatedWallet {
   publicKey: Uint8Array;
   blob: Uint8Array;
-  /** Present when `messageToSign` was provided (e.g. D1 PUT proof). */
+  /** Present when `messageToSign` was provided (D1 PUT / login proof). */
   signature?: Uint8Array;
-  /** Present when `sessionMessageToSign` was provided (owner-session proof). */
-  sessionSignature?: Uint8Array;
 }
 
 /** Generate a fresh keypair inside the signer and wrap it into a portable blob. */
 export async function createWallet(
   prf: PrfProvider,
   rpId: string,
-  opts: { userName: string; messageToSign?: Uint8Array },
+  opts: { userName: string; messageToSign?: Uint8Array }
 ): Promise<CreatedWallet> {
   let prfOutput: Uint8Array | undefined;
   try {
@@ -91,8 +89,7 @@ export async function enrollExistingCredential(
   credentialId: Uint8Array,
   opts: {
     messageToSign?: Uint8Array;
-    sessionMessageToSign?: Uint8Array;
-  } = {},
+  } = {}
 ): Promise<CreatedWallet> {
   let prfOutput: Uint8Array | undefined;
   try {
@@ -109,8 +106,7 @@ async function wrapNewSeed(
   rpId: string,
   opts: {
     messageToSign?: Uint8Array;
-    sessionMessageToSign?: Uint8Array;
-  },
+  }
 ): Promise<CreatedWallet> {
   let seed: Uint8Array | undefined;
   try {
@@ -133,9 +129,6 @@ async function wrapNewSeed(
       blob,
       ...(opts.messageToSign
         ? { signature: ed25519Sign(opts.messageToSign, seed) }
-        : {}),
-      ...(opts.sessionMessageToSign
-        ? { sessionSignature: ed25519Sign(opts.sessionMessageToSign, seed) }
         : {}),
     };
   } finally {
@@ -202,7 +195,10 @@ export async function unwrapWallet(
 }
 
 /** Sign message bytes with the decrypted seed, then scrub the seed. */
-export function signAndScrub(messageBytes: Uint8Array, seed: Uint8Array): Uint8Array {
+export function signAndScrub(
+  messageBytes: Uint8Array,
+  seed: Uint8Array
+): Uint8Array {
   try {
     return ed25519Sign(messageBytes, seed);
   } finally {

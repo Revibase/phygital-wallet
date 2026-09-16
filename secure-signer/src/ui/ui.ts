@@ -320,24 +320,6 @@ export function confirmFinishCreate(): Promise<boolean> {
   });
 }
 
-export function confirmConflict(): Promise<"local" | "cancel"> {
-  return promptChoice({
-    title: "Different wallet on this device",
-    body: [
-      el("p", {
-        text: "This device already has a wallet that does not match the backup from the app.",
-      }),
-      el("p", {
-        class: "muted",
-        text: "The backup was not applied. You can keep using the wallet stored on this device.",
-      }),
-    ],
-    primary: { label: "Use this device", value: "local" as const },
-    secondary: { label: "Cancel", value: "cancel" as const },
-    cancelValue: "cancel",
-  });
-}
-
 export function showSuccess(publicKey: string, created: boolean): Promise<void> {
   return new Promise((resolve) => {
     let settled = false;

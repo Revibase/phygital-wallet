@@ -32,10 +32,8 @@ export type ErrorCode =
   | "BLOB_UNAVAILABLE";
 
 export const REQUEST_TYPES = [
-  "GET_PUBLIC_KEY",
-  "IMPORT_KEY",
+  "PROBE_LOCAL",
   "SIGN_TRANSACTION",
-  "EXPORT_ENCRYPTED_WALLET",
   "EXPORT_PRIVATE_KEY",
   "AUTH_START",
   "BLOB_PROVIDED",
@@ -45,10 +43,8 @@ export type RequestType = (typeof REQUEST_TYPES)[number];
 /** Maps a request type to its success-response type (BLOB_PROVIDED is a reply). */
 export const RESULT_TYPE: Record<Exclude<RequestType, "BLOB_PROVIDED">, string> =
   {
-    GET_PUBLIC_KEY: "GET_PUBLIC_KEY_RESULT",
-    IMPORT_KEY: "IMPORT_KEY_RESULT",
+    PROBE_LOCAL: "PROBE_LOCAL_RESULT",
     SIGN_TRANSACTION: "SIGN_TRANSACTION_RESULT",
-    EXPORT_ENCRYPTED_WALLET: "EXPORT_ENCRYPTED_WALLET_RESULT",
     EXPORT_PRIVATE_KEY: "EXPORT_PRIVATE_KEY_RESULT",
     AUTH_START: "AUTH_COMPLETE",
   };
@@ -62,13 +58,20 @@ interface Common {
 
 export type InboundRequest = Common &
   (
-    | { type: "GET_PUBLIC_KEY"; encryptedWalletBlob: string }
-    | { type: "IMPORT_KEY"; encryptedWalletBlob: string }
-    | { type: "SIGN_TRANSACTION"; encryptedWalletBlob: string; transaction: string }
-    | { type: "EXPORT_ENCRYPTED_WALLET"; encryptedWalletBlob: string }
-    | { type: "EXPORT_PRIVATE_KEY"; encryptedWalletBlob: string }
-    | { type: "AUTH_START"; encryptedWalletBlob?: string; putChallenge?: string; sessionChallenge?: string; authMode?: "create" | "unlock"; credentialId?: string }
-    | { type: "BLOB_PROVIDED"; encryptedWalletBlob?: string; errorCode?: ErrorCode }
+    | { type: "PROBE_LOCAL" }
+    | { type: "SIGN_TRANSACTION"; transaction: string }
+    | { type: "EXPORT_PRIVATE_KEY" }
+    | {
+        type: "AUTH_START";
+        putChallenge?: string;
+        authMode?: "create" | "unlock";
+        credentialId?: string;
+      }
+    | {
+        type: "BLOB_PROVIDED";
+        encryptedWalletBlob?: string;
+        errorCode?: ErrorCode;
+      }
   );
 
 export type ValidationResult =
@@ -77,50 +80,26 @@ export type ValidationResult =
 
 // Allowed top-level keys per type. Any extra key => INVALID_MESSAGE (§9 strict).
 const ALLOWED_KEYS: Record<RequestType, ReadonlySet<string>> = {
-  GET_PUBLIC_KEY: new Set([
-    "type",
-    "protocolVersion",
-    "requestId",
-    "timestamp",
-    "encryptedWalletBlob",
-  ]),
-  IMPORT_KEY: new Set([
-    "type",
-    "protocolVersion",
-    "requestId",
-    "timestamp",
-    "encryptedWalletBlob",
-  ]),
+  PROBE_LOCAL: new Set(["type", "protocolVersion", "requestId", "timestamp"]),
   SIGN_TRANSACTION: new Set([
     "type",
     "protocolVersion",
     "requestId",
     "timestamp",
-    "encryptedWalletBlob",
     "transaction",
-  ]),
-  EXPORT_ENCRYPTED_WALLET: new Set([
-    "type",
-    "protocolVersion",
-    "requestId",
-    "timestamp",
-    "encryptedWalletBlob",
   ]),
   EXPORT_PRIVATE_KEY: new Set([
     "type",
     "protocolVersion",
     "requestId",
     "timestamp",
-    "encryptedWalletBlob",
   ]),
   AUTH_START: new Set([
     "type",
     "protocolVersion",
     "requestId",
     "timestamp",
-    "encryptedWalletBlob",
     "putChallenge",
-    "sessionChallenge",
     "authMode",
     "credentialId",
   ]),
@@ -227,20 +206,10 @@ export function validateInbound(data: unknown): ValidationResult {
 
   switch (rtype) {
     case "AUTH_START": {
-      if (blob !== undefined && !validString(blob, b64Cap(MAX_BLOB_BYTES))) {
-        return { ok: false, code: "INVALID_WALLET_BLOB", requestId: rid };
-      }
       const putChallenge = data["putChallenge"];
       if (
         putChallenge !== undefined &&
         !validString(putChallenge, 128)
-      ) {
-        return { ok: false, code: "INVALID_MESSAGE", requestId: rid };
-      }
-      const sessionChallenge = data["sessionChallenge"];
-      if (
-        sessionChallenge !== undefined &&
-        !validString(sessionChallenge, 128)
       ) {
         return { ok: false, code: "INVALID_MESSAGE", requestId: rid };
       }
@@ -264,9 +233,7 @@ export function validateInbound(data: unknown): ValidationResult {
         request: {
           ...common,
           type: "AUTH_START",
-          ...(typeof blob === "string" ? { encryptedWalletBlob: blob } : {}),
           ...(typeof putChallenge === "string" ? { putChallenge } : {}),
-          ...(typeof sessionChallenge === "string" ? { sessionChallenge } : {}),
           ...(authMode === "create" || authMode === "unlock"
             ? { authMode }
             : {}),
@@ -285,8 +252,6 @@ export function validateInbound(data: unknown): ValidationResult {
       if (blob !== undefined && !validString(blob, b64Cap(MAX_BLOB_BYTES))) {
         return { ok: false, code: "INVALID_WALLET_BLOB", requestId: rid };
       }
-      // Exactly one of blob or errorCode should be present for a useful reply;
-      // both missing is allowed (treated as BLOB_UNAVAILABLE by the handler).
       return {
         ok: true,
         request: {
@@ -299,58 +264,11 @@ export function validateInbound(data: unknown): ValidationResult {
         },
       };
     }
-    case "GET_PUBLIC_KEY":
-      if (!validString(blob, b64Cap(MAX_BLOB_BYTES))) {
-        return { ok: false, code: "INVALID_WALLET_BLOB", requestId: rid };
-      }
-      return {
-        ok: true,
-        request: {
-          ...common,
-          type: "GET_PUBLIC_KEY",
-          encryptedWalletBlob: blob as string,
-        },
-      };
-    case "IMPORT_KEY":
-      if (!validString(blob, b64Cap(MAX_BLOB_BYTES))) {
-        return { ok: false, code: "INVALID_WALLET_BLOB", requestId: rid };
-      }
-      return {
-        ok: true,
-        request: {
-          ...common,
-          type: "IMPORT_KEY",
-          encryptedWalletBlob: blob as string,
-        },
-      };
-    case "EXPORT_ENCRYPTED_WALLET":
-      if (!validString(blob, b64Cap(MAX_BLOB_BYTES))) {
-        return { ok: false, code: "INVALID_WALLET_BLOB", requestId: rid };
-      }
-      return {
-        ok: true,
-        request: {
-          ...common,
-          type: "EXPORT_ENCRYPTED_WALLET",
-          encryptedWalletBlob: blob as string,
-        },
-      };
+    case "PROBE_LOCAL":
+      return { ok: true, request: { ...common, type: "PROBE_LOCAL" } };
     case "EXPORT_PRIVATE_KEY":
-      if (!validString(blob, b64Cap(MAX_BLOB_BYTES))) {
-        return { ok: false, code: "INVALID_WALLET_BLOB", requestId: rid };
-      }
-      return {
-        ok: true,
-        request: {
-          ...common,
-          type: "EXPORT_PRIVATE_KEY",
-          encryptedWalletBlob: blob as string,
-        },
-      };
+      return { ok: true, request: { ...common, type: "EXPORT_PRIVATE_KEY" } };
     case "SIGN_TRANSACTION": {
-      if (!validString(blob, b64Cap(MAX_BLOB_BYTES))) {
-        return { ok: false, code: "INVALID_WALLET_BLOB", requestId: rid };
-      }
       const tx = data["transaction"];
       if (!validString(tx, b64Cap(MAX_TX_BYTES))) {
         return { ok: false, code: "MALFORMED_TRANSACTION", requestId: rid };
@@ -360,7 +278,6 @@ export function validateInbound(data: unknown): ValidationResult {
         request: {
           ...common,
           type: "SIGN_TRANSACTION",
-          encryptedWalletBlob: blob as string,
           transaction: tx as string,
         },
       };

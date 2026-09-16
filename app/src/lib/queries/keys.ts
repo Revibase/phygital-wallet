@@ -89,6 +89,10 @@ export const queryKeys = {
       [...queryKeys.accessorySession.all(), token] as const,
   },
 
+  ownerSession: {
+    all: () => ["ownerSession"] as const,
+  },
+
   ownedAccessories: {
     all: () => ["ownedAccessories"] as const,
     byAuthority: (authority: string | null) =>

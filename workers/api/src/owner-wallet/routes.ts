@@ -4,10 +4,14 @@
  * GET — public by credentialIdHash (ciphertext only; optional privacy gate later).
  * PUT — requires ed25519 signature over a server challenge, produced inside the
  *       secure-signer after passkey unlock (proves possession of the wallet).
+ *       On success also mints the owner_session cookie (same proof = signed in).
  */
 import { Hono } from "hono";
 import { getAddressDecoder } from "@solana/kit";
 
+import {
+  issueOwnerSessionCookie,
+} from "@/auth/owner-session";
 import { verifyConsumedChallengeProof } from "@/auth/possession-proof";
 import {
   base64UrlToBytes,
@@ -190,10 +194,13 @@ ownerWalletRoutes.put("/owner-wallet/blob", async (c) => {
         { status: 409 },
       );
     }
+    // Same possession proof that authorized the backup also signs this browser in.
+    const { expiresAt } = await issueOwnerSessionCookie(c, publicKey);
     return json({
       ok: true,
       credentialIdHash,
       created: result === "created",
+      expiresAt,
     });
   } catch (error) {
     return json(

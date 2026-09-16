@@ -4,6 +4,11 @@
  * key the D1 backup and reject malformed uploads.
  */
 
+import {
+  base64UrlToBytes as sharedBase64UrlToBytes,
+  bytesToBase64Url as sharedBytesToBase64Url,
+} from "@/shared/crypto/base64";
+
 export const MAX_OWNER_BLOB_BYTES = 1024;
 export const MAX_CREDENTIAL_ID_BYTES = 256;
 const EXPECTED_CT = 48;
@@ -27,30 +32,23 @@ function u16(b: Uint8Array, o: number): number {
   return ((b[o]! << 8) | b[o + 1]!) >>> 0;
 }
 
-/** Decode base64url (no padding required). */
+/** Decode base64url with a hard size cap (rejects oversized ciphertext early). */
 export function base64UrlToBytes(input: string, maxBytes: number): Uint8Array {
   if (typeof input !== "string" || input.length === 0) {
     throw new OwnerBlobParseError("empty");
   }
-  const padded = input.replace(/-/g, "+").replace(/_/g, "/");
-  const pad = (4 - (padded.length % 4)) % 4;
-  const b64 = padded + "=".repeat(pad);
-  let bin: string;
+  let bytes: Uint8Array;
   try {
-    bin = atob(b64);
+    bytes = sharedBase64UrlToBytes(input);
   } catch {
     throw new OwnerBlobParseError("bad_base64");
   }
-  if (bin.length > maxBytes) throw new OwnerBlobParseError("too_large");
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i) & 0xff;
-  return out;
+  if (bytes.length > maxBytes) throw new OwnerBlobParseError("too_large");
+  return bytes;
 }
 
 export function bytesToBase64Url(bytes: Uint8Array): string {
-  let s = "";
-  for (const b of bytes) s += String.fromCharCode(b);
-  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  return sharedBytesToBase64Url(bytes);
 }
 
 export function parseOwnerBlobHeader(raw: Uint8Array): OwnerBlobHeader {

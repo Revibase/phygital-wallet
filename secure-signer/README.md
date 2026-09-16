@@ -1,11 +1,11 @@
 # secure-signer
 
 A **non-custodial Solana signing iframe** for the phygital-wallet **owner
-(ed25519 authority) key**, intended to replace Helius WaaS. The owner key is
-generated inside an isolated, cross-origin signer origin, wrapped by a key
-derived from a **WebAuthn PRF** output (HKDF-SHA256 → AES-256-GCM), and stored as
-a **portable encrypted blob** the parent/backend persists. The parent app is
-treated as **potentially XSS-compromised**; the signer is the trust boundary.
+(ed25519 authority) key**. The owner key is generated inside an isolated,
+cross-origin signer origin, wrapped by a key derived from a **WebAuthn PRF**
+output (HKDF-SHA256 → AES-256-GCM), and stored as a **portable encrypted blob**
+the parent/backend persists. The parent app is treated as **potentially
+XSS-compromised**; the signer is the trust boundary.
 
 > This is security infrastructure. It is **not** "XSS-proof", "unhackable", or
 > "100% secure." See [THREAT_MODEL.md](./THREAT_MODEL.md) for exactly what it does
@@ -25,12 +25,12 @@ secure-signer/
       wallet-service.ts   # PRF→HKDF→AES-GCM pipeline (PRF injected → headless-testable)
       state.ts            # state machine, replay/freshness, digest-bound authorization
       webauthn.ts         # BrowserPrfProvider (thin WebAuthn shell)
-      tx/decode-v1.ts     # bounded Solana v1 (SIMD-0385) parser
+      tx/decode-v1.ts     # @solana/kit v1 decode + decompile
       tx/policy.ts        # program allowlist + owner binding (depth-2 clear-signing)
-      tx/fjbi.ts          # phygital-wallet-sdk instruction decode + inner-instruction summary
+      tx/parser.ts        # phygital-wallet-sdk instruction decode + inner summary
       ui/ui.ts            # trusted confirm/create/import/export screens (textContent only)
       main.ts             # dispatcher: origin+source, schema, state, explicit switch
-      testing/encode-v1.ts# TEST/DEMO-only v1 encoder (kit cannot emit v1 yet)
+      testing/encode-v1.ts# TEST-only kit v1 compile/encode helper
     deploy/               # _headers (Cloudflare/Netlify) + nginx.conf
   parent-demo/    # UNTRUSTED parent reference integration (separate origin)
   THREAT_MODEL.md
@@ -53,18 +53,14 @@ pipeline is covered headlessly with a mock PRF.
 
 ## Transaction support
 
-The signer parses/signs **Solana transaction v1 only** (SIMD-0385, live on
-mainnet since ~2026-09-09) and rejects legacy/v0. v1 moves resource limits into
-the message, so ComputeBudget instructions are rejected. `@solana/kit@8.1.0`
-cannot yet decode *or emit* v1, so:
-
-- the signer uses its own bounded v1 parser (`tx/decode-v1.ts`);
-- the parent's transaction-building path must be upgraded to a **v1-capable
-  `@solana/kit`** before the end-to-end seam runs against live clusters.
+The signer parses/signs **Solana transaction v1 only** (SIMD-0385) and rejects
+legacy/v0. v1 moves resource limits into the message, so ComputeBudget
+instructions are rejected by policy. Decoding and encoding use `@solana/kit`
+(`getTransactionDecoder`, `decompileTransactionMessage`, `compileTransaction`).
 
 ## Policy (depth 2)
 
-Top-level programs must be on the allowlist (phygital-wallet + Memo). The owner
+Top-level programs must be on the allowlist (phygital-wallet). The owner
 must be a required signer and, for each phygital-wallet instruction that has one,
 the `authority` account. `executeWithAuthority`'s inner instructions are decoded
 and **displayed** (clear-signing), not blocked — this key is the on-chain escape
@@ -72,10 +68,14 @@ hatch by design. See `tx/policy.ts` and the threat model.
 
 ## postMessage API
 
-Request → result: `AUTH_START` → `AUTH_COMPLETE`, `GET_PUBLIC_KEY`,
-`IMPORT_KEY`, `SIGN_TRANSACTION`, `EXPORT_ENCRYPTED_WALLET`, `EXPORT_PRIVATE_KEY`.
+Request → result: `PROBE_LOCAL` → `{ hasLocalWallet, publicKey? }` (no WebAuthn),
+`AUTH_START` → `AUTH_COMPLETE`, `SIGN_TRANSACTION`, `EXPORT_PRIVATE_KEY`.
 Mid-flow: `BLOB_NEEDED` (signer → parent) / `BLOB_PROVIDED` (parent → signer) for
-discoverable restore when no local ciphertext is available.
+discoverable restore when signer-origin localStorage has no ciphertext.
+
+Sign / export use **signer localStorage only**. Parent skips the create/unlock
+sheet when `PROBE_LOCAL` finds a valid local blob. `AUTH_COMPLETE` returns
+ciphertext so the parent can PUT the D1 backup (and mint `owner_session`).
 
 All requests carry `{ protocolVersion: 1, requestId, timestamp? }`; blobs are
 base64url, transactions base64. Errors are generic `{ type: "ERROR", requestId, code }`.
@@ -83,7 +83,8 @@ Unknown/malformed input fails closed. The signer posts `{ type: "SIGNER_READY" }
 
 `AUTH_START` unlocks in the iframe, or completes create when the parent sends
 `authMode: "create"` + `credentialId` (passkey registered on the app with the
-shared RP ID).
+shared RP ID). Optional `putChallenge` produces a possession proof so the parent
+can PUT the blob and mint `owner_session` in one step.
 
 **Passkey create:** runs on the **app** (top-level, Safari-safe) with
 `rpId` = `revibase.com` (prod) or `localhost` (dev). The signer then prompts
@@ -92,11 +93,9 @@ Unlock / sign stay in the iframe.
 
 ## Parent integration seam
 
-`useOwnerWallet` / `createHeliusSigner` are backed by a signer client that mounts
-the iframe and maps: `address` ← `GET_PUBLIC_KEY`/create/import; `signTransaction`
-← `SIGN_TRANSACTION`; `exportWallet` ← `EXPORT_PRIVATE_KEY`. The paymaster
-co-sign / send path is unchanged. This swap is gated on the v1-capable kit
-upgrade above.
+`useOwnerWallet` is backed by a signer client that mounts the iframe and maps:
+`address` ← cookie session / create/import; `signTransaction` ← `SIGN_TRANSACTION`;
+`exportWallet` ← `EXPORT_PRIVATE_KEY`. The paymaster co-sign / send path is unchanged.
 
 ## Deployment
 

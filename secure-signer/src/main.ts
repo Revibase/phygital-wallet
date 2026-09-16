@@ -9,15 +9,17 @@
  */
 
 import "./styles.css";
-import { getAddressDecoder, getBase58Decoder } from "@solana/kit";
-import { pickForAuth, pickForSensitiveOp } from "./blob-merge.js";
+import {
+  getAddressDecoder,
+  getBase58Decoder,
+} from "@solana/kit";
 import { readLocalBlob, writeLocalBlob } from "./blob-store.js";
 import {
+  AUTH_BLOB_WAIT_MS,
   EXPECTED_PARENT_ORIGIN,
   MAX_CREDENTIAL_ID_BYTES,
   MAX_TX_BYTES,
   PUT_CHALLENGE_PREFIX,
-  SESSION_CHALLENGE_PREFIX,
 } from "./constants.js";
 import {
   base64ToBytes,
@@ -67,7 +69,7 @@ const toBase58Pubkey = (bytes: Uint8Array): string => addr.decode(bytes);
 
 function prefixedChallengeMessage(
   prefix: string,
-  challengeBytes: Uint8Array,
+  challengeBytes: Uint8Array
 ): Uint8Array {
   const p = utf8ToBytes(prefix);
   const out = new Uint8Array(p.length + challengeBytes.length);
@@ -80,29 +82,19 @@ function prefixedChallengeMessage(
 function signChallenge(
   challengeB64: string | undefined,
   seed: Uint8Array,
-  prefix: string,
+  prefix: string
 ): string | undefined {
   if (!challengeB64) return undefined;
   try {
     const challengeBytes = base64ToBytes(challengeB64, 64, "url");
     const sig = ed25519Sign(
       prefixedChallengeMessage(prefix, challengeBytes),
-      seed,
+      seed
     );
     return bytesToBase64(sig, "url");
   } catch {
     return undefined;
   }
-}
-
-function authCompleteExtra(
-  putSignature: string | undefined,
-  sessionSignature?: string | undefined,
-): Record<string, unknown> {
-  return {
-    ...(putSignature ? { putSignature } : {}),
-    ...(sessionSignature ? { sessionSignature } : {}),
-  };
 }
 
 /** Show busy UI with an X that cancels the in-flight request. */
@@ -137,26 +129,15 @@ function fail(requestId: string | undefined, code: ErrorCode): void {
 function ok(
   requestId: string,
   type: string,
-  extra: Record<string, unknown>,
+  extra: Record<string, unknown>
 ): void {
   post({ type, requestId, ...extra });
 }
 
-function parseRemoteBlob(
-  blobB64: string | undefined,
-): { raw: Uint8Array; parsed: ParsedWalletBlob } | null {
-  if (!blobB64) return null;
-  try {
-    const raw = base64ToBytes(blobB64, 1024, "url");
-    return { raw, parsed: parseBlob(raw) };
-  } catch {
-    return null;
-  }
-}
 
 function waitForBlobProvided(
   requestId: string,
-  timeoutMs = 30_000,
+  timeoutMs = AUTH_BLOB_WAIT_MS
 ): Promise<BlobReply> {
   return new Promise((resolve, reject) => {
     const timer = window.setTimeout(() => {
@@ -196,7 +177,7 @@ window.addEventListener("message", (event: MessageEvent) => {
       request.timestamp,
       {
         continuation: true,
-      },
+      }
     );
     if (replay) {
       fail(request.requestId, replay);
@@ -213,7 +194,7 @@ window.addEventListener("message", (event: MessageEvent) => {
   // 3. Replay + freshness.
   const replay = state.checkFreshnessAndReplay(
     request.requestId,
-    request.timestamp,
+    request.timestamp
   );
   if (replay) {
     fail(request.requestId, replay);
@@ -232,41 +213,23 @@ window.addEventListener("message", (event: MessageEvent) => {
 async function handle(request: InboundRequest): Promise<void> {
   const rpId = currentRpId();
 
-  // GET_PUBLIC_KEY and EXPORT_ENCRYPTED_WALLET are non-sensitive (public data),
-  // need no WebAuthn, and do not occupy the operation slot.
-  if (request.type === "GET_PUBLIC_KEY") {
-    try {
-      const parsed = parseBlob(
-        base64ToBytes(request.encryptedWalletBlob, 1024, "url"),
-      );
-      // NOTE: unverified — the authoritative key comes from CREATE/IMPORT/SIGN.
-      ok(request.requestId, RESULT_TYPE.GET_PUBLIC_KEY, {
-        publicKey: toBase58Pubkey(parsed.publicKey),
-        verified: false,
-      });
-    } catch (e) {
-      fail(request.requestId, codeOf(e));
+  // Non-interactive: structural localStorage probe (pubkey from blob header).
+  if (request.type === "PROBE_LOCAL") {
+    const local = readLocalBlob();
+    if (!local) {
+      ok(request.requestId, RESULT_TYPE.PROBE_LOCAL, { hasLocalWallet: false });
+      return;
     }
-    return;
-  }
-
-  if (request.type === "EXPORT_ENCRYPTED_WALLET") {
-    try {
-      const raw = base64ToBytes(request.encryptedWalletBlob, 1024, "url");
-      parseBlob(raw); // structural validation only; ciphertext is non-secret (§13)
-      ok(request.requestId, RESULT_TYPE.EXPORT_ENCRYPTED_WALLET, {
-        encryptedWalletBlob: bytesToBase64(raw, "url"),
-      });
-    } catch (e) {
-      fail(request.requestId, codeOf(e));
-    }
+    ok(request.requestId, RESULT_TYPE.PROBE_LOCAL, {
+      hasLocalWallet: true,
+      publicKey: toBase58Pubkey(local.parsed.publicKey),
+    });
     return;
   }
 
   // Sensitive, interactive flows — one at a time (§15, §33).
   const opFor = {
     AUTH_START: "AUTH_PENDING",
-    IMPORT_KEY: "IMPORT_PENDING",
     SIGN_TRANSACTION: "SIGN_PENDING",
     EXPORT_PRIVATE_KEY: "PRIVATE_EXPORT_PENDING",
   } as const;
@@ -287,34 +250,16 @@ async function handle(request: InboundRequest): Promise<void> {
         await handleAuth(
           request.requestId,
           rpId,
-          request.encryptedWalletBlob,
           request.putChallenge,
-          request.sessionChallenge,
           request.authMode,
-          request.credentialId,
-        );
-        break;
-      case "IMPORT_KEY":
-        await handleImport(
-          request.requestId,
-          rpId,
-          request.encryptedWalletBlob,
+          request.credentialId
         );
         break;
       case "SIGN_TRANSACTION":
-        await handleSign(
-          request.requestId,
-          rpId,
-          request.encryptedWalletBlob,
-          request.transaction,
-        );
+        await handleSign(request.requestId, rpId, request.transaction);
         break;
       case "EXPORT_PRIVATE_KEY":
-        await handleExportPrivateKey(
-          request.requestId,
-          rpId,
-          request.encryptedWalletBlob,
-        );
+        await handleExportPrivateKey(request.requestId, rpId);
         break;
     }
   } catch (e) {
@@ -334,7 +279,6 @@ async function enrollFromParentCredential(opts: {
   requestId: string;
   credentialIdB64: string;
   putChallengeB64?: string;
-  sessionChallengeB64?: string;
 }): Promise<void> {
   // Parent create used up user activation; require an in-iframe tap before get.
   if (!(await ui.confirmFinishCreate())) {
@@ -343,7 +287,7 @@ async function enrollFromParentCredential(opts: {
 
   const busy = beginBusy(
     opts.requestId,
-    "Confirm with your passkey to finish setup…",
+    "Confirm with your passkey to finish setup…"
   );
   try {
     let messageToSign: Uint8Array | undefined;
@@ -351,27 +295,16 @@ async function enrollFromParentCredential(opts: {
       try {
         messageToSign = prefixedChallengeMessage(
           PUT_CHALLENGE_PREFIX,
-          base64ToBytes(opts.putChallengeB64, 64, "url"),
+          base64ToBytes(opts.putChallengeB64, 64, "url")
         );
       } catch {
-        /* best-effort */
-      }
-    }
-    let sessionMessageToSign: Uint8Array | undefined;
-    if (opts.sessionChallengeB64) {
-      try {
-        sessionMessageToSign = prefixedChallengeMessage(
-          SESSION_CHALLENGE_PREFIX,
-          base64ToBytes(opts.sessionChallengeB64, 64, "url"),
-        );
-      } catch {
-        /* best-effort */
+        return fail(opts.requestId, "INVALID_MESSAGE");
       }
     }
     const credentialId = base64ToBytes(
       opts.credentialIdB64,
       MAX_CREDENTIAL_ID_BYTES,
-      "url",
+      "url"
     );
     const created = await enrollExistingCredential(
       prf,
@@ -379,17 +312,16 @@ async function enrollFromParentCredential(opts: {
       credentialId,
       {
         ...(messageToSign ? { messageToSign } : {}),
-        ...(sessionMessageToSign ? { sessionMessageToSign } : {}),
-      },
+      }
     );
     if (busy.wasDismissed()) return;
+    if (opts.putChallengeB64 && !created.signature) {
+      return fail(opts.requestId, "INTERNAL_ERROR");
+    }
     writeLocalBlob(created.blob);
     const pk = toBase58Pubkey(created.publicKey);
     const putSignature = created.signature
       ? bytesToBase64(created.signature, "url")
-      : undefined;
-    const sessionSignature = created.sessionSignature
-      ? bytesToBase64(created.sessionSignature, "url")
       : undefined;
     await ui.showSuccess(pk, true);
     if (busy.wasDismissed()) return;
@@ -397,14 +329,14 @@ async function enrollFromParentCredential(opts: {
       publicKey: pk,
       encryptedWalletBlob: bytesToBase64(created.blob, "url"),
       created: true,
-      ...authCompleteExtra(putSignature, sessionSignature),
+      ...(putSignature ? { putSignature } : {}),
     });
   } catch (e) {
     if (busy.wasDismissed()) return;
     const code = codeOf(e);
     if (code === "AUTHENTICATION_FAILED" || code === "UNSUPPORTED_CREDENTIAL") {
       const again = await ui.showRecoverable(
-        "Passkey confirmation didn’t work. Try again, or cancel and create a new passkey.",
+        "Passkey confirmation didn’t work. Try again, or cancel and create a new passkey."
       );
       if (again === "retry") {
         busy.clear();
@@ -421,16 +353,10 @@ async function enrollFromParentCredential(opts: {
 async function handleAuth(
   requestId: string,
   rpId: string,
-  remoteBlobB64: string | undefined,
   putChallengeB64: string | undefined,
-  sessionChallengeB64: string | undefined,
   authMode: "create" | "unlock" | undefined,
-  credentialIdB64: string | undefined,
+  credentialIdB64: string | undefined
 ): Promise<void> {
-  const local = readLocalBlob();
-  const remote = parseRemoteBlob(remoteBlobB64);
-  // Corrupt remote from parent is ignored (treated as missing), not fatal.
-
   // Passkey create happens on the app (shared RP ID). Parent must send credentialId.
   if (authMode === "create") {
     if (!credentialIdB64) {
@@ -440,45 +366,24 @@ async function handleAuth(
       requestId,
       credentialIdB64,
       ...(putChallengeB64 ? { putChallengeB64 } : {}),
-      ...(sessionChallengeB64 ? { sessionChallengeB64 } : {}),
     });
     return;
   }
 
-  // Unlock (explicit or default)
-  const pick = pickForAuth(local?.parsed ?? null, remote?.parsed ?? null);
-
-  if (pick.kind === "conflict") {
-    const decision = await ui.confirmConflict();
-    if (decision === "cancel" || !local)
-      return fail(requestId, "USER_CANCELLED");
+  const local = readLocalBlob();
+  if (local) {
     await unlockAndComplete(
       requestId,
       rpId,
       local.raw,
       local.parsed,
       false,
-      putChallengeB64,
-      sessionChallengeB64,
+      putChallengeB64
     );
     return;
   }
 
-  if (pick.kind === "use") {
-    const raw = pick.source === "local" && local ? local.raw : remote!.raw;
-    await unlockAndComplete(
-      requestId,
-      rpId,
-      raw,
-      pick.parsed,
-      pick.writeLocal,
-      putChallengeB64,
-      sessionChallengeB64,
-    );
-    return;
-  }
-
-  // No local/remote blob: discoverable passkey → ask parent for ciphertext.
+  // No local ciphertext: discoverable passkey → ask parent for D1 backup.
   if (!(await ui.confirmImport())) return fail(requestId, "USER_CANCELLED");
   let busy = beginBusy(requestId, "Use Face ID or Touch ID to approve");
   let disc;
@@ -489,18 +394,10 @@ async function handleAuth(
     busy.clear();
     if (busy.wasDismissed()) return;
     const again = await ui.showRecoverable(
-      "No wallet was found on this device. Create a passkey, or try again if you cancelled the prompt.",
+      "No wallet was found on this device. Create a passkey, or try again if you cancelled the prompt."
     );
     if (again === "retry") {
-      return handleAuth(
-        requestId,
-        rpId,
-        remoteBlobB64,
-        putChallengeB64,
-        sessionChallengeB64,
-        "unlock",
-        undefined,
-      );
+      return handleAuth(requestId, rpId, putChallengeB64, "unlock", undefined);
     }
     return fail(requestId, "BLOB_UNAVAILABLE");
   }
@@ -532,18 +429,10 @@ async function handleAuth(
     busy.clear();
     if (busy.wasDismissed()) return;
     const again = await ui.showRecoverable(
-      "No backup wallet was found for this passkey on this app. Create a passkey on this device, or unlock where the wallet was created.",
+      "No backup wallet was found for this passkey on this app. Create a passkey on this device, or unlock where the wallet was created."
     );
     if (again === "retry") {
-      return handleAuth(
-        requestId,
-        rpId,
-        remoteBlobB64,
-        putChallengeB64,
-        sessionChallengeB64,
-        "unlock",
-        undefined,
-      );
+      return handleAuth(requestId, rpId, putChallengeB64, "unlock", undefined);
     }
     return fail(requestId, reply.errorCode ?? "BLOB_UNAVAILABLE");
   }
@@ -558,7 +447,7 @@ async function handleAuth(
     const { seed, publicKey } = await unwrapWallet(
       disc.prfOutput,
       parsed,
-      rpId,
+      rpId
     );
     disc.prfOutput.fill(0);
     if (busy.wasDismissed()) {
@@ -568,14 +457,12 @@ async function handleAuth(
     const putSignature = signChallenge(
       putChallengeB64,
       seed,
-      PUT_CHALLENGE_PREFIX,
-    );
-    const sessionSignature = signChallenge(
-      sessionChallengeB64,
-      seed,
-      SESSION_CHALLENGE_PREFIX,
+      PUT_CHALLENGE_PREFIX
     );
     seed.fill(0);
+    if (putChallengeB64 && !putSignature) {
+      return fail(requestId, "INTERNAL_ERROR");
+    }
     writeLocalBlob(raw);
     const pk = toBase58Pubkey(publicKey);
     busy.clear();
@@ -584,7 +471,7 @@ async function handleAuth(
       publicKey: pk,
       encryptedWalletBlob: bytesToBase64(raw, "url"),
       created: false,
-      ...authCompleteExtra(putSignature, sessionSignature),
+      ...(putSignature ? { putSignature } : {}),
     });
   } catch (e) {
     disc.prfOutput.fill(0);
@@ -601,8 +488,7 @@ async function unlockAndComplete(
   raw: Uint8Array,
   parsed: ParsedWalletBlob,
   writeLocal: boolean,
-  putChallengeB64: string | undefined,
-  sessionChallengeB64: string | undefined,
+  putChallengeB64: string | undefined
 ): Promise<void> {
   if (!(await ui.confirmImport())) return fail(requestId, "USER_CANCELLED");
   const busy = beginBusy(requestId, "Use Face ID or Touch ID to approve");
@@ -615,14 +501,12 @@ async function unlockAndComplete(
     const putSignature = signChallenge(
       putChallengeB64,
       seed,
-      PUT_CHALLENGE_PREFIX,
-    );
-    const sessionSignature = signChallenge(
-      sessionChallengeB64,
-      seed,
-      SESSION_CHALLENGE_PREFIX,
+      PUT_CHALLENGE_PREFIX
     );
     seed.fill(0);
+    if (putChallengeB64 && !putSignature) {
+      return fail(requestId, "INTERNAL_ERROR");
+    }
     if (writeLocal) writeLocalBlob(raw);
     const pk = toBase58Pubkey(publicKey);
     await ui.showSuccess(pk, false);
@@ -631,14 +515,14 @@ async function unlockAndComplete(
       publicKey: pk,
       encryptedWalletBlob: bytesToBase64(raw, "url"),
       created: false,
-      ...authCompleteExtra(putSignature, sessionSignature),
+      ...(putSignature ? { putSignature } : {}),
     });
   } catch (e) {
     if (busy.wasDismissed()) return;
     const code = codeOf(e);
     if (code === "AUTHENTICATION_FAILED" || code === "DECRYPTION_FAILED") {
       const again = await ui.showRecoverable(
-        "Passkey authentication didn’t work. Try again, or cancel to go back.",
+        "Passkey authentication didn’t work. Try again, or cancel if this passkey was removed from this phone."
       );
       if (again === "retry") {
         return unlockAndComplete(
@@ -647,11 +531,11 @@ async function unlockAndComplete(
           raw,
           parsed,
           writeLocal,
-          putChallengeB64,
-          sessionChallengeB64,
+          putChallengeB64
         );
       }
-      return fail(requestId, "USER_CANCELLED");
+      // Distinct from dismiss-before-biometric so the parent can offer create.
+      return fail(requestId, "AUTHENTICATION_FAILED");
     }
     throw e;
   } finally {
@@ -659,93 +543,22 @@ async function unlockAndComplete(
   }
 }
 
-async function handleImport(
-  requestId: string,
-  rpId: string,
-  blobB64: string,
-): Promise<void> {
-  const remote = parseRemoteBlob(blobB64);
-  if (!remote) return fail(requestId, "INVALID_WALLET_BLOB");
-  const local = readLocalBlob();
-  const pick = pickForAuth(local?.parsed ?? null, remote.parsed);
-  if (pick.kind === "conflict" && local) {
-    const decision = await ui.confirmConflict();
-    if (decision === "cancel") return fail(requestId, "USER_CANCELLED");
-    await unlockAndCompleteImport(
-      requestId,
-      rpId,
-      local.raw,
-      local.parsed,
-      false,
-    );
-    return;
-  }
-  const raw =
-    pick.kind === "use" && pick.source === "local" && local
-      ? local.raw
-      : remote.raw;
-  const parsed = pick.kind === "use" ? pick.parsed : remote.parsed;
-  const writeLocal = pick.kind === "use" ? pick.writeLocal : true;
-  await unlockAndCompleteImport(requestId, rpId, raw, parsed, writeLocal);
-}
-
-async function unlockAndCompleteImport(
-  requestId: string,
-  rpId: string,
-  raw: Uint8Array,
-  parsed: ParsedWalletBlob,
-  writeLocal: boolean,
-): Promise<void> {
-  if (!(await ui.confirmImport())) return fail(requestId, "USER_CANCELLED");
-  const busy = beginBusy(requestId, "Use Face ID or Touch ID to approve");
-  try {
-    const { seed, publicKey } = await decryptWallet(prf, rpId, parsed);
-    if (busy.wasDismissed()) {
-      seed.fill(0);
-      return;
-    }
-    seed.fill(0);
-    if (writeLocal) writeLocalBlob(raw);
-    const pk = toBase58Pubkey(publicKey);
-    await ui.showSuccess(pk, false);
-    if (busy.wasDismissed()) return;
-    ok(requestId, RESULT_TYPE.IMPORT_KEY, {
-      publicKey: pk,
-      encryptedWalletBlob: bytesToBase64(raw, "url"),
-      verified: true,
-    });
-  } finally {
-    busy.clear();
-  }
-}
-
-function resolveBlobForOp(parentBlobB64: string): {
+/** Sign / export use signer-origin localStorage only — parent never supplies ciphertext. */
+function requireLocalBlob(): {
   raw: Uint8Array;
   parsed: ParsedWalletBlob;
 } {
-  const remote = parseRemoteBlob(parentBlobB64);
   const local = readLocalBlob();
-  const chosen = pickForSensitiveOp(
-    local?.parsed ?? null,
-    remote?.parsed ?? null,
-  );
-  if (!chosen) throw new ServiceError("INVALID_WALLET_BLOB");
-  if (local && bytesEqual(local.parsed.publicKey, chosen.publicKey)) {
-    return local;
-  }
-  if (remote && bytesEqual(remote.parsed.publicKey, chosen.publicKey)) {
-    return remote;
-  }
-  throw new ServiceError("INVALID_WALLET_BLOB");
+  if (!local) throw new ServiceError("INVALID_WALLET_BLOB");
+  return local;
 }
 
 async function handleSign(
   requestId: string,
   rpId: string,
-  blobB64: string,
-  txB64: string,
+  txB64: string
 ): Promise<void> {
-  const { parsed } = resolveBlobForOp(blobB64);
+  const { parsed } = requireLocalBlob();
   const txBytes = base64ToBytes(txB64, MAX_TX_BYTES, "std");
 
   // Independent decode + policy from the signer's OWN parser (§17).
@@ -792,17 +605,9 @@ async function handleSign(
     }
 
     const signature = signAndScrub(frozen, seed); // signs EXACT validated bytes
-
-    // Place the signature in its slot in the original tx and return.
-    const signed = txBytes.slice();
-    signed.set(
-      signature,
-      tx.signaturesOffset + policy.summary.ownerSignerIndex * 64,
-    );
     ok(requestId, RESULT_TYPE.SIGN_TRANSACTION, {
       signature: bytesToBase64(signature, "std"),
       publicKey: toBase58Pubkey(parsed.publicKey),
-      signedTransaction: bytesToBase64(signed, "std"),
     });
   } finally {
     busy.clear();
@@ -811,10 +616,9 @@ async function handleSign(
 
 async function handleExportPrivateKey(
   requestId: string,
-  rpId: string,
-  blobB64: string,
+  rpId: string
 ): Promise<void> {
-  const { parsed } = resolveBlobForOp(blobB64);
+  const { parsed } = requireLocalBlob();
   // Dedicated ceremony BEFORE WebAuthn (§14) — warning + explicit continue.
   if (!(await ui.confirmExportPrivateKey()))
     return fail(requestId, "USER_CANCELLED");
