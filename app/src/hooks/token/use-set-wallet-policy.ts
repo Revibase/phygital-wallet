@@ -2,9 +2,18 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ProgramPermissionArgs } from "phygital-wallet-sdk";
+import { toast } from "sonner";
 
+import type { WalletPolicyView } from "@/hooks/token/use-wallet-policy";
 import { useOwnerWallet } from "@/hooks/wallet/use-owner-wallet";
-import { queryKeys } from "@/lib/queries";
+import {
+  applyOptimisticWalletPolicy,
+  buildOptimisticWalletPolicyView,
+  queryKeys,
+  restoreWalletPolicySnapshot,
+  watchTransactionConfirmation,
+} from "@/lib/queries";
+import { toUserErrorMessage } from "@/lib/user-errors";
 import {
   setWalletPolicy,
   type MintCapInput,
@@ -12,8 +21,9 @@ import {
 } from "@/lib/wallet/set-wallet-policy";
 
 /**
- * Set the on-chain spend policy (owner-signed, paymaster-fee-paid). Resolves
- * once confirmed so the policy view refetches.
+ * Set the on-chain spend policy (owner-signed, paymaster-fee-paid). Resolves on
+ * RPC accept; policy cache updates immediately and rolls back if confirmation
+ * fails.
  */
 export function useSetWalletPolicy(phygitalToken: string) {
   const { address, isAuthenticated, signer } = useOwnerWallet();
@@ -35,13 +45,24 @@ export function useSetWalletPolicy(phygitalToken: string) {
         mintCaps: input.mintCaps,
         programPermissions: input.programPermissions,
       });
-      await sent.confirmed;
-      return { signature: sent.signature };
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.walletPolicy.byToken(phygitalToken),
+
+      const previous = queryClient.getQueryData<WalletPolicyView>(
+        queryKeys.walletPolicy.byToken(phygitalToken),
+      );
+      const policyBefore = applyOptimisticWalletPolicy(
+        queryClient,
+        phygitalToken,
+        buildOptimisticWalletPolicyView(input, previous),
+      );
+
+      watchTransactionConfirmation({
+        confirmed: sent.confirmed,
+        rollback: () =>
+          restoreWalletPolicySnapshot(queryClient, phygitalToken, policyBefore),
+        onConfirmError: (err) => toast.error(toUserErrorMessage(err)),
       });
+
+      return { signature: sent.signature };
     },
   });
 }

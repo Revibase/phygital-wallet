@@ -1,28 +1,28 @@
 import {
   appendTransactionMessageInstructions,
   assertIsTransactionWithBlockhashLifetime,
+  commitmentComparator,
   createTransactionMessage,
   estimateAndSetResourceLimitsFactory,
   estimateResourceLimitsFactory,
   getSignatureFromTransaction,
+  getSolanaErrorFromTransactionError,
   pipe,
   sendTransactionWithoutConfirmingFactory,
   setTransactionMessageFeePayerSigner,
   setTransactionMessageLifetimeUsingBlockhash,
   signTransactionMessageWithSigners,
   type Blockhash,
+  type Commitment,
   type Instruction,
   type TransactionSigner,
 } from "@solana/kit";
-import {
-  createBlockHeightExceedencePromiseFactory,
-  createRecentSignatureConfirmationPromiseFactory,
-  waitForRecentTransactionConfirmation,
-} from "@solana/transaction-confirmation";
 
-import { getSolanaRpc, getSolanaRpcSubscriptions } from "./rpc";
+import { getSolanaRpc } from "./rpc";
 
 const CONFIRM_TIMEOUT_MS = 60_000;
+const CONFIRM_POLL_MS = 1000;
+const CONFIRM_COMMITMENT: Commitment = "confirmed";
 
 /**
  * Every app transaction is a version 1 transaction message. Unlike legacy / v0,
@@ -64,38 +64,121 @@ function estimateAndSetResourceLimits() {
 }
 
 type ConfirmableTransaction = Parameters<
-  typeof waitForRecentTransactionConfirmation
->[0]["transaction"];
+  typeof getSignatureFromTransaction
+>[0] & {
+  lifetimeConstraint: { lastValidBlockHeight: bigint };
+};
 
-let _confirmRecent:
-  | ((transaction: ConfirmableTransaction) => Promise<void>)
-  | null = null;
+/**
+ * HTTP-only confirmation. Avoids `@solana/transaction-confirmation`'s websocket
+ * path, which can throw a Safari `ReferenceError: Can't find variable: alphabet4`
+ * from `@solana/codecs-strings` after the tx has already landed — that false
+ * failure was toasting + rolling back optimistic UI.
+ */
+async function confirmSignatureByPolling(
+  signature: ReturnType<typeof getSignatureFromTransaction>,
+  lastValidBlockHeight: bigint,
+  abortSignal: AbortSignal,
+): Promise<void> {
+  const rpc = getSolanaRpc();
+
+  while (!abortSignal.aborted) {
+    const [{ value: statuses }, blockHeight] = await Promise.all([
+      rpc.getSignatureStatuses([signature]).send({ abortSignal }),
+      rpc
+        .getBlockHeight({ commitment: CONFIRM_COMMITMENT })
+        .send({ abortSignal }),
+    ]);
+
+    const status = statuses[0];
+    if (status?.err) {
+      throw getSolanaErrorFromTransactionError(status.err);
+    }
+    if (
+      status?.confirmationStatus &&
+      commitmentComparator(status.confirmationStatus, CONFIRM_COMMITMENT) >= 0
+    ) {
+      return;
+    }
+    if (blockHeight > lastValidBlockHeight) {
+      // One last status check — race between expiry and land.
+      const { value: again } = await rpc
+        .getSignatureStatuses([signature])
+        .send();
+      const last = again[0];
+      if (last?.err) throw getSolanaErrorFromTransactionError(last.err);
+      if (
+        last?.confirmationStatus &&
+        commitmentComparator(last.confirmationStatus, CONFIRM_COMMITMENT) >= 0
+      ) {
+        return;
+      }
+      throw new Error("Transaction expired before confirmation");
+    }
+
+    await sleep(CONFIRM_POLL_MS, abortSignal);
+  }
+
+  throw abortSignal.reason instanceof Error
+    ? abortSignal.reason
+    : new Error("Transaction confirmation timed out");
+}
+
+function sleep(ms: number, abortSignal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (abortSignal.aborted) {
+      reject(
+        abortSignal.reason instanceof Error
+          ? abortSignal.reason
+          : new Error("Aborted"),
+      );
+      return;
+    }
+    const id = setTimeout(resolve, ms);
+    abortSignal.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(id);
+        reject(
+          abortSignal.reason instanceof Error
+            ? abortSignal.reason
+            : new Error("Aborted"),
+        );
+      },
+      { once: true },
+    );
+  });
+}
 
 function confirmRecentTransaction() {
-  if (_confirmRecent) return _confirmRecent;
-
-  const rpc = getSolanaRpc();
-  const rpcSubscriptions = getSolanaRpcSubscriptions();
-  const getBlockHeightExceedencePromise =
-    createBlockHeightExceedencePromiseFactory({
-      rpc,
-      rpcSubscriptions,
-    } as Parameters<typeof createBlockHeightExceedencePromiseFactory>[0]);
-  const getRecentSignatureConfirmationPromise =
-    createRecentSignatureConfirmationPromiseFactory({
-      rpc,
-      rpcSubscriptions,
-    } as Parameters<typeof createRecentSignatureConfirmationPromiseFactory>[0]);
-
-  _confirmRecent = (transaction) =>
-    waitForRecentTransactionConfirmation({
-      abortSignal: AbortSignal.timeout(CONFIRM_TIMEOUT_MS),
-      commitment: "confirmed",
-      getBlockHeightExceedencePromise,
-      getRecentSignatureConfirmationPromise,
-      transaction,
+  return (transaction: ConfirmableTransaction) => {
+    const signature = getSignatureFromTransaction(transaction);
+    const abortSignal = AbortSignal.timeout(CONFIRM_TIMEOUT_MS);
+    return confirmSignatureByPolling(
+      signature,
+      transaction.lifetimeConstraint.lastValidBlockHeight,
+      abortSignal,
+    ).catch(async (error) => {
+      // Safety net: if polling/timeout threw but the tx actually landed, succeed.
+      try {
+        const { value } = await getSolanaRpc()
+          .getSignatureStatuses([signature])
+          .send();
+        const status = value[0];
+        if (status?.err) throw getSolanaErrorFromTransactionError(status.err);
+        if (
+          status?.confirmationStatus &&
+          commitmentComparator(status.confirmationStatus, CONFIRM_COMMITMENT) >=
+            0
+        ) {
+          return;
+        }
+      } catch (statusError) {
+        if (statusError !== error) throw statusError;
+      }
+      throw error;
     });
-  return _confirmRecent;
+  };
 }
 
 export type SentTransaction = {

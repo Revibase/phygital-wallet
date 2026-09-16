@@ -1,9 +1,20 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 import { useOwnerWallet } from "@/hooks/wallet/use-owner-wallet";
-import { queryKeys } from "@/lib/queries";
+import {
+  applyOptimisticOwnedAccessories,
+  applyOptimisticTokenAuthority,
+  applyOptimisticWalletPolicy,
+  restoreOwnedAccessoriesSnapshot,
+  restoreTokenAuthoritySnapshot,
+  restoreWalletPolicySnapshot,
+  STANDARD_POLICY_VIEW,
+  watchTransactionConfirmation,
+} from "@/lib/queries";
+import { toUserErrorMessage } from "@/lib/user-errors";
 import {
   claimAccessory,
   prepareClaimAccessory,
@@ -12,7 +23,8 @@ import {
 /**
  * Claim an unclaimed accessory for the signed-in owner via a paymaster-sponsored
  * `set_authority`. Slot-hash challenges are fetched on click (not prefetched) so
- * they stay fresh. Call `mutate` from a click handler.
+ * they stay fresh. Resolves on RPC accept; patches ownership caches immediately
+ * and rolls back if confirmation fails.
  */
 export function useClaimAccessory(phygitalToken: string) {
   const { address, isAuthenticated } = useOwnerWallet();
@@ -28,19 +40,39 @@ export function useClaimAccessory(phygitalToken: string) {
         ownerAddress: address,
       });
       const sent = await claimAccessory({ prepared });
-      await sent.confirmed;
+
+      const authorityBefore = applyOptimisticTokenAuthority(
+        queryClient,
+        phygitalToken,
+        { isClaimed: true, authority: address },
+      );
+      const policyBefore = applyOptimisticWalletPolicy(
+        queryClient,
+        phygitalToken,
+        STANDARD_POLICY_VIEW,
+      );
+      const ownedBefore = applyOptimisticOwnedAccessories(
+        queryClient,
+        address,
+        phygitalToken,
+        "add",
+      );
+
+      watchTransactionConfirmation({
+        confirmed: sent.confirmed,
+        rollback: () => {
+          restoreTokenAuthoritySnapshot(
+            queryClient,
+            phygitalToken,
+            authorityBefore,
+          );
+          restoreWalletPolicySnapshot(queryClient, phygitalToken, policyBefore);
+          restoreOwnedAccessoriesSnapshot(queryClient, address, ownedBefore);
+        },
+        onConfirmError: (err) => toast.error(toUserErrorMessage(err)),
+      });
+
       return { signature: sent.signature };
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.tokenAuthority.byToken(phygitalToken),
-      });
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.walletPolicy.byToken(phygitalToken),
-      });
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.ownedAccessories.byOwner(address),
-      });
     },
   });
 }

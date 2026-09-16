@@ -4,19 +4,31 @@ import { QueryClient } from "@tanstack/react-query";
 import { queryKeys } from "./index";
 import {
   applyOptimisticFeeBalance,
+  applyOptimisticOwnedAccessories,
   applyOptimisticPortfolioDelta,
+  applyOptimisticTokenAuthority,
   applyOptimisticWalletActivity,
+  applyOptimisticWalletPolicy,
+  buildOptimisticWalletPolicyView,
   invalidatePhygitalToken,
+  NONE_POLICY_VIEW,
+  OPEN_POLICY_VIEW,
   patchOptimisticWalletActivity,
   restoreFeeBalanceSnapshot,
+  restoreOwnedAccessoriesSnapshot,
   restorePortfolioSnapshot,
+  restoreTokenAuthoritySnapshot,
   restoreWalletActivitySnapshot,
+  restoreWalletPolicySnapshot,
+  STANDARD_POLICY_VIEW,
+  watchTransactionConfirmation,
 } from "./mutations";
 import type { FeeBalance } from "@/lib/wallet/fee-balance-client";
 import type {
   WalletActivityItem,
   WalletPortfolio,
 } from "@/lib/wallet/portfolio-types";
+import type { WalletPolicyView } from "@/hooks/token/use-wallet-policy";
 
 const portfolio: WalletPortfolio = {
   holdings: [
@@ -190,5 +202,132 @@ describe("applyOptimisticFeeBalance / restoreFeeBalanceSnapshot", () => {
 
     restoreFeeBalanceSnapshot(qc, "token", snapshot);
     expect(qc.getQueryData(key)).toEqual(previous);
+  });
+});
+
+describe("buildOptimisticWalletPolicyView", () => {
+  it("keeps remaining for unchanged caps and refills changed ones", () => {
+    const previous: WalletPolicyView = {
+      status: "limited",
+      hasLimits: true,
+      solCap: {
+        cap: 1_000_000_000n,
+        remaining: 400_000_000n,
+        lastReset: 100n,
+        windowSeconds: 604_800n,
+      },
+      mintCaps: [
+        {
+          mint: "UsdcMint",
+          cap: 5_000_000n,
+          remaining: 1_000_000n,
+          lastReset: 50n,
+          windowSeconds: 0n,
+        },
+      ],
+      programPermissions: [],
+    };
+
+    const next = buildOptimisticWalletPolicyView(
+      {
+        solCap: { cap: 1_000_000_000n, windowSeconds: 604_800n },
+        mintCaps: [
+          { mint: "UsdcMint", cap: 10_000_000n, windowSeconds: 0n },
+        ],
+        programPermissions: [],
+      },
+      previous,
+      999n,
+    );
+
+    expect(next.solCap).toEqual(previous.solCap);
+    expect(next.mintCaps[0]).toMatchObject({
+      mint: "UsdcMint",
+      cap: 10_000_000n,
+      remaining: 10_000_000n,
+      lastReset: 999n,
+    });
+    expect(next.status).toBe("limited");
+  });
+
+  it("maps empty set_wallet_policy to standard", () => {
+    const next = buildOptimisticWalletPolicyView(
+      { solCap: null, mintCaps: [], programPermissions: [] },
+      undefined,
+    );
+    expect(next).toEqual(STANDARD_POLICY_VIEW);
+  });
+});
+
+describe("claim / unlink optimistic cache helpers", () => {
+  it("patches and restores authority, policy, and owned accessories", () => {
+    const qc = new QueryClient();
+    const token = "token-pda";
+    const owner = "owner";
+
+    qc.setQueryData(queryKeys.tokenAuthority.byToken(token), {
+      isClaimed: false,
+      authority: null,
+    });
+    qc.setQueryData(queryKeys.walletPolicy.byToken(token), NONE_POLICY_VIEW);
+    qc.setQueryData(queryKeys.ownedAccessories.byOwner(owner), []);
+
+    const authorityBefore = applyOptimisticTokenAuthority(qc, token, {
+      isClaimed: true,
+      authority: owner,
+    });
+    const policyBefore = applyOptimisticWalletPolicy(
+      qc,
+      token,
+      STANDARD_POLICY_VIEW,
+    );
+    const ownedBefore = applyOptimisticOwnedAccessories(
+      qc,
+      owner,
+      token,
+      "add",
+    );
+
+    expect(qc.getQueryData(queryKeys.tokenAuthority.byToken(token))).toEqual({
+      isClaimed: true,
+      authority: owner,
+    });
+    expect(qc.getQueryData(queryKeys.walletPolicy.byToken(token))).toEqual(
+      STANDARD_POLICY_VIEW,
+    );
+    expect(qc.getQueryData(queryKeys.ownedAccessories.byOwner(owner))).toEqual([
+      token,
+    ]);
+
+    restoreTokenAuthoritySnapshot(qc, token, authorityBefore);
+    restoreWalletPolicySnapshot(qc, token, policyBefore);
+    restoreOwnedAccessoriesSnapshot(qc, owner, ownedBefore);
+
+    expect(qc.getQueryData(queryKeys.tokenAuthority.byToken(token))).toEqual({
+      isClaimed: false,
+      authority: null,
+    });
+    expect(qc.getQueryData(queryKeys.walletPolicy.byToken(token))).toEqual(
+      NONE_POLICY_VIEW,
+    );
+    expect(qc.getQueryData(queryKeys.ownedAccessories.byOwner(owner))).toEqual(
+      [],
+    );
+  });
+
+  it("rolls back on watchTransactionConfirmation failure", async () => {
+    const qc = new QueryClient();
+    const token = "token-pda";
+    const before = applyOptimisticWalletPolicy(qc, token, OPEN_POLICY_VIEW);
+
+    watchTransactionConfirmation({
+      confirmed: Promise.reject(new Error("expired")),
+      rollback: () => restoreWalletPolicySnapshot(qc, token, before),
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(qc.getQueryData(queryKeys.walletPolicy.byToken(token))).toBeUndefined();
   });
 });

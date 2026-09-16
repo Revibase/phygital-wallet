@@ -104,6 +104,7 @@ function matchRule(raw: string): Rule | null {
 function isAlreadyFriendly(raw: string): boolean {
   return (
     !/[_\-]{2,}|\b(sysvar|u64|PDA|ATA|RPC|D1|KV)\b/i.test(raw) &&
+    !/can't find variable|is not defined|referenceerror/i.test(raw) &&
     raw.length < 140 &&
     !/^[A-Z][a-z]+[A-Z]/.test(raw)
   );

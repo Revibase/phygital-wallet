@@ -9,15 +9,26 @@ export { shouldRetryQuery } from "./http";
 export { queryKeys } from "./keys";
 export {
   applyOptimisticFeeBalance,
+  applyOptimisticOwnedAccessories,
   applyOptimisticPortfolioDelta,
+  applyOptimisticTokenAuthority,
   applyOptimisticWalletActivity,
+  applyOptimisticWalletPolicy,
+  buildOptimisticWalletPolicyView,
   invalidatePhygitalToken,
   invalidateRpcDependentQueries,
   invalidateWalletBalances,
+  NONE_POLICY_VIEW,
+  OPEN_POLICY_VIEW,
   patchOptimisticWalletActivity,
   restoreFeeBalanceSnapshot,
+  restoreOwnedAccessoriesSnapshot,
   restorePortfolioSnapshot,
+  restoreTokenAuthoritySnapshot,
   restoreWalletActivitySnapshot,
+  restoreWalletPolicySnapshot,
+  STANDARD_POLICY_VIEW,
+  watchTransactionConfirmation,
   type WalletActivitySnapshot,
 } from "./mutations";
 
@@ -35,7 +46,7 @@ export const queryOptions = {
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
   },
-  /** Changes after user actions; mutations already invalidate. */
+  /** Changes after user actions; mutations patch optimistically. */
   default: { refetchOnWindowFocus: false, staleTime: 5 * MINUTE },
   /**
    * Activity via getTransactionsForAddress — only mounted on the Activity screen.

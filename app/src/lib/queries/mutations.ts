@@ -11,7 +11,15 @@
  */
 
 import type { QueryClient, QueryKey } from "@tanstack/react-query";
+import type { ProgramPermissionArgs } from "phygital-wallet-sdk";
 
+import type { TokenAuthority } from "@/hooks/token/use-token-authority";
+import type {
+  ProgramAccessKind,
+  ProgramPermissionView,
+  SpendCapView,
+  WalletPolicyView,
+} from "@/hooks/token/use-wallet-policy";
 import { formatTokenAmount, uiAmountToRaw } from "@/lib/tokens/amount";
 import type { PaymentTokenHolding } from "@/lib/tokens/payment-token";
 import type { FeeBalance } from "@/lib/wallet/fee-balance-client";
@@ -23,6 +31,10 @@ import {
   FEE_BALANCE_LOW_LAMPORTS,
   lamportsToSolUi,
 } from "@/lib/wallet/network-fee";
+import type {
+  MintCapInput,
+  SolCapInput,
+} from "@/lib/wallet/set-wallet-policy";
 
 import { queryKeys } from "./keys";
 
@@ -336,4 +348,218 @@ export function invalidateRpcDependentQueries(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({
     queryKey: queryKeys.mintedCollectibleView.all(),
   });
+}
+
+/**
+ * After RPC accept: keep the optimistic patch; on confirm failure, rollback.
+ * Does not invalidate on successful land (callers already patched the next value).
+ */
+export function watchTransactionConfirmation(args: {
+  confirmed: Promise<void>;
+  rollback: () => void;
+  onConfirmError?: (error: unknown) => void;
+}): void {
+  void args.confirmed.then(
+    () => undefined,
+    (error) => {
+      args.rollback();
+      args.onConfirmError?.(error);
+    },
+  );
+}
+
+/** Claim / standard empty set_wallet_policy: active policy, no caps/overrides. */
+export const STANDARD_POLICY_VIEW: WalletPolicyView = {
+  status: "standard",
+  hasLimits: false,
+  solCap: null,
+  mintCaps: [],
+  programPermissions: [],
+};
+
+/** clear_wallet_policy: authority kept, no accessory checks. */
+export const OPEN_POLICY_VIEW: WalletPolicyView = {
+  status: "open",
+  hasLimits: false,
+  solCap: null,
+  mintCaps: [],
+  programPermissions: [],
+};
+
+/** Unclaimed / after clear_authority. */
+export const NONE_POLICY_VIEW: WalletPolicyView = {
+  status: "none",
+  hasLimits: false,
+  solCap: null,
+  mintCaps: [],
+  programPermissions: [],
+};
+
+function programAccessKind(
+  access: ProgramPermissionArgs["access"],
+): ProgramAccessKind {
+  switch (access.__kind) {
+    case "AllInstructions":
+      return "allow";
+    case "Denied":
+      return "deny";
+    default:
+      return "custom";
+  }
+}
+
+function optimisticCapView(
+  next: { cap: bigint; windowSeconds: bigint },
+  previous: SpendCapView | null | undefined,
+  nowSeconds: bigint,
+): SpendCapView {
+  if (
+    previous &&
+    previous.cap === next.cap &&
+    previous.windowSeconds === next.windowSeconds
+  ) {
+    return previous;
+  }
+  return {
+    cap: next.cap,
+    remaining: next.cap,
+    lastReset: nowSeconds,
+    windowSeconds: next.windowSeconds,
+  };
+}
+
+/**
+ * Build the wallet-policy cache value for a successful `set_wallet_policy`.
+ * Unchanged caps keep remaining/lastReset; changed caps refill + reanchor.
+ */
+export function buildOptimisticWalletPolicyView(
+  input: {
+    solCap?: SolCapInput | null;
+    mintCaps?: MintCapInput[];
+    programPermissions?: ProgramPermissionArgs[];
+  },
+  previous: WalletPolicyView | undefined,
+  nowSeconds = BigInt(Math.floor(Date.now() / 1000)),
+): WalletPolicyView {
+  const solInput = input.solCap ?? null;
+  const mintInputs = input.mintCaps ?? [];
+  const programInputs = input.programPermissions ?? [];
+
+  const previousByMint = new Map(
+    (previous?.mintCaps ?? []).map((m) => [m.mint, m]),
+  );
+
+  const solCap = solInput
+    ? optimisticCapView(solInput, previous?.solCap, nowSeconds)
+    : null;
+
+  const mintCaps = mintInputs.map((m) => ({
+    mint: m.mint,
+    ...optimisticCapView(m, previousByMint.get(m.mint), nowSeconds),
+  }));
+
+  const programPermissions: ProgramPermissionView[] = programInputs.map(
+    (p) => ({
+      programId: String(p.programId),
+      kind: programAccessKind(p.access),
+      // Args and decoded access share the same discriminator shapes we display.
+      access: p.access as ProgramPermissionView["access"],
+    }),
+  );
+
+  const hasLimits =
+    solCap != null || mintCaps.length > 0 || programPermissions.length > 0;
+
+  return {
+    status: hasLimits ? "limited" : "standard",
+    hasLimits,
+    solCap,
+    mintCaps,
+    programPermissions,
+  };
+}
+
+export function applyOptimisticTokenAuthority(
+  queryClient: QueryClient,
+  token: string,
+  next: TokenAuthority,
+): TokenAuthority | undefined {
+  const key = queryKeys.tokenAuthority.byToken(token);
+  const previous = queryClient.getQueryData<TokenAuthority>(key);
+  queryClient.setQueryData(key, next);
+  return previous;
+}
+
+export function restoreTokenAuthoritySnapshot(
+  queryClient: QueryClient,
+  token: string,
+  previous: TokenAuthority | undefined,
+): void {
+  const key = queryKeys.tokenAuthority.byToken(token);
+  if (previous === undefined) {
+    queryClient.removeQueries({ queryKey: key });
+    return;
+  }
+  queryClient.setQueryData(key, previous);
+}
+
+export function applyOptimisticWalletPolicy(
+  queryClient: QueryClient,
+  token: string,
+  next: WalletPolicyView,
+): WalletPolicyView | undefined {
+  const key = queryKeys.walletPolicy.byToken(token);
+  const previous = queryClient.getQueryData<WalletPolicyView>(key);
+  queryClient.setQueryData(key, next);
+  return previous;
+}
+
+export function restoreWalletPolicySnapshot(
+  queryClient: QueryClient,
+  token: string,
+  previous: WalletPolicyView | undefined,
+): void {
+  const key = queryKeys.walletPolicy.byToken(token);
+  if (previous === undefined) {
+    queryClient.removeQueries({ queryKey: key });
+    return;
+  }
+  queryClient.setQueryData(key, previous);
+}
+
+export function applyOptimisticOwnedAccessories(
+  queryClient: QueryClient,
+  owner: string | null | undefined,
+  token: string,
+  direction: "add" | "remove",
+): string[] | undefined {
+  if (!owner) return undefined;
+  const key = queryKeys.ownedAccessories.byOwner(owner);
+  const previous = queryClient.getQueryData<string[]>(key);
+  if (previous === undefined) {
+    if (direction === "add") queryClient.setQueryData(key, [token]);
+    return previous;
+  }
+  const next =
+    direction === "add"
+      ? previous.includes(token)
+        ? previous
+        : [...previous, token]
+      : previous.filter((t) => t !== token);
+  queryClient.setQueryData(key, next);
+  return previous;
+}
+
+export function restoreOwnedAccessoriesSnapshot(
+  queryClient: QueryClient,
+  owner: string | null | undefined,
+  previous: string[] | undefined,
+): void {
+  if (!owner) return;
+  const key = queryKeys.ownedAccessories.byOwner(owner);
+  if (previous === undefined) {
+    queryClient.removeQueries({ queryKey: key });
+    return;
+  }
+  queryClient.setQueryData(key, previous);
 }

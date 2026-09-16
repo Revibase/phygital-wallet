@@ -40,4 +40,10 @@ describe("toUserFacingError", () => {
     );
     expect(facing.title).toBe(errorCopy.amountTooPrecise.title);
   });
+
+  it("does not surface Safari codec ReferenceErrors as friendly copy", () => {
+    expect(
+      toUserErrorMessage(new Error("Can't find variable: alphabet4")),
+    ).toBe(errorCopy.fallback.body);
+  });
 });
