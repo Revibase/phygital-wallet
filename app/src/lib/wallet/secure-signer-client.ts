@@ -1,14 +1,12 @@
 /**
  * Client for the cross-origin secure-signer iframe (see `secure-signer/`).
  *
- * Framework-agnostic singleton: lazily mounts the signer iframe in a full-screen
- * overlay (shown only during interactive ceremonies), speaks the strict
- * postMessage protocol, and correlates requests by id. Origin + source are
- * verified on every inbound message; results/errors go only to the signer origin.
+ * The iframe is owned by `SecureSignerHost` (shadcn Sheet). This singleton only
+ * speaks postMessage and asks the host to open/close the Sheet. Origin + source
+ * are verified on every inbound message; this client holds NO key material.
  *
- * This client holds NO key material — it exchanges public keys, ciphertext blobs,
- * and signatures only. Passkey *create* runs on the app (shared RP ID); the
- * signer performs get+PRF and wraps the seed.
+ * Passkey *create* runs on the app (shared RP ID); the signer performs get+PRF
+ * and wraps the seed.
  */
 
 import { SECURE_SIGNER_ORIGIN } from "@/lib/wallet/owner-backend";
@@ -36,8 +34,16 @@ type Pending = {
   resolve: (data: Record<string, unknown>) => void;
   reject: (err: Error) => void;
   timer: ReturnType<typeof setTimeout>;
-  /** Optional handler for mid-flow BLOB_NEEDED (AUTH_START restore). */
-  onBlobNeeded?: (credentialId: string) => string | null | Promise<string | null>;
+  onBlobNeeded?: (
+    credentialId: string,
+  ) => string | null | Promise<string | null>;
+};
+
+/** React host bridge — iframe lives inside a modal Sheet (not body-inert). */
+export type SecureSignerHostBridge = {
+  iframe: HTMLIFrameElement;
+  setOpen: (open: boolean) => void;
+  isOpen: () => boolean;
 };
 
 function bytesToBase64(bytes: Uint8Array): string {
@@ -51,27 +57,47 @@ function randomRequestId(): string {
   return [...b].map((x) => x.toString(16).padStart(2, "0")).join("");
 }
 
-function applyOverlayLayout(overlay: HTMLDivElement, frame: HTMLIFrameElement): void {
-  const mobile = window.matchMedia("(max-width: 639px)").matches;
-  // Do not set `display` here — show()/hide() own visibility. Resetting it on
-  // media-query changes would hide an open ceremony.
-  // pointer-events:auto is required — Radix dialogs set body { pointer-events:none }
-  // and may mark siblings inert; without this the iframe paints but ignores clicks.
-  overlay.style.cssText = mobile
-    ? "position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.4);align-items:flex-end;justify-content:stretch;padding:0;pointer-events:auto;"
-    : "position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.4);align-items:center;justify-content:center;padding:24px;pointer-events:auto;";
-  frame.style.cssText = mobile
-    ? "width:100%;height:min(560px,88vh);border:0;border-radius:24px 24px 0 0;background:#f7f4ef;box-shadow:0 -8px 40px rgba(0,0,0,.18);pointer-events:auto;"
-    : "width:min(400px,100%);height:min(520px,90vh);border:0;border-radius:24px;background:#f7f4ef;box-shadow:0 20px 60px rgba(26,31,30,.18);pointer-events:auto;";
-}
-
 class SecureSignerClient {
-  private iframe: HTMLIFrameElement | null = null;
-  private overlay: HTMLDivElement | null = null;
+  private host: SecureSignerHostBridge | null = null;
   private ready: Promise<void> | null = null;
-  private mediaQuery: MediaQueryList | null = null;
   private listening = false;
   private readonly pending = new Map<string, Pending>();
+  private readyWaiters: Array<{
+    resolve: () => void;
+    reject: (err: Error) => void;
+  }> = [];
+
+  /** Called by `SecureSignerHost` once the iframe is in the DOM. */
+  attachHost(bridge: SecureSignerHostBridge): void {
+    this.host = bridge;
+    if (!this.listening) {
+      this.listening = true;
+      window.addEventListener("message", (event) => this.onMessage(event));
+    }
+    // Always re-arm READY. The iframe may have posted SIGNER_READY before
+    // attach (boot race); bumping src guarantees we observe it.
+    this.ready = this.waitForReady(bridge.iframe);
+    bridge.iframe.src = `${SECURE_SIGNER_ORIGIN}/?r=${Date.now()}`;
+    for (const w of this.readyWaiters) {
+      void this.ready.then(w.resolve, w.reject);
+    }
+    this.readyWaiters = [];
+  }
+
+  detachHost(iframe?: HTMLIFrameElement | null): void {
+    if (iframe && this.host?.iframe !== iframe) return;
+    this.host = null;
+    this.ready = null;
+  }
+
+  /** Sheet backdrop / Escape — cancel in-flight interactive work. */
+  cancelFromHost(): void {
+    this.cancelAllPending();
+  }
+
+  private get iframe(): HTMLIFrameElement | null {
+    return this.host?.iframe ?? null;
+  }
 
   private waitForReady(frame: HTMLIFrameElement): Promise<void> {
     return new Promise<void>((resolve, reject) => {
@@ -93,20 +119,35 @@ class SecureSignerClient {
     });
   }
 
-  /**
-   * Reload the signer iframe after an aborted/failed interactive ceremony.
-   * Without this, a dismissed overlay can leave AUTH_PENDING stuck so the next
-   * ceremony fails with INTERNAL_ERROR.
-   */
   private remountSigner(): void {
     if (!this.iframe) return;
     this.ready = this.waitForReady(this.iframe);
     this.iframe.src = `${SECURE_SIGNER_ORIGIN}/?r=${Date.now()}`;
   }
 
-  /** Await readiness; remount once if a prior preload/ready attempt failed. */
+  private async ensureHost(): Promise<SecureSignerHostBridge> {
+    if (this.host) return this.host;
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        reject(new SecureSignerError("INTERNAL_ERROR"));
+      }, READY_TIMEOUT_MS);
+      this.readyWaiters.push({
+        resolve: () => {
+          clearTimeout(timer);
+          resolve();
+        },
+        reject: (err) => {
+          clearTimeout(timer);
+          reject(err);
+        },
+      });
+    });
+    if (!this.host) throw new SecureSignerError("INTERNAL_ERROR");
+    return this.host;
+  }
+
   private async ensureReady(): Promise<void> {
-    this.ensureMounted();
+    await this.ensureHost();
     try {
       await this.ready;
     } catch {
@@ -115,65 +156,11 @@ class SecureSignerClient {
     }
   }
 
-  /** Cancel every in-flight request (backdrop / Escape from the parent). */
   private cancelAllPending(code = "USER_CANCELLED"): void {
     for (const [id, p] of this.pending) {
       clearTimeout(p.timer);
       this.pending.delete(id);
       p.reject(new SecureSignerError(code));
-    }
-  }
-
-  private onOverlayPointerDown = (event: MouseEvent): void => {
-    if (event.target !== this.overlay) return;
-    // request() catch/finally remounts + hides
-    this.cancelAllPending();
-  };
-
-  private onDocumentKeyDown = (event: KeyboardEvent): void => {
-    if (event.key !== "Escape") return;
-    if (!this.overlay || this.overlay.style.display === "none") return;
-    if (this.pending.size === 0) return;
-    event.preventDefault();
-    this.cancelAllPending();
-  };
-
-  private ensureMounted(): void {
-    if (this.iframe) return;
-    const overlay = document.createElement("div");
-    overlay.setAttribute("data-secure-signer-overlay", "1");
-    const frame = document.createElement("iframe");
-    frame.src = `${SECURE_SIGNER_ORIGIN}/`;
-    frame.title = "Secure signer";
-    // get is required for unlock/sign; create runs on the app (shared RP ID).
-    frame.setAttribute("allow", "publickey-credentials-get");
-    applyOverlayLayout(overlay, frame);
-    overlay.style.display = "none";
-    overlay.appendChild(frame);
-    overlay.addEventListener("mousedown", this.onOverlayPointerDown);
-    document.body.appendChild(overlay);
-    this.iframe = frame;
-    this.overlay = overlay;
-
-    this.mediaQuery = window.matchMedia("(max-width: 639px)");
-    const onLayout = () => {
-      if (!this.overlay || !this.iframe) return;
-      const visible = this.overlay.style.display === "flex";
-      applyOverlayLayout(this.overlay, this.iframe);
-      this.overlay.style.display = visible ? "flex" : "none";
-      if (visible) {
-        this.overlay.style.pointerEvents = "auto";
-        this.iframe.style.pointerEvents = "auto";
-      }
-    };
-    this.mediaQuery.addEventListener("change", onLayout);
-
-    this.ready = this.waitForReady(frame);
-
-    if (!this.listening) {
-      this.listening = true;
-      window.addEventListener("message", (event) => this.onMessage(event));
-      document.addEventListener("keydown", this.onDocumentKeyDown);
     }
   }
 
@@ -233,29 +220,17 @@ class SecureSignerClient {
   }
 
   private show(): void {
-    if (!this.overlay || !this.iframe) return;
-    applyOverlayLayout(this.overlay, this.iframe);
-    // Drop any inert/aria-hidden Radix may have stamped while a Sheet was open,
-    // then re-append so we win paint + hit-testing over lingering portals.
-    this.overlay.removeAttribute("inert");
-    this.overlay.removeAttribute("aria-hidden");
-    this.iframe.removeAttribute("inert");
-    this.iframe.removeAttribute("aria-hidden");
-    document.body.appendChild(this.overlay);
-    this.overlay.style.display = "flex";
-    this.overlay.style.pointerEvents = "auto";
-    this.iframe.style.pointerEvents = "auto";
+    this.host?.setOpen(true);
   }
 
   private hide(): void {
-    if (this.overlay) this.overlay.style.display = "none";
+    this.host?.setOpen(false);
   }
 
-  /** Warm the iframe so the first interactive ceremony is not cold. */
+  /** Warm the iframe (host force-mounts it even while the Sheet is closed). */
   preload(): void {
-    this.ensureMounted();
-    void this.ready?.catch(() => {
-      /* allow ensureReady() to remount on first interactive use */
+    void this.ensureReady().catch(() => {
+      /* first interactive call remounts */
     });
   }
 
@@ -268,8 +243,6 @@ class SecureSignerClient {
       onBlobNeeded?: Pending["onBlobNeeded"];
     },
   ): Promise<Record<string, unknown>> {
-    this.ensureMounted();
-    // Show immediately so create→signer handoff never looks stuck while loading.
     if (interactive) this.show();
     try {
       await this.ensureReady();
@@ -309,16 +282,14 @@ class SecureSignerClient {
     }
   }
 
-  /**
-   * Unlock, or finish create after the app registered a passkey (`credentialId`).
-   */
   async authenticate(
     encryptedWalletBlob?: string | null,
     opts?: {
-      resolveBlob?: (credentialId: string) => string | null | Promise<string | null>;
+      resolveBlob?: (
+        credentialId: string,
+      ) => string | null | Promise<string | null>;
       putChallenge?: string;
       authMode?: "create" | "unlock";
-      /** Required when authMode is create (parent-registered passkey). */
       credentialId?: string;
     },
   ): Promise<AuthResult> {
@@ -363,7 +334,11 @@ class SecureSignerClient {
   async signTransaction(
     blob: string,
     txBytes: Uint8Array,
-  ): Promise<{ signature: string; publicKey: string; signedTransaction: string }> {
+  ): Promise<{
+    signature: string;
+    publicKey: string;
+    signedTransaction: string;
+  }> {
     const r = await this.request(
       "SIGN_TRANSACTION",
       "SIGN_TRANSACTION_RESULT",
@@ -377,7 +352,9 @@ class SecureSignerClient {
     };
   }
 
-  async exportEncryptedWallet(blob: string): Promise<{ encryptedWalletBlob: string }> {
+  async exportEncryptedWallet(
+    blob: string,
+  ): Promise<{ encryptedWalletBlob: string }> {
     const r = await this.request(
       "EXPORT_ENCRYPTED_WALLET",
       "EXPORT_ENCRYPTED_WALLET_RESULT",

@@ -5,6 +5,10 @@
  * DOM is built with createElement + textContent only: no innerHTML, no inline
  * handlers, no template strings injected as HTML (§25). This keeps the strict CSP
  * (`script-src 'self'`, no 'unsafe-inline') honest.
+ *
+ * Two sheet families (same chrome, different body layouts):
+ *   - statusScreen  — centered ceremony (busy / success / error)
+ *   - confirmScreen — scrollable copy + sticky actions (authorize / export / …)
  */
 
 import type { TransactionSummary } from "../tx/policy.js";
@@ -40,7 +44,7 @@ function shorten(addr: string): string {
   return addr.length > 12 ? `${addr.slice(0, 6)}…${addr.slice(-6)}` : addr;
 }
 
-type ScreenOpts = {
+type DismissOpts = {
   dismissible?: boolean;
   onDismiss?: () => void;
   grabber?: boolean;
@@ -65,11 +69,23 @@ function closeButton(onClick: () => void): HTMLButtonElement {
   return b;
 }
 
-function screen(
+function button(
+  label: string,
+  variant: "primary" | "ghost" | "danger",
+  onClick: () => void,
+): HTMLButtonElement {
+  const b = el("button", { class: `btn btn-${variant}`, text: label });
+  b.type = "button";
+  b.addEventListener("click", onClick);
+  return b;
+}
+
+/** Shared sheet chrome: grabber, optional close, Escape → dismiss. */
+function mountSheet(
   title: string,
-  body: Node[],
+  body: HTMLElement,
   actions: Node[],
-  opts: ScreenOpts = {},
+  opts: DismissOpts = {},
 ): void {
   const root = app();
   clear(root);
@@ -105,24 +121,122 @@ function screen(
     window.addEventListener("keydown", escapeHandler);
   }
   sheet.appendChild(header);
-
-  sheet.appendChild(el("div", { class: "body" }, body));
+  sheet.appendChild(body);
   if (actions.length) {
     sheet.appendChild(el("div", { class: "actions" }, actions));
   }
   root.appendChild(sheet);
 }
 
-function button(
-  label: string,
-  variant: "primary" | "ghost" | "danger",
-  onClick: () => void,
-): HTMLButtonElement {
-  const b = el("button", { class: `btn btn-${variant}`, text: label });
-  b.type = "button";
-  b.addEventListener("click", onClick);
-  return b;
+export type StatusTone = "busy" | "success" | "error" | "neutral";
+
+/**
+ * Centered ceremony body — loading, success, and error share one layout so
+ * passkey / restore / authorize waits feel like one surface.
+ */
+function statusScreen(args: {
+  title: string;
+  body?: string;
+  tone?: StatusTone;
+  detail?: Node[];
+  actions?: Node[];
+  dismissible?: boolean;
+  onDismiss?: () => void;
+}): void {
+  const tone = args.tone ?? "neutral";
+  const mark =
+    tone === "busy"
+      ? el("div", { class: "status-mark status-mark-busy" }, [
+          el("div", { class: "spinner" }),
+        ])
+      : tone === "success"
+        ? el("div", {
+            class: "status-mark status-mark-success",
+            text: "✓",
+          })
+        : tone === "error"
+          ? el("div", {
+              class: "status-mark status-mark-error",
+              text: "!",
+            })
+          : null;
+
+  const status = el("div", { class: "status" });
+  if (mark) status.appendChild(mark);
+  const titleEl = el("p", { class: "status-title", text: args.title });
+  titleEl.id = "ss-title";
+  status.appendChild(titleEl);
+  if (args.body) {
+    status.appendChild(el("p", { class: "status-body", text: args.body }));
+  }
+  if (args.detail) {
+    for (const node of args.detail) status.appendChild(node);
+  }
+
+  mountSheet(
+    "", // real title lives in the ceremony body
+    el("div", { class: "body body-status" }, [status]),
+    args.actions ?? [],
+    {
+      grabber: true,
+      ...(args.dismissible && args.onDismiss
+        ? { dismissible: true, onDismiss: args.onDismiss }
+        : {}),
+    },
+  );
+
+  const sheet = app().querySelector(".sheet");
+  sheet?.classList.add("sheet-status");
+  const headerTitle = app().querySelector(".sheet-header .title");
+  if (headerTitle) {
+    headerTitle.removeAttribute("id");
+    headerTitle.setAttribute("aria-hidden", "true");
+  }
 }
+
+/** Interactive sheet: left-aligned copy + sticky action row. */
+function confirmScreen(
+  title: string,
+  bodyNodes: Node[],
+  actions: Node[],
+  opts: DismissOpts = {},
+): void {
+  mountSheet(title, el("div", { class: "body" }, bodyNodes), actions, opts);
+}
+
+function promptChoice<T>(args: {
+  title: string;
+  body: Node[];
+  primary: { label: string; value: T; variant?: "primary" | "danger" };
+  secondary?: { label: string; value: T };
+  cancelValue: T;
+}): Promise<T> {
+  return new Promise((resolve) => {
+    const done = (v: T) => {
+      detachEscape();
+      resolve(v);
+    };
+    const actions: Node[] = [];
+    if (args.secondary) {
+      actions.push(
+        button(args.secondary.label, "ghost", () => done(args.secondary!.value)),
+      );
+    }
+    actions.push(
+      button(args.primary.label, args.primary.variant ?? "primary", () =>
+        done(args.primary.value),
+      ),
+    );
+    confirmScreen(args.title, args.body, actions, {
+      dismissible: true,
+      onDismiss: () => done(args.cancelValue),
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
 
 export function renderIdle(): void {
   busyDismiss = null;
@@ -131,7 +245,11 @@ export function renderIdle(): void {
 }
 
 export function renderBoot(): void {
-  screen(" ", [el("p", { class: "muted", text: " " })], [], { grabber: true });
+  statusScreen({
+    title: "Secure signer",
+    body: "Preparing…",
+    tone: "busy",
+  });
 }
 
 /**
@@ -143,107 +261,78 @@ export function setBusyDismiss(handler: (() => void) | null): void {
 }
 
 export function renderBusy(message: string): void {
-  screen(
-    "Continue on your device",
-    [
-      el("div", { class: "spinner" }),
-      el("p", { class: "muted", text: message }),
-    ],
-    [],
-    {
-      dismissible: true,
-      onDismiss: () => {
-        const fn = busyDismiss;
-        busyDismiss = null;
-        fn?.();
-      },
+  statusScreen({
+    title: "Continue on your device",
+    body: message,
+    tone: "busy",
+    dismissible: true,
+    onDismiss: () => {
+      const fn = busyDismiss;
+      busyDismiss = null;
+      fn?.();
     },
-  );
+  });
 }
 
 export function renderError(message: string, onDismiss?: () => void): void {
-  screen(
-    "Something went wrong",
-    [el("p", { class: "muted", text: message })],
-    [],
-    onDismiss
+  statusScreen({
+    title: "Something went wrong",
+    body: message,
+    tone: "error",
+    ...(onDismiss
       ? { dismissible: true, onDismiss }
-      : {},
-  );
+      : {}),
+  });
 }
 
 export function confirmImport(): Promise<boolean> {
-  return new Promise((resolve) => {
-    const done = (v: boolean) => {
-      detachEscape();
-      resolve(v);
-    };
-    screen(
-      "Unlock with passkey",
-      [
-        el("p", {
-          text: "Use your passkey to unlock this wallet on this phone.",
-        }),
-      ],
-      [
-        button("Cancel", "ghost", () => done(false)),
-        button("Continue with passkey", "primary", () => done(true)),
-      ],
-      { dismissible: true, onDismiss: () => done(false) },
-    );
+  return promptChoice({
+    title: "Unlock with passkey",
+    body: [
+      el("p", {
+        text: "Use your passkey to unlock this wallet on this phone.",
+      }),
+    ],
+    primary: { label: "Continue with passkey", value: true },
+    secondary: { label: "Cancel", value: false },
+    cancelValue: false,
   });
 }
 
 /** After the app created a passkey — iframe needs a tap for WebAuthn get+PRF. */
 export function confirmFinishCreate(): Promise<boolean> {
-  return new Promise((resolve) => {
-    const done = (v: boolean) => {
-      detachEscape();
-      resolve(v);
-    };
-    screen(
-      "Finish setup",
-      [
-        el("p", {
-          text: "Confirm with the passkey you just created to lock your wallet key on this phone.",
-        }),
-        el("p", {
-          class: "muted",
-          text: "Your signing key never leaves this secure window.",
-        }),
-      ],
-      [
-        button("Cancel", "ghost", () => done(false)),
-        button("Continue with passkey", "primary", () => done(true)),
-      ],
-      { dismissible: true, onDismiss: () => done(false) },
-    );
+  return promptChoice({
+    title: "Finish setup",
+    body: [
+      el("p", {
+        text: "Confirm with the passkey you just created to lock your wallet key on this phone.",
+      }),
+      el("p", {
+        class: "muted",
+        text: "Your signing key never leaves this secure window.",
+      }),
+    ],
+    primary: { label: "Continue with passkey", value: true },
+    secondary: { label: "Cancel", value: false },
+    cancelValue: false,
   });
 }
 
 export function confirmConflict(): Promise<"local" | "cancel"> {
-  return new Promise((resolve) => {
-    const done = (v: "local" | "cancel") => {
-      detachEscape();
-      resolve(v);
-    };
-    screen(
-      "Different wallet on this device",
-      [
-        el("p", {
-          text: "This device already has a wallet that does not match the backup from the app.",
-        }),
-        el("p", {
-          class: "muted",
-          text: "The backup was not applied. You can keep using the wallet stored on this device.",
-        }),
-      ],
-      [
-        button("Cancel", "ghost", () => done("cancel")),
-        button("Use this device", "primary", () => done("local")),
-      ],
-      { dismissible: true, onDismiss: () => done("cancel") },
-    );
+  return promptChoice({
+    title: "Different wallet on this device",
+    body: [
+      el("p", {
+        text: "This device already has a wallet that does not match the backup from the app.",
+      }),
+      el("p", {
+        class: "muted",
+        text: "The backup was not applied. You can keep using the wallet stored on this device.",
+      }),
+    ],
+    primary: { label: "Use this device", value: "local" as const },
+    secondary: { label: "Cancel", value: "cancel" as const },
+    cancelValue: "cancel",
   });
 }
 
@@ -257,19 +346,16 @@ export function showSuccess(publicKey: string, created: boolean): Promise<void> 
       detachEscape();
       resolve();
     };
-    screen(
-      created ? "Passkey ready" : "Wallet unlocked",
-      [
-        el("p", {
-          text: created
-            ? "Your wallet is set up on this phone."
-            : "You’re back in — returning to the app.",
-        }),
-        el("p", { class: "mono muted", text: shorten(publicKey) }),
-      ],
-      [],
-      { dismissible: true, onDismiss: done },
-    );
+    statusScreen({
+      title: created ? "Passkey ready" : "Wallet unlocked",
+      body: created
+        ? "Your wallet is set up on this phone."
+        : "You’re back in — returning to the app.",
+      tone: "success",
+      detail: [el("p", { class: "mono muted status-detail", text: shorten(publicKey) })],
+      dismissible: true,
+      onDismiss: done,
+    });
     const timer = window.setTimeout(done, 700);
   });
 }
@@ -280,27 +366,27 @@ export function showRecoverable(message: string): Promise<"retry" | "cancel"> {
       detachEscape();
       resolve(v);
     };
-    screen(
-      "Couldn’t continue",
-      [el("p", { class: "muted", text: message })],
-      [
+    statusScreen({
+      title: "Couldn’t continue",
+      body: message,
+      tone: "error",
+      actions: [
         button("Cancel", "ghost", () => done("cancel")),
         button("Try again", "primary", () => done("retry")),
       ],
-      { dismissible: true, onDismiss: () => done("cancel") },
-    );
+      dismissible: true,
+      onDismiss: () => done("cancel"),
+    });
   });
 }
 
 export function showRestored(publicKey: string): void {
-  screen(
-    "Signed in",
-    [
-      el("p", { text: "Wallet unlocked." }),
-      el("p", { class: "mono muted", text: publicKey }),
-    ],
-    [],
-  );
+  statusScreen({
+    title: "Signed in",
+    body: "Wallet unlocked.",
+    tone: "success",
+    detail: [el("p", { class: "mono muted status-detail", text: publicKey })],
+  });
 }
 
 export function confirmSignTransaction(
@@ -370,18 +456,19 @@ export function confirmSignTransaction(
     }
     body.push(el("div", { class: "kv" }, rows));
 
-    const actions: Node[] = [
-      button("Cancel", "ghost", () => done(false)),
-      button(
-        "Authorize with passkey",
-        risk === "high" ? "danger" : "primary",
-        () => done(true),
-      ),
-    ];
-    screen(risk === "high" ? "High-risk authorization" : "Authorize", body, actions, {
-      dismissible: true,
-      onDismiss: () => done(false),
-    });
+    confirmScreen(
+      risk === "high" ? "High-risk authorization" : "Authorize",
+      body,
+      [
+        button("Cancel", "ghost", () => done(false)),
+        button(
+          "Authorize with passkey",
+          risk === "high" ? "danger" : "primary",
+          () => done(true),
+        ),
+      ],
+      { dismissible: true, onDismiss: () => done(false) },
+    );
   });
 }
 
@@ -393,28 +480,24 @@ function row(label: string, value: string): HTMLElement {
 }
 
 export function confirmExportPrivateKey(): Promise<boolean> {
-  return new Promise((resolve) => {
-    const done = (v: boolean) => {
-      detachEscape();
-      resolve(v);
-    };
-    screen(
-      "Export private key",
-      [
-        el("div", {
-          class: "callout callout-danger",
-          text: "This is the only way this signer reveals your private key. Signing transactions never shows it.",
-        }),
-        el("p", {
-          text: "Anyone with this key can move your funds forever. Do not export on a shared device or if you did not open this screen yourself.",
-        }),
-      ],
-      [
-        button("Cancel", "ghost", () => done(false)),
-        button("Continue to export", "danger", () => done(true)),
-      ],
-      { dismissible: true, onDismiss: () => done(false) },
-    );
+  return promptChoice({
+    title: "Export private key",
+    body: [
+      el("div", {
+        class: "callout callout-danger",
+        text: "This is the only way this signer reveals your private key. Signing transactions never shows it.",
+      }),
+      el("p", {
+        text: "Anyone with this key can move your funds forever. Do not export on a shared device or if you did not open this screen yourself.",
+      }),
+    ],
+    primary: {
+      label: "Continue to export",
+      value: true,
+      variant: "danger",
+    },
+    secondary: { label: "Cancel", value: false },
+    cancelValue: false,
   });
 }
 
@@ -468,7 +551,7 @@ export function showExportedSecret(
       revealBtn.textContent = "Key visible on screen";
     });
 
-    screen(
+    confirmScreen(
       "Your private key",
       [
         el("div", {
