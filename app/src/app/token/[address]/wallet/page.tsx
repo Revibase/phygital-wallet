@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { ChevronLeft, Settings } from "lucide-react";
 
 import { CopyableAddress } from "@/components/shared/copyable-address";
@@ -16,7 +15,6 @@ import { useWalletPortfolio } from "@/hooks/wallet/use-wallet-portfolio";
 import { useFeeBalance } from "@/hooks/wallet/use-fee-balance";
 import { useRpcPreference } from "@/hooks/wallet/use-rpc-preference";
 import { copy } from "@/lib/copy/phygital";
-import { walletClaimHref } from "@/lib/wallet/token-routes";
 
 const timeFormatter = new Intl.DateTimeFormat(undefined, {
   hour: "numeric",
@@ -26,7 +24,6 @@ const timeFormatter = new Intl.DateTimeFormat(undefined, {
 export default function WalletHomePage() {
   const { tokenAddress, walletAddress, mint, collectible } = useWalletSession();
   const { go, goSettings, goSend, goCard, refresh } = useWalletNav();
-  const router = useRouter();
   const portfolio = useWalletPortfolio(walletAddress);
   const feeBalance = useFeeBalance(tokenAddress);
   const rpc = useRpcPreference();
@@ -40,7 +37,6 @@ export default function WalletHomePage() {
       ? "refreshing"
       : "live";
 
-  const showUnclaimed = !ownership.isLoading && !ownership.isClaimed;
   const showOtherOwner =
     !ownership.isLoading &&
     ownership.isClaimed &&
@@ -123,29 +119,23 @@ export default function WalletHomePage() {
             : null
         }
         visitorNotice={
-          showUnclaimed
-            ? copy.wallet.unclaimedBanner
-            : showOtherOwner
-              ? copy.wallet.otherOwnerBanner
-              : showClaimedVisitor
-                ? copy.wallet.claimedVisitorBanner
-                : null
+          showOtherOwner
+            ? copy.wallet.otherOwnerBanner
+            : showClaimedVisitor
+              ? copy.wallet.claimedVisitorBanner
+              : null
         }
         visitorNoticeAction={
-          showUnclaimed
-            ? copy.wallet.unclaimedBannerAction
-            : showOtherOwner
-              ? copy.wallet.otherOwnerBannerAction
-              : showClaimedVisitor
-                ? copy.wallet.claimedVisitorBannerAction
-                : undefined
+          showOtherOwner
+            ? copy.wallet.otherOwnerBannerAction
+            : showClaimedVisitor
+              ? copy.wallet.claimedVisitorBannerAction
+              : undefined
         }
         onVisitorNotice={
-          showUnclaimed
-            ? () => router.push(walletClaimHref(tokenAddress))
-            : showOtherOwner || showClaimedVisitor
-              ? () => goSettings()
-              : undefined
+          showOtherOwner || showClaimedVisitor
+            ? () => goSettings()
+            : undefined
         }
       />
     </div>

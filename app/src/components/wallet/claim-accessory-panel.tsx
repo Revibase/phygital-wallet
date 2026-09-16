@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -11,30 +11,29 @@ import { NfcHoldStatus } from "@/components/shared/nfc-hold-status";
 import { Button } from "@/components/ui/button";
 import { useClaimAccessory } from "@/hooks/token/use-claim-accessory";
 import { useTokenOwner } from "@/hooks/token/use-token-owner";
-import { copy } from "@/lib/copy/phygital";
+import { useOwnerWallet } from "@/hooks/wallet/use-owner-wallet";
+import { copy, errorCopy } from "@/lib/copy/phygital";
 import { announceClaimedSuccess } from "@/lib/wallet/announce-claimed-success";
-import { setPendingReturn } from "@/lib/wallet/claim-return";
 import {
-  walletClaimHref,
   walletHref,
   walletSettingsHref,
 } from "@/lib/wallet/token-routes";
 import { toUserErrorMessage } from "@/lib/user-errors";
 
 /**
- * Canonical `set_authority` ceremony — Hold to claim.
- * All claim entry points navigate here via {@link walletClaimHref}.
+ * Canonical `set_authority` ceremony — sign in (if needed) then Hold to claim.
+ * First-run lands here after unlock; no browse-unclaimed side path.
  */
 export function ClaimAccessoryPanel({
   phygitalTokenPda,
-  onBack,
 }: {
   phygitalTokenPda: string;
-  onBack: () => void;
 }) {
   const router = useRouter();
   const { isSignedIn, isClaimed, isLoading } = useTokenOwner(phygitalTokenPda);
+  const { login, isLoading: ownerLoading } = useOwnerWallet();
   const claim = useClaimAccessory(phygitalTokenPda);
+  const [signingIn, setSigningIn] = useState(false);
 
   useEffect(() => {
     if (!isLoading && isClaimed) {
@@ -42,9 +41,15 @@ export function ClaimAccessoryPanel({
     }
   }, [isClaimed, isLoading, phygitalTokenPda, router]);
 
-  function goSignIn() {
-    setPendingReturn(walletClaimHref(phygitalTokenPda));
-    router.push("/");
+  async function onSignIn() {
+    setSigningIn(true);
+    try {
+      await login();
+    } catch (err) {
+      toast.error(toUserErrorMessage(err, errorCopy.signerFailed.body));
+    } finally {
+      setSigningIn(false);
+    }
   }
 
   function onClaimed() {
@@ -53,6 +58,10 @@ export function ClaimAccessoryPanel({
         router.push(walletSettingsHref(phygitalTokenPda, "walletPolicy")),
     });
     router.replace(walletHref(phygitalTokenPda));
+  }
+
+  function leaveToken() {
+    router.push("/");
   }
 
   if (isLoading || isClaimed) {
@@ -68,6 +77,7 @@ export function ClaimAccessoryPanel({
   }
 
   const icon = <RevibaseMark className="size-5 text-muted-foreground" />;
+  const busySignIn = signingIn || ownerLoading;
 
   if (!isSignedIn) {
     return (
@@ -82,7 +92,8 @@ export function ClaimAccessoryPanel({
                 type="button"
                 size="lg"
                 className="w-full rounded-full"
-                onClick={goSignIn}
+                disabled={busySignIn}
+                onClick={() => void onSignIn()}
               >
                 {copy.wallet.authoritySignInCta}
               </Button>
@@ -91,7 +102,8 @@ export function ClaimAccessoryPanel({
                 size="lg"
                 variant="ghost"
                 className="w-full rounded-full"
-                onClick={onBack}
+                disabled={busySignIn}
+                onClick={leaveToken}
               >
                 {copy.common.cancel}
               </Button>
@@ -123,36 +135,25 @@ export function ClaimAccessoryPanel({
         }
         action={
           holding ? undefined : (
-            <div className="flex flex-col gap-2.5">
-              <Button
-                type="button"
-                size="lg"
-                className="w-full rounded-full"
-                onClick={() =>
-                  claim.mutate(undefined, {
-                    onSuccess: onClaimed,
-                    onError: (err) =>
-                      toast.error(
-                        toUserErrorMessage(
-                          err,
-                          copy.wallet.authorityClaimFailed,
-                        ),
+            <Button
+              type="button"
+              size="lg"
+              className="w-full rounded-full"
+              onClick={() =>
+                claim.mutate(undefined, {
+                  onSuccess: onClaimed,
+                  onError: (err) =>
+                    toast.error(
+                      toUserErrorMessage(
+                        err,
+                        copy.wallet.authorityClaimFailed,
                       ),
-                  })
-                }
-              >
-                {copy.wallet.authorityClaimCta}
-              </Button>
-              <Button
-                type="button"
-                size="lg"
-                variant="ghost"
-                className="w-full rounded-full"
-                onClick={onBack}
-              >
-                {copy.wallet.authorityBrowse}
-              </Button>
-            </div>
+                    ),
+                })
+              }
+            >
+              {copy.wallet.authorityClaimCta}
+            </Button>
           )
         }
       />

@@ -24,6 +24,12 @@ const CONFIRM_TIMEOUT_MS = 60_000;
 const CONFIRM_POLL_MS = 1000;
 const CONFIRM_COMMITMENT: Commitment = "confirmed";
 
+/** Match phygital-wallet-sdk wrap — Kit’s estimator uses exact sim units (no headroom). */
+const COMPUTE_UNIT_ESTIMATE_MARGIN = 1.1;
+const MAX_COMPUTE_UNIT_LIMIT = 1_400_000;
+/** v1 loaded-accounts cost model bills in 32 KiB pages. */
+const LOADED_ACCOUNTS_PAGE_BYTES = 32 * 1024;
+
 /**
  * Every app transaction is a version 1 transaction message. Unlike legacy / v0,
  * a v1 message with an unset compute-unit limit or loaded-accounts-data-size
@@ -51,14 +57,51 @@ function sendWithoutConfirming() {
   return _sendWithoutConfirming;
 }
 
+function withComputeMargin(unitsConsumed: number): number {
+  const tenths = Math.round(COMPUTE_UNIT_ESTIMATE_MARGIN * 10);
+  return Math.min(
+    MAX_COMPUTE_UNIT_LIMIT,
+    Math.max(1, Math.ceil((unitsConsumed * tenths) / 10)),
+  );
+}
+
+function roundUpLoadedAccountsDataSize(bytes: number): number {
+  if (bytes <= 0) return LOADED_ACCOUNTS_PAGE_BYTES;
+  return (
+    Math.ceil(bytes / LOADED_ACCOUNTS_PAGE_BYTES) * LOADED_ACCOUNTS_PAGE_BYTES
+  );
+}
+
 let _estimateAndSetResourceLimits: ReturnType<
   typeof estimateAndSetResourceLimitsFactory
 > | null = null;
 
-/** Simulate to fill the v1 compute-unit + loaded-accounts-data-size limits. */
+/**
+ * Simulate, then set CU / loaded-accounts limits with headroom.
+ * Bare Kit estimation uses exact `unitsConsumed`; on-chain can run slightly
+ * hotter than sim (claim already includes secp + verify CPI in that sim — the
+ * SDK’s +20k buffer is only for authority *preview* sims that omit the passkey).
+ */
 function estimateAndSetResourceLimits() {
-  _estimateAndSetResourceLimits ??= estimateAndSetResourceLimitsFactory(
-    estimateResourceLimitsFactory({ rpc: getSolanaRpc() }),
+  if (_estimateAndSetResourceLimits) return _estimateAndSetResourceLimits;
+
+  const estimate = estimateResourceLimitsFactory({ rpc: getSolanaRpc() });
+  _estimateAndSetResourceLimits = estimateAndSetResourceLimitsFactory(
+    async (message, config) => {
+      const limits = await estimate(message, config);
+      return {
+        ...limits,
+        computeUnitLimit: withComputeMargin(limits.computeUnitLimit),
+        ...("loadedAccountsDataSizeLimit" in limits &&
+        limits.loadedAccountsDataSizeLimit != null
+          ? {
+              loadedAccountsDataSizeLimit: roundUpLoadedAccountsDataSize(
+                limits.loadedAccountsDataSizeLimit,
+              ),
+            }
+          : {}),
+      };
+    },
   );
   return _estimateAndSetResourceLimits;
 }

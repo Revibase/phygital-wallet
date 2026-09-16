@@ -41,7 +41,11 @@ export function OwnerAccountMenu({ className }: { className?: string }) {
         type="button"
         variant="outline"
         size="sm"
-        className={cn("rounded-full", className)}
+        className={cn(
+          "rounded-full border-border/80 bg-card/70 font-mono text-xs tracking-tight text-muted-foreground shadow-none",
+          "hover:bg-card hover:text-foreground",
+          className,
+        )}
         onClick={() => setOpen(true)}
       >
         {address ? shortAddress(address) : copy.home.account}

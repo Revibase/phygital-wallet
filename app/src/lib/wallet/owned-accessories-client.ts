@@ -9,6 +9,7 @@ import {
   PHYGITAL_WALLET_PROGRAM_ADDRESS,
 } from "phygital-wallet-sdk";
 
+import { DEFAULT_TOKEN_OWNER } from "@/lib/phygital/token";
 import { getSolanaRpc } from "@/lib/solana/rpc";
 
 /**
@@ -51,9 +52,15 @@ export async function fetchOwnedAccessories(owner: string): Promise<string[]> {
     })
     .send();
 
-  return accounts.map((entry) => {
+  const unset = String(DEFAULT_TOKEN_OWNER);
+  const tokens: string[] = [];
+  for (const entry of accounts) {
     const [data] = entry.account.data;
     const bytes = new Uint8Array(base64.encode(data));
-    return String(addressDecoder.decode(bytes));
-  });
+    const token = String(addressDecoder.decode(bytes));
+    // Zero pubkey / System Program — never a real accessory PDA.
+    if (token === unset) continue;
+    tokens.push(token);
+  }
+  return tokens;
 }

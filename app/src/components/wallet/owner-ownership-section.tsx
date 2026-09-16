@@ -18,8 +18,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTokenOwner } from "@/hooks/token/use-token-owner";
 import { useUnlinkAccessory } from "@/hooks/token/use-unlink-accessory";
-import { copy } from "@/lib/copy/phygital";
-import { setPendingReturn } from "@/lib/wallet/claim-return";
+import { useOwnerWallet } from "@/hooks/wallet/use-owner-wallet";
+import { copy, errorCopy } from "@/lib/copy/phygital";
 import { walletClaimHref } from "@/lib/wallet/token-routes";
 import { toUserErrorMessage } from "@/lib/user-errors";
 import { shortAddress } from "@/lib/utils";
@@ -34,18 +34,26 @@ export function OwnerOwnershipSection({
   phygitalTokenPda: string;
 }) {
   const router = useRouter();
+  const { login } = useOwnerWallet();
   const { isSignedIn, isClaimed, isOwner, authority, isLoading } =
     useTokenOwner(phygitalTokenPda);
   const unlink = useUnlinkAccessory(phygitalTokenPda);
   const [confirmOpen, setConfirmOpen] = useState(false);
-
-  function goSignIn() {
-    setPendingReturn(walletClaimHref(phygitalTokenPda));
-    router.push("/");
-  }
+  const [signingIn, setSigningIn] = useState(false);
 
   function goClaim() {
     router.push(walletClaimHref(phygitalTokenPda));
+  }
+
+  async function onSignIn() {
+    setSigningIn(true);
+    try {
+      await login();
+    } catch (err) {
+      toast.error(toUserErrorMessage(err, errorCopy.signerFailed.body));
+    } finally {
+      setSigningIn(false);
+    }
   }
 
   if (isLoading) {
@@ -62,7 +70,14 @@ export function OwnerOwnershipSection({
     return (
       <GroupedList label={copy.wallet.ownershipLabel}>
         <GroupedRow
-          onClick={goSignIn}
+          onClick={() => {
+            if (signingIn) return;
+            if (!isClaimed) {
+              goClaim();
+              return;
+            }
+            void onSignIn();
+          }}
           subtitle={copy.wallet.ownershipSignInSubtitle}
         >
           {copy.wallet.ownershipSignIn}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { Plus } from "lucide-react";
 
 import { InAppBrowserGate } from "@/components/shared/in-app-browser-gate";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -10,7 +11,10 @@ import { OwnerAccountMenu } from "@/components/home/owner-account-menu";
 import { useTapToOpen } from "@/hooks/token/use-tap-to-open";
 import { useOwnedAccessories } from "@/hooks/wallet/use-owned-accessories";
 import { copy } from "@/lib/copy/phygital";
+import { galleryAnimate, staggerStyle } from "@/lib/motion";
+import { DEFAULT_TOKEN_OWNER } from "@/lib/phygital/token";
 import { tokenHref } from "@/lib/wallet/token-routes";
+import { cn } from "@/lib/utils";
 
 /**
  * Signed-in home: every accessory the owner controls.
@@ -27,31 +31,48 @@ export function OwnerDashboard({ owner }: { owner: string }) {
     return <InAppBrowserGate body={copy.gate.openInBrowserBody} />;
   }
 
-  const tokens = accessories.data ?? [];
+  const tokens = (accessories.data ?? []).filter(
+    (token) => token !== String(DEFAULT_TOKEN_OWNER),
+  );
   const isEmpty = accessories.isSuccess && tokens.length === 0;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-6 py-2">
-      <header className="flex items-center justify-between gap-3">
-        <h1 className="text-display-md tracking-tight">
-          {copy.home.accessories}
-        </h1>
-        <OwnerAccountMenu />
+    <div className="flex min-h-0 flex-1 flex-col gap-5 py-1 sm:gap-6 sm:py-2">
+      <header className="flex items-start justify-between gap-3">
+        <div className="min-w-0 space-y-1">
+          <h1 className="text-large-title tracking-tight">
+            {copy.home.accessories}
+          </h1>
+          {!accessories.isPending && !isEmpty ? (
+            <p className="text-sm text-muted-foreground">
+              {copy.home.accessoriesCount(tokens.length)}
+            </p>
+          ) : null}
+        </div>
+        <OwnerAccountMenu className="shrink-0" />
       </header>
 
       {accessories.isPending ? (
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        <ul className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <li key={i}>
-              <Skeleton className="aspect-square w-full rounded-2xl" />
-              <Skeleton className="mt-2 h-4 w-2/3 rounded" />
+            <li key={i} style={staggerStyle(i)} className={galleryAnimate.rise}>
+              <Skeleton className="aspect-square w-full rounded-[1.25rem]" />
+              <Skeleton className="mt-2.5 h-4 w-2/3 rounded" />
+              <Skeleton className="mt-1.5 h-3 w-1/2 rounded" />
             </li>
           ))}
         </ul>
       ) : isEmpty ? (
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 py-10 text-center">
+        <div
+          className={cn(
+            "flex min-h-0 flex-1 flex-col items-center justify-center gap-5 py-12 text-center",
+            galleryAnimate.rise,
+          )}
+        >
           <div className="max-w-xs space-y-2">
-            <p className="text-base font-medium">{copy.home.emptyTitle}</p>
+            <p className="text-base font-medium tracking-tight">
+              {copy.home.emptyTitle}
+            </p>
             <p className="text-sm leading-relaxed text-muted-foreground">
               {copy.home.emptyBody}
             </p>
@@ -72,40 +93,82 @@ export function OwnerDashboard({ owner }: { owner: string }) {
           ) : null}
         </div>
       ) : (
-        <>
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-            {tokens.map((token) => (
+        <div className="flex min-h-0 flex-1 flex-col gap-4">
+          <ul className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
+            {tokens.map((token, index) => (
               <li key={token}>
                 <OwnerAccessoryCard
                   phygitalToken={token}
+                  index={index}
                   onOpen={(t) => router.push(tokenHref(t))}
                 />
               </li>
             ))}
+            <li>
+              <OpenAnotherTile
+                index={tokens.length}
+                holding={tap.holding}
+                error={tap.error}
+                onOpen={() => void tap.open()}
+              />
+            </li>
           </ul>
-          <div className="flex flex-col items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              className="rounded-full"
-              disabled={tap.holding}
-              onClick={() => void tap.open()}
-            >
-              {tap.holding
-                ? copy.wallet.holdToOpenTitle
-                : copy.home.openAnother}
-            </Button>
-            {tap.error ? (
-              <p className="text-xs text-destructive">{tap.error}</p>
-            ) : null}
-          </div>
-        </>
+        </div>
       )}
 
       {accessories.isError ? (
         <p className="text-center text-xs text-destructive">
-          Couldn’t load your accessories.
+          {copy.home.accessoriesLoadFailed}
         </p>
+      ) : null}
+    </div>
+  );
+}
+
+function OpenAnotherTile({
+  index,
+  holding,
+  error,
+  onOpen,
+}: {
+  index: number;
+  holding: boolean;
+  error: string | null;
+  onOpen: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <Button
+        type="button"
+        variant="ghost"
+        disabled={holding}
+        onClick={onOpen}
+        style={staggerStyle(index)}
+        className={cn(
+          "group h-auto min-h-0 w-full flex-col items-stretch gap-0 rounded-[1.25rem] p-0 font-normal",
+          "hover:bg-transparent focus-visible:ring-2 focus-visible:ring-ring/60",
+          galleryAnimate.rise,
+        )}
+      >
+        <span
+          className={cn(
+            "relative flex aspect-square w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-[1.25rem]",
+            "border border-dashed border-border/90 bg-card/40 text-muted-foreground",
+            "transition-[border-color,background-color,color,transform]",
+            "group-hover:border-foreground/25 group-hover:bg-card/80 group-hover:text-foreground",
+            "group-active:scale-[0.985]",
+          )}
+        >
+          <span className="flex size-10 items-center justify-center rounded-full bg-secondary/80 text-foreground/80 transition-colors group-hover:bg-secondary">
+            <Plus className="size-5" strokeWidth={2} aria-hidden />
+          </span>
+          <span className="px-3 text-center text-sm font-medium tracking-tight">
+            {holding ? copy.wallet.holdToOpenTitle : copy.home.openAnother}
+          </span>
+        </span>
+      </Button>
+      {error ? (
+        <p className="px-0.5 text-xs text-destructive">{error}</p>
       ) : null}
     </div>
   );

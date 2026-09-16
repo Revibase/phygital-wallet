@@ -222,11 +222,6 @@ export const copy = {
     authorityClaimCta: "Hold to claim",
     authorityClaiming: "Hold your accessory…",
     authorityClaimFailed: "Couldn’t claim this item",
-    authorityBrowse: "Not now",
-    /** Wallet home after browse-without-claim. */
-    unclaimedBanner:
-      "Everyday payments stay off until you claim this accessory.",
-    unclaimedBannerAction: "Claim",
     /** Claimed accessory, signed-out visitor — browse only. */
     claimedVisitorBanner:
       "This accessory has an owner. You can browse balances.",
@@ -592,6 +587,9 @@ export const copy = {
     emptyBody: "Hold an accessory to open it, then claim it to see it here.",
     emptyOpenCta: "Hold to open",
     openAnother: "Open another",
+    accessoriesCount: (count: number) =>
+      count === 1 ? "1 linked" : `${count} linked`,
+    accessoriesLoadFailed: "Couldn’t load your accessories.",
     account: "Account",
     accountExportKey: "Export private key",
     accountExportKeySubtitle: "Reveal and copy this wallet’s private key.",

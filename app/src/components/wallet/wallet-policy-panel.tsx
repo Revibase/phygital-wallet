@@ -64,7 +64,6 @@ import {
   policyPresets,
   type PolicyPreset,
 } from "@/lib/wallet/policy-presets";
-import { setPendingReturn } from "@/lib/wallet/claim-return";
 import { walletClaimHref } from "@/lib/wallet/token-routes";
 import { toUserErrorMessage } from "@/lib/user-errors";
 import { cn, shortAddress } from "@/lib/utils";
@@ -98,11 +97,6 @@ export function WalletPolicyPanel({
   const hasLimits = Boolean(data?.hasLimits);
 
   function goClaim() {
-    if (!isSignedIn) {
-      setPendingReturn(walletClaimHref(phygitalTokenPda));
-      router.push("/");
-      return;
-    }
     router.push(walletClaimHref(phygitalTokenPda));
   }
 

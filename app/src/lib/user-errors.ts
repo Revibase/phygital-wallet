@@ -82,6 +82,10 @@ const RULES: Rule[] = [
     test: /amount supports at most/i,
     facing: errorCopy.amountTooPrecise,
   },
+  {
+    test: /program failed to complete|computational budget|4615041/i,
+    facing: errorCopy.tryAgainBody,
+  },
 ];
 
 function rawMessage(error: unknown): string {
