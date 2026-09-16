@@ -381,7 +381,7 @@ function applyFeePayerSignature(
   transaction: SignedTransaction,
   walletPda: Address,
   priorSignatures: SignaturesMap | undefined,
-  verifierSignatures: SignatureDictionary,
+  feePayerSignatures: SignatureDictionary,
 ): SignedTransaction {
   const remainingSignatures = { ...(priorSignatures ?? {}) };
   delete remainingSignatures[walletPda];
@@ -390,7 +390,7 @@ function applyFeePayerSignature(
     ...transaction,
     signatures: {
       ...remainingSignatures,
-      ...verifierSignatures,
+      ...feePayerSignatures,
     },
   };
 }

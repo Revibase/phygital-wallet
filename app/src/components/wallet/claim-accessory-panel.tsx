@@ -13,11 +13,7 @@ import { useClaimAccessory } from "@/hooks/token/use-claim-accessory";
 import { useTokenOwner } from "@/hooks/token/use-token-owner";
 import { useOwnerWallet } from "@/hooks/wallet/use-owner-wallet";
 import { copy, errorCopy } from "@/lib/copy/phygital";
-import { announceClaimedSuccess } from "@/lib/wallet/announce-claimed-success";
-import {
-  walletHref,
-  walletSettingsHref,
-} from "@/lib/wallet/token-routes";
+import { walletHref } from "@/lib/wallet/token-routes";
 import { toUserErrorMessage } from "@/lib/user-errors";
 
 /**
@@ -53,10 +49,6 @@ export function ClaimAccessoryPanel({
   }
 
   function onClaimed() {
-    announceClaimedSuccess({
-      onLimitSpend: () =>
-        router.push(walletSettingsHref(phygitalTokenPda, "walletPolicy")),
-    });
     router.replace(walletHref(phygitalTokenPda));
   }
 

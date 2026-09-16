@@ -60,10 +60,7 @@ import {
   windowPhrase,
 } from "@/lib/wallet/policy-format";
 import { POLICY_BASELINE_ACTIONS } from "@/lib/wallet/policy-baseline";
-import {
-  policyPresets,
-  type PolicyPreset,
-} from "@/lib/wallet/policy-presets";
+import { policyPresets, type PolicyPreset } from "@/lib/wallet/policy-presets";
 import { walletClaimHref } from "@/lib/wallet/token-routes";
 import { toUserErrorMessage } from "@/lib/user-errors";
 import { cn, shortAddress } from "@/lib/utils";
@@ -270,7 +267,7 @@ function PolicyView({
         </div>
       ) : null}
 
-      {(solCap || mintCaps.length > 0) ? <AllowlistNote /> : null}
+      {solCap || mintCaps.length > 0 ? <AllowlistNote /> : null}
 
       {mintCaps.length > 0 ? (
         <div className="flex flex-col gap-2">
@@ -404,11 +401,7 @@ function BaselineList() {
 }
 
 /** One-tap allow-list setups for owners on everyday payments. */
-function PolicyPresetList({
-  phygitalTokenPda,
-}: {
-  phygitalTokenPda: string;
-}) {
+function PolicyPresetList({ phygitalTokenPda }: { phygitalTokenPda: string }) {
   const setPolicy = useSetWalletPolicy(phygitalTokenPda);
   const presets = useMemo(() => policyPresets(), []);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -782,9 +775,7 @@ function PolicyEditorForm({
       {showPresets ? (
         <EditorPresetPicker
           onPick={(preset) => {
-            setSolAmount(
-              preset.solCap ? lamportsToSol(preset.solCap.cap) : "",
-            );
+            setSolAmount(preset.solCap ? lamportsToSol(preset.solCap.cap) : "");
             setSolWindow(preset.solCap?.windowSeconds ?? DEFAULT_WINDOW);
             setDrafts(
               preset.mintCaps.map((m) => {
@@ -1288,7 +1279,7 @@ function RestoreStandardButton({
           if (!setPolicy.isPending) setOpen(next);
         }}
       >
-        <DialogContent>
+        <DialogContent className="space-y-4">
           <DialogHeader>
             <DialogTitle>{copy.wallet.policyRestoreConfirmTitle}</DialogTitle>
             <DialogDescription>

@@ -101,7 +101,7 @@ const appCredentialedCors = cors({
 });
 
 /**
- * Open CORS for third-party verifier / soft-deny ticket clients — no cookies.
+ * Open CORS for third-party wallet clients / soft-deny ticket clients — no cookies.
  */
 const openPublicCors = cors({
   origin: (origin) => origin || "*",

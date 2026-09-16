@@ -28,15 +28,11 @@ import {
   parseClearWalletPolicyInstruction,
 } from "phygital-wallet-sdk";
 
-import { MEMO_PROGRAM_ADDRESS } from "@/fees/constants";
 import { coded } from "@/shared/errors";
 
 const base64Encoder = getBase64Encoder();
 const txDecoder = getTransactionDecoder();
 const messageDecoder = getCompiledTransactionMessageDecoder();
-
-/** Fixed `execute` metas are accounts 0–5; remaining are compact CPI metas. */
-const EXECUTE_FIXED_ACCOUNTS = 6;
 
 type WalletIx = Instruction &
   InstructionWithAccounts<readonly AccountMeta[]> &

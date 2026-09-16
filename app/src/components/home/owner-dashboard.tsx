@@ -1,7 +1,10 @@
 "use client";
 
+import { useMemo, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
+import { useQueries } from "@tanstack/react-query";
+import { address } from "@solana/kit";
 
 import { InAppBrowserGate } from "@/components/shared/in-app-browser-gate";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,7 +15,9 @@ import { useTapToOpen } from "@/hooks/token/use-tap-to-open";
 import { useOwnedAccessories } from "@/hooks/wallet/use-owned-accessories";
 import { copy } from "@/lib/copy/phygital";
 import { galleryAnimate, staggerStyle } from "@/lib/motion";
-import { DEFAULT_TOKEN_OWNER } from "@/lib/phygital/token";
+import { fetchPhygitalToken, tokenHasLinkedMint } from "@/lib/phygital/token";
+import { queryKeys, queryOptions } from "@/lib/queries";
+import { getSolanaRpc } from "@/lib/solana/rpc";
 import { tokenHref } from "@/lib/wallet/token-routes";
 import { cn } from "@/lib/utils";
 
@@ -31,10 +36,28 @@ export function OwnerDashboard({ owner }: { owner: string }) {
     return <InAppBrowserGate body={copy.gate.openInBrowserBody} />;
   }
 
-  const tokens = (accessories.data ?? []).filter(
-    (token) => token !== String(DEFAULT_TOKEN_OWNER),
-  );
+  const tokens = accessories.data ?? [];
+  const tokenQueries = useQueries({
+    queries: tokens.map((token) => ({
+      queryKey: queryKeys.phygitalToken.byAddress(token),
+      queryFn: () => fetchPhygitalToken(getSolanaRpc(), address(token)),
+      ...queryOptions.volatile,
+    })),
+  });
+  const sections = useMemo(() => {
+    const minted: string[] = [];
+    const unminted: string[] = [];
+    for (let i = 0; i < tokens.length; i++) {
+      const token = tokenQueries[i]?.data;
+      if (token && tokenHasLinkedMint(token)) minted.push(tokens[i]);
+      else unminted.push(tokens[i]);
+    }
+    return { minted, unminted };
+  }, [tokenQueries, tokens]);
   const isEmpty = accessories.isSuccess && tokens.length === 0;
+  const showMinted = sections.minted.length > 0;
+  const showUnminted = sections.unminted.length > 0;
+  const linkedCount = sections.minted.length + sections.unminted.length;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-5 py-1 sm:gap-6 sm:py-2">
@@ -45,7 +68,7 @@ export function OwnerDashboard({ owner }: { owner: string }) {
           </h1>
           {!accessories.isPending && !isEmpty ? (
             <p className="text-sm text-muted-foreground">
-              {copy.home.accessoriesCount(tokens.length)}
+              {copy.home.accessoriesCount(linkedCount)}
             </p>
           ) : null}
         </div>
@@ -94,25 +117,45 @@ export function OwnerDashboard({ owner }: { owner: string }) {
         </div>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col gap-4">
-          <ul className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
-            {tokens.map((token, index) => (
-              <li key={token}>
-                <OwnerAccessoryCard
-                  phygitalToken={token}
-                  index={index}
-                  onOpen={(t) => router.push(tokenHref(t))}
+          {showMinted ? (
+            <AccessorySection
+              title={copy.home.cards}
+              count={sections.minted.length}
+              tokens={sections.minted}
+              onOpen={(t) => router.push(tokenHref(t))}
+            />
+          ) : null}
+          {showUnminted ? (
+            <AccessorySection
+              title={copy.home.accessories}
+              count={sections.unminted.length}
+              tokens={sections.unminted}
+              onOpen={(t) => router.push(tokenHref(t))}
+              trailingTile={
+                <OpenAnotherTile
+                  index={sections.unminted.length}
+                  holding={tap.holding}
+                  error={tap.error}
+                  onOpen={() => void tap.open()}
                 />
-              </li>
-            ))}
-            <li>
-              <OpenAnotherTile
-                index={tokens.length}
-                holding={tap.holding}
-                error={tap.error}
-                onOpen={() => void tap.open()}
-              />
-            </li>
-          </ul>
+              }
+            />
+          ) : (
+            <AccessorySection
+              title={copy.home.addMoreTitle}
+              count={0}
+              tokens={[]}
+              onOpen={(t) => router.push(tokenHref(t))}
+              trailingTile={
+                <OpenAnotherTile
+                  index={0}
+                  holding={tap.holding}
+                  error={tap.error}
+                  onOpen={() => void tap.open()}
+                />
+              }
+            />
+          )}
         </div>
       )}
 
@@ -122,6 +165,49 @@ export function OwnerDashboard({ owner }: { owner: string }) {
         </p>
       ) : null}
     </div>
+  );
+}
+
+function AccessorySection({
+  title,
+  count,
+  tokens,
+  trailingTile,
+  onOpen,
+}: {
+  title: string;
+  count: number;
+  tokens: string[];
+  trailingTile?: ReactNode;
+  onOpen: (phygitalToken: string) => void;
+}) {
+  if (tokens.length === 0 && !trailingTile) return null;
+
+  return (
+    <section className="space-y-3">
+      <div className="space-y-0.5">
+        <h2 className="text-sm font-medium tracking-tight text-foreground">
+          {title}
+        </h2>
+        {count > 0 ? (
+          <p className="text-xs text-muted-foreground">
+            {count === 1 ? copy.home.oneItem : copy.home.manyItems(count)}
+          </p>
+        ) : null}
+      </div>
+      <ul className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
+        {tokens.map((token, index) => (
+          <li key={token}>
+            <OwnerAccessoryCard
+              phygitalToken={token}
+              index={index}
+              onOpen={onOpen}
+            />
+          </li>
+        ))}
+        {trailingTile ? <li>{trailingTile}</li> : null}
+      </ul>
+    </section>
   );
 }
 

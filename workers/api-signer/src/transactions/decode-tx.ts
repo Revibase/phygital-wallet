@@ -34,6 +34,7 @@ import {
   parseClearWalletPolicyInstruction,
   parseSetAuthorityInstruction,
   parseSetWalletPolicyInstruction,
+  sliceExecuteRemainingAccounts,
 } from "phygital-wallet-sdk";
 
 import { MEMO_PROGRAM_ADDRESS, SYSTEM_PROGRAM_ADDRESS } from "@/fees/constants";
@@ -46,10 +47,6 @@ import {
 const base64Encoder = getBase64Encoder();
 const txDecoder = getTransactionDecoder();
 const messageDecoder = getCompiledTransactionMessageDecoder();
-
-/** First remaining (compact-CPI) account slot for the execute variants. */
-const EXECUTE_REMAINING_OFFSET = 8;
-const EXECUTE_WITH_AUTHORITY_REMAINING_OFFSET = 7;
 
 const TOP_LEVEL_OK = new Set<string>([
   COMPUTE_BUDGET_PROGRAM,
@@ -159,9 +156,13 @@ function resolveWalletInstruction(
   switch (ixType) {
     case PhygitalWalletInstruction.Execute: {
       const parsed = parseExecuteInstruction(walletIx);
+      const remaining = sliceExecuteRemainingAccounts(
+        PhygitalWalletInstruction.Execute,
+        walletIx.accounts,
+      );
       const inner = expandCompactInstructions(
         parsed.data.compactInstructions,
-        walletIx.accounts.slice(EXECUTE_REMAINING_OFFSET).map((a) => a.address),
+        remaining.map((a) => a.address),
       );
       return {
         phygitalToken: parsed.accounts.phygitalToken.address,
@@ -170,11 +171,13 @@ function resolveWalletInstruction(
     }
     case PhygitalWalletInstruction.ExecuteWithAuthority: {
       const parsed = parseExecuteWithAuthorityInstruction(walletIx);
+      const remaining = sliceExecuteRemainingAccounts(
+        PhygitalWalletInstruction.ExecuteWithAuthority,
+        walletIx.accounts,
+      );
       const inner = expandCompactInstructions(
         parsed.data.compactInstructions,
-        walletIx.accounts
-          .slice(EXECUTE_WITH_AUTHORITY_REMAINING_OFFSET)
-          .map((a) => a.address),
+        remaining.map((a) => a.address),
       );
       return {
         phygitalToken: parsed.accounts.phygitalToken.address,

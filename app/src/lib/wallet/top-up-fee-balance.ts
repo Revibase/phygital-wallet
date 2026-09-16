@@ -16,7 +16,7 @@ import { sendTransaction } from "@/lib/solana/tx";
 import { uiAmountToRaw } from "@/lib/tokens/amount";
 import { getMemoInstruction } from "@/lib/wallet/memo";
 import { walletPdaForToken } from "@/lib/wallet/pda";
-import { appVerifierFetch } from "@/lib/wallet/verifier-fee-payer";
+import { appFeePayerApiFetch } from "@/lib/wallet/fee-payer-api-fetch";
 
 function getTopUpAccumulator(): Address {
   const raw = process.env.NEXT_PUBLIC_TOP_UP_ACCUMULATOR?.trim();
@@ -40,7 +40,7 @@ export async function topUpFeeBalance(args: {
   args.signer?.onPhaseChange?.("preparing");
   const walletSigner = await getPhygitalWalletSigner(rpc, tokenPda, {
     ...args.signer,
-    fetch: appVerifierFetch,
+    fetch: appFeePayerApiFetch,
   });
 
   return sendTransaction({

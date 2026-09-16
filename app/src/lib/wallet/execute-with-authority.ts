@@ -25,7 +25,7 @@ import {
 
 import { sendTransaction, type SentTransaction } from "@/lib/solana/tx";
 import { walletPdaForToken } from "@/lib/wallet/pda";
-import { appVerifierFetch } from "@/lib/wallet/verifier-fee-payer";
+import { appFeePayerApiFetch } from "@/lib/wallet/fee-payer-api-fetch";
 
 function withRemainingAccounts(
   instruction: Instruction,
@@ -51,7 +51,7 @@ export async function sendViaAuthority(args: {
   const phygitalToken = address(String(args.phygitalToken));
   const walletPda = await walletPdaForToken(phygitalToken);
   const [authorityPda] = await findAuthorityAccountPda({ phygitalToken });
-  const feePayer = await createDefaultFeePayer({ fetch: appVerifierFetch });
+  const feePayer = await createDefaultFeePayer({ fetch: appFeePayerApiFetch });
 
   const { compactInstructions, remainingAccounts } = compileWalletInstructions(
     args.instructions,

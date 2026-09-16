@@ -14,6 +14,12 @@ export {
 
 export { buildSetAuthorityChallenge } from "./utils/challenges.js";
 export { compileWalletInstructions } from "./wallet/compile.js";
+export {
+  EXECUTE_NAMED_ACCOUNT_COUNT,
+  EXECUTE_WITH_AUTHORITY_NAMED_ACCOUNT_COUNT,
+  executeRemainingAccountOffset,
+  sliceExecuteRemainingAccounts,
+} from "./wallet/execute-remaining.js";
 export { createDefaultFeePayer } from "./wallet/feePayer.js";
 export { PolicyDeniedError } from "./wallet/preview.js";
 

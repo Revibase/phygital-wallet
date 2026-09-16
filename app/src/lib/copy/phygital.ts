@@ -86,8 +86,6 @@ export const copy = {
     settingsFees: "Fees",
     settingsSafety: "Safety",
     settingsSendProtections: "Send protections",
-    /** Who verifies / co-signs transactions (not authenticity verify). Replaces Revibase when custom. */
-    signing: "Transaction Verifier",
     rpcConnection: "Network",
     rpcBody: "Where this wallet loads balances and collectibles from.",
     rpcDefault: "Default",
@@ -115,7 +113,7 @@ export const copy = {
     nearbyChangeDetails: "Change amount",
     nearbyChangePayer: "Use a different item",
     holdToSave: "Hold to save",
-    /** NFC step when Config default verifier will also need phone confirm. */
+    /** NFC step when policy changes also need passkey confirm on this phone. */
     configChangeHoldBody:
       "Hold your accessory, then confirm on this phone with Face ID, fingerprint, or screen lock.",
     configChangeConfirmTitle: "Confirm on this phone",
@@ -139,8 +137,8 @@ export const copy = {
       "Hold it to the top of your phone until this finishes.",
     signBuildingTitle: "Almost done",
     signBuildingBody: "Building your transaction…",
-    signCoSigningTitle: "Confirming",
-    signCoSigningBody: "Waiting for the verifier…",
+    signFeePayingTitle: "Covering fees",
+    signFeePayingBody: "Adding network fees…",
     signSendingTitle: "Sending",
     signSendingBody: "Waiting for the network to confirm…",
     setupStepPasskey: "Step 1 of 2 · This phone",
@@ -416,24 +414,6 @@ export const copy = {
     visitorDeniedTitle: "Send not approved",
     visitorDeniedBody: "The owner declined this send.",
     openApprovalDenied: "Declined",
-    signingBody:
-      "Every transaction needs your accessory and a verifier that co-signs. Revibase is the default — it checks your limits before it signs.",
-    signingCustomPolicyWarn:
-      "This replaces Revibase as your transaction verifier. Revibase will no longer check spending limits, programs, or one-time approvals. Only use a verifier you trust.",
-    signingCustomAck:
-      "I understand I’m replacing the Revibase transaction verifier and its protections on every send.",
-    signingCustomContinue: "Continue",
-    signingCustomSaved:
-      "Custom transaction verifier on — Revibase protections off",
-    signingRestored: "Back to Revibase",
-    signingInvalidCustom: "Enter a valid address and HTTPS URL",
-    signingCurrent: "Current",
-    signingDefault: "Revibase",
-    signingCustom: "Custom",
-    useCustomSigning: "Use a custom transaction verifier…",
-    customEndpoint: "Verifier URL",
-    customVerifier: "Verifier public key",
-    verifierPubkey: "Solana address",
     policyDefaultSigningOnly:
       "Caps apply to built-in wallet sends. Exception programs are unrestricted.",
     policySection: "Limits",
@@ -587,8 +567,11 @@ export const copy = {
     emptyBody: "Hold an accessory to open it, then claim it to see it here.",
     emptyOpenCta: "Hold to open",
     openAnother: "Open another",
+    addMoreTitle: "Add another",
     accessoriesCount: (count: number) =>
       count === 1 ? "1 linked" : `${count} linked`,
+    oneItem: "1 item",
+    manyItems: (count: number) => `${count} items`,
     accessoriesLoadFailed: "Couldn’t load your accessories.",
     account: "Account",
     accountExportKey: "Export private key",
@@ -600,6 +583,8 @@ export const copy = {
     accessories: "Accessories",
     card: "Card",
     accessory: "Accessory",
+    loadingWallet: "Loading wallet…",
+    walletUnknown: "Wallet unavailable",
     holdTitle: "Add accessory",
     holdBody: "Hold it to the top of your phone.",
   },

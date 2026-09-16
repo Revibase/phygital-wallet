@@ -21,7 +21,7 @@ import {
 } from "phygital-wallet-sdk";
 
 import { recordAudit } from "@/audit/audit-log";
-import { isDefaultConfigVerifier } from "@/fees/default-feePayer";
+import { isDefaultFeePayer } from "@/fees/default-feePayer";
 import { getEnv } from "@/shared/request-context";
 import { tryParseAddress } from "@/shared/solana/address";
 import { tokenSigner } from "@/transactions/token-signer";
@@ -188,7 +188,7 @@ export function findExecuteAccounts(tx: HeliusTxLike): ExecuteAccounts | null {
 }
 
 /**
- * Process one Helius tx: credit top-ups, debit default-verifier execute fees.
+ * Process one Helius tx: credit top-ups, debit default fee-payer execute fees.
  * Ledger lives on TokenSigner DO; idempotent by signature.
  */
 async function processHeliusFeeTx(
@@ -225,7 +225,7 @@ async function processHeliusFeeTx(
 
   if (execute && tx.feePayer) {
     const feePayer = tx.feePayer;
-    const isDefault = await isDefaultConfigVerifier(feePayer);
+    const isDefault = await isDefaultFeePayer(feePayer);
     if (isDefault) {
       const change = nativeChange(tx, feePayer);
       if (change < 0) {

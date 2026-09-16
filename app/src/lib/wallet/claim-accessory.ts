@@ -26,7 +26,7 @@ import {
 
 import { getSolanaRpc } from "@/lib/solana/rpc";
 import { sendTransaction, type SentTransaction } from "@/lib/solana/tx";
-import { appVerifierFetch } from "@/lib/wallet/verifier-fee-payer";
+import { appFeePayerApiFetch } from "@/lib/wallet/fee-payer-api-fetch";
 
 export class ClaimAccessoryMismatchError extends Error {
   constructor() {
@@ -78,7 +78,7 @@ export async function claimAccessory(args: {
     throw new ClaimAccessoryMismatchError();
   }
 
-  const feePayer = await createDefaultFeePayer({ fetch: appVerifierFetch });
+  const feePayer = await createDefaultFeePayer({ fetch: appFeePayerApiFetch });
   const setAuthorityIx = await getSetAuthorityInstructionAsync({
     payer: feePayer,
     phygitalToken,

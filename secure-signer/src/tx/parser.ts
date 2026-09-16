@@ -20,6 +20,7 @@ import {
 import {
   parsePhygitalWalletInstruction,
   PhygitalWalletInstruction,
+  sliceExecuteRemainingAccounts,
 } from "phygital-wallet-sdk";
 import {
   describeInnerInstruction,
@@ -85,21 +86,15 @@ export function toKitInstruction(
   };
 }
 
-// Fixed-account count preceding remaining accounts for the execute* variants.
-const EXECUTE_FIXED_ACCOUNTS = 5; // authority, phygitalToken, authorityAccount, wallet, instructionsSysvar
-
 function summarizeInner(
-  fixedAccounts: AccountMeta[],
   compactInstructions: ReadonlyArray<{
     programIdIndex: number;
     accountIndexes: ReadonlyUint8Array;
     data: ReadonlyUint8Array;
   }>,
-  allAccounts: AccountMeta[],
+  remaining: readonly AccountMeta[],
 ): InnerInstructionSummary[] {
-  // Remaining accounts are everything after the fixed accounts; compact indices
-  // are relative to THAT slice (matches on-chain ctx.remaining_accounts).
-  const remaining = allAccounts.slice(fixedAccounts.length);
+  // Compact indices are relative to remaining only (on-chain ctx.remaining_accounts).
   const out: InnerInstructionSummary[] = [];
   for (const ci of compactInstructions) {
     const prog = remaining[ci.programIdIndex];
@@ -146,18 +141,24 @@ export function parseInstruction(
 
   switch (parsed.instructionType) {
     case PhygitalWalletInstruction.ExecuteWithAuthority: {
-      const inner = summarizeInner(
-        kit.accounts.slice(0, EXECUTE_FIXED_ACCOUNTS),
-        parsed.data.compactInstructions,
+      const remaining = sliceExecuteRemainingAccounts(
+        parsed.instructionType,
         kit.accounts,
+      );
+      const inner = summarizeInner(
+        parsed.data.compactInstructions,
+        remaining,
       );
       return baseSummary(parsed.instructionType, authority, phygitalToken, inner);
     }
     case PhygitalWalletInstruction.ExecuteWithAuthorityUsingPolicies: {
-      const inner = summarizeInner(
-        kit.accounts.slice(0, EXECUTE_FIXED_ACCOUNTS),
-        parsed.data.compactInstructions,
+      const remaining = sliceExecuteRemainingAccounts(
+        parsed.instructionType,
         kit.accounts,
+      );
+      const inner = summarizeInner(
+        parsed.data.compactInstructions,
+        remaining,
       );
       return baseSummary(parsed.instructionType, authority, phygitalToken, inner, [
         {

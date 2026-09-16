@@ -10,6 +10,7 @@ import { useResolvedDasCollectible } from "@/hooks/token/use-das-collectible";
 import { usePhygitalTokenByAddress } from "@/hooks/token/use-phygital-token";
 import { copy } from "@/lib/copy/phygital";
 import { galleryAnimate, staggerStyle } from "@/lib/motion";
+import { tokenHasLinkedMint } from "@/lib/phygital/token";
 import { cn, shortAddress } from "@/lib/utils";
 
 /**
@@ -37,11 +38,16 @@ export const OwnerAccessoryCard = memo(function OwnerAccessoryCard({
 
   const resolving =
     tokenQuery.isPending || (Boolean(mint) && collectibleLoading);
+  const token = tokenQuery.data;
   const hasArt = Boolean(collectible?.image);
-  const title = collectible?.name?.trim() || copy.home.accessory;
-  const subtitle = collectible?.collectionName?.trim()
-    ? collectible.collectionName
-    : shortAddress(phygitalToken);
+  const title =
+    collectible?.name?.trim() ||
+    (token && tokenHasLinkedMint(token) ? copy.home.card : copy.home.accessory);
+  const subtitle = token?.currentOwner
+    ? shortAddress(String(token.currentOwner))
+    : resolving
+      ? copy.home.loadingWallet
+      : copy.home.walletUnknown;
 
   return (
     <Button

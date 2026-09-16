@@ -1,5 +1,5 @@
 /**
- * POST /webhooks/helius — credit top-ups + debit default-verifier execute fees.
+ * POST /webhooks/helius — credit top-ups + debit default fee-payer execute fees.
  */
 import { Hono } from "hono";
 

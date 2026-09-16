@@ -53,8 +53,8 @@ export function walletSignPhaseCopy(phase: PhygitalWalletSignPhase): {
       };
     case "feePaying":
       return {
-        title: copy.wallet.signCoSigningTitle,
-        body: copy.wallet.signCoSigningBody,
+        title: copy.wallet.signFeePayingTitle,
+        body: copy.wallet.signFeePayingBody,
         pulse: false,
       };
     case "complete":

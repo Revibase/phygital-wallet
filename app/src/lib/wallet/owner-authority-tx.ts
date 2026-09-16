@@ -18,7 +18,7 @@ import {
 
 import { getSolanaRpc } from "@/lib/solana/rpc";
 import { sendTransaction, type SentTransaction } from "@/lib/solana/tx";
-import { appVerifierFetch } from "@/lib/wallet/verifier-fee-payer";
+import { appFeePayerApiFetch } from "@/lib/wallet/fee-payer-api-fetch";
 
 export type OwnerAuthorityContext = {
   authoritySigner: TransactionPartialSigner<Address>;
@@ -39,7 +39,7 @@ export async function sendOwnerAuthorityTransaction(args: {
   const [authorityPda] = await findAuthorityAccountPda({ phygitalToken });
   const account = await fetchAuthority(rpc, authorityPda);
 
-  const feePayer = await createDefaultFeePayer({ fetch: appVerifierFetch });
+  const feePayer = await createDefaultFeePayer({ fetch: appFeePayerApiFetch });
 
   const built = args.build({
     authoritySigner: args.owner,

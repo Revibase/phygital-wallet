@@ -30,7 +30,7 @@ import type { SendAssetRef } from "@/lib/wallet/send-asset-ref";
 import { buildCnftTransferInstructions } from "@/lib/wallet/transfers/cnft-transfer";
 import { buildCoreTransferInstructions } from "@/lib/wallet/transfers/core-transfer";
 import { buildPnftTransferInstructions } from "@/lib/wallet/transfers/pnft-transfer";
-import { appVerifierFetch } from "@/lib/wallet/verifier-fee-payer";
+import { appFeePayerApiFetch } from "@/lib/wallet/fee-payer-api-fetch";
 
 type SendAssetFields = Pick<
   SendAssetRef,
@@ -56,7 +56,7 @@ export async function sendAssetFromWallet(args: {
     args.walletSigner ??
     (await getPhygitalWalletSigner(rpc, tokenPda, {
       ...args.signer,
-      fetch: appVerifierFetch,
+      fetch: appFeePayerApiFetch,
     }));
   const walletPda = walletSigner.address;
 

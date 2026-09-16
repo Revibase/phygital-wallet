@@ -1,5 +1,5 @@
 /**
- * Default verifier / paymaster set for fee webhook sponsorship checks.
+ * Default fee-payer pubkey set for webhook sponsorship checks.
  * Membership comes from `DEFAULT_VERIFIER_PUBKEYS` (JSON array of base58
  * pubkeys) — must match the keys of api-signer `VERIFIER_SECRET_KEYS`.
  * No on-chain Config RPC.
@@ -50,9 +50,7 @@ export function getFeePayerSet(): Set<string> {
   return cached;
 }
 
-/** True when this pubkey is a default verifier (paymaster). */
-export async function isDefaultConfigVerifier(
-  verifier: string,
-): Promise<boolean> {
-  return getFeePayerSet().has(verifier);
+/** True when this pubkey is a configured default fee payer. */
+export async function isDefaultFeePayer(feePayer: string): Promise<boolean> {
+  return getFeePayerSet().has(feePayer);
 }

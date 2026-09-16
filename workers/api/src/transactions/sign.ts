@@ -9,7 +9,7 @@ import { Hono } from "hono";
 
 import { auditMeta, recordAudit } from "@/audit/audit-log";
 import { json } from "@/shared/http";
-import { verifierJsonError } from "@/transactions/errors";
+import { signRouteJsonError } from "@/transactions/errors";
 import { tokenSigner } from "@/transactions/token-signer";
 import { decodeWireTransaction } from "./decode-tx";
 
@@ -73,6 +73,6 @@ signRoutes.post("/sign", async (c) => {
       ms: Date.now() - started,
       requestId: meta.requestId,
     });
-    return verifierJsonError(err);
+    return signRouteJsonError(err);
   }
 });

@@ -2,7 +2,7 @@
  * Revibase API Worker entry.
  *
  * Code map → `api/README.md`
- * Domains → `tokens/`, `auth/`, `verifier/`, `shared/`
+ * Domains → `tokens/`, `auth/`, `transactions/`, `shared/`
  */
 import { Hono } from "hono";
 

@@ -12,7 +12,7 @@ describe("API access", () => {
     expect(normalizeApiPath("/health/?x=1")).toBe("/health");
   });
 
-  it("keeps verifier bootstrap routes public", () => {
+  it("keeps fee-payer routes public", () => {
     expect(isPublicApiPath("GET", "/getFeePayer")).toBe(true);
     expect(isPublicApiPath("POST", "/sign")).toBe(true);
     expect(isPublicApiPath("GET", "/health")).toBe(true);
@@ -22,7 +22,7 @@ describe("API access", () => {
     expect(isPublicApiPath("GET", "/tokens/verified")).toBe(false);
   });
 
-  it("opens CORS only for verifier routes", () => {
+  it("opens CORS only for fee-payer routes", () => {
     expect(isOpenCorsPath("GET", "/getFeePayer")).toBe(true);
     expect(isOpenCorsPath("POST", "/sign")).toBe(true);
     expect(isOpenCorsPath("GET", "/tokens/verified")).toBe(false);

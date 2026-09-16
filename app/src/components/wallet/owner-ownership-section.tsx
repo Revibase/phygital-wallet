@@ -143,7 +143,7 @@ export function OwnerOwnershipSection({
           if (!unlink.isPending) setConfirmOpen(next);
         }}
       >
-        <DialogContent>
+        <DialogContent className="space-y-4">
           <DialogHeader>
             <DialogTitle>{copy.wallet.ownershipUnlinkTitle}</DialogTitle>
             <DialogDescription>
