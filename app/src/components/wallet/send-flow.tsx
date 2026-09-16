@@ -327,6 +327,7 @@ export function SendFlow({
     };
 
     const showHolding = (signPhase: PhygitalWalletSignPhase | null = null) => {
+      if (walletTx.isOwnerBrowse) return;
       setPhase("holding");
       onCeremonyChange({ stage: "holding", signPhase, recap });
     };
@@ -725,6 +726,8 @@ export function SendFlow({
                 <Spinner className="size-4" />
                 {copy.wallet.signPreparingTitle}
               </>
+            ) : walletTx.isOwnerBrowse ? (
+              copy.wallet.confirmToSend
             ) : (
               copy.wallet.holdToSend
             )}

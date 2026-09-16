@@ -10,6 +10,11 @@ import {
   issueOwnerWalletPutChallenge,
 } from "@/lib/wallet/owner-wallet-blob";
 import {
+  clearOwnerSession,
+  issueOwnerSessionChallenge,
+  mintOwnerSession,
+} from "@/lib/wallet/owner-session";
+import {
   getSecureSignerClient,
   SecureSignerError,
 } from "@/lib/wallet/secure-signer-client";
@@ -55,14 +60,14 @@ function requireBlob(): string {
   return blob;
 }
 
-/** Backup challenge is best-effort — never block the signer ceremony on it. */
-async function issueChallengeSoft(timeoutMs = 2_500): Promise<{
-  challengeId: string;
-  challenge: string;
-} | null> {
+/** Backup / session challenges are best-effort — never block the signer ceremony. */
+async function issueChallengeSoft(
+  issue: () => Promise<{ challengeId: string; challenge: string }>,
+  timeoutMs = 2_500,
+): Promise<{ challengeId: string; challenge: string } | null> {
   try {
     return await Promise.race([
-      issueOwnerWalletPutChallenge(),
+      issue(),
       new Promise<null>((resolve) => {
         window.setTimeout(() => resolve(null), timeoutMs);
       }),
@@ -88,8 +93,10 @@ export function useSecureSignerWallet(): OwnerWallet {
         publicKey: string;
         encryptedWalletBlob: string;
         putSignature?: string;
+        sessionSignature?: string;
       },
       putChallengeId?: string | null,
+      sessionChallengeId?: string | null,
     ) => {
       writeLS(BLOB_KEY, result.encryptedWalletBlob);
       writeLS(PUBKEY_KEY, result.publicKey);
@@ -101,6 +108,17 @@ export function useSecureSignerWallet(): OwnerWallet {
           challengeId: putChallengeId,
           signature: result.putSignature,
         }).catch(() => {});
+      }
+      if (sessionChallengeId && result.sessionSignature) {
+        try {
+          await mintOwnerSession({
+            publicKey: result.publicKey,
+            challengeId: sessionChallengeId,
+            signature: result.sessionSignature,
+          });
+        } catch {
+          /* cookie mint failed — home open will re-login */
+        }
       }
     },
     [],
@@ -126,11 +144,17 @@ export function useSecureSignerWallet(): OwnerWallet {
 
     const unlock = async (blob: string | null) => {
       // Short wait only — never stall the unlock sheet on a slow API.
-      const putChallenge = await issueChallengeSoft(400);
+      const [putChallenge, sessionChallenge] = await Promise.all([
+        issueChallengeSoft(() => issueOwnerWalletPutChallenge(), 400),
+        issueChallengeSoft(() => issueOwnerSessionChallenge(), 400),
+      ]);
       const result = await client.authenticate(blob, {
         authMode: "unlock",
         ...(putChallenge?.challenge
           ? { putChallenge: putChallenge.challenge }
+          : {}),
+        ...(sessionChallenge?.challenge
+          ? { sessionChallenge: sessionChallenge.challenge }
           : {}),
         resolveBlob: async (credentialId) => {
           const local = readLS(BLOB_KEY);
@@ -142,7 +166,11 @@ export function useSecureSignerWallet(): OwnerWallet {
           }
         },
       });
-      await finishAuth(result, putChallenge?.challengeId);
+      await finishAuth(
+        result,
+        putChallenge?.challengeId,
+        sessionChallenge?.challengeId,
+      );
     };
 
     if (existing) {
@@ -161,20 +189,31 @@ export function useSecureSignerWallet(): OwnerWallet {
 
     // Create: passkey was already registered in the setup sheet click handler
     // (user gesture). Open the signer for get+PRF — that ceremony has its own tap.
-    const putChallenge = await issueChallengeSoft();
+    const [putChallenge, sessionChallenge] = await Promise.all([
+      issueChallengeSoft(() => issueOwnerWalletPutChallenge()),
+      issueChallengeSoft(() => issueOwnerSessionChallenge()),
+    ]);
     const result = await client.authenticate(null, {
       authMode: "create",
       credentialId: choice.credentialId,
       ...(putChallenge?.challenge
         ? { putChallenge: putChallenge.challenge }
         : {}),
+      ...(sessionChallenge?.challenge
+        ? { sessionChallenge: sessionChallenge.challenge }
+        : {}),
     });
-    await finishAuth(result, putChallenge?.challengeId);
+    await finishAuth(
+      result,
+      putChallenge?.challengeId,
+      sessionChallenge?.challengeId,
+    );
   }, [finishAuth, promptSetup]);
 
   const logout = useCallback(async () => {
     writeLS(PUBKEY_KEY, null);
     setSession({ address: null, status: "unauthenticated" });
+    void clearOwnerSession().catch(() => {});
   }, []);
 
   const signer = useMemo(

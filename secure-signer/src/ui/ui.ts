@@ -15,8 +15,9 @@ import type { TransactionSummary } from "../tx/policy.js";
 import { formatUnits } from "../tx/clear-sign.js";
 import {
   classifySignRisk,
-  highRiskWarning,
   instructionLabel,
+  instructionSubtitle,
+  riskCallout,
 } from "../tx/sign-risk.js";
 
 const app = (): HTMLElement => {
@@ -390,6 +391,165 @@ export function showRestored(publicKey: string): void {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Transaction confirmation
+// ---------------------------------------------------------------------------
+
+type Hero = { title: string; subtitle: string | null };
+
+function pickToSubtitle(
+  details: ReadonlyArray<{ label: string; value: string }>,
+): string | null {
+  const to = details.find((d) => d.label === "To");
+  return to ? `To ${to.value}` : null;
+}
+
+function confirmHero(summary: TransactionSummary): Hero {
+  const spends = summary.instructions.flatMap((ix) => ix.inner ?? []);
+  const send = spends.find((s) => /^Send\b/i.test(s.title));
+  if (send) {
+    return {
+      title: send.title.replace(/\s*\((Token(?:-2022)?)\)\s*$/i, "").trim(),
+      subtitle: pickToSubtitle(send.details),
+    };
+  }
+  if (spends.length === 1) {
+    return {
+      title: spends[0]!.title,
+      subtitle: pickToSubtitle(spends[0]!.details),
+    };
+  }
+  if (spends.length > 1) {
+    return {
+      title: `${spends.length} actions`,
+      subtitle: spends.map((s) => s.title).join(" · "),
+    };
+  }
+
+  const first = summary.instructions[0];
+  if (!first) return { title: "Authorize", subtitle: null };
+  return {
+    title: instructionLabel(first.kind),
+    subtitle: instructionSubtitle(first.kind),
+  };
+}
+
+function primaryRows(
+  summary: TransactionSummary,
+): Array<{ label: string; value: string }> {
+  const rows: Array<{ label: string; value: string }> = [];
+  const spends = summary.instructions.flatMap((ix) => ix.inner ?? []);
+
+  if (spends.length === 1) {
+    for (const d of spends[0]!.details) {
+      if (d.label === "To" || d.label === "From" || d.label === "Text") {
+        rows.push(d);
+      }
+    }
+    return rows;
+  }
+
+  if (spends.length > 1) {
+    for (const [i, s] of spends.entries()) {
+      rows.push({
+        label: spends.length <= 3 ? s.title : `Action ${i + 1}`,
+        value: pickToSubtitle(s.details)?.replace(/^To /, "") ?? "—",
+      });
+    }
+    return rows;
+  }
+
+  // Policy / authority ops: show the first few decoded detail rows.
+  for (const ix of summary.instructions) {
+    for (const d of ix.details.slice(0, 4)) {
+      rows.push(d);
+    }
+  }
+  return rows;
+}
+
+function advancedRows(
+  summary: TransactionSummary,
+  primary: Array<{ label: string; value: string }>,
+): Array<{ label: string; value: string }> {
+  const rows: Array<{ label: string; value: string }> = [
+    { label: "Wallet", value: shorten(summary.walletAddress) },
+  ];
+  const primaryKeys = new Set(primary.map((r) => `${r.label}|${r.value}`));
+
+  for (const [i, ix] of summary.instructions.entries()) {
+    if (summary.instructions.length > 1) {
+      rows.push({
+        label: `Step ${i + 1}`,
+        value: instructionLabel(ix.kind),
+      });
+    }
+    if (ix.phygitalToken) {
+      rows.push({ label: "Accessory", value: shorten(ix.phygitalToken) });
+    }
+    for (const d of ix.details) {
+      if (!primaryKeys.has(`${d.label}|${d.value}`)) rows.push(d);
+    }
+    if (ix.inner) {
+      for (const inner of ix.inner) {
+        for (const d of inner.details) {
+          if (d.label === "Mint" || d.label === "Owner") rows.push(d);
+        }
+      }
+    }
+  }
+
+  if (summary.config.priorityFeeLamports !== undefined) {
+    rows.push({
+      label: "Priority fee",
+      value: `${formatUnits(BigInt(summary.config.priorityFeeLamports), 9)} SOL`,
+    });
+  }
+  if (summary.config.computeUnitLimit !== undefined) {
+    rows.push({
+      label: "Compute units",
+      value: String(summary.config.computeUnitLimit),
+    });
+  }
+
+  return rows;
+}
+
+function group(
+  className: string,
+  rows: Array<{ label: string; value: string }>,
+): HTMLElement | null {
+  if (rows.length === 0) return null;
+  return el(
+    "div",
+    { class: className },
+    rows.map((r) => detailRow(r.label, r.value)),
+  );
+}
+
+function detailRow(label: string, value: string): HTMLElement {
+  const long =
+    value.length > 28 ||
+    value.includes(" · ") ||
+    value.includes("\n") ||
+    /None \(|Baseline|Restricted|Allowed/.test(value);
+  return el("div", { class: long ? "kv-row kv-row-stack" : "kv-row" }, [
+    el("span", { class: "kv-label", text: label }),
+    el("span", { class: "kv-value mono", text: value }),
+  ]);
+}
+
+function heroBlock(hero: Hero): HTMLElement {
+  const wrap = el("div", { class: "tx-hero" });
+  wrap.appendChild(el("p", { class: "tx-hero-title", text: hero.title }));
+  if (hero.subtitle) {
+    wrap.appendChild(
+      el("p", { class: "tx-hero-subtitle", text: hero.subtitle }),
+    );
+  }
+  return wrap;
+}
+
 export function confirmSignTransaction(
   summary: TransactionSummary,
 ): Promise<boolean> {
@@ -399,88 +559,52 @@ export function confirmSignTransaction(
       resolve(v);
     };
     const risk = classifySignRisk(summary);
-    const rows: Node[] = [];
-    rows.push(row("Wallet", shorten(summary.walletAddress)));
-    for (const [i, ix] of summary.instructions.entries()) {
-      rows.push(
-        el("div", {
-          class: "sep",
-          text: `Instruction ${i + 1}: ${instructionLabel(ix.kind)}`,
-        }),
-      );
-      if (ix.phygitalToken)
-        rows.push(row("Accessory", shorten(ix.phygitalToken)));
-      for (const d of ix.details) {
-        rows.push(row(d.label, d.value));
-      }
-      if (ix.inner) {
-        for (const [j, inner] of ix.inner.entries()) {
-          rows.push(
-            el("div", {
-              class: "sep sep-inner",
-              text: `Spend ${j + 1}: ${inner.title}`,
-            }),
-          );
-          for (const d of inner.details) {
-            rows.push(row(d.label, d.value));
-          }
-        }
-      }
-    }
+    const hero = confirmHero(summary);
+    const callout = riskCallout(summary.instructions);
+    const primary = primaryRows(summary);
+    const advanced = advancedRows(summary, primary);
 
-    if (summary.config.priorityFeeLamports !== undefined)
-      rows.push(
-        row(
-          "Priority fee",
-          `${formatUnits(BigInt(summary.config.priorityFeeLamports), 9)} SOL`,
-        ),
-      );
-    if (summary.config.computeUnitLimit !== undefined)
-      rows.push(row("Compute units", String(summary.config.computeUnitLimit)));
+    const body: Node[] = [heroBlock(hero)];
 
-    const body: Node[] = [];
-    if (risk === "high") {
+    if (callout) {
       body.push(
         el("div", {
-          class: "callout callout-danger",
-          text: highRiskWarning(summary.instructions),
-        }),
-        el("p", {
-          class: "muted",
-          text: "Signing never shows your private key — but approving the wrong spend can move funds. Only continue if you started this yourself.",
-        }),
-      );
-    } else {
-      body.push(
-        el("p", {
-          class: "muted",
-          text: "Decoded by this signer. Read every line before you approve.",
+          class:
+            risk === "critical"
+              ? "callout callout-danger"
+              : "callout callout-warn",
+          text: callout,
         }),
       );
     }
-    body.push(el("div", { class: "kv" }, rows));
+
+    const primaryGroup = group("kv kv-primary", primary);
+    if (primaryGroup) body.push(primaryGroup);
+
+    const advancedGroup = group("kv", advanced);
+    if (advancedGroup) {
+      const details = el("details", { class: "tx-details" });
+      details.appendChild(
+        el("summary", { class: "tx-details-summary", text: "Details" }),
+      );
+      details.appendChild(advancedGroup);
+      body.push(details);
+    }
+
+    const ctaVariant = risk === "critical" ? "danger" : "primary";
+    const ctaLabel =
+      risk === "critical" ? "Continue with passkey" : "Authorize with passkey";
 
     confirmScreen(
-      risk === "high" ? "High-risk authorization" : "Authorize",
+      "Authorize",
       body,
       [
         button("Cancel", "ghost", () => done(false)),
-        button(
-          "Authorize with passkey",
-          risk === "high" ? "danger" : "primary",
-          () => done(true),
-        ),
+        button(ctaLabel, ctaVariant, () => done(true)),
       ],
       { dismissible: true, onDismiss: () => done(false) },
     );
   });
-}
-
-function row(label: string, value: string): HTMLElement {
-  return el("div", { class: "kv-row" }, [
-    el("span", { class: "kv-label", text: label }),
-    el("span", { class: "kv-value mono", text: value }),
-  ]);
 }
 
 export function confirmExportPrivateKey(): Promise<boolean> {
@@ -489,10 +613,11 @@ export function confirmExportPrivateKey(): Promise<boolean> {
     body: [
       el("div", {
         class: "callout callout-danger",
-        text: "This is the only way this signer reveals your private key. Signing transactions never shows it.",
+        text: "Anyone with this key can move your funds forever.",
       }),
       el("p", {
-        text: "Anyone with this key can move your funds forever. Do not export on a shared device or if you did not open this screen yourself.",
+        class: "muted",
+        text: "Only export on a device you trust. Prefer a password manager or offline backup.",
       }),
     ],
     primary: {
@@ -560,7 +685,7 @@ export function showExportedSecret(
       [
         el("div", {
           class: "callout callout-danger",
-          text: "Keep this key only in a password manager or offline backup. Prefer writing it down over copying if this browser tab might be compromised.",
+          text: "Keep this only in a password manager or offline backup.",
         }),
         el("p", { class: "muted", text: `Wallet ${shorten(publicKey)}` }),
         hidden,

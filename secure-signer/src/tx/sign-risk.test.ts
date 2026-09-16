@@ -3,7 +3,9 @@ import { PhygitalWalletInstruction } from "phygital-wallet-sdk";
 import {
   classifySignRisk,
   instructionLabel,
-  isHighRiskInstruction,
+  isCriticalInstruction,
+  isElevatedInstruction,
+  riskCallout,
 } from "./sign-risk.js";
 import type { TransactionSummary } from "./policy.js";
 
@@ -25,18 +27,24 @@ function summary(
 }
 
 describe("sign-risk", () => {
-  it("labels escape-hatch spends clearly", () => {
+  it("uses short owner-spend labels", () => {
     expect(
       instructionLabel(PhygitalWalletInstruction.ExecuteWithAuthority),
-    ).toMatch(/bypasses accessory policy/i);
+    ).toBe("Owner spend");
+    expect(
+      instructionLabel(PhygitalWalletInstruction.ClearAuthority),
+    ).toBe("Remove owner");
   });
 
-  it("treats owner spend and clear-authority as high risk", () => {
+  it("treats owner spend as normal review, clear-authority as critical", () => {
     expect(
-      isHighRiskInstruction(PhygitalWalletInstruction.ExecuteWithAuthority),
+      isCriticalInstruction(PhygitalWalletInstruction.ExecuteWithAuthority),
+    ).toBe(false);
+    expect(
+      isCriticalInstruction(PhygitalWalletInstruction.ClearAuthority),
     ).toBe(true);
     expect(
-      isHighRiskInstruction(PhygitalWalletInstruction.ClearAuthority),
+      isElevatedInstruction(PhygitalWalletInstruction.SetWalletPolicy),
     ).toBe(true);
     expect(classifySignRisk(summary([PhygitalWalletInstruction.Execute]))).toBe(
       "normal",
@@ -45,6 +53,20 @@ describe("sign-risk", () => {
       classifySignRisk(
         summary([PhygitalWalletInstruction.ExecuteWithAuthority]),
       ),
-    ).toBe("high");
+    ).toBe("normal");
+    expect(
+      classifySignRisk(summary([PhygitalWalletInstruction.ClearAuthority])),
+    ).toBe("critical");
+    expect(
+      classifySignRisk(summary([PhygitalWalletInstruction.SetWalletPolicy])),
+    ).toBe("elevated");
+  });
+
+  it("keeps callouts short", () => {
+    const text = riskCallout(
+      summary([PhygitalWalletInstruction.ClearAuthority]).instructions,
+    );
+    expect(text).toBeTruthy();
+    expect(text!.length).toBeLessThan(80);
   });
 });

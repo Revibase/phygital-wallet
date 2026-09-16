@@ -85,6 +85,9 @@ export const copy = {
     settingsFees: "Fees",
     /** Settings hub group for accessory permissions (DD-011). */
     settingsPermissions: "Permissions",
+    approveSendsWith: "Approve sends with",
+    approveWithPhone: "This phone",
+    approveWithAccessory: "Your accessory",
     rpcConnection: "Network",
     rpcBody: "Where this wallet loads balances and collectibles from.",
     rpcDefault: "Default",
@@ -104,6 +107,7 @@ export const copy = {
     openWalletAriaLabel: "Open wallet",
     /** Form CTA — Hold UI appears only at awaitingPasskey (DD-004). */
     holdToSend: "Hold to send",
+    confirmToSend: "Confirm on this phone",
     holdToReceive: "Hold to confirm",
     holdToIdentifyPayer: "Hold their accessory",
     holdToIdentifyPayerHint: "They hold once to link, then again to pay",
@@ -193,6 +197,7 @@ export const copy = {
     topUpFeesBody: "Move SOL from this wallet into your fee balance.",
     topUpAmount: "Amount (SOL)",
     holdToTopUp: "Hold to top up",
+    confirmToTopUp: "Confirm on this phone",
     topUpPending: "Top-up sent. Balance updates shortly.",
     topUpSuccess: "Top-up submitted",
     // Accessory policy (what a tap may do)

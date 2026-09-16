@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 
 import { InAppBrowserGate } from "@/components/shared/in-app-browser-gate";
@@ -10,29 +9,28 @@ import { Button } from "@/components/ui/button";
 import { OwnerAccessoryCard } from "@/components/home/owner-accessory-card";
 import { OwnerAccountMenu } from "@/components/home/owner-account-menu";
 import { useTapToOpen } from "@/hooks/token/use-tap-to-open";
+import { useOpenOwnedAccessory } from "@/hooks/wallet/use-open-owned-accessory";
 import { useOwnedAccessories } from "@/hooks/wallet/use-owned-accessories";
 import { useOwnedAccessoryDetails } from "@/hooks/wallet/use-owned-accessory-details";
 import { copy } from "@/lib/copy/phygital";
 import { galleryAnimate, staggerStyle } from "@/lib/motion";
 import { tokenHasLinkedMint } from "@/lib/phygital/token";
 import type { OwnedAccessoryDetails } from "@/hooks/wallet/use-owned-accessory-details";
-import { tokenHref } from "@/lib/wallet/token-routes";
 import { cn } from "@/lib/utils";
 
 /**
  * Signed-in home: every accessory the owner controls.
- * Known cards navigate to `/token/:address` — middleware admits if the
- * browse-unlock cookie is valid, otherwise redirects to Hold (`…/unlock`).
+ * Known cards quietly mint owner_browse (no Hold / no Face ID when session live).
  * “Open another” still Holds first (token unknown until the tap).
  */
 export function OwnerDashboard({ owner }: { owner: string }) {
-  const router = useRouter();
   const accessories = useOwnedAccessories(owner);
   const tokens = accessories.data ?? [];
   const details = useOwnedAccessoryDetails(
     accessories.isSuccess && tokens.length > 0 ? tokens : undefined,
   );
   const tap = useTapToOpen();
+  const { open: openOwned, openingToken } = useOpenOwnedAccessory();
 
   const sections = useMemo(() => {
     const minted: string[] = [];
@@ -121,14 +119,16 @@ export function OwnerDashboard({ owner }: { owner: string }) {
               title={copy.home.cards}
               tokens={sections.minted}
               details={detailsMap}
-              onOpen={(t) => router.push(tokenHref(t))}
+              openingToken={openingToken}
+              onOpen={(t) => void openOwned(t)}
             />
           ) : null}
           <AccessorySection
             title={showMinted ? copy.home.accessories : undefined}
             tokens={sections.unminted}
             details={detailsMap}
-            onOpen={(t) => router.push(tokenHref(t))}
+            openingToken={openingToken}
+            onOpen={(t) => void openOwned(t)}
             trailingTile={
               <OpenAnotherTile
                 index={sections.unminted.length}
@@ -155,12 +155,14 @@ function AccessorySection({
   tokens,
   details,
   trailingTile,
+  openingToken,
   onOpen,
 }: {
   title?: string;
   tokens: string[];
   details?: OwnedAccessoryDetails;
   trailingTile?: ReactNode;
+  openingToken: string | null;
   onOpen: (phygitalToken: string) => void;
 }) {
   if (tokens.length === 0 && !trailingTile) return null;
@@ -195,6 +197,7 @@ function AccessorySection({
                     : undefined
                 }
                 index={index}
+                busy={openingToken === token}
                 onOpen={onOpen}
               />
             </li>

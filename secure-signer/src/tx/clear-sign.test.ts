@@ -62,12 +62,15 @@ describe("clear-sign", () => {
         },
       ],
     });
-    expect(rows[0]?.value).toContain("1.5 SOL");
-    expect(rows[0]?.value).toContain("every day");
-    expect(rows[1]?.value).toContain("50 USDC");
-    expect(rows[1]?.value).not.toMatch(/raw/i);
-    expect(rows[1]?.value).toContain("lifetime");
-    expect(rows[2]?.value).toContain("Denied");
+    expect(rows.find((r) => r.label === "SOL limit")?.value).toBe("1.5 SOL");
+    expect(rows.find((r) => r.label === "SOL window")?.value).toBe("every day");
+    expect(rows.find((r) => r.label === "Token limit")?.value).toContain(
+      "50 USDC",
+    );
+    expect(rows.find((r) => r.label === "Token window")?.value).toBe(
+      "lifetime",
+    );
+    expect(rows.find((r) => r.label === "Access")?.value).toBe("Denied");
   });
 
   it("formats transfer-checked with mint symbol when known", () => {

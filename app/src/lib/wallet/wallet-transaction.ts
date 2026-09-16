@@ -72,6 +72,11 @@ export type RunWalletTransactionArgs<S> = {
   /** Pre-send failure — never broadcast, no optimistic update applied. */
   onError: (error: unknown) => void;
   isAbortError?: (error: unknown) => boolean;
+  /**
+   * Owner-browse mode: skip passkey/policy and send via executeWithAuthority.
+   * Accessory (NFC/Hold) mode keeps the default policy-first path.
+   */
+  preferredMode?: WalletTransactionMode;
 };
 
 function defaultIsAbortError(error: unknown): boolean {
@@ -85,6 +90,7 @@ export async function runWalletTransaction<S>(
   args: RunWalletTransactionArgs<S>
 ): Promise<WalletTransactionOutcome> {
   const isAbort = args.isAbortError ?? defaultIsAbortError;
+  const preferred = args.preferredMode ?? "policy";
 
   const applyOptimistic = (
     sent: SentTransaction,
@@ -108,6 +114,16 @@ export async function runWalletTransaction<S>(
     applyOptimistic(sent, mode);
     return { status: "sent", signature: sent.signature, mode };
   };
+
+  if (preferred === "authority") {
+    try {
+      return await sendAndApply("authority");
+    } catch (error) {
+      if (isAbort(error)) return { status: "aborted" };
+      args.onError(error);
+      return { status: "error", error };
+    }
+  }
 
   try {
     return await sendAndApply("policy");

@@ -67,7 +67,7 @@ export const OwnerAccessoryCard = memo(function OwnerAccessoryCard({
       onClick={() => onOpen(phygitalToken)}
       style={staggerStyle(index)}
       className={cn(
-        "group h-auto min-h-0 w-full flex-col items-stretch gap-0 overflow-hidden p-0 text-left font-normal",
+        "group h-auto min-h-0 w-full flex-col items-stretch gap-0 rounded-none p-0 text-left font-normal whitespace-normal",
         "hover:bg-transparent focus-visible:ring-2 focus-visible:ring-ring/60",
         galleryAnimate.rise,
       )}

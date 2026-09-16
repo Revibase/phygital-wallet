@@ -1,65 +1,84 @@
 /**
  * Classify phygital-wallet instructions for confirmation UX.
- * High-risk ops can move funds or strip authority — not a private-key leak,
- * but economically equivalent if the user rubber-stamps them.
+ * Critical = irreversible; elevated = policy change; normal = spend/review.
  */
 
 import { PhygitalWalletInstruction } from "phygital-wallet-sdk";
 import type { ParsedInstructionSummary } from "./parser.js";
 import type { TransactionSummary } from "./policy.js";
 
-export type SignRisk = "normal" | "high";
+export type SignRisk = "normal" | "elevated" | "critical";
 
 export function instructionLabel(kind: PhygitalWalletInstruction): string {
   switch (kind) {
     case PhygitalWalletInstruction.ExecuteWithAuthority:
-      return "Owner spend (bypasses accessory policy)";
     case PhygitalWalletInstruction.ExecuteWithAuthorityUsingPolicies:
-      return "Owner spend (with wallet policies)";
+      return "Owner spend";
     case PhygitalWalletInstruction.ClearAuthority:
-      return "Remove owner authority";
+      return "Remove owner";
     case PhygitalWalletInstruction.SetWalletPolicy:
-      return "Change wallet policy";
+      return "Update policy";
     case PhygitalWalletInstruction.ClearWalletPolicy:
-      return "Clear wallet policy";
+      return "Clear policy";
     case PhygitalWalletInstruction.Execute:
-      return "Accessory execute";
+      return "Accessory spend";
     case PhygitalWalletInstruction.SetAuthority:
-      return "Set authority";
+      return "Set owner";
     default:
-      return "Unknown instruction";
+      return "Transaction";
   }
 }
 
-export function isHighRiskInstruction(kind: PhygitalWalletInstruction): boolean {
+export function instructionSubtitle(
+  kind: PhygitalWalletInstruction,
+): string | null {
   switch (kind) {
     case PhygitalWalletInstruction.ExecuteWithAuthority:
+      return "Approved on this phone";
     case PhygitalWalletInstruction.ExecuteWithAuthorityUsingPolicies:
+      return "Uses your wallet limits";
     case PhygitalWalletInstruction.ClearAuthority:
+      return "This can’t be undone from here";
     case PhygitalWalletInstruction.SetWalletPolicy:
+      return "Changes spend limits and rules";
     case PhygitalWalletInstruction.ClearWalletPolicy:
-      return true;
+      return "Removes custom limits";
     default:
-      return false;
+      return null;
   }
+}
+
+export function isCriticalInstruction(kind: PhygitalWalletInstruction): boolean {
+  return kind === PhygitalWalletInstruction.ClearAuthority;
+}
+
+export function isElevatedInstruction(kind: PhygitalWalletInstruction): boolean {
+  return (
+    kind === PhygitalWalletInstruction.SetWalletPolicy ||
+    kind === PhygitalWalletInstruction.ClearWalletPolicy
+  );
 }
 
 export function classifySignRisk(summary: TransactionSummary): SignRisk {
-  return summary.instructions.some((ix) => isHighRiskInstruction(ix.kind))
-    ? "high"
-    : "normal";
+  if (summary.instructions.some((ix) => isCriticalInstruction(ix.kind))) {
+    return "critical";
+  }
+  if (summary.instructions.some((ix) => isElevatedInstruction(ix.kind))) {
+    return "elevated";
+  }
+  return "normal";
 }
 
-export function highRiskWarning(ixs: ParsedInstructionSummary[]): string {
+export function riskCallout(ixs: ParsedInstructionSummary[]): string | null {
   const kinds = new Set(ixs.map((i) => i.kind));
   if (kinds.has(PhygitalWalletInstruction.ClearAuthority)) {
-    return "This removes the owner key from this accessory. You may lose the ability to recover or spend with this wallet.";
+    return "Removes the owner key from this accessory.";
   }
-  if (
-    kinds.has(PhygitalWalletInstruction.ExecuteWithAuthority) ||
-    kinds.has(PhygitalWalletInstruction.ExecuteWithAuthorityUsingPolicies)
-  ) {
-    return "This uses your owner key to spend or call programs. It does not reveal your private key, but a malicious app can drain funds if you approve the wrong transaction.";
+  if (kinds.has(PhygitalWalletInstruction.ClearWalletPolicy)) {
+    return "Clears custom spend limits on this wallet.";
   }
-  return "This changes wallet policy. Only continue if you initiated this action yourself.";
+  if (kinds.has(PhygitalWalletInstruction.SetWalletPolicy)) {
+    return "Updates how this wallet can spend.";
+  }
+  return null;
 }

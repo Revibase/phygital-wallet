@@ -1,15 +1,15 @@
 /**
- * Outer API floor: browse-unlock, except for explicitly public routes.
+ * Outer API floor: browse-unlock or owner-browse, except public routes.
  */
 import type { Context } from "hono";
 
 import { readBrowseUnlock } from "@/auth/browse-unlock-session";
+import { readOwnerBrowse } from "@/auth/owner-browse-session";
 import { json } from "@/shared/http";
 
 /**
- * Exempt from the cookie floor: routes that issue the browse-unlock cookie
- * (accessory verification) or authenticate by their own means (fee-payer
- * service, HMAC-signed webhooks). These must work with zero cookies.
+ * Exempt from the cookie floor: routes that issue admit cookies or authenticate
+ * by their own means (fee-payer service, HMAC-signed webhooks).
  */
 const PUBLIC_ROUTES: ReadonlyArray<{ method: string; path: string }> = [
   { method: "GET", path: "/health" },
@@ -17,6 +17,12 @@ const PUBLIC_ROUTES: ReadonlyArray<{ method: string; path: string }> = [
   { method: "POST", path: "/accessory/unlock/tap" },
   { method: "POST", path: "/accessory/unlock/challenge" },
   { method: "POST", path: "/accessory/unlock/webauthn" },
+  // Owner session / browse mint — prove via challenge or owner_session cookie.
+  { method: "POST", path: "/owner-session/challenge" },
+  { method: "POST", path: "/owner-session" },
+  { method: "DELETE", path: "/owner-session" },
+  { method: "POST", path: "/accessory/owner-browse" },
+  { method: "GET", path: "/accessory/session" },
   { method: "GET", path: "/getFeePayer" },
   { method: "POST", path: "/sign" },
   { method: "POST", path: "/webhooks/helius" },
@@ -75,6 +81,7 @@ export type AppAccessInput = {
   method: string;
   path: string;
   queryToken?: string;
+  /** Active admit token PDA from browse_unlock or owner_browse. */
   browseToken: string | null;
 };
 
@@ -92,16 +99,22 @@ export function evaluateAppAccess(
 
 /**
  * Returns a 401 Response when access is denied; otherwise null.
+ * Admit if browse_unlock **or** owner_browse matches (physical tap wins when
+ * both exist because unlock clears owner_browse).
  */
 export async function requireAppAccess(
   c: Context<{ Bindings: Env }>
 ): Promise<Response | null> {
   const browse = await readBrowseUnlock(c);
+  const ownerBrowse = browse ? null : await readOwnerBrowse(c);
+  const admitToken =
+    browse?.phygitalToken ?? ownerBrowse?.phygitalToken ?? null;
+
   const decision = evaluateAppAccess({
     method: c.req.method,
     path: c.req.path,
     queryToken: c.req.query("phygitalToken"),
-    browseToken: browse?.phygitalToken ?? null,
+    browseToken: admitToken,
   });
 
   if (decision === "allow") return null;

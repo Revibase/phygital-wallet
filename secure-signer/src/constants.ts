@@ -75,6 +75,12 @@ export const KDF_SALT_BYTES = 32 as const;
  */
 export const PUT_CHALLENGE_PREFIX = "revibase.owner-wallet.put.v1" as const;
 
+/**
+ * Domain prefix for ed25519 messages proving possession for owner-session mint.
+ * Must match workers/api `OWNER_SESSION_CHALLENGE_PREFIX`.
+ */
+export const SESSION_CHALLENGE_PREFIX = "revibase.owner-session.v1" as const;
+
 // ---------------------------------------------------------------------------
 // Portable wallet blob format.
 // ---------------------------------------------------------------------------

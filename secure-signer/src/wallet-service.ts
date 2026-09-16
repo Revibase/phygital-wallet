@@ -61,6 +61,8 @@ export interface CreatedWallet {
   blob: Uint8Array;
   /** Present when `messageToSign` was provided (e.g. D1 PUT proof). */
   signature?: Uint8Array;
+  /** Present when `sessionMessageToSign` was provided (owner-session proof). */
+  sessionSignature?: Uint8Array;
 }
 
 /** Generate a fresh keypair inside the signer and wrap it into a portable blob. */
@@ -87,7 +89,10 @@ export async function enrollExistingCredential(
   prf: PrfProvider,
   rpId: string,
   credentialId: Uint8Array,
-  opts: { messageToSign?: Uint8Array } = {},
+  opts: {
+    messageToSign?: Uint8Array;
+    sessionMessageToSign?: Uint8Array;
+  } = {},
 ): Promise<CreatedWallet> {
   let prfOutput: Uint8Array | undefined;
   try {
@@ -102,7 +107,10 @@ async function wrapNewSeed(
   prfOutput: Uint8Array,
   credentialId: Uint8Array,
   rpId: string,
-  opts: { messageToSign?: Uint8Array },
+  opts: {
+    messageToSign?: Uint8Array;
+    sessionMessageToSign?: Uint8Array;
+  },
 ): Promise<CreatedWallet> {
   let seed: Uint8Array | undefined;
   try {
@@ -120,14 +128,16 @@ async function wrapNewSeed(
       iv,
       ciphertext,
     });
-    if (opts.messageToSign) {
-      return {
-        publicKey,
-        blob,
-        signature: ed25519Sign(opts.messageToSign, seed),
-      };
-    }
-    return { publicKey, blob };
+    return {
+      publicKey,
+      blob,
+      ...(opts.messageToSign
+        ? { signature: ed25519Sign(opts.messageToSign, seed) }
+        : {}),
+      ...(opts.sessionMessageToSign
+        ? { sessionSignature: ed25519Sign(opts.sessionMessageToSign, seed) }
+        : {}),
+    };
   } finally {
     scrub(seed);
   }

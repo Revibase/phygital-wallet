@@ -1,14 +1,22 @@
 /**
- * Edge-safe HMAC verification for API browse-unlock cookies.
+ * Edge-safe HMAC verification for admit cookies (browse-unlock + owner-browse).
  * Must stay in sync with workers/api `session-hmac` + cookie payloads.
  */
 
 import { base64UrlToBytes } from "@/lib/crypto/base64";
 
 export const BROWSE_UNLOCK_COOKIE = "revibase_browse_unlock";
+export const OWNER_BROWSE_COOKIE = "revibase_owner_browse";
+export const OWNER_SESSION_COOKIE = "revibase_owner_session";
 
 export type BrowseUnlock = {
   phygitalToken: string;
+  exp: number;
+  jti: string;
+};
+
+export type OwnerSession = {
+  publicKey: string;
   exp: number;
   jti: string;
 };
@@ -91,17 +99,39 @@ export async function verifyBrowseUnlockCookie(
   };
 }
 
-/** True when browse-unlock cookie is valid for this phygital token PDA. */
+export async function verifyOwnerSessionCookie(
+  token: string | undefined,
+  secret: string,
+  now = Date.now(),
+): Promise<OwnerSession | null> {
+  const parsed = await parseSignedPayload(token, secret, now);
+  if (!parsed) return null;
+  return {
+    publicKey: parsed.head,
+    exp: parsed.exp,
+    jti: parsed.jti,
+  };
+}
+
+/** True when browse-unlock or owner-browse cookie matches this PDA. */
 export async function canAccessPhygitalToken(args: {
   phygitalToken: string;
   browseUnlockCookie?: string;
+  ownerBrowseCookie?: string;
   secret: string;
   now?: number;
 }): Promise<boolean> {
+  const now = args.now ?? Date.now();
   const browse = await verifyBrowseUnlockCookie(
     args.browseUnlockCookie,
     args.secret,
-    args.now ?? Date.now(),
+    now,
   );
-  return Boolean(browse && browse.phygitalToken === args.phygitalToken);
+  if (browse && browse.phygitalToken === args.phygitalToken) return true;
+  const ownerBrowse = await verifyBrowseUnlockCookie(
+    args.ownerBrowseCookie,
+    args.secret,
+    now,
+  );
+  return Boolean(ownerBrowse && ownerBrowse.phygitalToken === args.phygitalToken);
 }

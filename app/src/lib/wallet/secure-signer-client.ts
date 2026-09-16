@@ -20,6 +20,7 @@ export type AuthResult = {
   encryptedWalletBlob: string;
   created: boolean;
   putSignature?: string;
+  sessionSignature?: string;
 };
 
 export class SecureSignerError extends Error {
@@ -306,6 +307,7 @@ class SecureSignerClient {
         credentialId: string,
       ) => string | null | Promise<string | null>;
       putChallenge?: string;
+      sessionChallenge?: string;
       authMode?: "create" | "unlock";
       credentialId?: string;
     },
@@ -315,6 +317,7 @@ class SecureSignerClient {
     };
     if (encryptedWalletBlob) payload.encryptedWalletBlob = encryptedWalletBlob;
     if (opts?.putChallenge) payload.putChallenge = opts.putChallenge;
+    if (opts?.sessionChallenge) payload.sessionChallenge = opts.sessionChallenge;
     if (opts?.credentialId) payload.credentialId = opts.credentialId;
     const r = await this.request(
       "AUTH_START",
@@ -334,6 +337,9 @@ class SecureSignerClient {
       created: Boolean(r["created"]),
       ...(typeof r["putSignature"] === "string"
         ? { putSignature: String(r["putSignature"]) }
+        : {}),
+      ...(typeof r["sessionSignature"] === "string"
+        ? { sessionSignature: String(r["sessionSignature"]) }
         : {}),
     };
   }

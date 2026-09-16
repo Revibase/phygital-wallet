@@ -2,17 +2,19 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import {
   BROWSE_UNLOCK_COOKIE,
+  OWNER_BROWSE_COOKIE,
+  OWNER_SESSION_COOKIE,
   canAccessPhygitalToken,
+  verifyOwnerSessionCookie,
 } from "@/lib/auth/session-cookies";
 import { tokenHref, tokenUnlockHref } from "@/lib/wallet/token-routes";
 
 /**
- * Gate every `/token/:address/**` surface on the httpOnly browse-unlock cookie
- * (card, wallet, settings hub + leaves, collectibles, send/receive, …).
+ * Gate every `/token/:address/**` surface on browse-unlock **or** owner-browse.
  * Verifies HMAC locally with `POLICY_SESSION_SECRET` — same secret as the API.
  *
- * Escape hatch: `/token/:address/unlock` (Hold) issues the cookie, then navigates
- * back into the gated tree. Home → accessory uses the same gate via `tokenHref`.
+ * Escape hatch: `/token/:address/unlock` (Hold) issues browse_unlock.
+ * Home → card mints owner_browse quietly when owner_session is live.
  */
 export async function middleware(request: NextRequest) {
   const match = request.nextUrl.pathname.match(
@@ -30,6 +32,7 @@ export async function middleware(request: NextRequest) {
     (await canAccessPhygitalToken({
       phygitalToken,
       browseUnlockCookie: request.cookies.get(BROWSE_UNLOCK_COOKIE)?.value,
+      ownerBrowseCookie: request.cookies.get(OWNER_BROWSE_COOKIE)?.value,
       secret,
     }));
 
@@ -43,6 +46,17 @@ export async function middleware(request: NextRequest) {
   }
 
   if (unlocked) return NextResponse.next();
+
+  // Signed-in owner without this item's browse cookie → home (open from Home).
+  if (secret) {
+    const ownerSession = await verifyOwnerSessionCookie(
+      request.cookies.get(OWNER_SESSION_COOKIE)?.value,
+      secret,
+    );
+    if (ownerSession) {
+      return NextResponse.redirect(new URL("/", request.url));
+    }
+  }
 
   return NextResponse.redirect(
     new URL(tokenUnlockHref(phygitalToken), request.url),

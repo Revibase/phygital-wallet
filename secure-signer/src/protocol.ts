@@ -67,7 +67,7 @@ export type InboundRequest = Common &
     | { type: "SIGN_TRANSACTION"; encryptedWalletBlob: string; transaction: string }
     | { type: "EXPORT_ENCRYPTED_WALLET"; encryptedWalletBlob: string }
     | { type: "EXPORT_PRIVATE_KEY"; encryptedWalletBlob: string }
-    | { type: "AUTH_START"; encryptedWalletBlob?: string; putChallenge?: string; authMode?: "create" | "unlock"; credentialId?: string }
+    | { type: "AUTH_START"; encryptedWalletBlob?: string; putChallenge?: string; sessionChallenge?: string; authMode?: "create" | "unlock"; credentialId?: string }
     | { type: "BLOB_PROVIDED"; encryptedWalletBlob?: string; errorCode?: ErrorCode }
   );
 
@@ -120,6 +120,7 @@ const ALLOWED_KEYS: Record<RequestType, ReadonlySet<string>> = {
     "timestamp",
     "encryptedWalletBlob",
     "putChallenge",
+    "sessionChallenge",
     "authMode",
     "credentialId",
   ]),
@@ -236,6 +237,13 @@ export function validateInbound(data: unknown): ValidationResult {
       ) {
         return { ok: false, code: "INVALID_MESSAGE", requestId: rid };
       }
+      const sessionChallenge = data["sessionChallenge"];
+      if (
+        sessionChallenge !== undefined &&
+        !validString(sessionChallenge, 128)
+      ) {
+        return { ok: false, code: "INVALID_MESSAGE", requestId: rid };
+      }
       const authMode = data["authMode"];
       if (
         authMode !== undefined &&
@@ -258,6 +266,7 @@ export function validateInbound(data: unknown): ValidationResult {
           type: "AUTH_START",
           ...(typeof blob === "string" ? { encryptedWalletBlob: blob } : {}),
           ...(typeof putChallenge === "string" ? { putChallenge } : {}),
+          ...(typeof sessionChallenge === "string" ? { sessionChallenge } : {}),
           ...(authMode === "create" || authMode === "unlock"
             ? { authMode }
             : {}),

@@ -94,6 +94,7 @@ export function FeeBalancePanel({
           amountUi: amount,
           signer: {
             onPhaseChange: (phase) => {
+              if (walletTx.isOwnerBrowse) return;
               setSignPhase(phase);
               if (isWalletSignCeremonyPhase(phase)) setPhase("holding");
             },
@@ -102,7 +103,7 @@ export function FeeBalancePanel({
       },
       optimistic: {
         apply: (signature) => {
-          setPhase("holding");
+          if (!walletTx.isOwnerBrowse) setPhase("holding");
           const feeBefore = applyOptimisticFeeBalance(queryClient, {
             token: phygitalTokenPda,
             amountUi: amount,
@@ -274,7 +275,9 @@ export function FeeBalancePanel({
         disabled={!canTopUp}
         onClick={() => void runTopUp()}
       >
-        {busy ? <Spinner className="size-4" /> : copy.wallet.holdToTopUp}
+        {busy ? <Spinner className="size-4" /> : walletTx.isOwnerBrowse
+          ? copy.wallet.confirmToTopUp
+          : copy.wallet.holdToTopUp}
       </Button>
       <WalletApprovalSheet approval={walletTx.approval} tokenSymbol="SOL" />
     </div>

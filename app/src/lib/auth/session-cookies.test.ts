@@ -70,4 +70,16 @@ describe("session-cookies", () => {
       }),
     ).resolves.toBe(false);
   });
+
+  it("allows access when owner-browse matches", async () => {
+    const exp = Date.now() + 60_000;
+    const token = await sign(`TokenPda111|${exp}|jti-owner`);
+    await expect(
+      canAccessPhygitalToken({
+        phygitalToken: "TokenPda111",
+        ownerBrowseCookie: token,
+        secret: SECRET,
+      }),
+    ).resolves.toBe(true);
+  });
 });

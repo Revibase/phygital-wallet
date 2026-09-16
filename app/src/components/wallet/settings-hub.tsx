@@ -7,6 +7,7 @@ import { policyHubLimitedSubtitle } from "@/components/wallet/policy-status-view
 import { useFeeBalance } from "@/hooks/wallet/use-fee-balance";
 import { useRpcPreference } from "@/hooks/wallet/use-rpc-preference";
 import { useWalletPolicy } from "@/hooks/token/use-wallet-policy";
+import { useWalletSessionMode } from "@/hooks/wallet/use-wallet-session-mode";
 import { copy } from "@/lib/copy/phygital";
 import { settingsHubClass, settingsPanelListClass } from "@/lib/layout";
 import { cn } from "@/lib/utils";
@@ -31,6 +32,7 @@ export function SettingsHub({
   const fee = useFeeBalance(phygitalTokenPda ?? null);
   const rpc = useRpcPreference();
   const policy = useWalletPolicy(phygitalTokenPda ?? null);
+  const session = useWalletSessionMode(phygitalTokenPda ?? null);
   const feeSubtitle = fee.data
     ? `${fee.data.balanceUi} SOL`
     : copy.common.loading;
@@ -46,6 +48,12 @@ export function SettingsHub({
         : policy.data?.status === "open"
           ? copy.wallet.policyHubOpen
           : copy.wallet.policyHubStandard;
+  const approveWith =
+    session.data === "owner"
+      ? copy.wallet.approveWithPhone
+      : session.data === "accessory"
+        ? copy.wallet.approveWithAccessory
+        : null;
 
   function rowClass(target: SettingsTarget) {
     return cn(
@@ -61,6 +69,11 @@ export function SettingsHub({
       }
     >
       <GroupedList label={copy.wallet.settingsPermissions}>
+        {approveWith ? (
+          <GroupedRow subtitle={approveWith}>
+            {copy.wallet.approveSendsWith}
+          </GroupedRow>
+        ) : null}
         <GroupedRow
           onClick={() => onOpen("walletPolicy")}
           subtitle={policySubtitle}

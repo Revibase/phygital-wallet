@@ -6,9 +6,9 @@
  *       secure-signer after passkey unlock (proves possession of the wallet).
  */
 import { Hono } from "hono";
-import { ed25519 } from "@noble/curves/ed25519.js";
 import { getAddressDecoder } from "@solana/kit";
 
+import { verifyConsumedChallengeProof } from "@/auth/possession-proof";
 import {
   base64UrlToBytes,
   bytesToBase64Url,
@@ -132,25 +132,10 @@ ownerWalletRoutes.put("/owner-wallet/blob", async (c) => {
   }
   const publicKey = publicKeyRaw.trim();
 
-  const expectedChallenge = await consumePutChallenge(challengeId);
-  if (!expectedChallenge) {
-    return json(
-      {
-        error: "This backup request expired. Try again.",
-        code: "challenge_invalid",
-      },
-      { status: 409 },
-    );
-  }
-
   let header;
-  let challengeBytes: Uint8Array;
-  let signature: Uint8Array;
   try {
     const raw = base64UrlToBytes(encryptedWalletBlob, MAX_OWNER_BLOB_BYTES);
     header = parseOwnerBlobHeader(raw);
-    challengeBytes = base64UrlToBytes(expectedChallenge, 64);
-    signature = base64UrlToBytes(signatureB64, 64);
   } catch (e) {
     const code =
       e instanceof OwnerBlobParseError
@@ -162,12 +147,6 @@ ownerWalletRoutes.put("/owner-wallet/blob", async (c) => {
     );
   }
 
-  if (signature.length !== 64) {
-    return json(
-      { error: "Invalid signature", code: "invalid_proof" },
-      { status: 400 },
-    );
-  }
   if (!pubkeyBytesEqualBase58(header.publicKey, publicKey)) {
     return json(
       {
@@ -178,17 +157,18 @@ ownerWalletRoutes.put("/owner-wallet/blob", async (c) => {
     );
   }
 
-  const message = putChallengeMessage(challengeBytes);
-  let ok = false;
-  try {
-    ok = ed25519.verify(signature, message, header.publicKey);
-  } catch {
-    ok = false;
-  }
-  if (!ok) {
+  const proof = await verifyConsumedChallengeProof({
+    challengeId,
+    signatureB64,
+    publicKeyBytes: header.publicKey,
+    consume: consumePutChallenge,
+    buildMessage: putChallengeMessage,
+    expiredError: "This backup request expired. Try again.",
+  });
+  if (!proof.ok) {
     return json(
-      { error: "Wallet proof failed", code: "invalid_proof" },
-      { status: 403 },
+      { error: proof.error, code: proof.code },
+      { status: proof.status },
     );
   }
 

@@ -19,6 +19,11 @@ describe("API access", () => {
     expect(isPublicApiPath("GET", "/owner-wallet/blob")).toBe(true);
     expect(isPublicApiPath("POST", "/owner-wallet/blob/challenge")).toBe(true);
     expect(isPublicApiPath("PUT", "/owner-wallet/blob")).toBe(true);
+    expect(isPublicApiPath("POST", "/owner-session/challenge")).toBe(true);
+    expect(isPublicApiPath("POST", "/owner-session")).toBe(true);
+    expect(isPublicApiPath("DELETE", "/owner-session")).toBe(true);
+    expect(isPublicApiPath("POST", "/accessory/owner-browse")).toBe(true);
+    expect(isPublicApiPath("GET", "/accessory/session")).toBe(true);
     expect(isPublicApiPath("GET", "/tokens/verified")).toBe(false);
   });
 

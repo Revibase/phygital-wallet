@@ -7,6 +7,7 @@
 import { Hono } from "hono";
 
 import { accessoryUnlockRoutes } from "@/auth/accessory-unlock-routes";
+import { ownerSessionRoutes } from "@/auth/owner-session-routes";
 import { requireAppAccess } from "@/auth/require-app-access";
 import { appCors } from "@/shared/cors";
 import { createLogger } from "@/shared/log";
@@ -83,6 +84,7 @@ app.use("*", async (c, next) => {
 app.get("/health", (c) => c.json({ ok: true }));
 
 app.route("/", accessoryUnlockRoutes);
+app.route("/", ownerSessionRoutes);
 app.route("/", ownerWalletRoutes);
 app.route("/", tokenRoutes);
 app.route("/", transactions);

@@ -133,9 +133,9 @@ function accessLabel(access: ProgramAccess): string {
     case "Denied":
       return "Denied";
     case "AllInstructions":
-      return "Allowed (all instructions)";
+      return "All instructions";
     case "Restricted":
-      return `Restricted (${access.fields[0].length} instruction rule${access.fields[0].length === 1 ? "" : "s"})`;
+      return `${access.fields[0].length} rule${access.fields[0].length === 1 ? "" : "s"}`;
     default:
       return "Unknown";
   }
@@ -148,7 +148,7 @@ function optionSome<T>(opt: Option<T>): T | null {
   return null;
 }
 
-/** Human rows for SetWalletPolicy payload. */
+/** Human rows for SetWalletPolicy payload — one fact per row (no packed · strings). */
 export function describeWalletPolicy(data: {
   solCap: Option<SolCapArg>;
   mintCaps: Array<MintCapArg>;
@@ -158,42 +158,58 @@ export function describeWalletPolicy(data: {
   const sol = optionSome(data.solCap);
   if (sol) {
     rows.push({
-      label: "SOL spend cap",
-      value: `${formatUnits(sol.cap, 9)} SOL · ${windowPhrase(sol.windowSeconds)}`,
+      label: "SOL limit",
+      value: `${formatUnits(sol.cap, 9)} SOL`,
+    });
+    rows.push({
+      label: "SOL window",
+      value: windowPhrase(sol.windowSeconds),
     });
   } else {
     rows.push({
-      label: "SOL spend cap",
-      value: "None (SOL blocked if any other cap exists)",
+      label: "SOL limit",
+      value: "None",
     });
   }
 
   if (data.mintCaps.length === 0) {
-    rows.push({ label: "Token spend caps", value: "None" });
+    rows.push({ label: "Token limits", value: "None" });
   } else {
     for (const [i, m] of data.mintCaps.entries()) {
       const mint = String(m.mint);
+      const prefix =
+        data.mintCaps.length === 1 ? "Token" : `Token ${i + 1}`;
       rows.push({
-        label:
-          data.mintCaps.length === 1 ? "Token spend cap" : `Token cap ${i + 1}`,
-        value: `${formatTokenAmount(m.cap, mint)} · ${windowPhrase(m.windowSeconds)}`,
+        label: `${prefix} limit`,
+        value: formatTokenAmount(m.cap, mint),
+      });
+      rows.push({
+        label: `${prefix} window`,
+        value: windowPhrase(m.windowSeconds),
       });
     }
   }
 
   if (data.programPermissions.length === 0) {
     rows.push({
-      label: "Program rules",
-      value: "Baseline only (no overrides)",
+      label: "Programs",
+      value: "Baseline only",
     });
   } else {
     for (const [i, p] of data.programPermissions.entries()) {
       rows.push({
         label:
           data.programPermissions.length === 1
-            ? "Program rule"
-            : `Program rule ${i + 1}`,
-        value: `${shorten(p.programId)} · ${accessLabel(p.access)}`,
+            ? "Program"
+            : `Program ${i + 1}`,
+        value: shorten(p.programId),
+      });
+      rows.push({
+        label:
+          data.programPermissions.length === 1
+            ? "Access"
+            : `Access ${i + 1}`,
+        value: accessLabel(p.access),
       });
     }
   }

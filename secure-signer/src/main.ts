@@ -17,6 +17,7 @@ import {
   MAX_CREDENTIAL_ID_BYTES,
   MAX_TX_BYTES,
   PUT_CHALLENGE_PREFIX,
+  SESSION_CHALLENGE_PREFIX,
 } from "./constants.js";
 import {
   base64ToBytes,
@@ -64,23 +65,30 @@ const blobWaiters = new Map<
 
 const toBase58Pubkey = (bytes: Uint8Array): string => addr.decode(bytes);
 
-function putChallengeMessage(challengeBytes: Uint8Array): Uint8Array {
-  const prefix = utf8ToBytes(PUT_CHALLENGE_PREFIX);
-  const out = new Uint8Array(prefix.length + challengeBytes.length);
-  out.set(prefix, 0);
-  out.set(challengeBytes, prefix.length);
+function prefixedChallengeMessage(
+  prefix: string,
+  challengeBytes: Uint8Array,
+): Uint8Array {
+  const p = utf8ToBytes(prefix);
+  const out = new Uint8Array(p.length + challengeBytes.length);
+  out.set(p, 0);
+  out.set(challengeBytes, p.length);
   return out;
 }
 
-/** Sign a PUT challenge with the seed; returns base64url sig or undefined. */
-function signPutChallenge(
-  putChallengeB64: string | undefined,
+/** Sign a base64url challenge with the seed; returns base64url sig or undefined. */
+function signChallenge(
+  challengeB64: string | undefined,
   seed: Uint8Array,
+  prefix: string,
 ): string | undefined {
-  if (!putChallengeB64) return undefined;
+  if (!challengeB64) return undefined;
   try {
-    const challengeBytes = base64ToBytes(putChallengeB64, 64, "url");
-    const sig = ed25519Sign(putChallengeMessage(challengeBytes), seed);
+    const challengeBytes = base64ToBytes(challengeB64, 64, "url");
+    const sig = ed25519Sign(
+      prefixedChallengeMessage(prefix, challengeBytes),
+      seed,
+    );
     return bytesToBase64(sig, "url");
   } catch {
     return undefined;
@@ -89,8 +97,12 @@ function signPutChallenge(
 
 function authCompleteExtra(
   putSignature: string | undefined,
+  sessionSignature?: string | undefined,
 ): Record<string, unknown> {
-  return putSignature ? { putSignature } : {};
+  return {
+    ...(putSignature ? { putSignature } : {}),
+    ...(sessionSignature ? { sessionSignature } : {}),
+  };
 }
 
 /** Show busy UI with an X that cancels the in-flight request. */
@@ -277,6 +289,7 @@ async function handle(request: InboundRequest): Promise<void> {
           rpId,
           request.encryptedWalletBlob,
           request.putChallenge,
+          request.sessionChallenge,
           request.authMode,
           request.credentialId,
         );
@@ -321,6 +334,7 @@ async function enrollFromParentCredential(opts: {
   requestId: string;
   credentialIdB64: string;
   putChallengeB64?: string;
+  sessionChallengeB64?: string;
 }): Promise<void> {
   // Parent create used up user activation; require an in-iframe tap before get.
   if (!(await ui.confirmFinishCreate())) {
@@ -335,8 +349,20 @@ async function enrollFromParentCredential(opts: {
     let messageToSign: Uint8Array | undefined;
     if (opts.putChallengeB64) {
       try {
-        messageToSign = putChallengeMessage(
+        messageToSign = prefixedChallengeMessage(
+          PUT_CHALLENGE_PREFIX,
           base64ToBytes(opts.putChallengeB64, 64, "url"),
+        );
+      } catch {
+        /* best-effort */
+      }
+    }
+    let sessionMessageToSign: Uint8Array | undefined;
+    if (opts.sessionChallengeB64) {
+      try {
+        sessionMessageToSign = prefixedChallengeMessage(
+          SESSION_CHALLENGE_PREFIX,
+          base64ToBytes(opts.sessionChallengeB64, 64, "url"),
         );
       } catch {
         /* best-effort */
@@ -353,6 +379,7 @@ async function enrollFromParentCredential(opts: {
       credentialId,
       {
         ...(messageToSign ? { messageToSign } : {}),
+        ...(sessionMessageToSign ? { sessionMessageToSign } : {}),
       },
     );
     if (busy.wasDismissed()) return;
@@ -361,13 +388,16 @@ async function enrollFromParentCredential(opts: {
     const putSignature = created.signature
       ? bytesToBase64(created.signature, "url")
       : undefined;
+    const sessionSignature = created.sessionSignature
+      ? bytesToBase64(created.sessionSignature, "url")
+      : undefined;
     await ui.showSuccess(pk, true);
     if (busy.wasDismissed()) return;
     ok(opts.requestId, RESULT_TYPE.AUTH_START, {
       publicKey: pk,
       encryptedWalletBlob: bytesToBase64(created.blob, "url"),
       created: true,
-      ...authCompleteExtra(putSignature),
+      ...authCompleteExtra(putSignature, sessionSignature),
     });
   } catch (e) {
     if (busy.wasDismissed()) return;
@@ -393,6 +423,7 @@ async function handleAuth(
   rpId: string,
   remoteBlobB64: string | undefined,
   putChallengeB64: string | undefined,
+  sessionChallengeB64: string | undefined,
   authMode: "create" | "unlock" | undefined,
   credentialIdB64: string | undefined,
 ): Promise<void> {
@@ -409,6 +440,7 @@ async function handleAuth(
       requestId,
       credentialIdB64,
       ...(putChallengeB64 ? { putChallengeB64 } : {}),
+      ...(sessionChallengeB64 ? { sessionChallengeB64 } : {}),
     });
     return;
   }
@@ -427,6 +459,7 @@ async function handleAuth(
       local.parsed,
       false,
       putChallengeB64,
+      sessionChallengeB64,
     );
     return;
   }
@@ -440,6 +473,7 @@ async function handleAuth(
       pick.parsed,
       pick.writeLocal,
       putChallengeB64,
+      sessionChallengeB64,
     );
     return;
   }
@@ -463,6 +497,7 @@ async function handleAuth(
         rpId,
         remoteBlobB64,
         putChallengeB64,
+        sessionChallengeB64,
         "unlock",
         undefined,
       );
@@ -505,6 +540,7 @@ async function handleAuth(
         rpId,
         remoteBlobB64,
         putChallengeB64,
+        sessionChallengeB64,
         "unlock",
         undefined,
       );
@@ -529,7 +565,16 @@ async function handleAuth(
       seed.fill(0);
       return;
     }
-    const putSignature = signPutChallenge(putChallengeB64, seed);
+    const putSignature = signChallenge(
+      putChallengeB64,
+      seed,
+      PUT_CHALLENGE_PREFIX,
+    );
+    const sessionSignature = signChallenge(
+      sessionChallengeB64,
+      seed,
+      SESSION_CHALLENGE_PREFIX,
+    );
     seed.fill(0);
     writeLocalBlob(raw);
     const pk = toBase58Pubkey(publicKey);
@@ -539,7 +584,7 @@ async function handleAuth(
       publicKey: pk,
       encryptedWalletBlob: bytesToBase64(raw, "url"),
       created: false,
-      ...authCompleteExtra(putSignature),
+      ...authCompleteExtra(putSignature, sessionSignature),
     });
   } catch (e) {
     disc.prfOutput.fill(0);
@@ -557,6 +602,7 @@ async function unlockAndComplete(
   parsed: ParsedWalletBlob,
   writeLocal: boolean,
   putChallengeB64: string | undefined,
+  sessionChallengeB64: string | undefined,
 ): Promise<void> {
   if (!(await ui.confirmImport())) return fail(requestId, "USER_CANCELLED");
   const busy = beginBusy(requestId, "Use Face ID or Touch ID to approve");
@@ -566,7 +612,16 @@ async function unlockAndComplete(
       seed.fill(0);
       return;
     }
-    const putSignature = signPutChallenge(putChallengeB64, seed);
+    const putSignature = signChallenge(
+      putChallengeB64,
+      seed,
+      PUT_CHALLENGE_PREFIX,
+    );
+    const sessionSignature = signChallenge(
+      sessionChallengeB64,
+      seed,
+      SESSION_CHALLENGE_PREFIX,
+    );
     seed.fill(0);
     if (writeLocal) writeLocalBlob(raw);
     const pk = toBase58Pubkey(publicKey);
@@ -576,7 +631,7 @@ async function unlockAndComplete(
       publicKey: pk,
       encryptedWalletBlob: bytesToBase64(raw, "url"),
       created: false,
-      ...authCompleteExtra(putSignature),
+      ...authCompleteExtra(putSignature, sessionSignature),
     });
   } catch (e) {
     if (busy.wasDismissed()) return;
@@ -593,6 +648,7 @@ async function unlockAndComplete(
           parsed,
           writeLocal,
           putChallengeB64,
+          sessionChallengeB64,
         );
       }
       return fail(requestId, "USER_CANCELLED");

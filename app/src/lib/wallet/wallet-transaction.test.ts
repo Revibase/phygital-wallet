@@ -177,4 +177,28 @@ describe("runWalletTransaction", () => {
     expect(onError).not.toHaveBeenCalled();
     expect(optimistic.apply).not.toHaveBeenCalled();
   });
+
+  it("preferredMode authority skips policy path", async () => {
+    const optimistic = baseOptimistic();
+    const send = vi
+      .fn()
+      .mockResolvedValue(sent("sig-auth-first", Promise.resolve()));
+
+    const outcome = await runWalletTransaction({
+      send,
+      optimistic,
+      preferredMode: "authority",
+      ...noopHandlers,
+    });
+    await flush();
+
+    expect(outcome).toEqual({
+      status: "sent",
+      signature: "sig-auth-first",
+      mode: "authority",
+    });
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send).toHaveBeenCalledWith("authority");
+    expect(noopHandlers.resolvePolicyDenial).not.toHaveBeenCalled();
+  });
 });

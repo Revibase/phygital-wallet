@@ -1,33 +1,32 @@
 /**
- * Short-lived browse-unlock cookie after NFC tap / accessory Hold.
+ * Per-item owner-browse cookie: admits `/token/:pda` without NFC Hold.
  */
 import type { Context } from "hono";
 
-import { clearOwnerBrowseCookie } from "@/auth/owner-browse-session";
 import { createSignedSessionCookie } from "@/shared/signed-session-cookie";
 import { VERIFIER_SESSION_TTL_MS } from "@/shared/session-ttl";
 
-const BROWSE_UNLOCK_COOKIE = "revibase_browse_unlock";
+export const OWNER_BROWSE_COOKIE = "revibase_owner_browse";
 
 const cookie = createSignedSessionCookie({
-  cookieName: BROWSE_UNLOCK_COOKIE,
+  cookieName: OWNER_BROWSE_COOKIE,
   ttlMs: VERIFIER_SESSION_TTL_MS,
 });
 
-export type BrowseUnlock = {
+export type OwnerBrowse = {
   phygitalToken: string;
   exp: number;
   jti: string;
 };
 
-export function clearBrowseUnlockCookie(c: Context): void {
+export function clearOwnerBrowseCookie(c: Context): void {
   cookie.clear(c);
 }
 
-export async function readBrowseUnlock(
+export async function readOwnerBrowse(
   c: Context,
   now = Date.now(),
-): Promise<BrowseUnlock | null> {
+): Promise<OwnerBrowse | null> {
   const parsed = await cookie.read(c, now);
   if (!parsed) return null;
   return {
@@ -37,12 +36,9 @@ export async function readBrowseUnlock(
   };
 }
 
-/** Mint + Set-Cookie for a resolved phygital token PDA. */
-export async function issueBrowseUnlockCookie(
+export async function issueOwnerBrowseCookie(
   c: Context,
   phygitalToken: string,
 ): Promise<{ expiresAt: number }> {
-  // Physical tap / Hold always wins over leftover owner-browse.
-  clearOwnerBrowseCookie(c);
   return cookie.issue(c, phygitalToken);
 }
