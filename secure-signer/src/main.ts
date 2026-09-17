@@ -39,7 +39,7 @@ import {
 } from "./protocol.js";
 import { digestHex, SignerState } from "./state.js";
 import { decodeV1Transaction } from "./tx/decode-v1.js";
-import { evaluatePolicy } from "./tx/policy.js";
+import { evaluatePolicy, previewPolicy } from "./tx/policy.js";
 import {
   BrowserPrfProvider,
   currentRpId,
@@ -301,7 +301,9 @@ async function handleCreate(opts: {
     } catch {
       return fail(opts.requestId, "BLOB_UNAVAILABLE");
     }
-    writeLocalBlob(created.blob);
+    if (!writeLocalBlob(created.blob)) {
+      return fail(opts.requestId, "INTERNAL_ERROR");
+    }
     await ui.showSuccess(pk, true);
     if (busy.wasDismissed()) return;
     ok(opts.requestId, RESULT_TYPE.AUTH_START, {
@@ -335,7 +337,8 @@ async function handleLocalUnlock(opts: {
   raw: Uint8Array;
   parsed: ParsedWalletBlob;
 }): Promise<void> {
-  if (!(await ui.confirmImport())) return fail(opts.requestId, "USER_CANCELLED");
+  if (!(await ui.confirmImport()))
+    return fail(opts.requestId, "USER_CANCELLED");
   const busy = beginBusy(opts.requestId, "Use Face ID or Touch ID to approve");
   try {
     const { challengeId, challenge } = await mintBackupChallenge();
@@ -412,7 +415,9 @@ async function handleLocalUnlock(opts: {
     }
 
     seed.fill(0);
-    writeLocalBlob(opts.raw);
+    if (!writeLocalBlob(opts.raw)) {
+      return fail(opts.requestId, "INTERNAL_ERROR");
+    }
     await ui.showSuccess(pk, false);
     if (busy.wasDismissed()) return;
     ok(opts.requestId, RESULT_TYPE.AUTH_START, {
@@ -443,7 +448,8 @@ async function handleRemoteUnlock(opts: {
   requestId: string;
   rpId: string;
 }): Promise<void> {
-  if (!(await ui.confirmImport())) return fail(opts.requestId, "USER_CANCELLED");
+  if (!(await ui.confirmImport()))
+    return fail(opts.requestId, "USER_CANCELLED");
 
   let restore: { challengeId: string; challenge: string };
   let backup: { challengeId: string; challenge: string };
@@ -582,7 +588,9 @@ async function handleRemoteUnlock(opts: {
     } catch {
       return fail(opts.requestId, "BLOB_UNAVAILABLE");
     }
-    writeLocalBlob(raw);
+    if (!writeLocalBlob(raw)) {
+      return fail(opts.requestId, "INTERNAL_ERROR");
+    }
     busy.clear();
     await ui.showSuccess(pk, false);
     ok(opts.requestId, RESULT_TYPE.AUTH_START, {
@@ -638,14 +646,89 @@ async function handleAuth(opts: {
   return handleRemoteUnlock({ requestId, rpId });
 }
 
-/** Sign / export use signer-origin localStorage only. */
-function requireLocalBlob(): {
-  raw: Uint8Array;
-  parsed: ParsedWalletBlob;
-} {
-  const local = readLocalBlob();
-  if (!local) throw new ServiceError("INVALID_WALLET_BLOB");
-  return local;
+/** Sign / export: prefer signer LS; if empty, one WebAuthn restores from D1 then continues. */
+async function restoreWalletSeed(opts: {
+  requestId: string;
+  rpId: string;
+}): Promise<
+  | {
+      raw: Uint8Array;
+      parsed: ParsedWalletBlob;
+      seed: Uint8Array;
+      publicKey: Uint8Array;
+    }
+  | "failed"
+  | "dismissed"
+> {
+  let restore: { challengeId: string; challenge: string };
+  try {
+    restore = await issueRestoreChallenge();
+  } catch {
+    fail(opts.requestId, "BLOB_UNAVAILABLE");
+    return "failed";
+  }
+
+  let fetchChallengeBytes: Uint8Array;
+  try {
+    fetchChallengeBytes = base64ToBytes(restore.challenge, 64, "url");
+  } catch {
+    fail(opts.requestId, "INVALID_MESSAGE");
+    return "failed";
+  }
+
+  const busy = beginBusy(opts.requestId, "Use Face ID or Touch ID to approve");
+  let disc;
+  try {
+    disc = await prf.getDiscoverable(opts.rpId, fetchChallengeBytes);
+    if (busy.wasDismissed()) return "dismissed";
+
+    let restored;
+    try {
+      restored = await restoreOwnerWalletBlob({
+        challengeId: restore.challengeId,
+        assertion: disc.assertion as unknown as Record<string, unknown>,
+      });
+    } catch {
+      disc.prfOutput.fill(0);
+      fail(opts.requestId, "BLOB_UNAVAILABLE");
+      return "failed";
+    }
+    if (!restored) {
+      disc.prfOutput.fill(0);
+      fail(opts.requestId, "BLOB_UNAVAILABLE");
+      return "failed";
+    }
+
+    const raw = base64ToBytes(restored.encryptedWalletBlob, 1024, "url");
+    const parsed = parseBlob(raw);
+    if (!bytesEqual(parsed.credentialId, disc.credentialId)) {
+      disc.prfOutput.fill(0);
+      fail(opts.requestId, "WALLET_MISMATCH");
+      return "failed";
+    }
+    const { seed, publicKey } = await unwrapWallet(
+      disc.prfOutput,
+      parsed,
+      opts.rpId,
+    );
+    disc.prfOutput.fill(0);
+    if (!writeLocalBlob(raw)) {
+      seed.fill(0);
+      fail(opts.requestId, "INTERNAL_ERROR");
+      return "failed";
+    }
+    return { raw, parsed, seed, publicKey };
+  } catch (e) {
+    if (disc) disc.prfOutput.fill(0);
+    if (busy.wasDismissed()) return "dismissed";
+    if (e instanceof ServiceError) {
+      fail(opts.requestId, e.code);
+      return "failed";
+    }
+    throw e;
+  } finally {
+    busy.clear();
+  }
 }
 
 async function handleSign(
@@ -653,42 +736,83 @@ async function handleSign(
   rpId: string,
   txB64: string,
 ): Promise<void> {
-  const { parsed } = requireLocalBlob();
   const txBytes = base64ToBytes(txB64, MAX_TX_BYTES, "std");
 
-  // Independent decode + policy from the signer's OWN parser (§17).
   let tx;
   try {
     tx = decodeV1Transaction(txBytes);
   } catch {
     return fail(requestId, "MALFORMED_TRANSACTION");
   }
-  const policy = evaluatePolicy(tx, parsed.publicKey);
-  if (!policy.ok) return fail(requestId, policy.code);
 
-  // Freeze the exact validated bytes; bind authorization to their digest (§22).
   const frozen = tx.messageBytes.slice();
   const digest = await digestHex(frozen);
+  const local = readLocalBlob();
 
-  if (!(await ui.confirmSignTransaction(policy.summary)))
-    return fail(requestId, "USER_CANCELLED");
-  state.authorize({
-    operation: "SIGN_PENDING",
-    requestId,
-    walletPublicKey: parsed.publicKey,
-    messageDigest: digest,
-    createdAt: Date.now(),
-  });
+  let seed: Uint8Array;
+  let publicKey: Uint8Array;
 
-  const busy = beginBusy(requestId, "Use Face ID or Touch ID to approve");
-  try {
-    const { seed } = await decryptWallet(prf, rpId, parsed); // fresh WebAuthn (§24)
-    if (busy.wasDismissed()) {
-      seed.fill(0);
-      return;
+  if (local) {
+    const policy = evaluatePolicy(tx, local.parsed.publicKey);
+    if (!policy.ok) return fail(requestId, policy.code);
+
+    if (!(await ui.confirmSignTransaction(policy.summary)))
+      return fail(requestId, "USER_CANCELLED");
+
+    state.authorize({
+      operation: "SIGN_PENDING",
+      requestId,
+      walletPublicKey: local.parsed.publicKey,
+      messageDigest: digest,
+      createdAt: Date.now(),
+    });
+
+    const busy = beginBusy(requestId, "Use Face ID or Touch ID to approve");
+    try {
+      const unlocked = await decryptWallet(prf, rpId, local.parsed);
+
+      if (busy.wasDismissed()) {
+        unlocked.seed.fill(0);
+        return;
+      }
+      seed = unlocked.seed;
+      publicKey = unlocked.publicKey;
+    } catch (e) {
+      if (busy.wasDismissed()) return;
+      throw e;
+    } finally {
+      busy.clear();
+    }
+  } else {
+    // Cold start / empty LS: confirm with preview, one WebAuthn restores + unlocks.
+    const preview = previewPolicy(tx);
+    if (!preview.ok) return fail(requestId, preview.code);
+
+    if (!(await ui.confirmSignTransaction(preview.summary))) {
+      return fail(requestId, "USER_CANCELLED");
     }
 
-    // Re-verify the authorization against the SAME frozen bytes (no swap, §22).
+    const restored = await restoreWalletSeed({ requestId, rpId });
+    if (restored === "failed" || restored === "dismissed") return;
+
+    const policy = evaluatePolicy(tx, restored.publicKey);
+    if (!policy.ok) {
+      restored.seed.fill(0);
+      return fail(requestId, policy.code);
+    }
+
+    state.authorize({
+      operation: "SIGN_PENDING",
+      requestId,
+      walletPublicKey: restored.publicKey,
+      messageDigest: digest,
+      createdAt: Date.now(),
+    });
+    seed = restored.seed;
+    publicKey = restored.publicKey;
+  }
+
+  try {
     const auth = state.consumeAuthorization({
       operation: "SIGN_PENDING",
       requestId,
@@ -699,13 +823,15 @@ async function handleSign(
       return fail(requestId, "INTERNAL_ERROR");
     }
 
-    const signature = signAndScrub(frozen, seed); // signs EXACT validated bytes
+    const signature = signAndScrub(frozen, seed);
+
     ok(requestId, RESULT_TYPE.SIGN_TRANSACTION, {
       signature: bytesToBase64(signature, "std"),
-      publicKey: toBase58Pubkey(parsed.publicKey),
+      publicKey: toBase58Pubkey(publicKey),
     });
-  } finally {
-    busy.clear();
+  } catch (e) {
+    seed.fill(0);
+    throw e;
   }
 }
 
@@ -713,34 +839,49 @@ async function handleExportPrivateKey(
   requestId: string,
   rpId: string,
 ): Promise<void> {
-  const { parsed } = requireLocalBlob();
-  // Dedicated ceremony BEFORE WebAuthn (§14) — warning + explicit continue.
   if (!(await ui.confirmExportPrivateKey()))
     return fail(requestId, "USER_CANCELLED");
-  const busy = beginBusy(requestId, "Use Face ID or Touch ID to approve");
-  try {
-    const { seed, publicKey } = await decryptWallet(prf, rpId, parsed); // fresh WebAuthn
-    if (busy.wasDismissed()) {
-      seed.fill(0);
-      return;
+
+  const local = readLocalBlob();
+  let seed: Uint8Array;
+  let publicKey: Uint8Array;
+
+  if (local) {
+    const busy = beginBusy(requestId, "Use Face ID or Touch ID to approve");
+    try {
+      const unlocked = await decryptWallet(prf, rpId, local.parsed);
+
+      if (busy.wasDismissed()) {
+        unlocked.seed.fill(0);
+        return;
+      }
+      seed = unlocked.seed;
+      publicKey = unlocked.publicKey;
+    } catch (e) {
+      if (busy.wasDismissed()) return;
+      throw e;
+    } finally {
+      busy.clear();
     }
-    // Standard Solana 64-byte secret key = seed || publicKey, base58.
+  } else {
+    const restored = await restoreWalletSeed({ requestId, rpId });
+    if (restored === "failed" || restored === "dismissed") return;
+    seed = restored.seed;
+    publicKey = restored.publicKey;
+  }
+
+  try {
     const secret = new Uint8Array(64);
     secret.set(seed, 0);
     secret.set(publicKey, 32);
     const secretB58 = b58.decode(secret);
     seed.fill(0);
     secret.fill(0);
-    busy.clear();
-    // Key stays in memory for clipboard copy only — never posted to parent.
-    // Await Done so the parent overlay stays up until the user dismisses.
     await ui.showExportedSecret(secretB58, toBase58Pubkey(publicKey));
     ok(requestId, RESULT_TYPE.EXPORT_PRIVATE_KEY, { completed: true });
   } catch (e) {
-    if (busy.wasDismissed()) return;
+    seed.fill(0);
     throw e;
-  } finally {
-    busy.clear();
   }
 }
 

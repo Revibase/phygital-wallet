@@ -15,7 +15,7 @@ import {
 import { ed25519PublicKey, ed25519Sign, generateEd25519Seed, randomBytes } from "../crypto.js";
 import { encodeV1Wire } from "../testing/encode-v1.js";
 import { decodeV1Transaction } from "./decode-v1.js";
-import { evaluatePolicy } from "./policy.js";
+import { evaluatePolicy, previewPolicy } from "./policy.js";
 import { ed25519 } from "@noble/curves/ed25519.js";
 
 const addr = getAddressDecoder();
@@ -125,5 +125,22 @@ describe("evaluatePolicy (executeWithAuthority)", () => {
       encodeV1Wire({ feePayer: ownerAddress, instructions: [ix] }),
     );
     expect(evaluatePolicy(tx, ownerPub)).toMatchObject({ ok: false, code: "POLICY_REJECTED" });
+  });
+
+  it("previewPolicy clear-signs without owner binding", () => {
+    const seed = generateEd25519Seed();
+    const ownerPub = ed25519PublicKey(seed);
+    const { wire, ownerAddress } = buildExecuteWithAuthorityWire(
+      ownerPub,
+      randomAddress(),
+    );
+    const tx = decodeV1Transaction(wire);
+    const preview = previewPolicy(tx);
+    expect(preview.ok).toBe(true);
+    if (!preview.ok) return;
+    expect(preview.summary.walletAddress).toBe(ownerAddress);
+    expect(preview.summary.instructions[0]!.kind).toBe(
+      PhygitalWalletInstruction.ExecuteWithAuthority,
+    );
   });
 });

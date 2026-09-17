@@ -38,24 +38,44 @@ export function evaluatePolicy(
   tx: DecodedV1Transaction,
   ownerPubkey: Uint8Array
 ): PolicyResult {
-  const { message, transaction } = tx;
+  const preview = previewPolicy(tx);
+  if (!preview.ok) return preview;
+
+  const ownerAddress = addr.decode(ownerPubkey);
+  if (!(ownerAddress in tx.transaction.signatures)) {
+    return { ok: false, code: "WALLET_MISMATCH" };
+  }
+
+  for (const summary of preview.summary.instructions) {
+    if (summary.authority !== null && summary.authority !== ownerAddress) {
+      return { ok: false, code: "POLICY_REJECTED" };
+    }
+  }
+
+  return {
+    ok: true,
+    summary: {
+      ...preview.summary,
+      walletAddress: ownerAddress,
+    },
+  };
+}
+
+/**
+ * Allowlist + decode for confirm UI before the owner pubkey is known
+ * (cold-start restore+sign). Owner binding runs in {@link evaluatePolicy} after restore.
+ */
+export function previewPolicy(tx: DecodedV1Transaction): PolicyResult {
+  const { message } = tx;
   if (message.instructions.length === 0)
     return { ok: false, code: "POLICY_REJECTED" };
 
-  // 1. Top-level program allowlist.
   for (const ix of message.instructions) {
     if (ix.programAddress !== PHYGITAL_WALLET_PROGRAM_ADDRESS) {
       return { ok: false, code: "POLICY_REJECTED" };
     }
   }
 
-  // 2. Owner must be a required signer (present in kit signatures map).
-  const ownerAddress = addr.decode(ownerPubkey);
-  if (!(ownerAddress in transaction.signatures)) {
-    return { ok: false, code: "WALLET_MISMATCH" };
-  }
-
-  // 3. Decode each phygital-wallet instruction; bind authority to the owner.
   const summaries: ParsedInstructionSummary[] = [];
   for (const ix of message.instructions) {
     let summary: ParsedInstructionSummary;
@@ -64,20 +84,18 @@ export function evaluatePolicy(
     } catch {
       return { ok: false, code: "POLICY_REJECTED" };
     }
-    // The owner never signs setAuthority (authorized by passkey + payer on-chain).
     if (summary.kind === PhygitalWalletInstruction.SetAuthority)
       return { ok: false, code: "POLICY_REJECTED" };
-    // Any instruction that carries an authority must be authorized by the owner.
-    if (summary.authority !== null && summary.authority !== ownerAddress) {
-      return { ok: false, code: "POLICY_REJECTED" };
-    }
     summaries.push(summary);
   }
+
+  const walletAddress =
+    summaries.find((s) => s.authority !== null)?.authority ?? "";
 
   return {
     ok: true,
     summary: {
-      walletAddress: ownerAddress,
+      walletAddress,
       instructions: summaries,
       config: tx.message.config ?? {},
     },

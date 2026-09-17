@@ -53,6 +53,7 @@ class SecureSignerClient {
   private shell: SecureSignerShell | null = null;
   private iframeEl: HTMLIFrameElement | null = null;
   private ready: Promise<void> | null = null;
+  private readyAbort: AbortController | null = null;
   private listening = false;
   private readonly pending = new Map<string, Pending>();
   private shellWaiters: Array<{
@@ -84,6 +85,8 @@ class SecureSignerClient {
   }
 
   detachShell(): void {
+    this.abortReady();
+    this.rejectIframeWaiters(new SecureSignerError("INTERNAL_ERROR"));
     this.shell = null;
     this.iframeEl = null;
     this.ready = null;
@@ -109,6 +112,8 @@ class SecureSignerClient {
 
   detachIframe(iframe?: HTMLIFrameElement | null): void {
     if (iframe && this.iframeEl !== iframe) return;
+    this.abortReady();
+    this.rejectIframeWaiters(new SecureSignerError("INTERNAL_ERROR"));
     this.iframeEl = null;
     this.ready = null;
   }
@@ -117,14 +122,28 @@ class SecureSignerClient {
     this.cancelAllPending();
   }
 
-  private get iframe(): HTMLIFrameElement | null {
-    return this.iframeEl;
+  private rejectIframeWaiters(err: Error): void {
+    for (const w of this.iframeWaiters) w.reject(err);
+    this.iframeWaiters = [];
   }
 
-  private waitForReady(frame: HTMLIFrameElement): Promise<void> {
+  /** Cancel in-flight READY wait so callers do not hang until READY_TIMEOUT_MS. */
+  private abortReady(): void {
+    this.readyAbort?.abort();
+    this.readyAbort = null;
+  }
+
+  private waitForReady(
+    frame: HTMLIFrameElement,
+    signal: AbortSignal,
+  ): Promise<void> {
     return new Promise<void>((resolve, reject) => {
+      if (signal.aborted) {
+        reject(new SecureSignerError("INTERNAL_ERROR"));
+        return;
+      }
       const timer = setTimeout(() => {
-        window.removeEventListener("message", onReady);
+        cleanup();
         reject(new SecureSignerError("INTERNAL_ERROR"));
       }, READY_TIMEOUT_MS);
       const onReady = (event: MessageEvent) => {
@@ -132,18 +151,30 @@ class SecureSignerClient {
         if (event.source !== frame.contentWindow) return;
         const data = event.data as Record<string, unknown>;
         if (data?.["type"] === "SIGNER_READY") {
-          clearTimeout(timer);
-          window.removeEventListener("message", onReady);
+          cleanup();
           resolve();
         }
       };
+      const onAbort = () => {
+        cleanup();
+        reject(new SecureSignerError("INTERNAL_ERROR"));
+      };
+      const cleanup = () => {
+        clearTimeout(timer);
+        window.removeEventListener("message", onReady);
+        signal.removeEventListener("abort", onAbort);
+      };
       window.addEventListener("message", onReady);
+      signal.addEventListener("abort", onAbort, { once: true });
     });
   }
 
   /** Single navigation + READY waiter bound to this frame. */
   private armReady(frame: HTMLIFrameElement): void {
-    this.ready = this.waitForReady(frame);
+    this.abortReady();
+    const abort = new AbortController();
+    this.readyAbort = abort;
+    this.ready = this.waitForReady(frame, abort.signal);
     frame.src = `${SECURE_SIGNER_ORIGIN}/?r=${Date.now()}`;
   }
 
@@ -190,7 +221,6 @@ class SecureSignerClient {
           reject(err);
         },
       });
-      // Sheet may already be open with iframe mid-attach.
       if (this.iframeEl && this.ready) {
         clearTimeout(timer);
         this.iframeWaiters.pop();
@@ -212,6 +242,7 @@ class SecureSignerClient {
     try {
       await ready;
     } catch {
+      if (!this.iframeEl) throw new SecureSignerError("INTERNAL_ERROR");
       this.remountSigner();
       const retry = this.ready;
       if (!this.iframeEl || !retry) {
@@ -253,7 +284,6 @@ class SecureSignerClient {
     this.shell?.setOpen(false);
   }
 
-  /** Mount the Sheet host shell (iframe loads on first interactive request). */
   preload(): void {
     void this.ensureShell().catch(() => {
       /* first interactive call remounts */
@@ -299,11 +329,9 @@ class SecureSignerClient {
     frame.contentWindow.postMessage(message, SECURE_SIGNER_ORIGIN);
     try {
       return await result;
-    } catch (err) {
-      // Only remount while the Sheet (and iframe) are still open.
-      if (this.iframeEl) this.remountSigner();
-      throw err;
     } finally {
+      // Never remount here: hide() unmounts the iframe. Remount+hide races
+      // leave orphan READY waiters that block later opens after Safari cold start.
       this.hide();
     }
   }
