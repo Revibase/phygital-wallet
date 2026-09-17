@@ -20,12 +20,7 @@ import {
 import { isAppBrowserOrigin } from "@/shared/cors";
 
 /** Mirror app `resolveWebAuthnRpId` — env override, else hostname heuristics. */
-export function resolveWebAuthnRpId(
-  hostname: string,
-  envRpId?: string,
-): string {
-  const fromEnv = envRpId?.trim();
-  if (fromEnv) return fromEnv;
+export function resolveWebAuthnRpId(hostname: string): string {
   if (hostname === "localhost" || hostname === "127.0.0.1") return "localhost";
   if (hostname === "revibase.com" || hostname.endsWith(".revibase.com")) {
     return "revibase.com";
@@ -63,8 +58,6 @@ export async function verifyOwnerWalletAssertion(opts: {
   assertion: AuthenticationResponseJSON;
   expectedChallenge: string;
   origin: string;
-  envRpId?: string;
-  /** COSE public key bytes (from D1 webauthn_public_key). */
   storedPublicKeyBytes: Uint8Array;
 }): Promise<VerifyAssertionResult> {
   if (!opts.origin || !isAppBrowserOrigin(opts.origin)) {
@@ -88,7 +81,7 @@ export async function verifyOwnerWalletAssertion(opts: {
     };
   }
 
-  const expectedRPID = resolveWebAuthnRpId(hostname, opts.envRpId);
+  const expectedRPID = resolveWebAuthnRpId(hostname);
 
   try {
     const verification = await verifyAuthenticationResponse({
@@ -101,11 +94,7 @@ export async function verifyOwnerWalletAssertion(opts: {
         publicKey: new Uint8Array(
           opts.storedPublicKeyBytes,
         ) as Uint8Array<ArrayBuffer>,
-        // Not used for replay (fresh challenge + TTL). Kept at 0 so the library
-        // only rejects if an authenticator reports a non-increasing counter
-        // against a prior stored value — we never store one.
         counter: 0,
-        transports: undefined,
       },
       requireUserVerification: true,
     });

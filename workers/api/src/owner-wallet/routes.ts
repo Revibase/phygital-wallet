@@ -56,10 +56,6 @@ function pubkeyBytesEqualBase58(bytes: Uint8Array, base58: string): boolean {
   }
 }
 
-function envWebauthnRpId(env: Env): string | undefined {
-  return (env as Env & { WEBAUTHN_RP_ID?: string }).WEBAUTHN_RP_ID;
-}
-
 function requireAppOrigin(c: {
   req: { header: (name: string) => string | undefined };
 }): Response | { origin: string } {
@@ -77,9 +73,10 @@ function requireAppOrigin(c: {
  * Resolve COSE public key for storage from PUT body.
  * Prefer attestationObject (registration); else accept direct COSE base64url.
  */
-function resolveWebauthnPublicKeyFromPut(
-  record: Record<string, unknown>,
-): { key: string | null; attestationPresent: boolean } {
+function resolveWebauthnPublicKeyFromPut(record: Record<string, unknown>): {
+  key: string | null;
+  attestationPresent: boolean;
+} {
   const attestation =
     typeof record["webauthnAttestationObject"] === "string"
       ? record["webauthnAttestationObject"].trim()
@@ -173,7 +170,9 @@ ownerWalletRoutes.post("/owner-wallet/blob/restore", async (c) => {
   }
   const record = body as Record<string, unknown>;
   const challengeId =
-    typeof record["challengeId"] === "string" ? record["challengeId"].trim() : "";
+    typeof record["challengeId"] === "string"
+      ? record["challengeId"].trim()
+      : "";
   const assertion = record["assertion"];
 
   if (!challengeId) {
@@ -251,15 +250,11 @@ ownerWalletRoutes.post("/owner-wallet/blob/restore", async (c) => {
       );
     }
 
-    const storedKey = base64UrlToBytes(
-      row.webauthnPublicKey,
-      1024,
-    );
+    const storedKey = base64UrlToBytes(row.webauthnPublicKey, 1024);
     const verified = await verifyOwnerWalletAssertion({
       assertion,
       expectedChallenge,
       origin,
-      envRpId: envWebauthnRpId(c.env),
       storedPublicKeyBytes: storedKey,
     });
     if (!verified.ok) {
@@ -320,7 +315,9 @@ ownerWalletRoutes.put("/owner-wallet/blob", async (c) => {
   const encryptedWalletBlob = record["encryptedWalletBlob"];
   const publicKeyRaw = record["publicKey"];
   const challengeId =
-    typeof record["challengeId"] === "string" ? record["challengeId"].trim() : "";
+    typeof record["challengeId"] === "string"
+      ? record["challengeId"].trim()
+      : "";
   const signatureB64 =
     typeof record["signature"] === "string" ? record["signature"].trim() : "";
 

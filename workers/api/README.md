@@ -40,25 +40,25 @@ Cookie floor (non-public routes): matching `revibase_browse_unlock` **or**
 `revibase_owner_browse`. `revibase_owner_session` is login state only — it does
 not admit protected routes by itself.
 
-| Method     | Path                           | Access   | Notes                                                 |
-| ---------- | ------------------------------ | -------- | ----------------------------------------------------- |
-| GET        | `/health`                      | Public   | Liveness                                              |
-| POST       | `/accessory/unlock/tap`        | Public   | NFC dynamic URL → browse-unlock cookie                |
-| POST       | `/accessory/unlock/challenge`  | Public   | WebAuthn challenge for Hold                           |
-| POST       | `/accessory/unlock/webauthn`   | Public   | Finish Hold → browse-unlock cookie                    |
-| GET/DELETE | `/owner-session`               | Public\* | Owner login cookie                                    |
-| POST       | `/accessory/owner-browse`      | Public†  | Mint per-item owner-browse (`owner_session` required) |
-| GET        | `/accessory/session`           | Public\* | Session status                                        |
-| POST       | `/owner-wallet/blob/backup-challenge`  | Public   | ed25519 challenge for PUT backup              |
-| POST       | `/owner-wallet/blob/restore-challenge` | Public   | WebAuthn challenge for discoverable restore   |
-| POST       | `/owner-wallet/blob/restore`           | Public   | WebAuthn assertion → ciphertext               |
-| PUT        | `/owner-wallet/blob`                   | Public   | ed25519 proof → store + mint `owner_session`  |
-| GET        | `/getFeePayer`                 | Public   | Default fee-payer pubkey (open CORS)                  |
-| POST       | `/sign`                        | Public   | Fee co-sign via TokenSigner DO (open CORS)            |
-| POST       | `/webhooks/transactions`       | HMAC     | Activity index + fee credit/debit                     |
-| GET        | `/wallets/:address/activity`   | Browse   | Indexed wallet activity                               |
-| GET        | `/tokens/fee-balance`          | Browse‡  | Prepaid fee balance                                   |
-| GET        | `/tokens/verified`             | Browse   | Verified catalog                                      |
+| Method     | Path                                   | Access   | Notes                                                 |
+| ---------- | -------------------------------------- | -------- | ----------------------------------------------------- |
+| GET        | `/health`                              | Public   | Liveness                                              |
+| POST       | `/accessory/unlock/tap`                | Public   | NFC dynamic URL → browse-unlock cookie                |
+| POST       | `/accessory/unlock/challenge`          | Public   | WebAuthn challenge for Hold                           |
+| POST       | `/accessory/unlock/webauthn`           | Public   | Finish Hold → browse-unlock cookie                    |
+| GET/DELETE | `/owner-session`                       | Public\* | Owner login cookie                                    |
+| POST       | `/accessory/owner-browse`              | Public†  | Mint per-item owner-browse (`owner_session` required) |
+| GET        | `/accessory/session`                   | Public\* | Session status                                        |
+| POST       | `/owner-wallet/blob/backup-challenge`  | Public   | ed25519 challenge for PUT backup                      |
+| POST       | `/owner-wallet/blob/restore-challenge` | Public   | WebAuthn challenge for discoverable restore           |
+| POST       | `/owner-wallet/blob/restore`           | Public   | WebAuthn assertion → ciphertext                       |
+| PUT        | `/owner-wallet/blob`                   | Public   | ed25519 proof → store + mint `owner_session`          |
+| GET        | `/getFeePayer`                         | Public   | Default fee-payer pubkey (open CORS)                  |
+| POST       | `/sign`                                | Public   | Fee co-sign via TokenSigner DO (open CORS)            |
+| POST       | `/webhooks/transactions`               | HMAC     | Activity index + fee credit/debit                     |
+| GET        | `/wallets/:address/activity`           | Browse   | Indexed wallet activity                               |
+| GET        | `/tokens/fee-balance`                  | Browse‡  | Prepaid fee balance                                   |
+| GET        | `/tokens/verified`                     | Browse   | Verified catalog                                      |
 
 \*Response depends on cookies when present.
 †Exempt from the cookie floor; handler authenticates via `owner_session`.
@@ -88,7 +88,6 @@ Helius subscribe must watch `TOP_UP_ACCUMULATOR` and every `DEFAULT_FEE_PAYER_PU
 | `WALLET_WEBHOOK_SECRET`     | api                      | HMAC for `/webhooks/transactions`         |
 | `TOP_UP_ACCUMULATOR`        | api + api-signer (+ app) | Fee top-up destination                    |
 | `DEFAULT_FEE_PAYER_PUBKEYS` | api                      | Default fee-payer set (debit attribution) |
-| `WEBAUTHN_RP_ID`            | api (optional)           | RP ID for blob-fetch assertion verify     |
 | `WALLET_TX_QUEUE`           | Queue                    | `wallet-tx-ingest`                        |
 | `phygital_token`            | D1                       | Sessions index, activity, audit_log       |
 

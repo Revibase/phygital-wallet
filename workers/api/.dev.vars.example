@@ -23,8 +23,3 @@ LOG_LEVEL=debug
 
 # JSON array of base58 pubkeys — must match the keys of api-signer FEE_PAYER_SECRET_KEYS
 # DEFAULT_FEE_PAYER_PUBKEYS=["YourFeePayerPubkeyBase58"]
-
-# Optional WebAuthn RP ID for owner-wallet blob fetch verification.
-# Shared WebAuthn RP ID for blob-fetch assertion verify (must match app + signer).
-# Default: derived from Origin (localhost → localhost, *.revibase.com → revibase.com).
-# WEBAUTHN_RP_ID=localhost
