@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@noble/curves": "^2.3.0",
+    "@simplewebauthn/server": "^13.2.2",
     "@solana-program/memo": "^0.13.1",
     "@solana-program/token": "^0.16.0",
     "@solana/kit": "^8.1.0",

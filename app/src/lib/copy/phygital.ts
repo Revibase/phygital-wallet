@@ -206,10 +206,10 @@ export const copy = {
     policy: "Accessory permissions",
     policyStatusStandard: "Everyday payments",
     policyStatusStandardBody:
-      "A tap can send SOL and standard tokens. Other programs stay blocked.",
+      "A tap can send SOL and standard tokens with no amount caps until you set limits. Other programs stay blocked.",
     policyStatusOpen: "Protections off",
     policyStatusOpenBody:
-      "A tap isn’t checked until you restore everyday payments.",
+      "Anyone with this accessory can move funds with no checks until you restore everyday payments.",
     policyStatusLimited: "Custom limits",
     policyStatusLimitedBody: "Only listed assets can leave with a tap.",
     policyStatusLocked: "Locked",
@@ -241,7 +241,7 @@ export const copy = {
     ownershipSignInSubtitle:
       "Unlock on this phone to claim or manage this accessory.",
     ownershipClaimFooter:
-      "Claiming sets you as the owner and turns on everyday payments: a tap can send SOL and standard tokens; other programs stay blocked until you allow them.",
+      "Claiming sets you as the owner and turns on everyday payments: a tap can send SOL and standard tokens with no amount caps until you set limits. Other programs stay blocked until you allow them.",
     ownershipOtherTitle: "Owned by another account",
     ownershipOtherSubtitle: (short: string) => `Owner · ${short}`,
     ownershipOtherFooter:
@@ -306,7 +306,8 @@ export const copy = {
     policyTurnedOff: "Protections turned off",
     policyTurnOffConfirmTitle: "Turn off accessory protections?",
     policyTurnOffConfirmBody:
-      "A tap won’t be checked until you restore everyday payments. Your owner key stays.",
+      "Anyone with this accessory can move funds with no checks until you restore everyday payments. Your owner key stays.",
+    /** Exact phrase required before the turn-off confirm button enables. */
     policySignInToEdit: "Unlock on this phone to change permissions.",
     policyTokenLimits: "Spendable assets",
     policyTokenLimitsHint:
@@ -328,6 +329,8 @@ export const copy = {
     policyAccessAllow: "Allow",
     policyAccessDeny: "Block",
     policyAccessCustom: "Custom rules",
+    policyAccessAllowDanger:
+      "Allow lets this program run any instruction, including nested calls. Only allow programs you trust.",
     policyRemoveProgramAria: (id: string) => `Remove program ${id}`,
     interfaceNft: "NFT",
     interfacePnft: "pNFT",

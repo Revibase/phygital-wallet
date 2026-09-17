@@ -63,7 +63,10 @@ hatch by design. See `tx/policy.ts` and the threat model.
 
 Request → result: `AUTH_START` → `AUTH_COMPLETE`, `SIGN_TRANSACTION`,
 `EXPORT_PRIVATE_KEY`. Mid-flow: `BLOB_NEEDED` / `BLOB_PROVIDED` for discoverable
-restore when signer-origin localStorage has no ciphertext.
+restore when signer-origin localStorage has no ciphertext. Discoverable unlock
+requires `fetchChallenge` on `AUTH_START` (server restore WebAuthn challenge); the
+signer posts `credentialId` + `assertion` on `BLOB_NEEDED` so the parent can
+`POST /owner-wallet/blob/restore`.
 
 Sign / export use **signer localStorage only**. The parent always shows the
 create/unlock sheet before `AUTH_START`. `AUTH_COMPLETE` returns ciphertext so
@@ -77,7 +80,9 @@ signer posts `{ type: "SIGNER_READY" }` on load.
 `AUTH_START` unlocks in the iframe, or completes create when the parent sends
 `authMode: "create"` + `credentialId` (passkey registered on the app with the
 shared RP ID). Optional `putChallenge` produces a possession proof so the parent
-can PUT the blob and mint `owner_session` in one step.
+can PUT the blob and mint `owner_session` in one step. For discoverable restore,
+`fetchChallenge` is required — one WebAuthn ceremony unlocks PRF and authorizes
+blob fetch.
 
 **Passkey create:** runs on the **app** (top-level, Safari-safe) with
 `rpId` = `revibase.com` (prod) or `localhost` (dev). The signer then prompts

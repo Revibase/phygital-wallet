@@ -1,6 +1,8 @@
 /**
  * POST /sign — fee-sponsor a phygital-wallet transaction via TokenSigner.
- * No session cookie; DO validates shape + prepaid balance, then co-signs.
+ * Public + open CORS for first- and third-party clients. DO validates shape +
+ * reserves prepaid balance, then co-signs. Edge rate limits live in the
+ * Cloudflare dashboard (not Workers bindings).
  */
 import { Hono } from "hono";
 
@@ -49,8 +51,12 @@ signRoutes.post("/sign", async (c) => {
       actor: "accessory",
       origin: meta.origin,
       detail: result.ok
-        ? { feePayer: result.audit?.feePayer, count: result.signatures.length }
-        : null,
+        ? {
+            feePayer: result.audit?.feePayer,
+            count: result.signatures.length,
+            reserved: result.audit?.reserved,
+          }
+        : { code: result.body.code },
       ms: Date.now() - started,
       requestId: meta.requestId,
     });

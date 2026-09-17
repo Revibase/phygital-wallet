@@ -13,15 +13,16 @@ export type AuditEvent =
   | "fee_credit"
   | "fee_debit"
   | "accessory_unlock"
-  | "owner_browse";
+  | "owner_browse"
+  | "webhook_reject"
+  | "blob_get"
+  | "owner_policy";
 
 /**
  * Who performed the action.
- * `accessory` = chip / passkey path; `system` = server (e.g. fee webhook).
+ * `accessory` = chip / passkey path; `owner` = owner-browse path; `system` = server.
  */
-export type AuditActor =
-  | "accessory"
-  | "system";
+export type AuditActor = "accessory" | "owner" | "system";
 
 export type AuditEntry = {
   event: AuditEvent;

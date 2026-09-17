@@ -6,4 +6,5 @@
  * side for the end-to-end path; create / import / export do not depend on it.
  */
 export const SECURE_SIGNER_ORIGIN: string =
-  process.env.NEXT_PUBLIC_SECURE_SIGNER_ORIGIN?.trim() || "http://localhost:5173";
+  process.env.NEXT_PUBLIC_SECURE_SIGNER_ORIGIN?.trim() ||
+  "https://signer.revibase.com";

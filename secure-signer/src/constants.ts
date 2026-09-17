@@ -72,7 +72,7 @@ export const KDF_SALT_BYTES = 32 as const;
 /**
  * Domain prefix for ed25519 messages proving possession for D1 blob PUT
  * (and owner_session mint on the same PUT).
- * Must match workers/api `putChallengeMessage`.
+ * Must match workers/api `backupChallengeMessage`.
  */
 export const PUT_CHALLENGE_PREFIX = "revibase.owner-wallet.put.v1" as const;
 

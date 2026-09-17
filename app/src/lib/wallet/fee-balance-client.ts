@@ -14,14 +14,19 @@ export async function fetchFeeBalance(
   );
   const data = await readJson<{
     balanceLamports?: string | number;
+    availableLamports?: string | number;
     balanceUi?: string;
     low?: boolean;
   }>(res, "Couldn’t load fee balance");
 
-  const balanceLamports = Number(data.balanceLamports ?? 0);
+  const preferred =
+    data.availableLamports != null
+      ? Number(data.availableLamports)
+      : Number(data.balanceLamports ?? 0);
+  const balanceLamports = Number.isFinite(preferred) ? preferred : 0;
 
   return {
-    balanceLamports: Number.isFinite(balanceLamports) ? balanceLamports : 0,
+    balanceLamports,
     balanceUi: data.balanceUi ?? "0",
     low: Boolean(data.low),
   };

@@ -40,12 +40,14 @@ export const REQUEST_TYPES = [
 export type RequestType = (typeof REQUEST_TYPES)[number];
 
 /** Maps a request type to its success-response type (BLOB_PROVIDED is a reply). */
-export const RESULT_TYPE: Record<Exclude<RequestType, "BLOB_PROVIDED">, string> =
-  {
-    SIGN_TRANSACTION: "SIGN_TRANSACTION_RESULT",
-    EXPORT_PRIVATE_KEY: "EXPORT_PRIVATE_KEY_RESULT",
-    AUTH_START: "AUTH_COMPLETE",
-  };
+export const RESULT_TYPE: Record<
+  Exclude<RequestType, "BLOB_PROVIDED">,
+  string
+> = {
+  SIGN_TRANSACTION: "SIGN_TRANSACTION_RESULT",
+  EXPORT_PRIVATE_KEY: "EXPORT_PRIVATE_KEY_RESULT",
+  AUTH_START: "AUTH_COMPLETE",
+};
 
 interface Common {
   protocolVersion: number;
@@ -61,6 +63,7 @@ export type InboundRequest = Common &
     | {
         type: "AUTH_START";
         putChallenge?: string;
+        fetchChallenge?: string;
         authMode?: "create" | "unlock";
         credentialId?: string;
       }
@@ -96,6 +99,7 @@ const ALLOWED_KEYS: Record<RequestType, ReadonlySet<string>> = {
     "requestId",
     "timestamp",
     "putChallenge",
+    "fetchChallenge",
     "authMode",
     "credentialId",
   ]),
@@ -171,7 +175,10 @@ export function validateInbound(data: unknown): ValidationResult {
     };
   }
   const type = data["type"];
-  if (typeof type !== "string" || !REQUEST_TYPES.includes(type as RequestType)) {
+  if (
+    typeof type !== "string" ||
+    !REQUEST_TYPES.includes(type as RequestType)
+  ) {
     return {
       ok: false,
       code: "INVALID_MESSAGE",
@@ -203,10 +210,11 @@ export function validateInbound(data: unknown): ValidationResult {
   switch (rtype) {
     case "AUTH_START": {
       const putChallenge = data["putChallenge"];
-      if (
-        putChallenge !== undefined &&
-        !validString(putChallenge, 128)
-      ) {
+      if (putChallenge !== undefined && !validString(putChallenge, 128)) {
+        return { ok: false, code: "INVALID_MESSAGE", requestId: rid };
+      }
+      const fetchChallenge = data["fetchChallenge"];
+      if (fetchChallenge !== undefined && !validString(fetchChallenge, 128)) {
         return { ok: false, code: "INVALID_MESSAGE", requestId: rid };
       }
       const authMode = data["authMode"];
@@ -230,6 +238,7 @@ export function validateInbound(data: unknown): ValidationResult {
           ...common,
           type: "AUTH_START",
           ...(typeof putChallenge === "string" ? { putChallenge } : {}),
+          ...(typeof fetchChallenge === "string" ? { fetchChallenge } : {}),
           ...(authMode === "create" || authMode === "unlock"
             ? { authMode }
             : {}),

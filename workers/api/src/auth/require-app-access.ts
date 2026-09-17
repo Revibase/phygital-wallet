@@ -21,8 +21,9 @@ const PUBLIC_ROUTES: ReadonlyArray<{ method: string; path: string }> = [
   { method: "GET", path: "/getFeePayer" },
   { method: "POST", path: "/sign" },
   { method: "POST", path: "/webhooks/transactions" },
-  { method: "GET", path: "/owner-wallet/blob" },
-  { method: "POST", path: "/owner-wallet/blob/challenge" },
+  { method: "POST", path: "/owner-wallet/blob/backup-challenge" },
+  { method: "POST", path: "/owner-wallet/blob/restore-challenge" },
+  { method: "POST", path: "/owner-wallet/blob/restore" },
   { method: "PUT", path: "/owner-wallet/blob" },
 ];
 

@@ -116,7 +116,8 @@ export function ShortcutIframeDialog({
               <iframe
                 title={label}
                 src={uri}
-                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
+                sandbox="allow-scripts allow-forms allow-popups"
+                referrerPolicy="no-referrer"
                 className={cn("size-full border-0", !loaded && "opacity-0")}
                 onLoad={onLoad}
               />

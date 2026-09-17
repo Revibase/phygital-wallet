@@ -16,8 +16,13 @@ describe("API access", () => {
     expect(isPublicApiPath("GET", "/getFeePayer")).toBe(true);
     expect(isPublicApiPath("POST", "/sign")).toBe(true);
     expect(isPublicApiPath("GET", "/health")).toBe(true);
-    expect(isPublicApiPath("GET", "/owner-wallet/blob")).toBe(true);
-    expect(isPublicApiPath("POST", "/owner-wallet/blob/challenge")).toBe(true);
+    expect(isPublicApiPath("POST", "/owner-wallet/blob/backup-challenge")).toBe(
+      true,
+    );
+    expect(isPublicApiPath("POST", "/owner-wallet/blob/restore-challenge")).toBe(
+      true,
+    );
+    expect(isPublicApiPath("POST", "/owner-wallet/blob/restore")).toBe(true);
     expect(isPublicApiPath("PUT", "/owner-wallet/blob")).toBe(true);
     expect(isPublicApiPath("GET", "/owner-session")).toBe(true);
     expect(isPublicApiPath("DELETE", "/owner-session")).toBe(true);

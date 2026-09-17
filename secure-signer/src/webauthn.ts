@@ -10,14 +10,39 @@
  * The PRF salt is IMPLEMENTATION-FIXED (§35): the same constant for every wallet,
  * derived from PRF_INPUT_LABEL. It is never taken from the (attacker-controlled)
  * blob.
+ *
+ * Discoverable unlock uses a **server-issued** challenge (fetchChallenge) so the
+ * same ceremony both evaluates PRF and authorizes D1 blob fetch.
  */
 
 import { PRF_INPUT_LABEL, RP_ID } from "./constants.js";
 import { sha256 } from "./crypto.js";
-import { utf8ToBytes } from "./encoding.js";
+import { bytesToBase64, utf8ToBytes } from "./encoding.js";
 import type { PrfProvider, PrfResult } from "./wallet-service.js";
 
 export class WebAuthnUnsupported extends Error {}
+
+/**
+ * AuthenticationResponseJSON-shaped assertion for the parent to POST to
+ * `/owner-wallet/blob/restore` (base64url fields per WebAuthn Level 3 JSON).
+ */
+export type AuthenticationAssertionJSON = {
+  id: string;
+  rawId: string;
+  type: "public-key";
+  response: {
+    clientDataJSON: string;
+    authenticatorData: string;
+    signature: string;
+    userHandle?: string;
+  };
+  clientExtensionResults: AuthenticationExtensionsClientOutputs;
+  authenticatorAttachment?: AuthenticatorAttachment;
+};
+
+export type DiscoverablePrfResult = PrfResult & {
+  assertion: AuthenticationAssertionJSON;
+};
 
 /** Shared RP ID (app create + iframe get). Prefer `RP_ID` / `VITE_RP_ID`. */
 export function currentRpId(): string {
@@ -50,6 +75,41 @@ function extractPrf(cred: PublicKeyCredential): Uint8Array {
     throw new WebAuthnUnsupported("PRF not available for this credential");
   }
   return new Uint8Array(first);
+}
+
+/** Serialize a PublicKeyCredential assertion to WebAuthn JSON (base64url). */
+export function assertionToJSON(
+  cred: PublicKeyCredential,
+): AuthenticationAssertionJSON {
+  const response = cred.response as AuthenticatorAssertionResponse;
+  const out: AuthenticationAssertionJSON = {
+    id: cred.id,
+    rawId: bytesToBase64(new Uint8Array(cred.rawId), "url"),
+    type: "public-key",
+    response: {
+      clientDataJSON: bytesToBase64(
+        new Uint8Array(response.clientDataJSON),
+        "url",
+      ),
+      authenticatorData: bytesToBase64(
+        new Uint8Array(response.authenticatorData),
+        "url",
+      ),
+      signature: bytesToBase64(new Uint8Array(response.signature), "url"),
+    },
+    clientExtensionResults: cred.getClientExtensionResults(),
+  };
+  if (response.userHandle) {
+    out.response.userHandle = bytesToBase64(
+      new Uint8Array(response.userHandle),
+      "url",
+    );
+  }
+  if (cred.authenticatorAttachment) {
+    out.authenticatorAttachment =
+      cred.authenticatorAttachment as AuthenticatorAttachment;
+  }
+  return out;
 }
 
 export class BrowserPrfProvider implements PrfProvider {
@@ -120,14 +180,19 @@ export class BrowserPrfProvider implements PrfProvider {
 
   /**
    * Discoverable assertion (empty allowCredentials) for "Sign in" on a device
-   * with no local/parent blob. Returns credentialId + PRF; the ciphertext still
-   * has to come from the parent/KV.
+   * with no local/parent blob.
+   *
+   * `challenge` MUST be the server fetch-challenge bytes so the same ceremony
+   * unlocks PRF and authorizes D1 blob fetch (parent posts `assertion`).
    */
-  async getDiscoverable(rpId: string): Promise<PrfResult> {
+  async getDiscoverable(
+    rpId: string,
+    challenge: Uint8Array,
+  ): Promise<DiscoverablePrfResult> {
     const salt = await prfSalt();
     const assertion = (await navigator.credentials.get({
       publicKey: {
-        challenge: buf(randomChallenge()),
+        challenge: buf(challenge),
         rpId,
         userVerification: "required",
         timeout: 120_000,
@@ -140,6 +205,7 @@ export class BrowserPrfProvider implements PrfProvider {
     return {
       credentialId: new Uint8Array(assertion.rawId),
       prfOutput: extractPrf(assertion),
+      assertion: assertionToJSON(assertion),
     };
   }
 }

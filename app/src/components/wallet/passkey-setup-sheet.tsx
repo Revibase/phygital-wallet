@@ -46,15 +46,20 @@ function validateUserName(
   return { ok: true, userName };
 }
 
+export type PasskeyCreateChoice = {
+  mode: "create";
+  userName: string;
+  credentialId: string;
+  attestationObject: string;
+};
+
 export type PasskeySetupChoice =
-  | { mode: "create"; userName: string; credentialId: string }
+  | PasskeyCreateChoice
   | { mode: "unlock" }
   | { mode: "cancel" };
 
 /** After unlock auth fails — create a new wallet or bail (no unlock retry). */
-export type PasskeyLostChoice =
-  | { mode: "create"; userName: string; credentialId: string }
-  | { mode: "cancel" };
+export type PasskeyLostChoice = PasskeyCreateChoice | { mode: "cancel" };
 
 type SheetResolve = (v: PasskeySetupChoice | PasskeyLostChoice) => void;
 
@@ -136,8 +141,15 @@ export function PasskeySetupProvider({ children }: { children: ReactNode }) {
     setUserError(null);
     try {
       // WebAuthn create must stay in this click handler (user gesture).
-      const { credentialId } = await registerOwnerPasskey(v.userName);
-      close({ mode: "create", userName: v.userName, credentialId });
+      const { credentialId, attestationObject } = await registerOwnerPasskey(
+        v.userName,
+      );
+      close({
+        mode: "create",
+        userName: v.userName,
+        credentialId,
+        attestationObject,
+      });
     } catch (err) {
       if (
         err instanceof DOMException &&

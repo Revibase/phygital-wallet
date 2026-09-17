@@ -38,11 +38,17 @@ tokenRoutes.get("/tokens/fee-balance", async (c) => {
   }
 
   try {
-    const { balanceLamports } = await tokenSigner(c.env, token).getFeeBalance();
+    const balance = await tokenSigner(c.env, token).getFeeBalance();
+    const available =
+      typeof balance.availableLamports === "number"
+        ? balance.availableLamports
+        : balance.balanceLamports;
     return json({
-      balanceLamports: String(balanceLamports),
-      balanceUi: lamportsToSolUi(balanceLamports),
-      low: balanceLamports < FEE_BALANCE_LOW_LAMPORTS,
+      balanceLamports: String(balance.balanceLamports),
+      availableLamports: String(available),
+      reservedLamports: String(balance.reservedLamports ?? 0),
+      balanceUi: lamportsToSolUi(available),
+      low: available < FEE_BALANCE_LOW_LAMPORTS,
     });
   } catch (error) {
     return json(

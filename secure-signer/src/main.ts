@@ -9,10 +9,7 @@
  */
 
 import "./styles.css";
-import {
-  getAddressDecoder,
-  getBase58Decoder,
-} from "@solana/kit";
+import { getAddressDecoder, getBase58Decoder } from "@solana/kit";
 import { readLocalBlob, writeLocalBlob } from "./blob-store.js";
 import {
   AUTH_BLOB_WAIT_MS,
@@ -69,7 +66,7 @@ const toBase58Pubkey = (bytes: Uint8Array): string => addr.decode(bytes);
 
 function prefixedChallengeMessage(
   prefix: string,
-  challengeBytes: Uint8Array
+  challengeBytes: Uint8Array,
 ): Uint8Array {
   const p = utf8ToBytes(prefix);
   const out = new Uint8Array(p.length + challengeBytes.length);
@@ -82,14 +79,14 @@ function prefixedChallengeMessage(
 function signChallenge(
   challengeB64: string | undefined,
   seed: Uint8Array,
-  prefix: string
+  prefix: string,
 ): string | undefined {
   if (!challengeB64) return undefined;
   try {
     const challengeBytes = base64ToBytes(challengeB64, 64, "url");
     const sig = ed25519Sign(
       prefixedChallengeMessage(prefix, challengeBytes),
-      seed
+      seed,
     );
     return bytesToBase64(sig, "url");
   } catch {
@@ -129,15 +126,14 @@ function fail(requestId: string | undefined, code: ErrorCode): void {
 function ok(
   requestId: string,
   type: string,
-  extra: Record<string, unknown>
+  extra: Record<string, unknown>,
 ): void {
   post({ type, requestId, ...extra });
 }
 
-
 function waitForBlobProvided(
   requestId: string,
-  timeoutMs = AUTH_BLOB_WAIT_MS
+  timeoutMs = AUTH_BLOB_WAIT_MS,
 ): Promise<BlobReply> {
   return new Promise((resolve, reject) => {
     const timer = window.setTimeout(() => {
@@ -177,7 +173,7 @@ window.addEventListener("message", (event: MessageEvent) => {
       request.timestamp,
       {
         continuation: true,
-      }
+      },
     );
     if (replay) {
       fail(request.requestId, replay);
@@ -194,7 +190,7 @@ window.addEventListener("message", (event: MessageEvent) => {
   // 3. Replay + freshness.
   const replay = state.checkFreshnessAndReplay(
     request.requestId,
-    request.timestamp
+    request.timestamp,
   );
   if (replay) {
     fail(request.requestId, replay);
@@ -237,8 +233,9 @@ async function handle(request: InboundRequest): Promise<void> {
           request.requestId,
           rpId,
           request.putChallenge,
+          request.fetchChallenge,
           request.authMode,
-          request.credentialId
+          request.credentialId,
         );
         break;
       case "SIGN_TRANSACTION":
@@ -273,7 +270,7 @@ async function enrollFromParentCredential(opts: {
 
   const busy = beginBusy(
     opts.requestId,
-    "Confirm with your passkey to finish setup…"
+    "Confirm with your passkey to finish setup…",
   );
   try {
     let messageToSign: Uint8Array | undefined;
@@ -281,7 +278,7 @@ async function enrollFromParentCredential(opts: {
       try {
         messageToSign = prefixedChallengeMessage(
           PUT_CHALLENGE_PREFIX,
-          base64ToBytes(opts.putChallengeB64, 64, "url")
+          base64ToBytes(opts.putChallengeB64, 64, "url"),
         );
       } catch {
         return fail(opts.requestId, "INVALID_MESSAGE");
@@ -290,7 +287,7 @@ async function enrollFromParentCredential(opts: {
     const credentialId = base64ToBytes(
       opts.credentialIdB64,
       MAX_CREDENTIAL_ID_BYTES,
-      "url"
+      "url",
     );
     const created = await enrollExistingCredential(
       prf,
@@ -298,7 +295,7 @@ async function enrollFromParentCredential(opts: {
       credentialId,
       {
         ...(messageToSign ? { messageToSign } : {}),
-      }
+      },
     );
     if (busy.wasDismissed()) return;
     if (opts.putChallengeB64 && !created.signature) {
@@ -322,7 +319,7 @@ async function enrollFromParentCredential(opts: {
     const code = codeOf(e);
     if (code === "AUTHENTICATION_FAILED" || code === "UNSUPPORTED_CREDENTIAL") {
       const again = await ui.showRecoverable(
-        "Passkey confirmation didn’t work. Try again, or cancel and create a new passkey."
+        "Passkey confirmation didn’t work. Try again, or cancel and create a new passkey.",
       );
       if (again === "retry") {
         busy.clear();
@@ -340,8 +337,9 @@ async function handleAuth(
   requestId: string,
   rpId: string,
   putChallengeB64: string | undefined,
+  fetchChallengeB64: string | undefined,
   authMode: "create" | "unlock" | undefined,
-  credentialIdB64: string | undefined
+  credentialIdB64: string | undefined,
 ): Promise<void> {
   // Passkey create happens on the app (shared RP ID). Parent must send credentialId.
   if (authMode === "create") {
@@ -364,26 +362,44 @@ async function handleAuth(
       local.raw,
       local.parsed,
       false,
-      putChallengeB64
+      putChallengeB64,
     );
     return;
   }
 
-  // No local ciphertext: discoverable passkey → ask parent for D1 backup.
+  // fetchChallenge is the WebAuthn challenge — same ceremony unlocks PRF and
+  // authorizes blob restore (parent posts assertion to POST .../blob/restore).
+  if (!fetchChallengeB64) {
+    return fail(requestId, "INVALID_MESSAGE");
+  }
+  let fetchChallengeBytes: Uint8Array;
+  try {
+    fetchChallengeBytes = base64ToBytes(fetchChallengeB64, 64, "url");
+  } catch {
+    return fail(requestId, "INVALID_MESSAGE");
+  }
+
   if (!(await ui.confirmImport())) return fail(requestId, "USER_CANCELLED");
   let busy = beginBusy(requestId, "Use Face ID or Touch ID to approve");
   let disc;
   try {
-    disc = await prf.getDiscoverable(rpId);
+    disc = await prf.getDiscoverable(rpId, fetchChallengeBytes);
     if (busy.wasDismissed()) return;
   } catch {
     busy.clear();
     if (busy.wasDismissed()) return;
     const again = await ui.showRecoverable(
-      "No wallet was found on this device. Create a passkey, or try again if you cancelled the prompt."
+      "No wallet was found on this device. Create a passkey, or try again if you cancelled the prompt.",
     );
     if (again === "retry") {
-      return handleAuth(requestId, rpId, putChallengeB64, "unlock", undefined);
+      return handleAuth(
+        requestId,
+        rpId,
+        putChallengeB64,
+        fetchChallengeB64,
+        "unlock",
+        undefined,
+      );
     }
     return fail(requestId, "BLOB_UNAVAILABLE");
   }
@@ -393,6 +409,7 @@ async function handleAuth(
     type: "BLOB_NEEDED",
     requestId,
     credentialId: bytesToBase64(disc.credentialId, "url"),
+    assertion: disc.assertion,
   });
   busy = beginBusy(requestId, "Restoring your wallet…");
 
@@ -415,10 +432,17 @@ async function handleAuth(
     busy.clear();
     if (busy.wasDismissed()) return;
     const again = await ui.showRecoverable(
-      "No backup wallet was found for this passkey on this app. Create a passkey on this device, or unlock where the wallet was created."
+      "No backup wallet was found for this passkey on this app. Create a passkey on this device, or unlock where the wallet was created.",
     );
     if (again === "retry") {
-      return handleAuth(requestId, rpId, putChallengeB64, "unlock", undefined);
+      return handleAuth(
+        requestId,
+        rpId,
+        putChallengeB64,
+        fetchChallengeB64,
+        "unlock",
+        undefined,
+      );
     }
     return fail(requestId, reply.errorCode ?? "BLOB_UNAVAILABLE");
   }
@@ -433,7 +457,7 @@ async function handleAuth(
     const { seed, publicKey } = await unwrapWallet(
       disc.prfOutput,
       parsed,
-      rpId
+      rpId,
     );
     disc.prfOutput.fill(0);
     if (busy.wasDismissed()) {
@@ -443,7 +467,7 @@ async function handleAuth(
     const putSignature = signChallenge(
       putChallengeB64,
       seed,
-      PUT_CHALLENGE_PREFIX
+      PUT_CHALLENGE_PREFIX,
     );
     seed.fill(0);
     if (putChallengeB64 && !putSignature) {
@@ -474,7 +498,7 @@ async function unlockAndComplete(
   raw: Uint8Array,
   parsed: ParsedWalletBlob,
   writeLocal: boolean,
-  putChallengeB64: string | undefined
+  putChallengeB64: string | undefined,
 ): Promise<void> {
   if (!(await ui.confirmImport())) return fail(requestId, "USER_CANCELLED");
   const busy = beginBusy(requestId, "Use Face ID or Touch ID to approve");
@@ -487,7 +511,7 @@ async function unlockAndComplete(
     const putSignature = signChallenge(
       putChallengeB64,
       seed,
-      PUT_CHALLENGE_PREFIX
+      PUT_CHALLENGE_PREFIX,
     );
     seed.fill(0);
     if (putChallengeB64 && !putSignature) {
@@ -508,7 +532,7 @@ async function unlockAndComplete(
     const code = codeOf(e);
     if (code === "AUTHENTICATION_FAILED" || code === "DECRYPTION_FAILED") {
       const again = await ui.showRecoverable(
-        "Passkey authentication didn’t work. Try again, or cancel if this passkey was removed from this phone."
+        "Passkey authentication didn’t work. Try again, or cancel if this passkey was removed from this phone.",
       );
       if (again === "retry") {
         return unlockAndComplete(
@@ -517,7 +541,7 @@ async function unlockAndComplete(
           raw,
           parsed,
           writeLocal,
-          putChallengeB64
+          putChallengeB64,
         );
       }
       // Distinct from dismiss-before-biometric so the parent can offer create.
@@ -542,7 +566,7 @@ function requireLocalBlob(): {
 async function handleSign(
   requestId: string,
   rpId: string,
-  txB64: string
+  txB64: string,
 ): Promise<void> {
   const { parsed } = requireLocalBlob();
   const txBytes = base64ToBytes(txB64, MAX_TX_BYTES, "std");
@@ -602,7 +626,7 @@ async function handleSign(
 
 async function handleExportPrivateKey(
   requestId: string,
-  rpId: string
+  rpId: string,
 ): Promise<void> {
   const { parsed } = requireLocalBlob();
   // Dedicated ceremony BEFORE WebAuthn (§14) — warning + explicit continue.

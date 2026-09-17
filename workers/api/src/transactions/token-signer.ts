@@ -3,7 +3,11 @@ import { createLogger } from "@/shared/log";
 
 /** Minimal RPC surface used by revibase-api (matches TokenSigner methods). */
 export type TokenSignerRpc = {
-  getFeeBalance(): Promise<{ balanceLamports: number }>;
+  getFeeBalance(): Promise<{
+    balanceLamports: number;
+    reservedLamports?: number;
+    availableLamports?: number;
+  }>;
   applyFeeEvents(
     events: { signature: string; kind: "credit" | "debit"; lamports: number }[],
   ): Promise<{ applied: number; appliedSignatures: string[] }>;
@@ -11,7 +15,11 @@ export type TokenSignerRpc = {
     | {
         ok: true;
         signatures: string[];
-        audit?: { feePayer: string; signatureCount: number };
+        audit?: {
+          feePayer: string;
+          signatureCount: number;
+          reserved?: number;
+        };
       }
     | {
         ok: false;

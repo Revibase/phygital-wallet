@@ -12,6 +12,7 @@
  */
 import { Hono } from "hono";
 
+import { recordAudit } from "@/audit/audit-log";
 import { hmacSha256, timingSafeEqual } from "@/auth/session-hmac";
 import { json } from "@/shared/http";
 import { createLogger } from "@/shared/log";
@@ -82,6 +83,23 @@ walletTxRoutes.post("/webhooks/transactions", async (c) => {
     c.req.header("X-Webhook-Signature") ?? c.req.header("x-webhook-signature")
   );
   if (!valid) {
+    recordAudit({
+      event: "webhook_reject",
+      ok: false,
+      actor: "system",
+      code: "invalid_signature",
+      detail: {
+        hasTimestamp: Boolean(
+          c.req.header("X-Webhook-Timestamp") ??
+            c.req.header("x-webhook-timestamp"),
+        ),
+        hasSignature: Boolean(
+          c.req.header("X-Webhook-Signature") ??
+            c.req.header("x-webhook-signature"),
+        ),
+        secretConfigured: Boolean(c.env.WALLET_WEBHOOK_SECRET?.trim()),
+      },
+    });
     return json({ error: "Unauthorized" }, { status: 401 });
   }
 

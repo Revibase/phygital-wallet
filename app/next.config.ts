@@ -36,6 +36,25 @@ loadDevVarsIntoProcessEnv();
 /** pnpm hoists `next` to the workspace root — Turbopack must resolve from there. */
 const workspaceRoot = path.join(__dirname, "..");
 
+/** Production secure-signer — must match `app/wrangler.jsonc`. */
+const PRODUCTION_SIGNER_ORIGIN = "https://signer.revibase.com";
+
+function resolveSignerOrigin(): string {
+  return (
+    process.env.NEXT_PUBLIC_SECURE_SIGNER_ORIGIN?.trim() ||
+    PRODUCTION_SIGNER_ORIGIN
+  );
+}
+
+function isLocalOrigin(origin: string): boolean {
+  try {
+    const { hostname } = new URL(origin);
+    return hostname === "localhost" || hostname === "127.0.0.1";
+  } catch {
+    return false;
+  }
+}
+
 const nextConfig: NextConfig = {
   transpilePackages: ["phygital-wallet-sdk"],
   experimental: {
@@ -46,23 +65,45 @@ const nextConfig: NextConfig = {
     root: workspaceRoot,
   },
   async headers() {
-    // Delegate WebAuthn + clipboard-write to the cross-origin secure-signer
-    // iframe via Permissions-Policy, paired with the iframe `allow=` attribute.
-    const signerOrigin =
-      process.env.NEXT_PUBLIC_SECURE_SIGNER_ORIGIN?.trim() || "http://localhost:5173";
+    // Build-time headers: default to production signer so a CI/local build
+    // without env does not ship `frame-src http://localhost:5173`. Local
+    // `.dev.vars` still overrides via loadDevVarsIntoProcessEnv.
+    const signerOrigin = resolveSignerOrigin();
+    const localDev = isLocalOrigin(signerOrigin);
+
+    const connectSrc = localDev
+      ? "'self' https: http://localhost:* ws://localhost:* wss:"
+      : "'self' https: wss:";
+
+    const csp = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https:",
+      "font-src 'self' data:",
+      `connect-src ${connectSrc}`,
+      `frame-src 'self' ${signerOrigin}`,
+      "worker-src 'self' blob:",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'none'",
+    ].join("; ");
+
     return [
       {
         source: "/:path*",
         headers: [
           {
             key: "Content-Security-Policy",
-            value: "frame-ancestors 'none';",
+            value: csp,
           },
           {
             key: "X-Frame-Options",
             value: "DENY",
           },
           {
+            // Delegate WebAuthn get + clipboard-write to the secure-signer iframe.
             key: "Permissions-Policy",
             value: `publickey-credentials-get=(self "${signerOrigin}"), publickey-credentials-create=(self), clipboard-write=(self "${signerOrigin}")`,
           },

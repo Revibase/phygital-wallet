@@ -14,6 +14,7 @@
 
 import { SECURE_SIGNER_ORIGIN } from "@/lib/wallet/owner-backend";
 import { bytesToBase64 } from "@/lib/crypto/base64";
+import type { OwnerWalletAssertionJSON } from "@/lib/wallet/owner-wallet-blob";
 
 const PROTOCOL_VERSION = 1;
 const REQUEST_TIMEOUT_MS = 120_000;
@@ -39,8 +40,28 @@ type Pending = {
   timer: ReturnType<typeof setTimeout>;
   onBlobNeeded?: (
     credentialId: string,
+    assertion: OwnerWalletAssertionJSON,
   ) => string | null | Promise<string | null>;
 };
+
+function isOwnerWalletAssertion(v: unknown): v is OwnerWalletAssertionJSON {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return false;
+  const r = v as Record<string, unknown>;
+  if (typeof r["id"] !== "string" || typeof r["rawId"] !== "string") {
+    return false;
+  }
+  if (r["type"] !== "public-key") return false;
+  const response = r["response"];
+  if (!response || typeof response !== "object" || Array.isArray(response)) {
+    return false;
+  }
+  const resp = response as Record<string, unknown>;
+  return (
+    typeof resp["clientDataJSON"] === "string" &&
+    typeof resp["authenticatorData"] === "string" &&
+    typeof resp["signature"] === "string"
+  );
+}
 
 /** Open/close the Sheet — available as soon as `SecureSignerHost` mounts. */
 export type SecureSignerShell = {
@@ -247,7 +268,14 @@ class SecureSignerClient {
         return;
       }
       const credentialId = String(data["credentialId"] ?? "");
-      void Promise.resolve(p.onBlobNeeded(credentialId))
+      const assertion = isOwnerWalletAssertion(data["assertion"])
+        ? data["assertion"]
+        : null;
+      if (!assertion) {
+        this.postBlobProvided(requestId, null, "BLOB_UNAVAILABLE");
+        return;
+      }
+      void Promise.resolve(p.onBlobNeeded(credentialId, assertion))
         .then((blob) => {
           if (blob) this.postBlobProvided(requestId, blob);
           else this.postBlobProvided(requestId, null, "BLOB_UNAVAILABLE");
@@ -354,8 +382,11 @@ class SecureSignerClient {
   async authenticate(opts: {
     resolveBlob?: (
       credentialId: string,
+      assertion: OwnerWalletAssertionJSON,
     ) => string | null | Promise<string | null>;
     putChallenge: string;
+    /** Server fetch-challenge (base64url). Required for discoverable restore. */
+    fetchChallenge?: string;
     authMode?: "create" | "unlock";
     credentialId?: string;
   }): Promise<AuthResult> {
@@ -364,9 +395,10 @@ class SecureSignerClient {
       putChallenge: opts.putChallenge,
     };
     if (opts.credentialId) payload.credentialId = opts.credentialId;
+    if (opts.fetchChallenge) payload.fetchChallenge = opts.fetchChallenge;
     const r = await this.request("AUTH_START", "AUTH_COMPLETE", payload, {
-      onBlobNeeded: async (credentialId) => {
-        if (opts.resolveBlob) return opts.resolveBlob(credentialId);
+      onBlobNeeded: async (credentialId, assertion) => {
+        if (opts.resolveBlob) return opts.resolveBlob(credentialId, assertion);
         return null;
       },
     });

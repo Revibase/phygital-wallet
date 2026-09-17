@@ -14,6 +14,7 @@
  */
 import { Hono } from "hono";
 
+import { auditMeta, recordAudit } from "@/audit/audit-log";
 import { verifyAccessoryWebauthn } from "@/auth/accessory-verify";
 import { issueBrowseUnlockCookie } from "@/auth/browse-unlock-session";
 import {
@@ -80,6 +81,19 @@ accessoryUnlockRoutes.post("/accessory/unlock/tap", async (c) => {
     const unlock = phygitalToken
       ? await issueBrowseUnlockCookie(c, phygitalToken)
       : null;
+
+    if (unlock && phygitalToken) {
+      const meta = auditMeta(c);
+      recordAudit({
+        event: "accessory_unlock",
+        phygitalToken,
+        ok: true,
+        actor: "accessory",
+        origin: meta.origin,
+        requestId: meta.requestId,
+        detail: { method: "tap" },
+      });
+    }
 
     return json({
       isVerified: true,
@@ -150,6 +164,16 @@ accessoryUnlockRoutes.post("/accessory/unlock/webauthn", async (c) => {
   }
 
   const { expiresAt } = await issueBrowseUnlockCookie(c, result.phygitalToken);
+  const meta = auditMeta(c);
+  recordAudit({
+    event: "accessory_unlock",
+    phygitalToken: result.phygitalToken,
+    ok: true,
+    actor: "accessory",
+    origin: meta.origin,
+    requestId: meta.requestId,
+    detail: { method: "webauthn" },
+  });
   return json({
     isVerified: true,
     phygitalToken: result.phygitalToken,

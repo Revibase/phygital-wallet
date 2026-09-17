@@ -5,16 +5,18 @@ import { LazyMotion, domAnimation, m, useReducedMotion } from "framer-motion";
 
 import { NavBar } from "@/components/shared/nav-bar";
 import { CeremonyShell } from "@/components/shared/ceremony-shell";
-import { NfcHoldStatus } from "@/components/shared/nfc-hold-status";
+import { CollectibleOrb } from "@/components/token/collectible-orb";
 import { ActivityReceiptSheet } from "@/components/wallet/activity-receipt-sheet";
 import { Button } from "@/components/ui/button";
 import { copy } from "@/lib/copy/phygital";
+import { copyBlockClass } from "@/lib/layout";
 import { snapEnter, snapEnterTransition } from "@/lib/motion";
 import type { WalletActivityItem } from "@/lib/wallet/portfolio-types";
 import {
   walletSignPhaseCopy,
   type PhygitalWalletSignPhase,
 } from "@/lib/wallet/sign-phase-copy";
+import { cn } from "@/lib/utils";
 
 export type SendHoldRecap = {
   amountLabel: string;
@@ -39,6 +41,22 @@ export type SendCeremonyState =
       recap: SendHoldRecap;
     }
   | { stage: "success"; recap: SendHoldRecap };
+
+function SendRecapCard({ recap }: { recap: SendHoldRecap }) {
+  return (
+    <div className="w-full max-w-sm rounded-2xl bg-muted/25 px-4 py-3 text-center">
+      <p className="font-(family-name:--font-display) text-lg">
+        {recap.amountLabel}
+      </p>
+      <p className="text-xs text-muted-foreground">
+        {copy.wallet.to} {recap.recipientLabel}
+      </p>
+      {recap.feeLabel ? (
+        <p className="mt-1 text-xs text-muted-foreground">{recap.feeLabel}</p>
+      ) : null}
+    </div>
+  );
+}
 
 export function SendHoldStage({
   phase,
@@ -112,67 +130,68 @@ export function SendHoldStage({
         }
       >
         {/*
-          Keep one mounted ceremony tree across signPhase changes and
-          holding→success so the orb does not remount / flicker.
+          Top-half layout: amount/destination stay visible above the native
+          passkey sheet that covers the bottom half of the screen.
         */}
         <div className="flex min-h-0 flex-1 flex-col">
-          <NfcHoldStatus
-            size="lg"
-            pulsing={phase === "holding" && holdingCopy.pulse}
-            busy={phase === "holding" && !holdingCopy.pulse}
-            progress={phase === "holding"}
-            tone={phase === "success" ? "success" : "default"}
-            imageSrc={recap?.imageSrc ?? imageSrc}
-            title={phase === "success" ? copy.wallet.sent : holdingCopy.title}
-            body={phase === "success" ? undefined : holdingCopy.body}
-            action={
-              <div className="flex w-full flex-col items-center gap-3">
-                {recap ? (
-                  <div className="w-full rounded-2xl bg-muted/25 px-4 py-3 text-center">
-                    <p className="font-(family-name:--font-display) text-lg">
-                      {recap.amountLabel}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {copy.wallet.to} {recap.recipientLabel}
-                    </p>
-                    {recap.feeLabel ? (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {recap.feeLabel}
-                      </p>
-                    ) : null}
-                  </div>
-                ) : null}
-                {phase === "success" ? (
-                  <m.div
-                    className="flex w-full flex-col gap-2"
-                    initial={enter.initial}
-                    animate={enter.animate}
-                    transition={snapEnterTransition}
+          <div
+            className={cn(
+              "flex flex-col items-center gap-4 px-4 pt-2",
+              phase === "holding" ? "max-h-[48vh] justify-start" : "flex-1 justify-center py-8",
+            )}
+          >
+            {recap ? <SendRecapCard recap={recap} /> : null}
+
+            <CollectibleOrb
+              src={recap?.imageSrc ?? imageSrc}
+              alt=""
+              size="lg"
+              pulsing={phase === "holding" && holdingCopy.pulse}
+              busy={phase === "holding" && !holdingCopy.pulse}
+              tone={phase === "success" ? "success" : "default"}
+              progress={phase === "holding"}
+            />
+
+            <div className={cn(copyBlockClass, "space-y-1.5 text-center")}>
+              <p className="text-display-md tracking-tight text-foreground md:text-2xl">
+                {phase === "success" ? copy.wallet.sent : holdingCopy.title}
+              </p>
+              {phase === "holding" && holdingCopy.body ? (
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  {holdingCopy.body}
+                </p>
+              ) : null}
+            </div>
+
+            {phase === "success" ? (
+              <m.div
+                className="flex w-full max-w-sm flex-col gap-2"
+                initial={enter.initial}
+                animate={enter.animate}
+                transition={snapEnterTransition}
+              >
+                {receiptItem ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="lg"
+                    className="w-full"
+                    onClick={() => setReceiptOpen(true)}
                   >
-                    {receiptItem ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="lg"
-                        className="w-full"
-                        onClick={() => setReceiptOpen(true)}
-                      >
-                        {copy.wallet.viewReceipt}
-                      </Button>
-                    ) : null}
-                    <Button
-                      type="button"
-                      size="lg"
-                      className="w-full"
-                      onClick={onClose}
-                    >
-                      {copy.common.done}
-                    </Button>
-                  </m.div>
+                    {copy.wallet.viewReceipt}
+                  </Button>
                 ) : null}
-              </div>
-            }
-          />
+                <Button
+                  type="button"
+                  size="lg"
+                  className="w-full"
+                  onClick={onClose}
+                >
+                  {copy.common.done}
+                </Button>
+              </m.div>
+            ) : null}
+          </div>
         </div>
         <ActivityReceiptSheet
           item={receiptItem}

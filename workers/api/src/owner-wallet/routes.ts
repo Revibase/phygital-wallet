@@ -1,38 +1,47 @@
 /**
  * Owner wallet encrypted-blob backup (D1).
  *
- * GET — public by credentialIdHash (ciphertext only; optional privacy gate later).
- * PUT — requires ed25519 signature over a server challenge, produced inside the
- *       secure-signer after passkey unlock (proves possession of the wallet).
- *       On success also mints the owner_session cookie (same proof = signed in).
+ * Fetch — WebAuthn assertion over a server challenge (same ceremony as PRF
+ * unlock in the secure-signer). Ciphertext is returned only after verify.
+ * PUT — ed25519 signature over a server challenge from the secure-signer
+ *       (proves possession of the wallet). Accepts attestationObject / COSE
+ *       public key so restore can verify assertions. On success also mints
+ *       the owner_session cookie (same proof = signed in).
  */
 import { Hono } from "hono";
 import { getAddressDecoder } from "@solana/kit";
+import type { AuthenticationResponseJSON } from "@simplewebauthn/server";
 
-import {
-  issueOwnerSessionCookie,
-} from "@/auth/owner-session";
+import { auditMeta, recordAudit } from "@/audit/audit-log";
+import { issueOwnerSessionCookie } from "@/auth/owner-session";
 import { verifyConsumedChallengeProof } from "@/auth/possession-proof";
 import {
   base64UrlToBytes,
   bytesToBase64Url,
-  isCredentialIdHash,
+  MAX_CREDENTIAL_ID_BYTES,
   MAX_OWNER_BLOB_BYTES,
   OwnerBlobParseError,
   parseOwnerBlobHeader,
   sha256Hex,
 } from "@/owner-wallet/blob-format";
 import {
-  consumePutChallenge,
-  issuePutChallenge,
-  putChallengeMessage,
+  consumeBackupChallenge,
+  consumeRestoreChallenge,
+  issueBackupChallenge,
+  issueRestoreChallenge,
+  backupChallengeMessage,
 } from "@/owner-wallet/challenge";
 import {
   getOwnerWalletBlob,
   putOwnerWalletBlob,
 } from "@/owner-wallet/blob-store";
+import {
+  extractCosePublicKeyFromAttestationObject,
+  verifyOwnerWalletAssertion,
+} from "@/owner-wallet/verify-webauthn-assertion";
 import { getErrorMessage } from "@/shared/errors";
 import { json } from "@/shared/http";
+import { isAppBrowserOrigin } from "@/shared/cors";
 import { tryParseAddress } from "@/shared/solana/address";
 
 export const ownerWalletRoutes = new Hono<{ Bindings: Env }>();
@@ -47,33 +56,236 @@ function pubkeyBytesEqualBase58(bytes: Uint8Array, base58: string): boolean {
   }
 }
 
-/** POST /owner-wallet/blob/challenge — mint a single-use PUT challenge. */
-ownerWalletRoutes.post("/owner-wallet/blob/challenge", async (c) => {
-  const issued = await issuePutChallenge();
+function envWebauthnRpId(env: Env): string | undefined {
+  return (env as Env & { WEBAUTHN_RP_ID?: string }).WEBAUTHN_RP_ID;
+}
+
+function requireAppOrigin(c: {
+  req: { header: (name: string) => string | undefined };
+}): Response | { origin: string } {
+  const origin = c.req.header("Origin")?.trim() ?? "";
+  if (!origin || !isAppBrowserOrigin(origin)) {
+    return json(
+      { error: "App origin required", code: "origin_required" },
+      { status: 403 },
+    );
+  }
+  return { origin };
+}
+
+/**
+ * Resolve COSE public key for storage from PUT body.
+ * Prefer attestationObject (registration); else accept direct COSE base64url.
+ */
+function resolveWebauthnPublicKeyFromPut(
+  record: Record<string, unknown>,
+): { key: string | null; attestationPresent: boolean } {
+  const attestation =
+    typeof record["webauthnAttestationObject"] === "string"
+      ? record["webauthnAttestationObject"].trim()
+      : "";
+  if (attestation) {
+    try {
+      const cose = extractCosePublicKeyFromAttestationObject(attestation);
+      return { key: bytesToBase64Url(cose), attestationPresent: true };
+    } catch {
+      return { key: null, attestationPresent: true };
+    }
+  }
+  const direct =
+    typeof record["webauthnPublicKey"] === "string"
+      ? record["webauthnPublicKey"].trim()
+      : "";
+  return { key: direct || null, attestationPresent: false };
+}
+
+function isAuthenticationResponseJSON(
+  v: unknown,
+): v is AuthenticationResponseJSON {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return false;
+  const r = v as Record<string, unknown>;
+  if (typeof r["id"] !== "string" || typeof r["rawId"] !== "string") {
+    return false;
+  }
+  if (r["type"] !== "public-key") return false;
+  const response = r["response"];
+  if (!response || typeof response !== "object" || Array.isArray(response)) {
+    return false;
+  }
+  const resp = response as Record<string, unknown>;
+  return (
+    typeof resp["clientDataJSON"] === "string" &&
+    typeof resp["authenticatorData"] === "string" &&
+    typeof resp["signature"] === "string"
+  );
+}
+
+/** POST /owner-wallet/blob/backup-challenge — mint a single-use PUT (ed25519) challenge. */
+ownerWalletRoutes.post("/owner-wallet/blob/backup-challenge", async (c) => {
+  const issued = await issueBackupChallenge();
   return json(issued);
 });
 
-/** GET — hash-only lookup (no auth). Bootstrap for new-device restore. */
-ownerWalletRoutes.get("/owner-wallet/blob", async (c) => {
-  const hash = c.req.query("credentialIdHash")?.trim().toLowerCase() ?? "";
-  if (!isCredentialIdHash(hash)) {
+/**
+ * POST /owner-wallet/blob/restore-challenge — mint a single-use WebAuthn challenge.
+ * App-origin only (scrape reduction). Challenge bytes are used as the
+ * authenticator challenge on discoverable unlock.
+ */
+ownerWalletRoutes.post("/owner-wallet/blob/restore-challenge", async (c) => {
+  const originOrErr = requireAppOrigin(c);
+  if (originOrErr instanceof Response) return originOrErr;
+
+  const issued = await issueRestoreChallenge();
+  return json(issued);
+});
+
+/**
+ * POST /owner-wallet/blob/restore — verify WebAuthn assertion, return ciphertext.
+ * Body: `{ challengeId, assertion }` (AuthenticationResponseJSON).
+ *
+ * One ceremony: the secure-signer uses the same challenge for PRF unlock and
+ * posts the assertion here via the parent.
+ */
+ownerWalletRoutes.post("/owner-wallet/blob/restore", async (c) => {
+  const meta = auditMeta(c);
+  const originOrErr = requireAppOrigin(c);
+  if (originOrErr instanceof Response) {
+    recordAudit({
+      event: "blob_get",
+      ok: false,
+      actor: "system",
+      code: "origin_required",
+      origin: meta.origin,
+      requestId: meta.requestId,
+    });
+    return originOrErr;
+  }
+  const { origin } = originOrErr;
+
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+  const record = body as Record<string, unknown>;
+  const challengeId =
+    typeof record["challengeId"] === "string" ? record["challengeId"].trim() : "";
+  const assertion = record["assertion"];
+
+  if (!challengeId) {
+    return json(
+      { error: "challengeId is required", code: "challenge_required" },
+      { status: 400 },
+    );
+  }
+  if (!isAuthenticationResponseJSON(assertion)) {
     return json(
       {
-        error: "Query param credentialIdHash must be a 64-char hex sha256",
-        code: "invalid_credential_id_hash",
+        error: "assertion must be a WebAuthn AuthenticationResponseJSON",
+        code: "invalid_assertion",
       },
       { status: 400 },
     );
   }
 
+  const expectedChallenge = await consumeRestoreChallenge(challengeId);
+  if (!expectedChallenge) {
+    recordAudit({
+      event: "blob_get",
+      ok: false,
+      actor: "system",
+      code: "challenge_invalid",
+      origin: meta.origin,
+      requestId: meta.requestId,
+    });
+    return json(
+      {
+        error: "Restore challenge expired or invalid. Try again.",
+        code: "challenge_invalid",
+      },
+      { status: 409 },
+    );
+  }
+
+  let credentialIdHash: string;
   try {
-    const row = await getOwnerWalletBlob(hash);
+    const rawId = base64UrlToBytes(assertion.rawId, MAX_CREDENTIAL_ID_BYTES);
+    credentialIdHash = await sha256Hex(rawId);
+  } catch {
+    return json(
+      { error: "Invalid assertion rawId", code: "invalid_assertion" },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const row = await getOwnerWalletBlob(credentialIdHash);
     if (!row) {
       return json(
         { error: "No wallet backup found", code: "not_found" },
         { status: 404 },
       );
     }
+
+    if (!row.webauthnPublicKey) {
+      recordAudit({
+        event: "blob_get",
+        ok: false,
+        actor: "system",
+        code: "webauthn_required",
+        origin: meta.origin,
+        requestId: meta.requestId,
+        detail: { hashPrefix: credentialIdHash.slice(0, 8) },
+      });
+      return json(
+        {
+          error:
+            "This backup has no WebAuthn key. Unlock on the device that created the wallet and re-backup, then try again.",
+          code: "webauthn_required",
+        },
+        { status: 409 },
+      );
+    }
+
+    const storedKey = base64UrlToBytes(
+      row.webauthnPublicKey,
+      1024,
+    );
+    const verified = await verifyOwnerWalletAssertion({
+      assertion,
+      expectedChallenge,
+      origin,
+      envRpId: envWebauthnRpId(c.env),
+      storedPublicKeyBytes: storedKey,
+    });
+    if (!verified.ok) {
+      recordAudit({
+        event: "blob_get",
+        ok: false,
+        actor: "system",
+        code: verified.code,
+        origin: meta.origin,
+        requestId: meta.requestId,
+        detail: { hashPrefix: credentialIdHash.slice(0, 8) },
+      });
+      return json(
+        { error: verified.error, code: verified.code },
+        { status: verified.status },
+      );
+    }
+
+    recordAudit({
+      event: "blob_get",
+      ok: true,
+      actor: "system",
+      origin: meta.origin,
+      requestId: meta.requestId,
+      detail: { hashPrefix: credentialIdHash.slice(0, 8) },
+    });
     return json({
       encryptedWalletBlob: row.encryptedBlob,
       publicKey: row.publicKey,
@@ -90,6 +302,8 @@ ownerWalletRoutes.get("/owner-wallet/blob", async (c) => {
 
 /**
  * PUT — requires `{ challengeId, signature, encryptedWalletBlob, publicKey }`.
+ * Optional `webauthnAttestationObject` (preferred) and/or `webauthnPublicKey`
+ * (COSE base64url). Create requires a WebAuthn key; update sets it only if null.
  * Signature is ed25519 over `revibase.owner-wallet.put.v1 || challengeBytes`.
  */
 ownerWalletRoutes.put("/owner-wallet/blob", async (c) => {
@@ -136,6 +350,19 @@ ownerWalletRoutes.put("/owner-wallet/blob", async (c) => {
   }
   const publicKey = publicKeyRaw.trim();
 
+  const { key: webauthnPublicKey, attestationPresent } =
+    resolveWebauthnPublicKeyFromPut(record);
+  // Attestation was sent but could not be parsed into a COSE key.
+  if (attestationPresent && !webauthnPublicKey) {
+    return json(
+      {
+        error: "Invalid webauthnAttestationObject",
+        code: "invalid_webauthn_key",
+      },
+      { status: 400 },
+    );
+  }
+
   let header;
   try {
     const raw = base64UrlToBytes(encryptedWalletBlob, MAX_OWNER_BLOB_BYTES);
@@ -165,8 +392,8 @@ ownerWalletRoutes.put("/owner-wallet/blob", async (c) => {
     challengeId,
     signatureB64,
     publicKeyBytes: header.publicKey,
-    consume: consumePutChallenge,
-    buildMessage: putChallengeMessage,
+    consume: consumeBackupChallenge,
+    buildMessage: backupChallengeMessage,
     expiredError: "This backup request expired. Try again.",
   });
   if (!proof.ok) {
@@ -184,6 +411,7 @@ ownerWalletRoutes.put("/owner-wallet/blob", async (c) => {
       publicKey,
       encryptedBlob: normalizedBlob,
       blobVersion: header.version,
+      webauthnPublicKey,
     });
     if (result === "conflict") {
       return json(
@@ -192,6 +420,16 @@ ownerWalletRoutes.put("/owner-wallet/blob", async (c) => {
           code: "wallet_conflict",
         },
         { status: 409 },
+      );
+    }
+    if (result === "webauthn_required") {
+      return json(
+        {
+          error:
+            "webauthnAttestationObject or webauthnPublicKey is required on first backup",
+          code: "webauthn_required",
+        },
+        { status: 400 },
       );
     }
     // Same possession proof that authorized the backup also signs this browser in.

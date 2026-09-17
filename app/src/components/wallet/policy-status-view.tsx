@@ -374,7 +374,10 @@ function PolicyMoreSection({
           </GroupedRow>
         ) : null}
         {showTurnOff ? (
-          <GroupedRow destructive onClick={() => setTurnOffOpen(true)}>
+          <GroupedRow
+            destructive
+            onClick={() => setTurnOffOpen(true)}
+          >
             {copy.wallet.policyTurnOff}
           </GroupedRow>
         ) : null}

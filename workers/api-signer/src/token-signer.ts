@@ -4,7 +4,10 @@
  */
 import { DurableObject } from "cloudflare:workers";
 import { FeePayerSigner } from "@/backend/secrets";
-import { assertFeeBalance } from "@/fees/fee-balance-gate";
+import {
+  FEE_RESERVE_TTL_MS,
+  MIN_ATTEMPT_FEE_LAMPORTS,
+} from "@/fees/constants";
 import { coded, normalizeError } from "@/shared/errors";
 import { initTokenSchema, TokenStore, type FeeEvent } from "@/token-store";
 import { createLogger, Logger, withLoggedRpc } from "../../shared/log";
@@ -20,6 +23,25 @@ function tokenFromName(name: string | null | undefined): string {
     );
   }
   return name.trim();
+}
+
+async function messageReserveId(messageBytes: Uint8Array): Promise<string> {
+  const digest = new Uint8Array(
+    await crypto.subtle.digest("SHA-256", messageBytes),
+  );
+  let hex = "";
+  for (const b of digest) hex += b.toString(16).padStart(2, "0");
+  return hex;
+}
+
+function releaseReserves(store: TokenStore, ids: string[]): void {
+  for (const id of ids) {
+    try {
+      store.release(id);
+    } catch {
+      /* best-effort rollback */
+    }
+  }
 }
 
 export class TokenSigner extends DurableObject<Env> {
@@ -84,15 +106,44 @@ export class TokenSigner extends DurableObject<Env> {
     return this.#backend;
   }
 
+  async #scheduleReserveAlarm(): Promise<void> {
+    const next = this.#getStore().nextReserveExpiry();
+    if (next != null) {
+      await this.ctx.storage.setAlarm(next);
+    }
+  }
+
+  /** Release expired sign-time fee reserves. */
+  async alarm(): Promise<void> {
+    const store = this.#getStore();
+    const released = store.expireReserves(Date.now());
+    if (released > 0) {
+      this.#log().info("fee.reserves_expired", { released });
+    }
+    await this.#scheduleReserveAlarm();
+  }
+
   // --- reads (no auth) ---
 
-  async getFeeBalance(): Promise<{ balanceLamports: number }> {
+  async getFeeBalance(): Promise<{
+    balanceLamports: number;
+    reservedLamports: number;
+    availableLamports: number;
+  }> {
     return this.#rpc(
       "getFeeBalance",
       { phygitalToken: this.#getToken() },
-      async () => ({
-        balanceLamports: this.#getStore().getFeeBalanceLamports(),
-      }),
+      async () => {
+        const store = this.#getStore();
+        store.expireReserves();
+        const balanceLamports = store.getFeeBalanceLamports();
+        const reservedLamports = store.getReservedLamports();
+        return {
+          balanceLamports,
+          reservedLamports,
+          availableLamports: Math.max(0, balanceLamports - reservedLamports),
+        };
+      },
     );
   }
 
@@ -107,10 +158,15 @@ export class TokenSigner extends DurableObject<Env> {
       async () => {
         const appliedSignatures: string[] = [];
         for (const ev of events) {
-          if (this.#getStore().applyFeeEvent(ev)) {
+          const applied =
+            ev.kind === "debit"
+              ? this.#getStore().settleDebit(ev)
+              : this.#getStore().applyFeeEvent(ev);
+          if (applied) {
             appliedSignatures.push(ev.signature);
           }
         }
+        await this.#scheduleReserveAlarm();
         return { applied: appliedSignatures.length, appliedSignatures };
       },
     );
@@ -119,8 +175,8 @@ export class TokenSigner extends DurableObject<Env> {
   // --- fee-payer co-sign ---
 
   /**
-   * Validate transaction shape, check the token's prepaid balance, and sign as
-   * a configured fee payer.
+   * Validate transaction shape, reserve prepaid fee (unless top-up), and sign
+   * as a configured fee payer. Reserves settle on webhook debit or TTL alarm.
    */
   async signTransactions(wires: string[]): Promise<SignTransactionsResult> {
     return this.#rpc(
@@ -130,6 +186,7 @@ export class TokenSigner extends DurableObject<Env> {
         transactions: Array.isArray(wires) ? wires.length : 0,
       },
       async () => {
+        const reservedIds: string[] = [];
         try {
           if (!Array.isArray(wires) || wires.length === 0) {
             return {
@@ -147,6 +204,8 @@ export class TokenSigner extends DurableObject<Env> {
           const accumulator = this.env.TOP_UP_ACCUMULATOR?.trim() ?? "";
           const signatures: string[] = [];
           let feePayerSeen: string | null = null;
+          const store = this.#getStore();
+          store.expireReserves();
 
           for (const wire of wires) {
             const decoded = decodeWireTransaction(wire, accumulator);
@@ -154,6 +213,7 @@ export class TokenSigner extends DurableObject<Env> {
             feePayerSeen = decoded.feePayer;
 
             if (!backend.canSign(decoded.feePayer)) {
+              releaseReserves(store, reservedIds);
               return {
                 ok: false as const,
                 status: 403,
@@ -171,29 +231,38 @@ export class TokenSigner extends DurableObject<Env> {
 
             // Top-ups fund the fee balance, so they must bypass the balance gate.
             if (!decoded.isFeePayingInstruction) {
-              const fee = assertFeeBalance({
-                balanceLamports: this.#getStore().getFeeBalanceLamports(),
-              });
-              if (!fee.ok) {
+              const reserveId = await messageReserveId(decoded.messageBytes);
+              if (
+                !store.reserve(
+                  reserveId,
+                  MIN_ATTEMPT_FEE_LAMPORTS,
+                  FEE_RESERVE_TTL_MS,
+                )
+              ) {
+                releaseReserves(store, reservedIds);
                 return {
                   ok: false as const,
                   status: 403,
                   body: {
-                    error: fee.error,
-                    code: fee.code,
+                    error: "Fee balance is too low for this transaction",
+                    code: "insufficient_fee_balance",
                     details: {
-                      ...fee.details,
+                      availableLamports: store.getAvailableLamports(),
+                      requiredLamports: MIN_ATTEMPT_FEE_LAMPORTS,
                       phygitalToken: decoded.phygitalToken,
                     },
                   },
                 };
               }
+              reservedIds.push(reserveId);
             }
 
             signatures.push(
               await backend.sign(decoded.feePayer, decoded.messageBytes),
             );
           }
+
+          await this.#scheduleReserveAlarm();
 
           return {
             ok: true as const,
@@ -202,10 +271,12 @@ export class TokenSigner extends DurableObject<Env> {
               ? {
                   feePayer: feePayerSeen,
                   signatureCount: signatures.length,
+                  reserved: reservedIds.length,
                 }
               : undefined,
           };
         } catch (err) {
+          releaseReserves(this.#getStore(), reservedIds);
           // A coded error keeps its own code/status; a bare throw is an
           // internal signer fault → 500, not client bad-input.
           const { error, code, status, details, soft } = normalizeError(err, {

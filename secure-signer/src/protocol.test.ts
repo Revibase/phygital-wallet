@@ -98,6 +98,30 @@ describe("validateInbound", () => {
     ).toBe(true);
   });
 
+  it("accepts AUTH_START unlock with fetchChallenge", () => {
+    const r = validateInbound({
+      ...base,
+      type: "AUTH_START",
+      authMode: "unlock",
+      putChallenge: "AAAA",
+      fetchChallenge: "BBBB",
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok && r.request.type === "AUTH_START") {
+      expect(r.request.fetchChallenge).toBe("BBBB");
+    }
+  });
+
+  it("rejects AUTH_START with oversized fetchChallenge", () => {
+    expect(
+      validateInbound({
+        ...base,
+        type: "AUTH_START",
+        fetchChallenge: "A".repeat(200),
+      }),
+    ).toMatchObject({ ok: false, code: "INVALID_MESSAGE" });
+  });
+
   it("accepts BLOB_PROVIDED with blob or errorCode", () => {
     expect(
       validateInbound({

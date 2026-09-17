@@ -4,6 +4,9 @@
  * Uses the shared RP ID (`revibase.com` / `localhost`) so the signer iframe can
  * later `get()` + PRF. This module must NEVER use PRF output or derive keys —
  * parent XSS must not see wrapping material (secure-signer threat model).
+ *
+ * Returns attestationObject so the API can extract+store the COSE public key
+ * for gated blob restore (same ceremony unlocks PRF + authorizes fetch).
  */
 
 import { bytesToBase64Url } from "@/lib/crypto/base64";
@@ -25,14 +28,15 @@ export function webauthnRpId(): string {
 }
 
 /**
- * Create a discoverable passkey. Returns credential id only (base64url).
- * Any PRF extension output is discarded immediately.
+ * Create a discoverable passkey. Returns credential id + attestationObject
+ * (base64url). Any PRF extension output is discarded immediately.
  *
  * Must be called from a user gesture (button click) — never from an effect,
  * timeout, or after an unrelated await that consumes activation.
  */
 export async function registerOwnerPasskey(userName: string): Promise<{
   credentialId: string;
+  attestationObject: string;
 }> {
   const rpId = webauthnRpId();
   const userId = randomBytes(16);
@@ -76,7 +80,15 @@ export async function registerOwnerPasskey(userName: string): Promise<{
     /* ignore */
   }
 
+  const attestation = cred.response as AuthenticatorAttestationResponse;
+  if (!attestation.attestationObject) {
+    throw new Error("Passkey registration missing attestationObject");
+  }
+
   return {
     credentialId: bytesToBase64Url(new Uint8Array(cred.rawId)),
+    attestationObject: bytesToBase64Url(
+      new Uint8Array(attestation.attestationObject),
+    ),
   };
 }

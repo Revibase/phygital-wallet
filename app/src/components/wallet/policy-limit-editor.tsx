@@ -13,6 +13,15 @@ import { address as toAddress } from "@solana/kit";
 import { GroupedRow } from "@/components/shared/grouped-list";
 import { TokenIcon } from "@/components/shared/token-chip";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { FieldError, Input } from "@/components/ui/input";
 import {
   Sheet,
@@ -156,6 +165,9 @@ function PolicyLimitEditorForm({
   const [advancedOpen, setAdvancedOpen] = useState(
     programPermissions.length > 0,
   );
+  const [allowConfirm, setAllowConfirm] = useState<
+    null | { mode: "switch"; programId: string } | { mode: "save" }
+  >(null);
 
   const busy = setPolicy.isPending;
   const usedMints = useMemo(() => new Set(drafts.map((d) => d.mint)), [drafts]);
@@ -229,7 +241,7 @@ function PolicyLimitEditorForm({
     }
     setPrograms((prev) => [
       ...prev,
-      { programId: id, kind: "allow", access: null },
+      { programId: id, kind: "deny", access: null },
     ]);
     setNewProgramId("");
     setErrors((prev) => {
@@ -240,6 +252,10 @@ function PolicyLimitEditorForm({
     });
   }
   function setProgramKind(programId: string, kind: ProgramAccessKind) {
+    if (kind === "allow") {
+      setAllowConfirm({ mode: "switch", programId });
+      return;
+    }
     setPrograms((prev) =>
       prev.map((p) => (p.programId === programId ? { ...p, kind } : p)),
     );
@@ -248,7 +264,7 @@ function PolicyLimitEditorForm({
     setPrograms((prev) => prev.filter((p) => p.programId !== programId));
   }
 
-  function save() {
+  function commitSave() {
     const nextErrors: Record<string, string> = {};
 
     let solCapArg: { cap: bigint; windowSeconds: bigint } | null = null;
@@ -321,6 +337,30 @@ function PolicyLimitEditorForm({
         onError: (err) => toast.error(toUserErrorMessage(err)),
       },
     );
+  }
+
+  function save() {
+    if (programs.some((p) => p.kind === "allow")) {
+      setAllowConfirm({ mode: "save" });
+      return;
+    }
+    commitSave();
+  }
+
+  function confirmAllowDanger() {
+    if (!allowConfirm) return;
+    if (allowConfirm.mode === "switch") {
+      const programId = allowConfirm.programId;
+      setPrograms((prev) =>
+        prev.map((p) =>
+          p.programId === programId ? { ...p, kind: "allow" } : p,
+        ),
+      );
+      setAllowConfirm(null);
+      return;
+    }
+    setAllowConfirm(null);
+    commitSave();
   }
 
   const previewLines: string[] = [];
@@ -515,6 +555,41 @@ function PolicyLimitEditorForm({
         onClose={() => setPickerOpen(false)}
         onPick={addToken}
       />
+
+      <Dialog
+        open={allowConfirm != null}
+        onOpenChange={(next) => {
+          if (!next) setAllowConfirm(null);
+        }}
+      >
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>{copy.wallet.policyAccessAllow}</DialogTitle>
+            <DialogDescription>
+              {copy.wallet.policyAccessAllowDanger}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full rounded-full sm:w-auto"
+              >
+                {copy.common.cancel}
+              </Button>
+            </DialogClose>
+            <Button
+              type="button"
+              variant="destructive"
+              className="w-full rounded-full sm:w-auto"
+              onClick={confirmAllowDanger}
+            >
+              {copy.wallet.policyAccessAllow}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

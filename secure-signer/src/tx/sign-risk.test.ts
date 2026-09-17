@@ -11,6 +11,7 @@ import type { TransactionSummary } from "./policy.js";
 
 function summary(
   kinds: PhygitalWalletInstruction[],
+  opts?: { innerTitles?: string[] },
 ): TransactionSummary {
   return {
     walletAddress: "Wallet111111111111111111111111111111111",
@@ -18,7 +19,20 @@ function summary(
       kind,
       authority: null,
       phygitalToken: null,
-      inner: null,
+      inner:
+        opts?.innerTitles != null
+          ? opts.innerTitles.map((title) => ({
+              programAddress: "11111111111111111111111111111111",
+              accounts: ["from", "to"],
+              dataLength: 12,
+              title,
+              details: [],
+            }))
+          : kind === PhygitalWalletInstruction.ExecuteWithAuthority ||
+              kind ===
+                PhygitalWalletInstruction.ExecuteWithAuthorityUsingPolicies
+            ? []
+            : null,
       details: [],
     })),
     config: {},
@@ -35,12 +49,15 @@ describe("sign-risk", () => {
     ).toBe("Remove owner");
   });
 
-  it("treats owner spend as normal review, clear-authority as critical", () => {
+  it("treats clear-authority and clear-policy as critical", () => {
     expect(
       isCriticalInstruction(PhygitalWalletInstruction.ExecuteWithAuthority),
     ).toBe(false);
     expect(
       isCriticalInstruction(PhygitalWalletInstruction.ClearAuthority),
+    ).toBe(true);
+    expect(
+      isCriticalInstruction(PhygitalWalletInstruction.ClearWalletPolicy),
     ).toBe(true);
     expect(
       isElevatedInstruction(PhygitalWalletInstruction.SetWalletPolicy),
@@ -50,18 +67,26 @@ describe("sign-risk", () => {
     );
     expect(
       classifySignRisk(
-        summary([PhygitalWalletInstruction.ExecuteWithAuthority]),
+        summary([PhygitalWalletInstruction.ExecuteWithAuthority], {
+          innerTitles: ["Send 0.1 SOL"],
+        }),
       ),
-    ).toBe("normal");
+    ).toBe("elevated");
+    expect(
+      classifySignRisk(summary([PhygitalWalletInstruction.ExecuteWithAuthority])),
+    ).toBe("critical");
     expect(
       classifySignRisk(summary([PhygitalWalletInstruction.ClearAuthority])),
+    ).toBe("critical");
+    expect(
+      classifySignRisk(summary([PhygitalWalletInstruction.ClearWalletPolicy])),
     ).toBe("critical");
     expect(
       classifySignRisk(summary([PhygitalWalletInstruction.SetWalletPolicy])),
     ).toBe("elevated");
   });
 
-  it("keeps callouts short", () => {
+  it("keeps clear-authority callout short", () => {
     const text = riskCallout(
       summary([PhygitalWalletInstruction.ClearAuthority]).instructions,
     );

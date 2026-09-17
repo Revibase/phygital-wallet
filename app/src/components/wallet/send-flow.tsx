@@ -420,6 +420,7 @@ export function SendFlow({
       },
       onFundingDenial: (e) => {
         setPhase("form");
+        onCeremonyChange({ stage: "idle" });
         setHardError({
           code: e.code,
           message: copy.wallet.feeBalanceInsufficient,
@@ -493,33 +494,33 @@ export function SendFlow({
           className="mx-auto h-auto min-h-0 gap-2 rounded-full bg-muted/40 px-3 py-1.5 text-sm hover:bg-muted/60"
           onClick={() => setPickerOpen(true)}
         >
-            {asset ? (
-              nft ? (
-                <Avatar className="size-6">
-                  {asset.icon ? <AvatarImage src={asset.icon} alt="" /> : null}
-                  <AvatarFallback className="text-[10px]">
-                    {asset.name.slice(0, 2)}
-                  </AvatarFallback>
-                </Avatar>
-              ) : (
-                <TokenIcon
-                  token={{
-                    mint: asset.mint,
-                    symbol: asset.symbol,
-                    icon: asset.icon,
-                  }}
-                  className="size-6"
-                />
-              )
-            ) : null}
-            <span className="font-medium">
-              {asset
-                ? nft
-                  ? asset.name
-                  : asset.symbol
-                : copy.wallet.selectAsset}
-            </span>
-            <ChevronDown className="size-4 text-muted-foreground" />
+          {asset ? (
+            nft ? (
+              <Avatar className="size-6">
+                {asset.icon ? <AvatarImage src={asset.icon} alt="" /> : null}
+                <AvatarFallback className="text-[10px]">
+                  {asset.name.slice(0, 2)}
+                </AvatarFallback>
+              </Avatar>
+            ) : (
+              <TokenIcon
+                token={{
+                  mint: asset.mint,
+                  symbol: asset.symbol,
+                  icon: asset.icon,
+                }}
+                className="size-6"
+              />
+            )
+          ) : null}
+          <span className="font-medium">
+            {asset
+              ? nft
+                ? asset.name
+                : asset.symbol
+              : copy.wallet.selectAsset}
+          </span>
+          <ChevronDown className="size-4 text-muted-foreground" />
         </Button>
 
         <m.div

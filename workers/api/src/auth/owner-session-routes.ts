@@ -18,6 +18,7 @@ import {
   findAuthorityAccountPda,
 } from "phygital-wallet-sdk";
 
+import { auditMeta, recordAudit } from "@/audit/audit-log";
 import {
   clearBrowseUnlockCookie,
   readBrowseUnlock,
@@ -146,6 +147,15 @@ ownerSessionRoutes.post("/accessory/owner-browse", async (c) => {
   // Owner browse wins over leftover accessory cookie for this admit.
   clearBrowseUnlockCookie(c);
   const { expiresAt } = await issueOwnerBrowseCookie(c, phygitalToken);
+  const meta = auditMeta(c);
+  recordAudit({
+    event: "owner_browse",
+    phygitalToken,
+    ok: true,
+    actor: "owner",
+    origin: meta.origin,
+    requestId: meta.requestId,
+  });
   return json({
     ok: true,
     mode: "owner" as const,

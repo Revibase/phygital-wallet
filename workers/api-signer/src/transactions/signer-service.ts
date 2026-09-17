@@ -6,6 +6,8 @@
 export type SignAudit = {
   feePayer: string;
   signatureCount: number;
+  /** Sign-time fee reserves opened for this batch. */
+  reserved?: number;
 };
 
 export type SignTransactionsResult =
