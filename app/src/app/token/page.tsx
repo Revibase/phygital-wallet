@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 
-import { RouteBoot } from "@/components/layout/route-boot";
 import { TokenApp } from "@/components/token/token-app";
 import { products } from "@/lib/copy/phygital";
 
@@ -11,9 +9,5 @@ export const metadata: Metadata = {
 };
 
 export default function TokenPage() {
-  return (
-    <Suspense fallback={<RouteBoot />}>
-      <TokenApp />
-    </Suspense>
-  );
+  return <TokenApp />;
 }
