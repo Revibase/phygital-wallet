@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 
 import { ActivityList } from "@/components/wallet/activity-list";
 import { NavBar, NavBarBack } from "@/components/shared/nav-bar";
+import { WalletPanelSkeleton } from "@/components/wallet/wallet-panel-skeleton";
 import { copy } from "@/lib/copy/phygital";
+import { walletContentColumnClass, walletDesktopTitleClass } from "@/lib/layout";
 import { useWalletActivity } from "@/hooks/wallet/use-wallet-activity";
 import type { WalletActivityItem } from "@/lib/wallet/portfolio-types";
 
@@ -18,6 +20,8 @@ export function ActivityAllPanel({
   const [cursor, setCursor] = useState<string | null>(null);
   const [pages, setPages] = useState<WalletActivityItem[]>([]);
   const activity = useWalletActivity(walletAddress, 40, cursor);
+  const initialLoading =
+    cursor == null && activity.isFetching && pages.length === 0;
 
   useEffect(() => {
     setCursor(null);
@@ -44,23 +48,31 @@ export function ActivityAllPanel({
   }, [activity.items, activity.isFetching, cursor]);
 
   return (
-    <div className="flex flex-1 flex-col gap-4">
+    <div className={walletContentColumnClass}>
       <NavBar
+        desktopHidden
         align="start"
-        leading={<NavBarBack onClick={onBack} desktopHidden />}
+        leading={<NavBarBack onClick={onBack} />}
         title={copy.wallet.activity}
       />
+      <h1 className={walletDesktopTitleClass}>{copy.wallet.activity}</h1>
 
-      <ActivityList
-        items={pages}
-        emptyLabel={copy.wallet.noActivity}
-        assetMetaByMint={activity.mintMeta}
-        hasMore={Boolean(activity.nextCursor)}
-        loadingMore={activity.isFetching && cursor != null}
-        onLoadMore={
-          activity.nextCursor ? () => setCursor(activity.nextCursor) : undefined
-        }
-      />
+      {initialLoading ? (
+        <WalletPanelSkeleton />
+      ) : (
+        <ActivityList
+          items={pages}
+          emptyLabel={copy.wallet.noActivity}
+          assetMetaByMint={activity.mintMeta}
+          hasMore={Boolean(activity.nextCursor)}
+          loadingMore={activity.isFetching && cursor != null}
+          onLoadMore={
+            activity.nextCursor
+              ? () => setCursor(activity.nextCursor)
+              : undefined
+          }
+        />
+      )}
     </div>
   );
 }

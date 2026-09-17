@@ -5,8 +5,10 @@ import { useMemo, useState } from "react";
 import { NavBar, NavBarBack } from "@/components/shared/nav-bar";
 import { GroupedList } from "@/components/shared/grouped-list";
 import { TokenHoldingRow } from "@/components/wallet/token-holding-row";
+import { WalletPanelSkeleton } from "@/components/wallet/wallet-panel-skeleton";
 import { Input } from "@/components/ui/input";
 import { copy } from "@/lib/copy/phygital";
+import { walletContentColumnClass, walletDesktopTitleClass } from "@/lib/layout";
 import type { PaymentTokenHolding } from "@/lib/tokens/payment-token";
 import type { SendAssetRef } from "@/lib/wallet/send-asset-ref";
 import {
@@ -17,10 +19,12 @@ import {
 /** Full token inventory — search when the list is long. */
 export function TokensAllPanel({
   holdings,
+  loading = false,
   onBack,
   onSelect,
 }: {
   holdings: PaymentTokenHolding[];
+  loading?: boolean;
   onBack: () => void;
   onSelect: (asset: SendAssetRef) => void;
 }) {
@@ -40,34 +44,42 @@ export function TokensAllPanel({
   }, [sorted, query]);
 
   return (
-    <div className="flex flex-1 flex-col gap-4">
+    <div className={walletContentColumnClass}>
       <NavBar
+        desktopHidden
         align="start"
-        leading={<NavBarBack onClick={onBack} desktopHidden />}
+        leading={<NavBarBack onClick={onBack} />}
         title={copy.wallet.tokens}
       />
+      <h1 className={walletDesktopTitleClass}>{copy.wallet.tokens}</h1>
 
-      {showSearch ? (
-        <Input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={copy.wallet.searchTokens}
-          className="mx-1"
-          autoCapitalize="off"
-          autoCorrect="off"
-        />
-      ) : null}
-
-      {filtered.length === 0 ? (
-        <p className="px-4 py-8 text-center text-sm text-muted-foreground">
-          {copy.wallet.noMatchingTokens}
-        </p>
+      {loading && holdings.length === 0 ? (
+        <WalletPanelSkeleton />
       ) : (
-        <GroupedList>
-          {filtered.map((h) => (
-            <TokenHoldingRow key={h.mint} holding={h} onSelect={onSelect} />
-          ))}
-        </GroupedList>
+        <>
+          {showSearch ? (
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={copy.wallet.searchTokens}
+              className="mx-1"
+              autoCapitalize="off"
+              autoCorrect="off"
+            />
+          ) : null}
+
+          {filtered.length === 0 ? (
+            <p className="px-4 py-8 text-center text-sm text-muted-foreground">
+              {copy.wallet.noMatchingTokens}
+            </p>
+          ) : (
+            <GroupedList>
+              {filtered.map((h) => (
+                <TokenHoldingRow key={h.mint} holding={h} onSelect={onSelect} />
+              ))}
+            </GroupedList>
+          )}
+        </>
       )}
     </div>
   );

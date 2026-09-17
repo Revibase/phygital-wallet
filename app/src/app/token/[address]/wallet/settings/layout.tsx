@@ -8,7 +8,7 @@ import {
   useWalletNav,
   useWalletSession,
 } from "@/components/wallet/wallet-route-shell";
-import { settingsDesktopClass } from "@/lib/layout";
+import { settingsDesktopClass, walletFormColumnClass } from "@/lib/layout";
 import { settingsTargetFromPathname } from "@/lib/wallet/token-routes";
 
 /**
@@ -40,7 +40,7 @@ export default function WalletSettingsLayout({
           onOpen={(target) => goSettings(target)}
         />
       </aside>
-      <div className="flex min-w-0 flex-1 flex-col lg:max-w-xl">{children}</div>
+      <div className={walletFormColumnClass}>{children}</div>
     </div>
   );
 }

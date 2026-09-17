@@ -21,7 +21,7 @@ function groupedRowClass({
       : "flex min-h-11 w-full items-center gap-3 px-4 py-3 text-left",
     destructive && "text-destructive",
     interactive && destructive && "hover:text-destructive",
-    className
+    className,
   );
 }
 
@@ -93,7 +93,9 @@ export function GroupedRow({
       <div className="min-w-0 flex-1">
         <div className="text-sm font-medium">{children}</div>
         {subtitle ? (
-          <div className="mt-0.5 text-xs text-muted-foreground">{subtitle}</div>
+          <div className="mt-0.5 text-xs text-muted-foreground line-clamp-2">
+            {subtitle}
+          </div>
         ) : null}
       </div>
       {trailing ??

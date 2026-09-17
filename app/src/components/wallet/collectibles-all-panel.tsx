@@ -4,8 +4,10 @@ import { useMemo, useState } from "react";
 
 import { NavBar, NavBarBack } from "@/components/shared/nav-bar";
 import { CollectiblesGrid } from "@/components/wallet/collectibles-grid";
+import { WalletPanelSkeleton } from "@/components/wallet/wallet-panel-skeleton";
 import { Input } from "@/components/ui/input";
 import { copy } from "@/lib/copy/phygital";
+import { walletContentColumnClass, walletDesktopTitleClass } from "@/lib/layout";
 import type { WalletCollectible } from "@/lib/wallet/portfolio-types";
 import {
   ALL_LIST_SEARCH_THRESHOLD,
@@ -16,11 +18,13 @@ import {
 export function CollectiblesAllPanel({
   collectibles,
   linkedMint,
+  loading = false,
   onBack,
   onSelect,
 }: {
   collectibles: WalletCollectible[];
   linkedMint?: string | null;
+  loading?: boolean;
   onBack: () => void;
   onSelect: (c: WalletCollectible) => void;
 }) {
@@ -43,34 +47,42 @@ export function CollectiblesAllPanel({
   }, [sorted, query]);
 
   return (
-    <div className="flex flex-1 flex-col gap-4">
+    <div className={walletContentColumnClass}>
       <NavBar
+        desktopHidden
         align="start"
-        leading={<NavBarBack onClick={onBack} desktopHidden />}
+        leading={<NavBarBack onClick={onBack} />}
         title={copy.wallet.collectibles}
       />
+      <h1 className={walletDesktopTitleClass}>{copy.wallet.collectibles}</h1>
 
-      {showSearch ? (
-        <Input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={copy.wallet.searchCollectibles}
-          className="mx-1"
-          autoCapitalize="off"
-          autoCorrect="off"
-        />
-      ) : null}
-
-      {filtered.length === 0 ? (
-        <p className="px-4 py-8 text-center text-sm text-muted-foreground">
-          {copy.wallet.noMatchingCollectibles}
-        </p>
+      {loading && collectibles.length === 0 ? (
+        <WalletPanelSkeleton />
       ) : (
-        <CollectiblesGrid
-          collectibles={filtered}
-          onSelect={onSelect}
-          className="px-1 pb-4"
-        />
+        <>
+          {showSearch ? (
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={copy.wallet.searchCollectibles}
+              className="mx-1"
+              autoCapitalize="off"
+              autoCorrect="off"
+            />
+          ) : null}
+
+          {filtered.length === 0 ? (
+            <p className="px-4 py-8 text-center text-sm text-muted-foreground">
+              {copy.wallet.noMatchingCollectibles}
+            </p>
+          ) : (
+            <CollectiblesGrid
+              collectibles={filtered}
+              onSelect={onSelect}
+              className="px-1 pb-4"
+            />
+          )}
+        </>
       )}
     </div>
   );

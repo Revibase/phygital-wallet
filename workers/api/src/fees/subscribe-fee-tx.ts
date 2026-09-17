@@ -3,6 +3,7 @@
  * (`POST /webhooks/transactions` → WALLET_TX_QUEUE).
  *
  * Ledger lives on TokenSigner DO; idempotent by `${signature}:credit|debit`.
+ * Top-up credits require `executeWithAuthority` (token PDA from that ix — no memo).
  */
 import {
   AccountRole,
@@ -16,12 +17,9 @@ import {
   type ReadonlyUint8Array,
 } from "@solana/kit";
 import {
-  MEMO_PROGRAM_ADDRESS,
-  parseAddMemoInstruction,
-} from "@solana-program/memo";
-import {
   identifyPhygitalWalletInstruction,
   parseExecuteInstruction,
+  parseExecuteWithAuthorityInstruction,
   PhygitalWalletInstruction,
   PHYGITAL_WALLET_PROGRAM_ADDRESS,
 } from "phygital-wallet-sdk";
@@ -152,69 +150,37 @@ function allCompiledIxs(confirmed: ConfirmedTx): CompiledIx[] {
   return [...top, ...inner];
 }
 
-/** Decode memo instruction data via `@solana-program/memo`. */
-export function decodeMemoText(data: string | undefined): string | null {
-  if (!data) return null;
-  const trimmed = data.trim();
-  if (!trimmed) return null;
-  if (tryParseAddress(trimmed)) return trimmed;
-  try {
-    const decoded = parseAddMemoInstruction({
-      programAddress: MEMO_PROGRAM_ADDRESS,
-      data: decodeIxData(trimmed) ?? new TextEncoder().encode(trimmed),
-    });
-    return decoded.data.memo.trim() || null;
-  } catch {
-    return trimmed;
-  }
-}
-
-export function findMemoPhygitalToken(
-  confirmed: ConfirmedTx,
-  keys: string[],
-): string | null {
-  for (const ix of allCompiledIxs(confirmed)) {
-    const kitIx = compiledToKitIx(ix, keys);
-    if (!kitIx) continue;
-    if (kitIx.programAddress !== MEMO_PROGRAM_ADDRESS) continue;
-    try {
-      const decoded = parseAddMemoInstruction(kitIx);
-      const addr = tryParseAddress(decoded.data.memo);
-      if (addr) return String(addr);
-    } catch {
-      const fallback = decodeMemoText(ix.data);
-      const addr = tryParseAddress(fallback);
-      if (addr) return String(addr);
-    }
-  }
-  return null;
-}
-
 type ExecuteAccounts = {
   phygitalToken: string;
 };
 
+/**
+ * Token PDA from `execute` (sponsored debit) or `executeWithAuthority` (top-up credit).
+ */
 export function findExecuteAccounts(
   confirmed: ConfirmedTx,
   keys: string[],
 ): ExecuteAccounts | null {
   for (const ix of allCompiledIxs(confirmed)) {
     const kitIx = compiledToKitIx(ix, keys);
-    if (!kitIx || kitIx.accounts.length < 6) continue;
+    if (!kitIx) continue;
     if (kitIx.programAddress !== PHYGITAL_WALLET_PROGRAM_ADDRESS) continue;
     try {
-      if (
-        identifyPhygitalWalletInstruction(kitIx) !==
-        PhygitalWalletInstruction.Execute
-      ) {
-        continue;
+      const id = identifyPhygitalWalletInstruction(kitIx);
+      if (id === PhygitalWalletInstruction.Execute) {
+        const parsed = parseExecuteInstruction(kitIx);
+        const phygitalToken = String(parsed.accounts.phygitalToken.address);
+        if (!tryParseAddress(phygitalToken)) continue;
+        return { phygitalToken };
       }
-      const parsed = parseExecuteInstruction(kitIx);
-      const phygitalToken = String(parsed.accounts.phygitalToken.address);
-      if (!tryParseAddress(phygitalToken)) continue;
-      return { phygitalToken };
+      if (id === PhygitalWalletInstruction.ExecuteWithAuthority) {
+        const parsed = parseExecuteWithAuthorityInstruction(kitIx);
+        const phygitalToken = String(parsed.accounts.phygitalToken.address);
+        if (!tryParseAddress(phygitalToken)) continue;
+        return { phygitalToken };
+      }
     } catch {
-      /* not execute */
+      /* not an execute variant we credit/debit */
     }
   }
   return null;
@@ -261,18 +227,15 @@ export async function processSubscribeFeeTx(
 
   if (accumulator) {
     const change = nativeChange(keys, meta, accumulator);
-    if (change > 0) {
-      const token = execute?.phygitalToken ?? findMemoPhygitalToken(confirmed, keys);
-      if (token) {
-        events.push({
-          token,
-          event: {
-            signature: `${signature}:credit`,
-            kind: "credit",
-            lamports: change,
-          },
-        });
-      }
+    if (change > 0 && execute?.phygitalToken) {
+      events.push({
+        token: execute.phygitalToken,
+        event: {
+          signature: `${signature}:credit`,
+          kind: "credit",
+          lamports: change,
+        },
+      });
     }
   }
 

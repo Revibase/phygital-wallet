@@ -3,6 +3,7 @@
 import { useParams } from "next/navigation";
 
 import { CollectibleDetailPanel } from "@/components/wallet/collectible-detail-panel";
+import { WalletPanelSkeleton } from "@/components/wallet/wallet-panel-skeleton";
 import {
   useWalletNav,
   useWalletSession,
@@ -26,6 +27,10 @@ export default function WalletCollectibleDetailPage() {
         {copy.wallet.noMatchingCollectibles}
       </p>
     );
+  }
+
+  if (portfolio.isLoading && !portfolio.data) {
+    return <WalletPanelSkeleton variant="detail" />;
   }
 
   const detail = portfolio.data?.collectibles.find(

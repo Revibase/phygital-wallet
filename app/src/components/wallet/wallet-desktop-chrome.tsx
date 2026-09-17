@@ -1,6 +1,12 @@
 "use client";
 
-import { createContext, useContext, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   ArrowDown,
   ArrowUp,
@@ -33,11 +39,23 @@ type WalletSection =
   | "receive"
   | "other";
 
-const WalletChromeContext = createContext<{ hasRail: true } | null>(null);
+const WalletChromeContext = createContext<{ hasRail: boolean } | null>(null);
 
-/** True inside desktop wallet chrome (rail present from `lg` up). */
+/** True when the desktop wallet rail is actually visible (`lg+`). */
 export function useWalletChrome() {
   return useContext(WalletChromeContext);
+}
+
+function useLgRailVisible() {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const sync = () => setVisible(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+  return visible;
 }
 
 function sectionFromPath(
@@ -90,7 +108,7 @@ function RailNavItem({
 }
 
 /**
- * Desktop-native wallet chrome: sticky left rail + main pane from `lg`.
+ * Desktop-native wallet chrome: full-height edge-docked sidebar + scrolling main.
  * Below `lg`, children render as the existing mobile stack (rail hidden).
  */
 export function WalletDesktopChrome({
@@ -119,22 +137,24 @@ export function WalletDesktopChrome({
   const section = sectionFromPath(pathname, tokenAddress);
   const label =
     collectible?.name ?? (mint ? copy.home.card : copy.common.wallet);
+  const hasRail = useLgRailVisible();
 
   return (
-    <WalletChromeContext.Provider value={{ hasRail: true }}>
+    <WalletChromeContext.Provider value={{ hasRail }}>
       <div className={walletDesktopChromeClass}>
         <aside
           className={walletDesktopRailClass}
           aria-label={copy.common.wallet}
         >
           <div className="flex flex-col gap-3">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={mint ? goCard : goHome}
-              className="h-auto min-h-0 w-full items-start justify-start gap-3 rounded-2xl px-2.5 py-2.5 text-left hover:bg-muted/40"
-            >
-              <span className="relative size-11 shrink-0 overflow-hidden rounded-xl bg-muted">
+            <div className="flex w-full items-start gap-3 rounded-2xl px-2.5 py-2.5 hover:bg-muted/40">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={mint ? goCard : goHome}
+                aria-label={label}
+                className="relative size-11 shrink-0 overflow-hidden rounded-xl bg-muted p-0 hover:bg-muted"
+              >
                 {collectible?.image ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -147,19 +167,23 @@ export function WalletDesktopChrome({
                     {(label.trim().charAt(0) || "?").toUpperCase()}
                   </span>
                 )}
-              </span>
-              <span className="min-w-0 flex-1 space-y-0.5">
-                <span className="block truncate text-sm font-semibold tracking-tight text-foreground">
+              </Button>
+              <div className="min-w-0 flex-1 space-y-0.5 pt-0.5">
+                <button
+                  type="button"
+                  onClick={mint ? goCard : goHome}
+                  className="block w-full truncate text-left text-sm font-semibold tracking-tight text-foreground"
+                >
                   {label}
-                </span>
+                </button>
                 <CopyableAddress
                   address={walletAddress}
                   length={4}
                   label={copy.address.wallet}
                   className="min-h-0 py-0 text-[11px] text-muted-foreground"
                 />
-              </span>
-            </Button>
+              </div>
+            </div>
 
             <div className="flex gap-2 px-0.5">
               <Button

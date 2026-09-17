@@ -11,7 +11,12 @@ import { useRpcPreference } from "@/hooks/wallet/use-rpc-preference";
 import { useWalletPolicy } from "@/hooks/token/use-wallet-policy";
 import { useWalletSessionMode } from "@/hooks/wallet/use-wallet-session-mode";
 import { copy } from "@/lib/copy/phygital";
-import { settingsHubClass, settingsPanelListClass } from "@/lib/layout";
+import {
+  settingsHubClass,
+  settingsPanelListClass,
+  walletContentColumnClass,
+  walletDesktopTitleClass,
+} from "@/lib/layout";
 import { cn } from "@/lib/utils";
 
 export type SettingsTarget = "rpcConnection" | "feeBalance" | "walletPolicy";
@@ -123,19 +128,17 @@ export function SettingsHub({
   );
 
   if (variant === "panel") {
-    return <div className="flex flex-col gap-1">{lists}</div>;
+    return lists;
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-6">
+    <div className={walletContentColumnClass}>
       <NavBar
         desktopHidden
         leading={<NavBarBack onClick={onBack} />}
         title={copy.wallet.settings}
       />
-      <h1 className="hidden text-display-md tracking-tight lg:block">
-        {copy.wallet.settings}
-      </h1>
+      <h1 className={walletDesktopTitleClass}>{copy.wallet.settings}</h1>
       {lists}
     </div>
   );

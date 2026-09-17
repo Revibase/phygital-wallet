@@ -27,12 +27,15 @@ export function WalletPolicyPanel({
   const { isOwner, isSignedIn, isClaimed } = useTokenOwner(phygitalTokenPda);
   const [mode, setMode] = useState<Mode>("view");
 
+  // On desktop the master list already names this setting. Hide the duplicate
+  // chrome in view mode so ModeHeader tops the column. Keep it in edit mode
+  // for back-to-status.
   const header = (
     <NavBar
+      desktopHidden={mode === "view"}
       leading={
         <NavBarBack
           onClick={mode === "edit" ? () => setMode("view") : onBack}
-          desktopHidden
         />
       }
       title={copy.wallet.policy}

@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { InAppBrowserGate } from "@/components/shared/in-app-browser-gate";
 import { WalletDesktopChrome } from "@/components/wallet/wallet-desktop-chrome";
+import { WalletPanelSkeleton } from "@/components/wallet/wallet-panel-skeleton";
 import type { SettingsTarget } from "@/components/wallet/settings-hub";
 import { useTokenSession } from "@/components/token/token-session";
 import { useWalletPda } from "@/hooks/wallet/use-wallet-pda";
@@ -14,12 +15,13 @@ import { useIsInAppBrowser } from "@/hooks/layout/use-is-in-app-browser";
 import { tokenHasLinkedMint } from "@/lib/phygital/token";
 import type { Collectible } from "@/lib/tokens/collectible";
 import { copy } from "@/lib/copy/phygital";
-import { isWalletCeremonyPath } from "@/lib/layout";
+import { centeredBlockClass, walletContentColumnClass } from "@/lib/layout";
 import { tokenHref, walletHref, walletSendHref, walletSettingsHref } from "@/lib/wallet/token-routes";
 import { navigateBack } from "@/lib/wallet/navigate-back";
 import { isCollectibleSendKind, type SendAssetRef } from "@/lib/wallet/send-asset-ref";
 import { invalidateWalletBalances } from "@/lib/queries";
 import type { PhygitalToken } from "@/lib/phygital/token";
+import { cn } from "@/lib/utils";
 
 export type WalletGo =
   | [to: "send" | "receive" | "tokens" | "collectibles" | "activity" | "settings"]
@@ -95,16 +97,40 @@ export function WalletRouteShell({ children }: { children: ReactNode }) {
   const sessionValue = useMemo(() => walletAddress ? { token, tokenAddress, walletAddress, mint, collectible } : null, [token, tokenAddress, walletAddress, mint, collectible]);
   const navValue = useMemo(() => ({ go, goSettings, goSend, goHome, goCard, backHome, backSettings, backTo, refresh }), [go, goSettings, goSend, goHome, goCard, backHome, backSettings, backTo, refresh]);
 
-  if (!sessionValue) return <p className="py-10 text-center text-sm text-muted-foreground">{copy.common.loading}</p>;
+  if (!sessionValue) {
+    return (
+      <div
+        className={cn(
+          centeredBlockClass,
+          "w-full lg:items-stretch lg:justify-start lg:px-8 lg:py-6 lg:text-left",
+        )}
+      >
+        <WalletPanelSkeleton
+          variant="home"
+          className={cn("w-full", walletContentColumnClass)}
+        />
+      </div>
+    );
+  }
   if (inApp) return <InAppBrowserGate body={copy.gate.openInBrowserBody} />;
 
-  const body = isWalletCeremonyPath(pathname) ? (
-    <div className="mx-auto flex w-full min-w-0 flex-1 flex-col"><WalletMain>{children}</WalletMain></div>
-  ) : (
-    <WalletDesktopChrome pathname={pathname} tokenAddress={tokenAddress} walletAddress={sessionValue.walletAddress} mint={mint} collectible={collectible} go={go} goCard={goCard} goSend={() => goSend()} goHome={goHome}>
-      <WalletMain>{children}</WalletMain>
-    </WalletDesktopChrome>
+  return (
+    <WalletSessionContext.Provider value={sessionValue}>
+      <WalletNavContext.Provider value={navValue}>
+        <WalletDesktopChrome
+          pathname={pathname}
+          tokenAddress={tokenAddress}
+          walletAddress={sessionValue.walletAddress}
+          mint={mint}
+          collectible={collectible}
+          go={go}
+          goCard={goCard}
+          goSend={() => goSend()}
+          goHome={goHome}
+        >
+          <WalletMain>{children}</WalletMain>
+        </WalletDesktopChrome>
+      </WalletNavContext.Provider>
+    </WalletSessionContext.Provider>
   );
-
-  return <WalletSessionContext.Provider value={sessionValue}><WalletNavContext.Provider value={navValue}>{body}</WalletNavContext.Provider></WalletSessionContext.Provider>;
 }

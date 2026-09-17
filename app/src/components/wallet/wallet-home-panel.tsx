@@ -5,9 +5,9 @@ import { LazyMotion, domAnimation, m, useReducedMotion } from "framer-motion";
 import { ArrowDown, ArrowUp, Clock3, RefreshCcw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { CollectiblesGrid } from "@/components/wallet/collectibles-grid";
 import { TokenHoldingRow } from "@/components/wallet/token-holding-row";
+import { WalletPanelSkeleton } from "@/components/wallet/wallet-panel-skeleton";
 import { GroupedList } from "@/components/shared/grouped-list";
 import { copy } from "@/lib/copy/phygital";
 import type {
@@ -31,11 +31,6 @@ import { cn } from "@/lib/utils";
 /** Shared Wallet panel — calm home: capped tokens + collectibles, See All. */
 const EMPTY_HOLDINGS: WalletPortfolio["holdings"] = [];
 const EMPTY_COLLECTIBLES: WalletPortfolio["collectibles"] = [];
-const SKELETON_ROWS = [
-  "wallet-home-1",
-  "wallet-home-2",
-  "wallet-home-3",
-] as const;
 const sectionTransition = {
   duration: 0.18,
   ease: easeOut,
@@ -143,37 +138,7 @@ export function WalletHomePanel({
   const refreshing = status === "refreshing";
 
   if (loading && !portfolio) {
-    return (
-      <div className={cn("flex flex-1 flex-col gap-6", className)}>
-        <div className="flex flex-col items-center gap-2 py-1 text-center">
-          <Skeleton className="h-10 w-44 rounded-2xl" />
-          <Skeleton className="h-4 w-32" />
-        </div>
-
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-10">
-            <div className="flex flex-col items-center gap-2">
-              <Skeleton className="size-12 rounded-2xl" />
-              <Skeleton className="h-3 w-10" />
-            </div>
-            <div className="flex flex-col items-center gap-2">
-              <Skeleton className="size-12 rounded-2xl" />
-              <Skeleton className="h-3 w-10" />
-            </div>
-          </div>
-          <Skeleton className="size-9 rounded-2xl" />
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <Skeleton className="mx-4 h-3 w-16" />
-          <div className="overflow-hidden rounded-2xl bg-grouped">
-            {SKELETON_ROWS.map((key) => (
-              <Skeleton key={key} className="h-14 rounded-none bg-muted/20" />
-            ))}
-          </div>
-        </div>
-      </div>
-    );
+    return <WalletPanelSkeleton variant="home" className={className} />;
   }
 
   return (
@@ -413,7 +378,7 @@ function QuietNotice({
   if (!action || !onClick) {
     return (
       <m.div
-        className="mx-4 rounded-2xl bg-muted/20 px-4 py-2.5"
+        className="rounded-2xl bg-muted/20 px-4 py-2.5"
         initial={enter.initial}
         animate={enter.animate}
         transition={snapEnterTransition}
@@ -426,7 +391,7 @@ function QuietNotice({
     <Button
       type="button"
       variant="ghost"
-      className="mx-4 h-auto min-h-0 w-[calc(100%-2rem)] justify-between gap-3 rounded-2xl bg-muted/20 px-4 py-2.5 text-left hover:bg-muted/30"
+      className="h-auto min-h-0 w-full justify-between gap-3 rounded-2xl bg-muted/20 px-4 py-2.5 text-left hover:bg-muted/30"
       onClick={onClick}
     >
       <p className="min-w-0 flex-1 truncate text-xs font-normal text-muted-foreground">

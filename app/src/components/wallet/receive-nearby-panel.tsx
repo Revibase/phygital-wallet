@@ -23,6 +23,7 @@ import {
 import { useVerifiedTokens } from "@/hooks/wallet/use-verified-tokens";
 import { useWalletPortfolio } from "@/hooks/wallet/use-wallet-portfolio";
 import { brand, copy } from "@/lib/copy/phygital";
+import { walletDesktopTitleClass, walletFormColumnClass } from "@/lib/layout";
 import {
   applyOptimisticPortfolioDelta,
   applyOptimisticWalletActivity,
@@ -34,7 +35,7 @@ import {
   restoreWalletActivitySnapshot,
   type WalletActivitySnapshot,
 } from "@/lib/queries";
-import { shortAddress } from "@/lib/utils";
+import { cn, shortAddress } from "@/lib/utils";
 import { toUserErrorMessage } from "@/lib/user-errors";
 import { policySoftDenyBody } from "@/lib/wallet/policy-deny-copy";
 import { ALL_LIST_SEARCH_THRESHOLD } from "@/lib/wallet/portfolio-preview";
@@ -478,8 +479,9 @@ export function ReceiveNearbyPanel({
       : copy.wallet.nearbyPolicyBody;
 
     return (
-      <div className="flex min-h-0 flex-1 flex-col gap-6">
+      <div className={cn(walletFormColumnClass, "min-h-0")}>
         <NavBar
+          desktopHidden
           leading={
             <Button
               type="button"
@@ -533,8 +535,9 @@ export function ReceiveNearbyPanel({
 
   if (phase === "summary" && from && asset) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col gap-6">
+      <div className={cn(walletFormColumnClass, "min-h-0")}>
         <NavBar
+          desktopHidden
           leading={
             <Button
               type="button"
@@ -547,6 +550,9 @@ export function ReceiveNearbyPanel({
           }
           title={copy.wallet.nearbySummaryTitle}
         />
+        <h1 className={walletDesktopTitleClass}>
+          {copy.wallet.nearbySummaryTitle}
+        </h1>
 
         <div className="flex flex-1 flex-col items-center justify-center gap-5 px-2 text-center">
           <div className="flex flex-col items-center gap-2">
@@ -631,8 +637,9 @@ export function ReceiveNearbyPanel({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-6">
+    <div className={cn(walletFormColumnClass, "min-h-0")}>
       <NavBar
+        desktopHidden
         leading={
           <Button type="button" variant="ghost" size="sm" onClick={onClose}>
             {copy.common.cancel}
@@ -640,6 +647,7 @@ export function ReceiveNearbyPanel({
         }
         title={copy.wallet.receiveNearby}
       />
+      <h1 className={walletDesktopTitleClass}>{copy.wallet.receiveNearby}</h1>
 
       <Button
         type="button"

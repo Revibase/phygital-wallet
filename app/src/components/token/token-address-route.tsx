@@ -14,16 +14,21 @@ import { RequireClaimedAccessory } from "@/components/wallet/require-claimed-acc
 import { useResolvedDasCollectible } from "@/hooks/token/use-das-collectible";
 import { usePhygitalTokenByAddress } from "@/hooks/token/use-phygital-token";
 import { copy } from "@/lib/copy/phygital";
-import { isWalletCeremonyPath, type ShellLayout } from "@/lib/layout";
+import type { ShellLayout } from "@/lib/layout";
 import { tokenHasLinkedMint, type PhygitalToken } from "@/lib/phygital/token";
 import { toUserErrorMessage } from "@/lib/user-errors";
 
 export type TokenHomeRenderArgs = { token: PhygitalToken };
 
 function layoutForRoute(token: PhygitalToken, pathname: string): ShellLayout {
-  if (isWalletCeremonyPath(pathname)) return "compact";
   if (/\/wallet(?:\/|$)/.test(pathname)) return "wallet";
   return tokenHasLinkedMint(token) ? "gallery" : "compact";
+}
+
+function bootLayoutForPath(pathname: string): ShellLayout {
+  if (/\/wallet(?:\/|$)/.test(pathname)) return "wallet";
+  // Entry / unlock boot: full-bleed on desktop (no floating phone frame).
+  return "compact";
 }
 
 /**
@@ -50,17 +55,11 @@ export function TokenAddressRoute({
   );
   const layout = sessionValue
     ? layoutForRoute(sessionValue.token, pathname)
-    : "compact";
+    : bootLayoutForPath(pathname);
 
-  return (
-    <TokenRouteShell layout={layout}>
-      {sessionValue ? (
-        <RequireClaimedAccessory phygitalTokenPda={tokenAddress}>
-          {typeof children === "function"
-            ? children(sessionValue)
-            : children ?? null}
-        </RequireClaimedAccessory>
-      ) : restoring || tokenQuery.isPending ? (
+  if (!sessionValue && (restoring || tokenQuery.isPending)) {
+    return (
+      <TokenRouteShell layout={layout}>
         <CeremonyShell>
           <NfcHoldStatus
             size="lg"
@@ -71,6 +70,18 @@ export function TokenAddressRoute({
             title={copy.verify.verifyingChip}
           />
         </CeremonyShell>
+      </TokenRouteShell>
+    );
+  }
+
+  return (
+    <TokenRouteShell layout={layout}>
+      {sessionValue ? (
+        <RequireClaimedAccessory phygitalTokenPda={tokenAddress}>
+          {typeof children === "function"
+            ? children(sessionValue)
+            : children ?? null}
+        </RequireClaimedAccessory>
       ) : (
         <GateMessage
           icon={<RevibaseMark className="size-5 text-muted-foreground" />}

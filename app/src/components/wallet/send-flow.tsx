@@ -24,6 +24,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { copy } from "@/lib/copy/phygital";
+import { walletDesktopTitleClass, walletFormColumnClass } from "@/lib/layout";
 import {
   applyOptimisticFeeBalance,
   applyOptimisticPortfolioDelta,
@@ -464,12 +465,13 @@ export function SendFlow({
   const form = (
     <LazyMotion features={domAnimation}>
       <m.div
-        className="flex flex-1 flex-col gap-5 md:mx-auto md:w-full md:max-w-xl lg:max-w-lg"
+        className={walletFormColumnClass}
         initial={enter.initial}
         animate={enter.animate}
         transition={snapEnterTransition}
       >
         <NavBar
+          desktopHidden
           className="mb-0"
           leading={
             <Button
@@ -484,6 +486,7 @@ export function SendFlow({
           }
           title={copy.wallet.send}
         />
+        <h1 className={walletDesktopTitleClass}>{copy.wallet.send}</h1>
 
         <Button
           type="button"

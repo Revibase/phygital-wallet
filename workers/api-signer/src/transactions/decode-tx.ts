@@ -6,10 +6,10 @@
  * `executeWithAuthorityUsingPolicies` (preview/simulation only).
  *
  * We do NOT decode each instruction's payload. The only inner detail we need is
- * whether the tx is a fee-balance TOP-UP (SOL → accumulator, wrapped in an
- * `execute`), so it can bypass the prepaid-balance gate — otherwise an empty
- * wallet could never fund its own fees. `phygitalToken` is read from a fixed
- * account slot per instruction.
+ * whether the tx is a fee-balance TOP-UP (SOL → accumulator, wrapped in
+ * `executeWithAuthority`), so it can bypass the prepaid-balance gate — otherwise
+ * an empty wallet could never fund its own fees. `phygitalToken` is read from a
+ * fixed account slot per instruction.
  */
 import {
   getBase64Encoder,
@@ -37,7 +37,7 @@ import {
   sliceExecuteRemainingAccounts,
 } from "phygital-wallet-sdk";
 
-import { MEMO_PROGRAM_ADDRESS, SYSTEM_PROGRAM_ADDRESS } from "@/fees/constants";
+import { SYSTEM_PROGRAM_ADDRESS } from "@/fees/constants";
 import { coded } from "@/shared/errors";
 import {
   COMPUTE_BUDGET_PROGRAM,
@@ -52,7 +52,6 @@ const TOP_LEVEL_OK = new Set<string>([
   COMPUTE_BUDGET_PROGRAM,
   SECP256R1_PROGRAM,
   PHYGITAL_WALLET_PROGRAM_ADDRESS,
-  MEMO_PROGRAM_ADDRESS,
 ]);
 
 /** Top-level programs allowed on `/sign` wire txs (no durable nonce). */
@@ -87,8 +86,8 @@ function asWalletInstruction(ix: Instruction): WalletIx {
 }
 
 /**
- * True when every inner instruction is a SOL transfer to the accumulator (plus
- * optional memo) — i.e. a fee-balance top-up, which bypasses the balance gate.
+ * True when every inner instruction is a SOL transfer to the accumulator —
+ * i.e. a fee-balance top-up (`executeWithAuthority`), which bypasses the balance gate.
  */
 function isFeeBalanceTopUpIntent(
   instructions: readonly Instruction[],
@@ -98,7 +97,6 @@ function isFeeBalanceTopUpIntent(
   let sawTransfer = false;
   for (const ix of instructions) {
     const program = String(ix.programAddress);
-    if (program === MEMO_PROGRAM_ADDRESS) continue;
     if (program !== SYSTEM_PROGRAM_ADDRESS) return false;
     // System Transfer: discriminator 2, destination is accounts[1].
     if (ix.data?.[0] !== 2) return false;

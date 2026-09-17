@@ -5,7 +5,7 @@ import { StatusPill } from "@/components/shared/status-pill";
 import { NavBar, NavBarBack } from "@/components/shared/nav-bar";
 import { Separator } from "@/components/ui/separator";
 import { copy } from "@/lib/copy/phygital";
-import { detailSplitClass } from "@/lib/layout";
+import { detailSplitClass, walletContentColumnClass, walletDesktopTitleClass } from "@/lib/layout";
 import type { WalletCollectible } from "@/lib/wallet/portfolio-types";
 import { collectibleInterfaceLabel } from "@/lib/wallet/send-asset-ref";
 
@@ -24,8 +24,9 @@ export function CollectibleDetailPanel({
   const badge = collectibleInterfaceLabel(collectible);
 
   return (
-    <div className="flex flex-1 flex-col gap-5">
+    <div className={walletContentColumnClass}>
       <NavBar
+        desktopHidden
         align="start"
         className="mb-0"
         leading={
@@ -57,9 +58,7 @@ export function CollectibleDetailPanel({
 
         <div className="flex min-w-0 flex-col gap-4">
           <div className="space-y-2 px-0.5">
-            <h2 className="hidden text-display-md tracking-tight lg:block">
-              {collectible.name}
-            </h2>
+            <h2 className={walletDesktopTitleClass}>{collectible.name}</h2>
             {collectible.collectionName ? (
               <p className="text-sm text-muted-foreground">
                 {collectible.collectionName}
@@ -70,7 +69,7 @@ export function CollectibleDetailPanel({
 
           <Separator />
 
-          <div className="flex max-w-sm flex-col gap-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+          <div className="flex w-full max-w-sm flex-col gap-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] lg:max-w-xs">
             <Button
               type="button"
               size="lg"

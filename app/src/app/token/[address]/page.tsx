@@ -22,7 +22,7 @@ export default function TokenAddressPage() {
   }, [minted, router, session.token.address]);
 
   if (!minted) {
-    return <RouteBoot />;
+    return <RouteBoot layout="wallet" />;
   }
 
   return <TokenMintedHome token={session.token} />;

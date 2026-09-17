@@ -199,7 +199,6 @@ export const copy = {
     topUpFeesTitle: "Top up fees",
     topUpFeesBody: "Move SOL from this wallet into your fee balance.",
     topUpAmount: "Amount (SOL)",
-    holdToTopUp: "Hold to top up",
     confirmToTopUp: "Confirm on this phone",
     topUpPending: "Top-up sent. Balance updates shortly.",
     topUpSuccess: "Top-up submitted",

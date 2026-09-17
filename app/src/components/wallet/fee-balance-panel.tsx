@@ -13,6 +13,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useFeeBalance } from "@/hooks/wallet/use-fee-balance";
 import { useWalletPda } from "@/hooks/wallet/use-wallet-pda";
 import { copy } from "@/lib/copy/phygital";
+import { walletDesktopTitleClass } from "@/lib/layout";
 import {
   applyOptimisticFeeBalance,
   applyOptimisticPortfolioDelta,
@@ -24,10 +25,7 @@ import {
   type WalletActivitySnapshot,
 } from "@/lib/queries";
 import { toUserErrorMessage } from "@/lib/user-errors";
-import {
-  buildTopUpInstructions,
-  topUpFeeBalance,
-} from "@/lib/wallet/top-up-fee-balance";
+import { buildTopUpInstructions } from "@/lib/wallet/top-up-fee-balance";
 import { useWalletTransaction } from "@/hooks/wallet/use-wallet-transaction";
 import { WalletApprovalSheet } from "@/components/wallet/wallet-approval-sheet";
 import {
@@ -36,13 +34,8 @@ import {
 } from "@/lib/tokens/payment-token";
 import type { FeeBalance } from "@/lib/wallet/fee-balance-client";
 import type { WalletPortfolio } from "@/lib/wallet/portfolio-types";
-import {
-  isWalletSignCeremonyPhase,
-  walletSignPhaseCopy,
-  type PhygitalWalletSignPhase,
-} from "@/lib/wallet/sign-phase-copy";
 
-type Phase = "form" | "holding" | "success";
+type Phase = "form" | "success";
 
 type TopUpSnapshot = {
   signature: string;
@@ -51,7 +44,7 @@ type TopUpSnapshot = {
   portfolioBefore: WalletPortfolio | undefined;
 };
 
-/** Settings → network fees: show balance + Hold to top up. */
+/** Settings → network fees: show balance + top up via executeWithAuthority. */
 export function FeeBalancePanel({
   phygitalTokenPda,
   onBack,
@@ -65,9 +58,6 @@ export function FeeBalancePanel({
   const walletTx = useWalletTransaction(phygitalTokenPda);
   const [amount, setAmount] = useState("0.01");
   const [phase, setPhase] = useState<Phase>("form");
-  const [signPhase, setSignPhase] = useState<PhygitalWalletSignPhase | null>(
-    null
-  );
   const [busy, setBusy] = useState(false);
 
   const balanceUi = fee.data?.balanceUi ?? "0";
@@ -78,32 +68,18 @@ export function FeeBalancePanel({
   async function runTopUp() {
     if (!canTopUp) return;
     setBusy(true);
-    setSignPhase(null);
 
     const outcome = await walletTx.run<TopUpSnapshot>({
-      send: async (mode) => {
-        if (mode === "authority") {
-          const { instructions } = await buildTopUpInstructions({
-            phygitalTokenPda,
-            amountUi: amount,
-          });
-          return walletTx.sendWithAuthority(instructions);
-        }
-        return topUpFeeBalance({
+      preferredMode: "authority",
+      send: async () => {
+        const { instructions } = await buildTopUpInstructions({
           phygitalTokenPda,
           amountUi: amount,
-          signer: {
-            onPhaseChange: (phase) => {
-              if (walletTx.isOwnerBrowse) return;
-              setSignPhase(phase);
-              if (isWalletSignCeremonyPhase(phase)) setPhase("holding");
-            },
-          },
         });
+        return walletTx.sendWithAuthority(instructions);
       },
       optimistic: {
         apply: (signature) => {
-          if (!walletTx.isOwnerBrowse) setPhase("holding");
           const feeBefore = applyOptimisticFeeBalance(queryClient, {
             token: phygitalTokenPda,
             amountUi: amount,
@@ -161,63 +137,33 @@ export function FeeBalancePanel({
       },
       onSent: () => {
         setPhase("success");
-        setSignPhase(null);
       },
       onConfirmError: (err) => {
         toast.error(toUserErrorMessage(err));
       },
       onError: (e) => {
-        setSignPhase(null);
         setPhase("form");
         toast.error(toUserErrorMessage(e));
       },
     });
 
     if (outcome.status !== "sent") {
-      setSignPhase(null);
       setPhase("form");
     }
     setBusy(false);
   }
 
-  if (phase === "holding" || phase === "success") {
-    const holdingCopy = signPhase
-      ? walletSignPhaseCopy(signPhase)
-      : {
-          title: copy.wallet.holdToTopUp,
-          body: copy.wallet.holdCeremonyBody,
-          pulse: true,
-        };
+  if (phase === "success") {
     return (
       <>
-      <CeremonyShell
-        leading={
-          phase === "success" ? undefined : (
-            <NavBar
-              leading={
-                <Button type="button" variant="ghost" size="sm" onClick={onBack}>
-                  {copy.common.cancel}
-                </Button>
-              }
-            />
-          )
-        }
-      >
-        <NfcHoldStatus
-          size="lg"
-          pulsing={phase === "holding" && holdingCopy.pulse}
-          busy={phase === "holding" && !holdingCopy.pulse}
-          progress={phase === "holding"}
-          tone={phase === "success" ? "success" : "default"}
-          imageSrc={resolveTokenIconSrc(NATIVE_SOL_MINT, null)}
-          title={
-            phase === "success" ? copy.wallet.topUpSuccess : holdingCopy.title
-          }
-          body={
-            phase === "success" ? copy.wallet.topUpPending : holdingCopy.body
-          }
-          action={
-            phase === "success" ? (
+        <CeremonyShell>
+          <NfcHoldStatus
+            size="lg"
+            tone="success"
+            imageSrc={resolveTokenIconSrc(NATIVE_SOL_MINT, null)}
+            title={copy.wallet.topUpSuccess}
+            body={copy.wallet.topUpPending}
+            action={
               <Button
                 type="button"
                 size="lg"
@@ -226,11 +172,10 @@ export function FeeBalancePanel({
               >
                 {copy.common.done}
               </Button>
-            ) : undefined
-          }
-        />
-      </CeremonyShell>
-      <WalletApprovalSheet approval={walletTx.approval} tokenSymbol="SOL" />
+            }
+          />
+        </CeremonyShell>
+        <WalletApprovalSheet approval={walletTx.approval} tokenSymbol="SOL" />
       </>
     );
   }
@@ -238,11 +183,13 @@ export function FeeBalancePanel({
   return (
     <div className="flex flex-1 flex-col gap-6">
       <NavBar
-        leading={<NavBarBack onClick={onBack} desktopHidden />}
+        desktopHidden
+        leading={<NavBarBack onClick={onBack} />}
         title={copy.wallet.feeBalance}
       />
 
-      <div className="flex flex-col gap-2 px-1">
+      <div className="flex flex-col gap-2">
+        <h2 className={walletDesktopTitleClass}>{copy.wallet.feeBalance}</h2>
         <p className="text-sm text-muted-foreground">
           {copy.wallet.feeBalanceHint}
         </p>
@@ -275,9 +222,7 @@ export function FeeBalancePanel({
         disabled={!canTopUp}
         onClick={() => void runTopUp()}
       >
-        {busy ? <Spinner className="size-4" /> : walletTx.isOwnerBrowse
-          ? copy.wallet.confirmToTopUp
-          : copy.wallet.holdToTopUp}
+        {busy ? <Spinner className="size-4" /> : copy.wallet.confirmToTopUp}
       </Button>
       <WalletApprovalSheet approval={walletTx.approval} tokenSymbol="SOL" />
     </div>

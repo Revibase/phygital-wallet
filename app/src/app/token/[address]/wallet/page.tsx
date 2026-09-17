@@ -15,6 +15,7 @@ import { useWalletPortfolio } from "@/hooks/wallet/use-wallet-portfolio";
 import { useFeeBalance } from "@/hooks/wallet/use-fee-balance";
 import { useRpcPreference } from "@/hooks/wallet/use-rpc-preference";
 import { copy } from "@/lib/copy/phygital";
+import { walletContentColumnClass } from "@/lib/layout";
 
 const timeFormatter = new Intl.DateTimeFormat("en-US", {
   hour: "numeric",
@@ -62,7 +63,7 @@ export default function WalletHomePage() {
       : null;
 
   return (
-    <div className="flex flex-1 flex-col">
+    <div className={walletContentColumnClass}>
       <NavBar
         desktopHidden
         leading={

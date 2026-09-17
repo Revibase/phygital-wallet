@@ -35,7 +35,10 @@ export type WalletApprovalState = {
 export type WalletTransactionRunArgs<S> = Omit<
   RunWalletTransactionArgs<S>,
   "resolvePolicyDenial" | "preferredMode"
->;
+> & {
+  /** Override session default (e.g. fee top-up always uses executeWithAuthority). */
+  preferredMode?: WalletTransactionMode;
+};
 
 export type WalletTransactionController = {
   run: <S>(
@@ -162,9 +165,9 @@ export function useWalletTransaction(
     async <S>(
       args: WalletTransactionRunArgs<S>,
     ): Promise<WalletTransactionOutcome> => {
-      const preferredMode: WalletTransactionMode = liveRef.current.isOwnerBrowse
-        ? "authority"
-        : "policy";
+      const preferredMode: WalletTransactionMode =
+        args.preferredMode ??
+        (liveRef.current.isOwnerBrowse ? "authority" : "policy");
 
       if (preferredMode === "authority") {
         let live = liveRef.current;

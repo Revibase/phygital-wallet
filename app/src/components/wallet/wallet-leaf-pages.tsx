@@ -54,6 +54,7 @@ export function WalletTokensPageClient() {
   return (
     <TokensAllPanel
       holdings={portfolio.data?.holdings ?? []}
+      loading={portfolio.isLoading}
       onBack={backHome}
       onSelect={(asset) => goSend(asset)}
     />
@@ -68,6 +69,7 @@ export function WalletCollectiblesPageClient() {
     <CollectiblesAllPanel
       collectibles={portfolio.data?.collectibles ?? []}
       linkedMint={mint}
+      loading={portfolio.isLoading}
       onBack={backHome}
       onSelect={(c) => go("collectibles", c.mint)}
     />

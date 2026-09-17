@@ -27,7 +27,7 @@ import {
 
 export default function WalletSendPage() {
   return (
-    <Suspense fallback={<RouteBoot />}>
+    <Suspense fallback={<RouteBoot layout="wallet" />}>
       <WalletSendPageInner />
     </Suspense>
   );

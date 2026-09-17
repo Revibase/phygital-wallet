@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import type {
   ProgramPermissionView,
   SpendCapView,
@@ -25,7 +26,8 @@ import type {
 import { useClearWalletPolicy } from "@/hooks/token/use-clear-wallet-policy";
 import { useSetWalletPolicy } from "@/hooks/token/use-set-wallet-policy";
 import { useVerifiedTokens } from "@/hooks/wallet/use-verified-tokens";
-import { copy } from "@/lib/copy/phygital";
+import { useOwnerWallet } from "@/hooks/wallet/use-owner-wallet";
+import { copy, errorCopy } from "@/lib/copy/phygital";
 import { formatTokenAmount } from "@/lib/tokens/amount";
 import type { PaymentToken } from "@/lib/tokens/payment-token";
 import { NATIVE_SOL_MINT, SOL_ICON_URL } from "@/lib/tokens/payment-token";
@@ -104,9 +106,7 @@ export function PolicyStatusView({
         {isOwner ? (
           <RestoreEverydayPrimary phygitalTokenPda={phygitalTokenPda} />
         ) : !isSignedIn ? (
-          <p className="px-1 text-sm text-muted-foreground">
-            {copy.wallet.policySignInToEdit}
-          </p>
+          <PolicySignInCta />
         ) : null}
       </div>
     );
@@ -125,7 +125,7 @@ export function PolicyStatusView({
           programPermissions={data?.programPermissions ?? []}
         />
         {isOwner ? (
-          <div className="flex flex-col gap-4">
+          <>
             <Button type="button" size="lg" className="w-full" onClick={onEdit}>
               {copy.wallet.policyEdit}
             </Button>
@@ -134,11 +134,9 @@ export function PolicyStatusView({
               showRestore
               showTurnOff
             />
-          </div>
+          </>
         ) : !isSignedIn ? (
-          <p className="px-1 text-sm text-muted-foreground">
-            {copy.wallet.policySignInToEdit}
-          </p>
+          <PolicySignInCta />
         ) : null}
       </div>
     );
@@ -151,16 +149,14 @@ export function PolicyStatusView({
         body={copy.wallet.policyStatusStandardBody}
       />
       {isOwner ? (
-        <div className="flex flex-col gap-4">
+        <>
           <Button type="button" size="lg" className="w-full" onClick={onEdit}>
             {copy.wallet.policySet}
           </Button>
           <PolicyMoreSection phygitalTokenPda={phygitalTokenPda} showTurnOff />
-        </div>
+        </>
       ) : !isSignedIn ? (
-        <p className="px-1 text-sm text-muted-foreground">
-          {copy.wallet.policySignInToEdit}
-        </p>
+        <PolicySignInCta />
       ) : null}
     </div>
   );
@@ -176,7 +172,7 @@ function ModeHeader({
   warn?: boolean;
 }) {
   return (
-    <div className="flex flex-col gap-1.5 px-1">
+    <div className="flex flex-col gap-2">
       <h2
         className={cn(
           "text-large-title tracking-tight",
@@ -185,7 +181,46 @@ function ModeHeader({
       >
         {title}
       </h2>
-      <p className="text-sm text-muted-foreground">{body}</p>
+      <p className="text-sm leading-relaxed text-muted-foreground">{body}</p>
+    </div>
+  );
+}
+
+/** Same continue-on-this-phone unlock as ownership — button triggers owner login. */
+function PolicySignInCta() {
+  const { login } = useOwnerWallet();
+  const [signingIn, setSigningIn] = useState(false);
+
+  async function signInHere() {
+    if (signingIn) return;
+    setSigningIn(true);
+    try {
+      await login();
+    } catch (err) {
+      toast.error(toUserErrorMessage(err, errorCopy.signerFailed.body));
+    } finally {
+      setSigningIn(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="px-1 text-sm text-muted-foreground">
+        {copy.wallet.policySignInToEdit}
+      </p>
+      <Button
+        type="button"
+        size="lg"
+        className="w-full"
+        disabled={signingIn}
+        onClick={() => void signInHere()}
+      >
+        {signingIn ? (
+          <Spinner className="size-4" />
+        ) : (
+          copy.wallet.ownershipSignIn
+        )}
+      </Button>
     </div>
   );
 }

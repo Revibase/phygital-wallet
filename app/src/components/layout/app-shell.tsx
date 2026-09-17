@@ -13,6 +13,7 @@ import {
   shellDeviceFrameClass,
   shellLayoutClass,
   shellPaddingClass,
+  walletShellPaddingClass,
   type ShellLayout,
 } from "@/lib/layout";
 import { galleryAnimate } from "@/lib/motion";
@@ -44,14 +45,24 @@ export function AppShell({
     [stageMount]
   );
 
+  const isWallet = layout === "wallet";
+  const isCompact = layout === "compact";
+  const padding = isWallet ? walletShellPaddingClass : shellPaddingClass;
+
   return (
     <ShellStageSlotContext.Provider value={stageApi}>
-      <div className="relative flex min-h-dvh flex-1 flex-col items-center overflow-x-clip bg-background">
+      <div
+        className={cn(
+          "relative flex min-h-dvh flex-1 flex-col items-center overflow-x-clip bg-background",
+          (isWallet || isCompact) && "lg:items-stretch",
+        )}
+      >
         <LuminousAura intensity="default" />
         <main
           className={cn(
-            "relative z-10 mx-auto flex w-full min-w-0 flex-1 flex-col self-center",
-            shellPaddingClass,
+            "relative z-10 flex w-full min-w-0 flex-1 flex-col self-center",
+            (isWallet || isCompact) && "lg:self-stretch",
+            padding,
             shellLayoutClass[layout],
             shellDeviceFrameClass[layout]
           )}
@@ -59,6 +70,7 @@ export function AppShell({
           <div
             className={cn(
               stageActive && "mb-4 md:mb-5",
+              stageActive && isWallet && "lg:mb-0 lg:px-8 lg:pt-6",
               stageActive && galleryAnimate.rise
             )}
           >

@@ -10,6 +10,7 @@ import { FieldLabel, Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useRpcPreference } from "@/hooks/wallet/use-rpc-preference";
 import { copy } from "@/lib/copy/phygital";
+import { walletDesktopTitleClass } from "@/lib/layout";
 import { displayRpcEndpoint } from "@/lib/solana/rpc-preference";
 import { toUserErrorMessage } from "@/lib/user-errors";
 import { cn } from "@/lib/utils";
@@ -42,11 +43,13 @@ export function RpcConnectionPanel({ onBack }: { onBack: () => void }) {
 
   if (view === "custom") {
     return (
-      <div className="flex flex-1 flex-col gap-4">
+      <div className="flex flex-1 flex-col gap-6">
         <NavBar
+          desktopHidden
           leading={<NavBarBack onClick={() => setView("menu")} />}
           title={copy.wallet.rpcCustom}
         />
+        <h2 className={walletDesktopTitleClass}>{copy.wallet.rpcCustom}</h2>
         <p className="text-sm text-muted-foreground">
           {copy.wallet.rpcCustomHint}
         </p>
@@ -70,11 +73,13 @@ export function RpcConnectionPanel({ onBack }: { onBack: () => void }) {
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-4">
+    <div className="flex flex-1 flex-col gap-6">
       <NavBar
-        leading={<NavBarBack onClick={onBack} desktopHidden />}
+        desktopHidden
+        leading={<NavBarBack onClick={onBack} />}
         title={copy.wallet.rpcConnection}
       />
+      <h2 className={walletDesktopTitleClass}>{copy.wallet.rpcConnection}</h2>
       <p className="text-sm text-muted-foreground">{copy.wallet.rpcBody}</p>
 
       <RadioGroup

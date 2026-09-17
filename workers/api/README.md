@@ -77,8 +77,7 @@ one is present). Login also sets `revibase_device_refresh` (~30d); use
 
 Per-token prepaid balance lives in the **TokenSigner DO** (not D1):
 
-1. **Top-up:** SOL → `TOP_UP_ACCUMULATOR` + memo; `POST /webhooks/transactions` → queue → DO credit  
-   (new token ledgers start with 0.001 SOL)
+1. **Top-up:** `executeWithAuthority` wrapping SOL → `TOP_UP_ACCUMULATOR`; `POST /webhooks/transactions` → queue → DO credit (token PDA from the execute ix; new token ledgers start with 0.001 SOL)
 2. **Gate:** DO on preview/sign (`execute`: fee + policy; config: owner WebAuthn + fee)
 3. **Debit:** same transactions webhook → DO debit on confirmed execute sponsored by a default fee payer
 
