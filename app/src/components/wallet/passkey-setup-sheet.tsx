@@ -173,17 +173,18 @@ export function PasskeySetupProvider({ children }: { children: ReactNode }) {
     <PasskeySetupContext.Provider value={api}>
       {children}
 
-      <Sheet
-        open={open}
-        onOpenChange={(next) => {
-          if (!next && !creating) close({ mode: "cancel" });
-        }}
-      >
-        <SheetContent
-          side="bottom"
-          showCloseButton={false}
-          className="gap-0 rounded-t-3xl border-border/50 bg-background p-0 md:max-w-md"
+      {open ? (
+        <Sheet
+          open={open}
+          onOpenChange={(next) => {
+            if (!next && !creating) close({ mode: "cancel" });
+          }}
         >
+          <SheetContent
+            side="bottom"
+            showCloseButton={false}
+            className="gap-0 rounded-t-3xl border-border/50 bg-background p-0 md:max-w-md"
+          >
           <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-muted md:hidden" />
           {phase?.kind === "chooser" ? (
             <>
@@ -334,8 +335,9 @@ export function PasskeySetupProvider({ children }: { children: ReactNode }) {
               </SheetFooter>
             </>
           ) : null}
-        </SheetContent>
-      </Sheet>
+          </SheetContent>
+        </Sheet>
+      ) : null}
     </PasskeySetupContext.Provider>
   );
 }

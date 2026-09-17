@@ -395,15 +395,7 @@ export const copy = {
     sendBlockedHard:
       "This can’t be approved once — change permissions or try a different send.",
     settingsSaved: "Saved",
-    statusAuthentic: "Authentic",
-    statusAuthenticLive: "Authentic · Live tap",
-    statusLinked: "Linked",
-    statusVisitor: "Visitor",
     statusVerifiedNow: "Verified just now",
-    readingAccessory: "Reading your accessory…",
-    confirmingAuthenticity: "Confirming authenticity",
-    walletReady: "Your wallet is ready",
-    openWallet: "Open wallet",
   },
   home: {
     welcomeTitle: "Your accessories, one place",

@@ -7,16 +7,20 @@ import {
   canAccessPhygitalToken,
   verifyOwnerSessionCookie,
 } from "@/lib/auth/session-cookies";
+import { handleTokenColdStart } from "@/lib/wallet/tap-unlock-middleware";
 import { tokenHref, tokenUnlockHref } from "@/lib/wallet/token-routes";
 
 /**
- * Gate every `/token/:address/**` surface on browse-unlock **or** owner-browse.
- * Verifies HMAC locally with `POLICY_SESSION_SECRET` — same secret as the API.
+ * - `/token?pk&s&c&n` → API unlock + cookie + redirect to `/token/{pda}`
+ * - `/token?address=` → redirect to `/token/{address}`
+ * - `/token/:address/**` → browse-unlock or owner-browse HMAC gate
  *
- * Escape hatch: `/token/:address/unlock` (Hold) issues browse_unlock.
- * Home → card mints owner_browse quietly when owner_session is live.
+ * Verifies admit cookies locally with `POLICY_SESSION_SECRET` (same as API).
  */
 export async function middleware(request: NextRequest) {
+  const coldStart = await handleTokenColdStart(request);
+  if (coldStart) return coldStart;
+
   const match = request.nextUrl.pathname.match(
     /^\/token\/([^/]+)(?:\/(.*))?$/,
   );
@@ -69,6 +73,7 @@ export async function middleware(request: NextRequest) {
  */
 export const config = {
   matcher: [
+    "/token",
     "/token/:address",
     "/token/:address/unlock",
     "/token/:address/wallet",

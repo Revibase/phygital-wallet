@@ -13,12 +13,6 @@ export const queryKeys = {
       [...queryKeys.mintedCollectibleView.all(), mint] as const,
   },
 
-  tapVerify: {
-    all: () => ["tapVerify"] as const,
-    byParams: (params: string) =>
-      [...queryKeys.tapVerify.all(), params] as const,
-  },
-
   walletPortfolio: {
     all: () => ["walletPortfolio"] as const,
     byOwner: (owner: string | null) =>

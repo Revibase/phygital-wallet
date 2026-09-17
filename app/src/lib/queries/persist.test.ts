@@ -54,6 +54,6 @@ describe("isPersistedQueryKey", () => {
   });
 
   it("skips growing or one-shot caches", () => {
-    expect(isPersistedQueryKey(["tapVerify", "pk=1"])).toBe(false);
+    expect(isPersistedQueryKey(["recipientAtaFunding", "r", "m"])).toBe(false);
   });
 });

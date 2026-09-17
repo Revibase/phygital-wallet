@@ -1,112 +1,56 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { InAppBrowserGate } from "@/components/shared/in-app-browser-gate";
 import { CeremonyShell } from "@/components/shared/ceremony-shell";
 import { NfcHoldStatus } from "@/components/shared/nfc-hold-status";
-import { StatusPill } from "@/components/shared/status-pill";
 import { Button } from "@/components/ui/button";
 import { useAccessoryHold } from "@/hooks/token/use-accessory-hold";
-import {
-  usePhygitalToken,
-  usePhygitalTokenByAddress,
-} from "@/hooks/token/use-phygital-token";
-import { useTapVerify } from "@/hooks/token/use-tap-verify";
 import { copy } from "@/lib/copy/phygital";
 import { toUserErrorMessage } from "@/lib/user-errors";
-import { tokenHasLinkedMint } from "@/lib/phygital/token";
-import { tokenHref, walletHref } from "@/lib/wallet/token-routes";
+import { TAP_ERROR_COOKIE } from "@/lib/wallet/tap-error-cookie";
+import { tokenHref } from "@/lib/wallet/token-routes";
 
-export type TokenNfcCopy = {
-  inAppCheck: string;
-  holdBody: string;
-};
+function consumeTapErrorCookie(): boolean {
+  if (typeof document === "undefined") return false;
+  const found = document.cookie
+    .split(";")
+    .some((part) => part.trim().startsWith(`${TAP_ERROR_COOKIE}=`));
+  if (!found) return false;
+  document.cookie = `${TAP_ERROR_COOKIE}=; Max-Age=0; path=/`;
+  return true;
+}
 
 /**
- * Cold `/token` — luminous boot on NFC tap, or Hold ceremony.
- * Tap/Hold mint the browse-unlock cookie; middleware gates `/token/[address]/**`.
+ * Cold `/token` — Hold ceremony.
+ * NFC dynamic-URL taps (`?pk&s&c&n`) are handled in middleware (cookie + redirect).
  */
-export function TokenNfcApp({ nfcCopy }: { nfcCopy: TokenNfcCopy }) {
+export function TokenNfcApp() {
   const router = useRouter();
-  const { hasTapProof, verify, verifyPending, result, verifyError } =
-    useTapVerify();
   const accessory = useAccessoryHold();
   const [holdError, setHoldError] = useState<string | null>(null);
-
-  // Prefer PDA resolved during the tap connect. Fall back to
-  // identifier GPA only when the server could not resolve the account.
-  const pdaFromTap =
-    hasTapProof && verify === "verified" ? result?.phygitalToken ?? null : null;
-  const identifier =
-    hasTapProof && verify === "verified" && !pdaFromTap
-      ? result?.identifier ?? null
-      : null;
-
-  const tokenByAddress = usePhygitalTokenByAddress(pdaFromTap);
-  const tokenByIdentifier = usePhygitalToken(identifier);
-  const tokenQuery = pdaFromTap ? tokenByAddress : tokenByIdentifier;
+  const [tapError, setTapError] = useState(false);
 
   useEffect(() => {
-    if (!tokenQuery.data) return;
-    const pda = String(tokenQuery.data.address);
-    // Cookie already set by /accessory/unlock/tap — middleware will admit this.
-    router.replace(
-      tokenHasLinkedMint(tokenQuery.data) ? tokenHref(pda) : walletHref(pda),
-    );
-  }, [tokenQuery.data, router]);
+    if (consumeTapErrorCookie()) setTapError(true);
+  }, []);
 
   async function holdToOpen() {
     setHoldError(null);
+    setTapError(false);
     const connection = await accessory.hold();
     if (!connection) return;
     try {
-      const { phygitalToken: pda } = connection;
-      router.replace(tokenHref(pda));
+      router.replace(tokenHref(connection.phygitalToken));
     } catch (e) {
       setHoldError(toUserErrorMessage(e));
     }
   }
 
   if (accessory.showInAppGate) {
-    return <InAppBrowserGate body={nfcCopy.inAppCheck} />;
-  }
-
-  if (
-    hasTapProof &&
-    !tokenQuery.isError &&
-    (verifyPending || verify === "pending" || verify === "verified")
-  ) {
-    const authentic = verify === "verified";
-    return (
-      <CeremonyShell>
-        <NfcHoldStatus
-          size="lg"
-          pulsing
-          busy={!authentic}
-          progress={!authentic}
-          tone={authentic ? "success" : "default"}
-          title={
-            authentic
-              ? copy.wallet.statusAuthentic
-              : copy.wallet.confirmingAuthenticity
-          }
-          body={authentic ? undefined : copy.wallet.readingAccessory}
-          header={
-            authentic ? (
-              <div className="flex justify-center">
-                <StatusPill
-                  label={copy.wallet.statusAuthenticLive}
-                  tone="success"
-                  sealed
-                />
-              </div>
-            ) : null
-          }
-        />
-      </CeremonyShell>
-    );
+    return <InAppBrowserGate body={copy.gate.openInBrowserBody} />;
   }
 
   if (accessory.holding) {
@@ -127,10 +71,7 @@ export function TokenNfcApp({ nfcCopy }: { nfcCopy: TokenNfcCopy }) {
   const error =
     accessory.error ??
     holdError ??
-    (tokenQuery.error ? toUserErrorMessage(tokenQuery.error) : null) ??
-    (hasTapProof && verify === "failed"
-      ? toUserErrorMessage(verifyError)
-      : null);
+    (tapError ? copy.verify.failedBody : null);
 
   return (
     <CeremonyShell>
@@ -138,7 +79,7 @@ export function TokenNfcApp({ nfcCopy }: { nfcCopy: TokenNfcCopy }) {
         size="lg"
         pulsing={!error}
         title={error ? copy.verify.failed : copy.wallet.holdToOpenTitle}
-        body={error ?? nfcCopy.holdBody}
+        body={error ?? copy.wallet.holdToOpenBody}
         action={
           <Button
             type="button"
