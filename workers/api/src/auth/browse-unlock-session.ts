@@ -5,13 +5,13 @@ import type { Context } from "hono";
 
 import { clearOwnerBrowseCookie } from "@/auth/owner-browse-session";
 import { createSignedSessionCookie } from "@/shared/signed-session-cookie";
-import { VERIFIER_SESSION_TTL_MS } from "@/shared/session-ttl";
+import { BROWSE_SESSION_TTL_MS } from "@/shared/session-ttl";
 
 const BROWSE_UNLOCK_COOKIE = "revibase_browse_unlock";
 
 const cookie = createSignedSessionCookie({
   cookieName: BROWSE_UNLOCK_COOKIE,
-  ttlMs: VERIFIER_SESSION_TTL_MS,
+  ttlMs: BROWSE_SESSION_TTL_MS,
 });
 
 export type BrowseUnlock = {

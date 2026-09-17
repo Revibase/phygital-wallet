@@ -1,8 +1,5 @@
 /**
- * Decode paymaster `/sign` wire txs.
- *
- * Validates a fee-sponsored transaction's shape and extracts its fee payer,
- * phygital token, and inner instructions for accounting.
+ * Decode `/sign` wire txs: fee payer + phygital token from a sponsored tx.
  */
 import {
   getBase64Encoder,
@@ -56,7 +53,7 @@ function asWalletInstruction(ix: Instruction): WalletIx {
 
 export type DecodedSignTx = {
   messageBytes: Uint8Array;
-  /** Transaction fee payer — must be a key this paymaster can sign for. */
+  /** Static account[0] — fee payer (signing checked in api-signer). */
   feePayer: string;
   phygitalToken: string;
 };

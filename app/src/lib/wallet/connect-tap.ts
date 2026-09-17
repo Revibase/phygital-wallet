@@ -5,7 +5,7 @@
  *   { pk, s, c, n } → POST /accessory/unlock/tap → browse-unlock cookie
  *
  * The api worker verifies the chip signature, resolves the token PDA, and sets
- * the `browse_unlock` cookie. No client-side token resolution or bearer.
+ * the `browse_unlock` cookie.
  */
 import { queryFetch, readJson } from "@/lib/queries/http";
 

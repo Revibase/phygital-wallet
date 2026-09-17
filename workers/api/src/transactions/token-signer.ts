@@ -1,7 +1,4 @@
-/**
- * Resolve the per-token TokenSigner Durable Object stub.
- * Class is hosted on revibase-verifier-signer; api binds via script_name.
- */
+/** TokenSigner DO stub (`revibase-token-signer` via script_name). */
 import { createLogger } from "@/shared/log";
 
 /** Minimal RPC surface used by revibase-api (matches TokenSigner methods). */

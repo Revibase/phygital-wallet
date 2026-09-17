@@ -4,8 +4,8 @@
 LOG_LEVEL=debug
 
 # JSON map: fee-payer pubkey → base58 seed or 64-byte keypair (max 8).
-# Keep map keys in sync with api DEFAULT_VERIFIER_PUBKEYS.
-# VERIFIER_SECRET_KEYS={"YourVerifierPubkeyBase58":"YourSeedOrKeypairBase58"}
+# Keep map keys in sync with api DEFAULT_FEE_PAYER_PUBKEYS.
+# FEE_PAYER_SECRET_KEYS={"YourFeePayerPubkeyBase58":"YourSeedOrKeypairBase58"}
 
 # Fee top-up exemption (same accumulator as API)
 # TOP_UP_ACCUMULATOR=

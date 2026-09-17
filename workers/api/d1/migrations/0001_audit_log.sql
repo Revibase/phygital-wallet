@@ -1,29 +1,24 @@
--- Centralized, append-only audit log for verifier events.
+-- Centralized, append-only audit log for API events.
 -- Written fire-and-forget from the revibase-api worker (never blocks a response).
--- Replaces the per-token, DO-local pending_approvals "audit trail": the DO now
--- keeps only open inbox rows; the durable history lives here and is queryable
--- across all tokens.
 --
 -- Only the fields common to (nearly) every event are first-class columns; all
--- event-specific data lives in detail_json. The two exceptions are the
--- correlation keys, kept as indexed columns because the feature hinges on
--- chaining events by them:
---   session_id  = verifier bearer jti — links connect -> preview -> sign.
---   intent_hash = links preview / pending_approval / grant / sign.
+-- event-specific data lives in detail_json. Correlation keys are kept as
+-- indexed columns when present:
+--   session_id  = optional session cookie jti
+--   intent_hash = optional intent correlation
 --
--- detail_json carries the rest, e.g. code, credential_id (owner/visitor
--- passkey), verifier, origin, ms, request_id, and per-event extras
--- (resolution, lamports, signature, configAction, ...).
+-- detail_json carries the rest, e.g. code, feePayer, origin, ms, request_id,
+-- and per-event extras (lamports, signature, ...).
 
 CREATE TABLE IF NOT EXISTS audit_log (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
   ts             INTEGER NOT NULL,       -- Date.now()
-  event          TEXT    NOT NULL,       -- connect | connect_tap | preview | sign | pending_approval | fee_credit | fee_debit | policy_set | policy_clear | grant_create | token_verifier_change | recovery_wallet_set | owner_unlink
+  event          TEXT    NOT NULL,       -- sign | fee_credit | fee_debit | accessory_unlock | owner_browse | …
   phygital_token TEXT,
-  actor          TEXT,                   -- accessory | owner_device | visitor_device | system
+  actor          TEXT,                   -- accessory | system
   ok             INTEGER,                -- 1 / 0 / NULL
-  session_id     TEXT,                   -- bearer jti (correlation)
-  intent_hash    TEXT,                   -- correlation
+  session_id     TEXT,                   -- optional session jti (correlation)
+  intent_hash    TEXT,                   -- optional correlation
   detail_json    TEXT                    -- everything event-specific
 );
 

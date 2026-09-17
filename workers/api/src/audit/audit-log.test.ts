@@ -75,7 +75,7 @@ describe("recordAudit", () => {
         actor: "accessory",
         ok: true,
         code: null,
-        verifier: "Ver1",
+        feePayer: "Fee1",
         sessionId: "jti-1",
         intentHash: "h1",
         detail: { kind: "execute", signatureCount: 2 },
@@ -100,7 +100,7 @@ describe("recordAudit", () => {
     expect(detail(runs[0])).toEqual({
       kind: "execute",
       signatureCount: 2,
-      verifier: "Ver1",
+      feePayer: "Fee1",
       origin: "https://app",
       ms: 12,
       requestId: "ray-1",
@@ -110,30 +110,30 @@ describe("recordAudit", () => {
   it("maps ok:false to 0 and folds code into detail_json", async () => {
     const { db, runs } = fakeD1();
     await withStore(db, () =>
-      recordAudit({ event: "connect", ok: false, code: "invalid_proof" })
+      recordAudit({ event: "sign", ok: false, code: "invalid_transaction" })
     );
     const r = row(runs[0]);
     expect(r.ok).toBe(0);
-    expect(detail(runs[0])).toEqual({ code: "invalid_proof" });
+    expect(detail(runs[0])).toEqual({ code: "invalid_transaction" });
   });
 
   it("batches multiple entries in one call", async () => {
     const { db, runs, batches } = fakeD1();
     await withStore(db, () =>
       recordAudit([
-        { event: "preview", ok: false, code: "over_limit", intentHash: "h1" },
+        { event: "fee_credit", ok: true, detail: { lamports: 1000 } },
         {
-          event: "pending_approval",
-          intentHash: "h1",
-          detail: { resolution: "created" },
+          event: "fee_debit",
+          ok: true,
+          detail: { lamports: 500 },
         },
       ])
     );
     expect(runs).toHaveLength(0);
     expect(batches).toHaveLength(1);
     expect(batches[0]).toHaveLength(2);
-    expect(row(batches[0][0]).event).toBe("preview");
-    expect(row(batches[0][1]).event).toBe("pending_approval");
+    expect(row(batches[0][0]).event).toBe("fee_credit");
+    expect(row(batches[0][1]).event).toBe("fee_debit");
   });
 
   it("no-ops on empty input", async () => {

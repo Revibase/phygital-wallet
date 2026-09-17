@@ -15,71 +15,64 @@ XSS-compromised**; the signer is the trust boundary.
 
 ```
 secure-signer/
-  signer/         # the trusted origin (Vite vanilla-ts, no runtime UI framework)
-    src/
-      constants.ts        # centralized security constants (allowlist, caps, fixed KDF params)
-      protocol.ts         # strict postMessage schema validation (pure, fuzzable)
-      encoding.ts         # bounded base64/base64url + constant-time compare
-      wallet-format.ts    # deterministic binary blob + AES-GCM AAD
-      crypto.ts           # WebCrypto HKDF/AES-GCM + @noble ed25519
-      wallet-service.ts   # PRF→HKDF→AES-GCM pipeline (PRF injected → headless-testable)
-      state.ts            # state machine, replay/freshness, digest-bound authorization
-      webauthn.ts         # BrowserPrfProvider (thin WebAuthn shell)
-      tx/decode-v1.ts     # @solana/kit v1 decode + decompile
-      tx/policy.ts        # program allowlist + owner binding (depth-2 clear-signing)
-      tx/parser.ts        # phygital-wallet-sdk instruction decode + inner summary
-      ui/ui.ts            # trusted confirm/create/import/export screens (textContent only)
-      main.ts             # dispatcher: origin+source, schema, state, explicit switch
-      testing/encode-v1.ts# TEST-only kit v1 compile/encode helper
-    deploy/               # _headers (Cloudflare/Netlify) + nginx.conf
-  parent-demo/    # UNTRUSTED parent reference integration (separate origin)
+  src/
+    constants.ts          # allowlist, caps, fixed KDF params
+    protocol.ts           # postMessage schema validation
+    encoding.ts           # bounded base64/base64url + constant-time compare
+    wallet-format.ts      # deterministic binary blob + AES-GCM AAD
+    crypto.ts             # WebCrypto HKDF/AES-GCM + @noble ed25519
+    wallet-service.ts     # PRF→HKDF→AES-GCM pipeline
+    state.ts              # state machine, replay/freshness, digest auth
+    webauthn.ts           # BrowserPrfProvider
+    tx/decode-v1.ts       # @solana/kit v1 decode + decompile
+    tx/policy.ts          # program allowlist + owner binding
+    tx/parser.ts          # instruction decode + clear-signing summary
+    ui/ui.ts              # trusted confirm/create/import/export screens
+    main.ts               # dispatcher
+  deploy/                 # _headers + nginx.conf
   THREAT_MODEL.md
 ```
 
 ## Develop
 
 ```bash
-pnpm --filter secure-signer test        # 50 unit/adversarial tests (headless)
+pnpm --filter secure-signer test        # unit/adversarial tests (headless)
 pnpm --filter secure-signer typecheck
 pnpm --filter secure-signer build        # tsc + vite build + CSP inline guard
-# Two-origin demo (signer :5173, parent :5174):
-pnpm --filter secure-signer dev
-pnpm --filter secure-signer-parent-demo dev
+pnpm --filter secure-signer dev          # signer origin (Vite)
 ```
 
-WebAuthn/PRF flows require a real authenticator and a browser that supports the
-PRF extension (see the compatibility matrix in the threat model); the full crypto
+WebAuthn/PRF flows need a real authenticator with PRF support; the crypto
 pipeline is covered headlessly with a mock PRF.
 
 ## Transaction support
 
-The signer parses/signs **Solana transaction v1 only** (SIMD-0385) and rejects
-legacy/v0. v1 moves resource limits into the message, so ComputeBudget
-instructions are rejected by policy. Decoding and encoding use `@solana/kit`
-(`getTransactionDecoder`, `decompileTransactionMessage`, `compileTransaction`).
+Signs **Solana transaction v1 only** (SIMD-0385); rejects legacy/v0. v1 moves
+resource limits into the message, so ComputeBudget instructions are rejected by
+policy. Decoding uses `@solana/kit`.
 
 ## Policy (depth 2)
 
-Top-level programs must be on the allowlist (phygital-wallet). The owner
-must be a required signer and, for each phygital-wallet instruction that has one,
-the `authority` account. `executeWithAuthority`'s inner instructions are decoded
-and **displayed** (clear-signing), not blocked — this key is the on-chain escape
+Top-level programs must be on the allowlist (phygital-wallet). The owner must be
+a required signer and, for each phygital-wallet instruction that has one, the
+`authority` account. `executeWithAuthority` inner instructions are decoded and
+**displayed** (clear-signing), not blocked — this key is the on-chain escape
 hatch by design. See `tx/policy.ts` and the threat model.
 
 ## postMessage API
 
 Request → result: `AUTH_START` → `AUTH_COMPLETE`, `SIGN_TRANSACTION`,
-`EXPORT_PRIVATE_KEY`. Mid-flow: `BLOB_NEEDED` (signer → parent) /
-`BLOB_PROVIDED` (parent → signer) for discoverable restore when signer-origin
-localStorage has no ciphertext.
+`EXPORT_PRIVATE_KEY`. Mid-flow: `BLOB_NEEDED` / `BLOB_PROVIDED` for discoverable
+restore when signer-origin localStorage has no ciphertext.
 
 Sign / export use **signer localStorage only**. The parent always shows the
 create/unlock sheet before `AUTH_START`. `AUTH_COMPLETE` returns ciphertext so
 the parent can PUT the D1 backup (and mint `owner_session`).
 
 All requests carry `{ protocolVersion: 1, requestId, timestamp? }`; blobs are
-base64url, transactions base64. Errors are generic `{ type: "ERROR", requestId, code }`.
-Unknown/malformed input fails closed. The signer posts `{ type: "SIGNER_READY" }` on load.
+base64url, transactions base64. Errors are generic
+`{ type: "ERROR", requestId, code }`. Unknown/malformed input fails closed. The
+signer posts `{ type: "SIGNER_READY" }` on load.
 
 `AUTH_START` unlocks in the iframe, or completes create when the parent sends
 `authMode: "create"` + `credentialId` (passkey registered on the app with the
@@ -93,15 +86,16 @@ Unlock / sign stay in the iframe.
 
 ## Parent integration seam
 
-`useOwnerWallet` is backed by a signer client that mounts the iframe and maps:
-`address` ← cookie session / create/import; `signTransaction` ← `SIGN_TRANSACTION`;
-`exportWallet` ← `EXPORT_PRIVATE_KEY`. The paymaster co-sign / send path is unchanged.
+`useOwnerWallet` mounts the iframe and maps: `address` ← cookie session /
+create/import; `signTransaction` ← `SIGN_TRANSACTION`; `exportWallet` ←
+`EXPORT_PRIVATE_KEY`. Fee sponsorship still goes through API `/getFeePayer` +
+`/sign`.
 
 ## Deployment
 
-Serve `signer/dist/` from a **separate origin** with the headers in
-`signer/deploy/` (strict CSP with `connect-src 'none'`, `frame-ancestors <app>`,
-`Permissions-Policy: publickey-credentials-get=(self)`, HSTS, no-store index).
-Do **not** add `X-Frame-Options` (breaks the intended embedding) or COEP. The
-parent must delegate `publickey-credentials-get` to the signer origin via its own
-`Permissions-Policy` header and the iframe `allow=` attribute.
+Serve `dist/` from a **separate origin** with the headers in `deploy/` (strict
+CSP with `connect-src 'none'`, `frame-ancestors <app>`,
+`Permissions-Policy: publickey-credentials-get=(self), clipboard-write=(self)`,
+HSTS, no-store index). Do **not** add `X-Frame-Options` (breaks embedding) or
+COEP. The parent must delegate `publickey-credentials-get` and `clipboard-write`
+to the signer origin via `Permissions-Policy` and the iframe `allow=` attribute.

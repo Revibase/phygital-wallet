@@ -12,8 +12,8 @@ interface __BaseEnv_Env {
 	POLICY_SESSION_SECRET: string;
 	TOP_UP_ACCUMULATOR: string;
 	WALLET_WEBHOOK_SECRET: string;
-	DEFAULT_VERIFIER_PUBKEYS: string;
-	TOKEN_SIGNER: DurableObjectNamespace /* TokenSigner from revibase-verifier-signer */;
+	DEFAULT_FEE_PAYER_PUBKEYS: string;
+	TOKEN_SIGNER: DurableObjectNamespace /* TokenSigner from revibase-token-signer */;
 }
 declare namespace Cloudflare {
 	interface GlobalProps {
@@ -26,7 +26,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "LOG_LEVEL" | "SOLANA_CLUSTER" | "SOLANA_RPC_URL" | "JUPITER_API_KEY" | "POLICY_SESSION_SECRET" | "TOP_UP_ACCUMULATOR" | "WALLET_WEBHOOK_SECRET" | "DEFAULT_VERIFIER_PUBKEYS">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "LOG_LEVEL" | "SOLANA_CLUSTER" | "SOLANA_RPC_URL" | "JUPITER_API_KEY" | "POLICY_SESSION_SECRET" | "TOP_UP_ACCUMULATOR" | "WALLET_WEBHOOK_SECRET" | "DEFAULT_FEE_PAYER_PUBKEYS">> {}
 }
 
 // Begin runtime types

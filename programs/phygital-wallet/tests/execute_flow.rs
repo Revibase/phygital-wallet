@@ -171,7 +171,7 @@ fn execute_without_passkey_proof_fails() {
 }
 
 /// Replaying the same passkey proof (same signCount) is rejected on-chain by the
-/// phygital-token verify CPI — no verifier co-signer needed for replay safety.
+/// phygital-token verify CPI.
 #[test]
 fn passkey_execute_replay_rejected() {
     let mut ctx = TestContext::new();

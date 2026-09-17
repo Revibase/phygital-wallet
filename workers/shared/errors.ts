@@ -62,7 +62,6 @@ function statusForCode(code: ErrorCode, fallbackStatus: number): number {
     case "signer_misconfigured":
     case "fee_misconfigured":
       return 500;
-    case "verifier_mismatch":
     case "fee_payer_mismatch":
     case "insufficient_fee_balance":
       return 403;

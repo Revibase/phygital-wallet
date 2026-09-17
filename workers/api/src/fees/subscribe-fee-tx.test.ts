@@ -10,7 +10,7 @@ import { findExecuteAccounts, resolveAccountKeys } from "./subscribe-fee-tx";
 
 const TOKEN = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 const TOP_UP_TOKEN = "VfgEdk1FVy2KNanqguZKvJ8M67uxWwx8BGyqzJw6rvZ";
-const VERIFIER = "2qLZosEYxN4Bp7dGySYgjWEmXR9jQ4za6hr2AFocUHxU";
+const FEE_PAYER = "2qLZosEYxN4Bp7dGySYgjWEmXR9jQ4za6hr2AFocUHxU";
 const DUMMY = "11111111111111111111111111111111";
 const ACCUMULATOR = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
 const b58 = getBase58Decoder();
@@ -21,7 +21,7 @@ describe("resolveAccountKeys", () => {
       resolveAccountKeys({
         transaction: {
           message: {
-            accountKeys: [{ pubkey: VERIFIER }, { pubkey: DUMMY }],
+            accountKeys: [{ pubkey: FEE_PAYER }, { pubkey: DUMMY }],
           },
         },
         meta: {
@@ -31,7 +31,7 @@ describe("resolveAccountKeys", () => {
           },
         },
       }),
-    ).toEqual([VERIFIER, DUMMY, ACCUMULATOR, TOKEN]);
+    ).toEqual([FEE_PAYER, DUMMY, ACCUMULATOR, TOKEN]);
   });
 });
 
@@ -57,7 +57,7 @@ describe("findExecuteAccounts", () => {
   // Execute: token is accounts[0] of the ix → key index 1
   // ExecuteWithAuthority: token is accounts[1] of the ix → key index 2
   const executeKeys = [
-    VERIFIER,
+    FEE_PAYER,
     TOP_UP_TOKEN,
     DUMMY,
     DUMMY,
@@ -67,7 +67,7 @@ describe("findExecuteAccounts", () => {
   ];
 
   const authorityKeys = [
-    VERIFIER,
+    FEE_PAYER,
     DUMMY, // authority
     TOP_UP_TOKEN,
     DUMMY, // authorityAccount

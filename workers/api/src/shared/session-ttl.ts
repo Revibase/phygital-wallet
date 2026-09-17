@@ -2,7 +2,7 @@
  * Browse-unlock / owner-browse session lifetime. Accessory Hold and per-item
  * owner browse share the same short window.
  */
-export const VERIFIER_SESSION_TTL_MS = 30 * 60 * 1000;
+export const BROWSE_SESSION_TTL_MS = 30 * 60 * 1000;
 
 /**
  * Owner `login()` duration. PUT `/owner-wallet/blob` mints `revibase_owner_session`

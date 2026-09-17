@@ -4,13 +4,13 @@
 import type { Context } from "hono";
 
 import { createSignedSessionCookie } from "@/shared/signed-session-cookie";
-import { VERIFIER_SESSION_TTL_MS } from "@/shared/session-ttl";
+import { BROWSE_SESSION_TTL_MS } from "@/shared/session-ttl";
 
 export const OWNER_BROWSE_COOKIE = "revibase_owner_browse";
 
 const cookie = createSignedSessionCookie({
   cookieName: OWNER_BROWSE_COOKIE,
-  ttlMs: VERIFIER_SESSION_TTL_MS,
+  ttlMs: BROWSE_SESSION_TTL_MS,
 });
 
 export type OwnerBrowse = {

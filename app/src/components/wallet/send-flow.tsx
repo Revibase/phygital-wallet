@@ -143,7 +143,6 @@ export function SendFlow({
   const [hardError, setHardError] = useState<SendHardError | null>(null);
   const sendAbortRef = useRef<AbortController | null>(null);
   const feeBalance = useFeeBalance(phygitalTokenPda);
-  // Always uses the default Revibase paymaster / fee balance now.
   const usesFeeBalance = true;
   const prefersReducedMotion = useReducedMotion();
   const enter = snapEnter(prefersReducedMotion);

@@ -4,7 +4,7 @@
 
 /*
   Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors https://app.revibase.com
-  Permissions-Policy: publickey-credentials-get=(self)
+  Permissions-Policy: publickey-credentials-get=(self), clipboard-write=(self)
   Referrer-Policy: no-referrer
   X-Content-Type-Options: nosniff
   Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
@@ -19,6 +19,9 @@
 # - connect-src 'none': the signer never talks to Solana RPC or any network;
 #   the parent builds + sends transactions. If that ever changes, this MUST be
 #   revisited rather than widened casually.
+# - clipboard-write=(self): export "Copy to clipboard" uses Clipboard API inside
+#   this cross-origin iframe; the parent must also delegate clipboard-write via
+#   Permissions-Policy + iframe allow=.
 # - frame-ancestors (NOT X-Frame-Options: DENY): the signer is INTENDED to be
 #   framed by the app origin. Do not add X-Frame-Options — it would break it.
 # - Do NOT enable Cross-Origin-Embedder-Policy: require-corp. It forces the

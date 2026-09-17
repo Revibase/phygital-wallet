@@ -82,7 +82,7 @@ export function SecureSignerHost() {
         <iframe
           ref={attachIframe}
           title="Secure signer"
-          allow="publickey-credentials-get"
+          allow="publickey-credentials-get; clipboard-write"
           className="block h-[min(560px,88vh)] w-full border-0 sm:h-[min(520px,90vh)]"
         />
       </SheetContent>

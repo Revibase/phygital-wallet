@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "revibase-verifier-signer",
+  "name": "revibase-token-signer",
   "main": "src/index.ts",
   "compatibility_date": "2025-07-01",
   "compatibility_flags": ["nodejs_compat"],

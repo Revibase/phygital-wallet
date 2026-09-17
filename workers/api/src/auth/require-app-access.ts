@@ -1,8 +1,6 @@
 /**
  * Outer API floor: browse-unlock or owner-browse, except public routes.
- *
- * `owner_session` is not an admit cookie — it only exists so the client can
- * mint per-item `owner_browse`.
+ * `owner_session` is login-only — use it to mint per-item `owner_browse`.
  */
 import type { Context } from "hono";
 
@@ -10,28 +8,19 @@ import { readBrowseUnlock } from "@/auth/browse-unlock-session";
 import { readOwnerBrowse } from "@/auth/owner-browse-session";
 import { json } from "@/shared/http";
 
-/**
- * Exempt from the cookie floor: routes that issue admit cookies or authenticate
- * by their own means (fee-payer service, HMAC-signed webhooks).
- */
+/** Routes that issue admit cookies or authenticate themselves. */
 const PUBLIC_ROUTES: ReadonlyArray<{ method: string; path: string }> = [
   { method: "GET", path: "/health" },
-  // Accessory unlock — proves control of the accessory, then issues the cookie.
   { method: "POST", path: "/accessory/unlock/tap" },
   { method: "POST", path: "/accessory/unlock/challenge" },
   { method: "POST", path: "/accessory/unlock/webauthn" },
-  // Owner session (cookie is login source of truth) + browse admit.
   { method: "GET", path: "/owner-session" },
   { method: "DELETE", path: "/owner-session" },
   { method: "POST", path: "/accessory/owner-browse" },
   { method: "GET", path: "/accessory/session" },
   { method: "GET", path: "/getFeePayer" },
   { method: "POST", path: "/sign" },
-  // Wallet tx ingest — authenticated by its own HMAC signature, not the cookie.
-  // Also drives fee credit/debit (TOP_UP_ACCUMULATOR + default fee payers).
   { method: "POST", path: "/webhooks/transactions" },
-  // Owner encrypted-blob backup — GET hash-only; PUT proves via ed25519 and
-  // mints owner_session. Signing ciphertext lives in the signer origin only.
   { method: "GET", path: "/owner-wallet/blob" },
   { method: "POST", path: "/owner-wallet/blob/challenge" },
   { method: "PUT", path: "/owner-wallet/blob" },
@@ -52,13 +41,7 @@ export function isPublicApiPath(method: string, path: string): boolean {
   return PUBLIC_ROUTES.some((r) => r.method === m && r.path === p);
 }
 
-/**
- * Open CORS (no cookies): public fee-payer service for third-party integrators.
- * Path-based so OPTIONS preflight matches too.
- *
- * The accessory-unlock routes are intentionally absent: they issue a cookie, so
- * they keep credentialed CORS (scoped to app origins) rather than open CORS.
- */
+/** Open CORS (no cookies) for third-party fee-payer clients. */
 export function isOpenCorsPath(_method: string, path: string): boolean {
   const p = normalizeApiPath(path);
   return p === "/getFeePayer" || p === "/sign";
@@ -99,9 +82,8 @@ export function evaluateAppAccess(
 }
 
 /**
- * Returns a 401 Response when access is denied; otherwise null.
- * Admit if browse_unlock **or** owner_browse matches (physical tap wins when
- * both exist because unlock clears owner_browse).
+ * Returns a 401 when access is denied.
+ * Admit if browse_unlock or owner_browse matches.
  */
 export async function requireAppAccess(
   c: Context<{ Bindings: Env }>

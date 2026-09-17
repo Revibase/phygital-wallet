@@ -612,7 +612,7 @@ export function confirmExportPrivateKey(): Promise<boolean> {
   });
 }
 
-/** Reveal the exported secret ONLY inside the signer UI — never posted to parent. */
+/** Copy the exported secret in-iframe only — never shown, never posted to parent. */
 export function showExportedSecret(
   secretBase58: string,
   publicKey: string,
@@ -625,55 +625,34 @@ export function showExportedSecret(
       resolve();
     };
 
-    const hidden = el("p", {
-      class: "secret-hidden mono",
-      text: "••••••••••••••••••••••••••••••••",
-    });
-    const secret = el("p", {
-      class: "secret mono",
-      text: secretBase58,
-    });
-    secret.hidden = true;
-    secret.setAttribute("aria-label", "exported secret key");
-
-    const copyBtn = button("Copy to clipboard", "primary", () => {
+    const copyBtn = button("Copy private key", "primary", () => {
       void navigator.clipboard
         ?.writeText(secretBase58)
         .then(() => {
-          copyBtn.textContent = "Copied — clear clipboard in 30s";
+          copyBtn.textContent = "Copied — clears in 30s";
           copyBtn.disabled = true;
           if (clipboardTimer !== null) window.clearTimeout(clipboardTimer);
           clipboardTimer = window.setTimeout(() => {
             void navigator.clipboard?.writeText("").catch(() => {});
             copyBtn.textContent = "Clipboard cleared";
+            copyBtn.disabled = false;
           }, 30_000);
         })
         .catch(() => {
-          copyBtn.textContent = "Copy failed — select the key above";
+          copyBtn.textContent = "Copy failed — try again";
         });
-    });
-    copyBtn.disabled = true;
-
-    const revealBtn = button("Show private key", "danger", () => {
-      hidden.hidden = true;
-      secret.hidden = false;
-      copyBtn.disabled = false;
-      revealBtn.disabled = true;
-      revealBtn.textContent = "Key visible on screen";
     });
 
     confirmScreen(
-      "Your private key",
+      "Export private key",
       [
         el("div", {
           class: "callout callout-danger",
-          text: "Keep this only in a password manager or offline backup.",
+          text: "Paste straight into a password manager or offline backup. The key is never shown here.",
         }),
         el("p", { class: "muted", text: `Wallet ${shorten(publicKey)}` }),
-        hidden,
-        secret,
       ],
-      [button("Done", "ghost", () => done()), revealBtn, copyBtn],
+      [button("Done", "ghost", () => done()), copyBtn],
       { dismissible: true, onDismiss: done },
     );
   });

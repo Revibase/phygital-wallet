@@ -623,7 +623,7 @@ async function handleExportPrivateKey(
     seed.fill(0);
     secret.fill(0);
     busy.clear();
-    // Plaintext key is revealed ONLY in-iframe; NEVER posted to the parent (§14).
+    // Key stays in memory for clipboard copy only — never posted to parent.
     // Await Done so the parent overlay stays up until the user dismisses.
     await ui.showExportedSecret(secretB58, toBase58Pubkey(publicKey));
     ok(requestId, RESULT_TYPE.EXPORT_PRIVATE_KEY, { completed: true });

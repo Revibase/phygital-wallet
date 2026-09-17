@@ -1,15 +1,6 @@
 /**
- * Centralized audit log (D1 `audit_log`).
- *
- * Every important verifier event is written here for a durable, cross-token
- * audit trail that doubles as a feature-analytics dataset. Writes are
- * **fire-and-forget**: `recordAudit` captures the row synchronously (while the
- * request context is live) and defers the D1 insert onto `waitUntil`, so it
- * never adds latency to the response and never throws into the caller.
- *
- * Correlation keys on every row:
- *   - `sessionId`  = verifier bearer jti — links connect -> preview -> sign.
- *   - `intentHash` = links preview / pending_approval / grant / sign.
+ * D1 `audit_log` — fire-and-forget via `waitUntil`.
+ * Optional `sessionId` / `intentHash` for correlation.
  */
 import type { Context } from "hono";
 
@@ -18,23 +9,15 @@ import { createLogger } from "@/shared/log";
 import { getEnv, scheduleBackgroundWork } from "@/shared/request-context";
 
 export type AuditEvent =
-  | "connect"
-  | "connect_tap"
-  | "preview"
   | "sign"
-  | "pending_approval"
   | "fee_credit"
   | "fee_debit"
-  | "policy_set"
-  | "policy_clear"
-  | "grant_create"
-  | "token_verifier_change"
-  | "recovery_wallet_set";
+  | "accessory_unlock"
+  | "owner_browse";
 
 /**
- * Who performed the action. `accessory` = the physical chip's own credential
- * (a `/connect` proof, a bearer-scoped preview/sign — the token is derived from
- * it). `system` = server-side, e.g. a fee event from the transactions webhook.
+ * Who performed the action.
+ * `accessory` = chip / passkey path; `system` = server (e.g. fee webhook).
  */
 export type AuditActor =
   | "accessory"
@@ -46,14 +29,14 @@ export type AuditEntry = {
   phygitalToken?: string | null;
   actor?: AuditActor | null;
   ok?: boolean | null;
-  /** Bearer jti — connect/preview/sign correlation. */
+  /** Optional session cookie jti for correlation. */
   sessionId?: string | null;
   intentHash?: string | null;
   /** Defaults to Date.now() at record time. */
   ts?: number;
   // --- everything below is folded into detail_json ---
   code?: string | null;
-  verifier?: string | null;
+  feePayer?: string | null;
   origin?: string | null;
   ms?: number | null;
   requestId?: string | null;
@@ -65,14 +48,11 @@ const INSERT_SQL = `INSERT INTO audit_log
     (ts, event, phygital_token, actor, ok, session_id, intent_hash, detail_json)
   VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
 
-/**
- * Fold the event-specific fields (and any explicit `detail`) into one object,
- * dropping null/undefined so rows stay compact. Returns null when empty.
- */
+/** Fold optional fields into detail_json (null when empty). */
 function buildDetail(e: AuditEntry): string | null {
   const detail: Record<string, unknown> = { ...(e.detail ?? {}) };
   if (e.code != null) detail.code = e.code;
-  if (e.verifier != null) detail.verifier = e.verifier;
+  if (e.feePayer != null) detail.feePayer = e.feePayer;
   if (e.origin != null) detail.origin = e.origin;
   if (e.ms != null) detail.ms = e.ms;
   if (e.requestId != null) detail.requestId = e.requestId;
@@ -93,11 +73,7 @@ function bind(stmt: D1PreparedStatement, e: AuditEntry): D1PreparedStatement {
   );
 }
 
-/**
- * Record one or more audit events. Never throws; a failed audit write must not
- * affect the user response. Bind the rows now (request context is live), then
- * defer the actual insert to `waitUntil`.
- */
+/** Fire-and-forget audit write; never throws into the caller. */
 export function recordAudit(input: AuditEntry | AuditEntry[]): void {
   const entries = Array.isArray(input) ? input : [input];
   if (entries.length === 0) return;

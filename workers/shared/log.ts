@@ -22,7 +22,7 @@ const REDACT_KEYS = new Set([
   "authorization",
   "cookie",
   "password",
-  "verifier_secret_keys",
+  "fee_payer_secret_keys",
 ]);
 
 export type LogFields = Record<string, unknown>;

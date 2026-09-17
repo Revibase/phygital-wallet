@@ -1,15 +1,7 @@
 /**
- * Decode paymaster `/sign` wire txs.
- *
- * Validates a fee-sponsored transaction's shape and extracts its fee payer and
- * phygital token. Every phygital-wallet instruction is fee-sponsorable EXCEPT
- * `executeWithAuthorityUsingPolicies` (preview/simulation only).
- *
- * We do NOT decode each instruction's payload. The only inner detail we need is
- * whether the tx is a fee-balance TOP-UP (SOL → accumulator, wrapped in
- * `executeWithAuthority`), so it can bypass the prepaid-balance gate — otherwise
- * an empty wallet could never fund its own fees. `phygitalToken` is read from a
- * fixed account slot per instruction.
+ * Decode `/sign` wire txs: fee payer + phygital token.
+ * All phygital-wallet ixs are sponsorable except
+ * `executeWithAuthorityUsingPolicies` (simulation only).
  */
 import {
   getBase64Encoder,
@@ -39,17 +31,13 @@ import {
 
 import { SYSTEM_PROGRAM_ADDRESS } from "@/fees/constants";
 import { coded } from "@/shared/errors";
-import {
-  COMPUTE_BUDGET_PROGRAM,
-  SECP256R1_PROGRAM,
-} from "@/transactions/constants";
+import { SECP256R1_PROGRAM } from "@/transactions/constants";
 
 const base64Encoder = getBase64Encoder();
 const txDecoder = getTransactionDecoder();
 const messageDecoder = getCompiledTransactionMessageDecoder();
 
 const TOP_LEVEL_OK = new Set<string>([
-  COMPUTE_BUDGET_PROGRAM,
   SECP256R1_PROGRAM,
   PHYGITAL_WALLET_PROGRAM_ADDRESS,
 ]);
@@ -221,7 +209,7 @@ function resolveWalletInstruction(
 
 export type DecodedSignTx = {
   messageBytes: Uint8Array;
-  /** Transaction fee payer — must be a key this paymaster can sign for. */
+  /** Transaction fee payer — must be a key this service can sign for. */
   feePayer: string;
   phygitalToken: string;
   /** A fee-balance top-up — exempt from the prepaid-balance gate. */

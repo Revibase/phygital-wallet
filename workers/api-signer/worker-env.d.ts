@@ -3,7 +3,7 @@
 // Runtime types generated with workerd@1.20260722.1 2025-07-01 nodejs_compat
 interface __BaseEnv_Env {
 	LOG_LEVEL: string;
-	VERIFIER_SECRET_KEYS: string;
+	FEE_PAYER_SECRET_KEYS: string;
 	TOP_UP_ACCUMULATOR: string;
 	TOKEN_SIGNER: DurableObjectNamespace<import("./src/index").TokenSigner>;
 }
@@ -19,7 +19,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "LOG_LEVEL" | "VERIFIER_SECRET_KEYS" | "TOP_UP_ACCUMULATOR">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "LOG_LEVEL" | "FEE_PAYER_SECRET_KEYS" | "TOP_UP_ACCUMULATOR">> {}
 }
 
 // Begin runtime types

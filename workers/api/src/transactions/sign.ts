@@ -1,9 +1,6 @@
 /**
- * POST /sign — fee-sponsor an on-chain `execute` transaction.
- *
- * Policy is enforced on-chain, so this endpoint is bearer-free: the api routes
- * to the token's TokenSigner DO (derived from the tx), which validates the tx
- * shape, meters the prepaid fee balance, and co-signs as the fee payer.
+ * POST /sign — fee-sponsor a phygital-wallet transaction via TokenSigner.
+ * No session cookie; DO validates shape + prepaid balance, then co-signs.
  */
 import { Hono } from "hono";
 

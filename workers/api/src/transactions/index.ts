@@ -1,10 +1,6 @@
 /**
- * Revibase paymaster + owner-connect HTTP surface.
- *
- * - GET  `/getFeePayer` — the default fee-payer pubkey the SDK builds txs against.
- * - POST `/sign` — fee-sponsor an on-chain `execute` (fee-balance + shape gate).
- *
- * Policy is enforced on-chain; there is no `/preview` or `/policies` here.
+ * Fee-payer HTTP surface: `GET /getFeePayer`, `POST /sign`.
+ * Policy is enforced on-chain.
  */
 import { Hono } from "hono";
 

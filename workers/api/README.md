@@ -2,111 +2,92 @@
 
 Cloudflare Worker (Hono) behind `https://api.revibase.com`.
 
-## Start here (5-minute map)
+## Map
 
 ```
-api/src/
-  index.ts          Worker entry — CORS, request store, mounts domains
-  shared/           Cross-cutting: HTTP helpers, D1, Solana cluster, crypto
-  tokens/           Verified catalog, fee-balance (proxied to DO)
-  auth/             Device session + link index + policy HTTP (WebAuthn → DO)
-  fees/             Subscribe-tx fee accounting → DO applyFeeEvents
-  webhooks/         POST /webhooks/transactions (+ wallet activity)
+src/
+  index.ts          Entry — CORS, request store, mounts
+  shared/           HTTP, D1, cookies, crypto, logging
+  auth/             Accessory unlock + owner/browse sessions
+  owner-wallet/     Encrypted owner blob backup
+  tokens/           Fee-balance proxy + verified catalog
+  fees/             Webhook fee credit/debit → TokenSigner DO
+  transactions/     GET /getFeePayer + POST /sign
+  webhooks/         POST /webhooks/transactions + activity
 
-api-signer/         Private Worker: TokenSigner Durable Object (per token)
+../api-signer/      Private Worker: TokenSigner DO (per token)
 ```
 
-| If you care about…                  | Open                                                 |
-| ----------------------------------- | ---------------------------------------------------- |
-| Wallet co-signing / custom verifier | [`../api-signer/README.md`](../api-signer/README.md) |
-| Fee balance / top-up / webhook      | this README § Fee balance                            |
-| Session + Settings policies         | [`src/auth/README.md`](./src/auth/README.md)         |
-
-**Auditor tip:** Fee / policy evaluate / co-sign / owner membership / soft-deny
-inbox live in the `TokenSigner` DO on `api-signer/`. This Worker is an untrusted
-edge: session UX and WebAuthn before `addOwner`.
+| Topic | Doc |
+| --- | --- |
+| Fee-payer signing | [`../api-signer/README.md`](../api-signer/README.md) |
+| Fee balance / webhook | § Fee balance below |
+| Sessions | `src/auth/` |
 
 ## Setup
 
 ```bash
 pnpm install
-cp api/.dev.vars.example api/.dev.vars
-cp api-signer/.dev.vars.example api-signer/.dev.vars
-# POLICY_SESSION_SECRET on API; VERIFIER_SECRET_KEYS on api-signer
+cp workers/api/.dev.vars.example workers/api/.dev.vars
+cp workers/api-signer/.dev.vars.example workers/api-signer/.dev.vars
+# POLICY_SESSION_SECRET on API; FEE_PAYER_SECRET_KEYS on api-signer
 pnpm --filter api dev
 ```
 
 ## Routes
 
-Protected by default: valid `revibase_device_session` **access** cookie **or**
-`revibase_browse_unlock` cookie (browse-unlock must match the request token when
-one is present). Login also sets `revibase_device_refresh` (~30d); use
-`POST /auth/device-session/refresh` to mint a new access cookie without WebAuthn.
+Cookie floor (non-public routes): matching `revibase_browse_unlock` **or**
+`revibase_owner_browse`. `revibase_owner_session` is login state only — it does
+not admit protected routes by itself.
 
-| Method         | Path                                         | Access     | Notes                                                                      |
-| -------------- | -------------------------------------------- | ---------- | -------------------------------------------------------------------------- |
-| GET            | `/health`                                    | Public     | Liveness                                                                   |
-| POST           | `/connect`                                   | Public     | WebAuthn tap → verifier session bearer (open CORS; portable contract)      |
-| POST           | `/connect/tap`                               | Public     | NFC dynamic URL → bearer (strictly scoped to `app.revibase.com`)           |
-| POST           | `/preview` / `/sign`                         | Bearer     | Verifier API — **bearer-only**, never the cookie (open CORS for 3rd party) |
-| GET            | `/auth/device/gate`                          | Public     | Token landing (works with zero cookies; may refresh access)                |
-| GET            | `/auth/device/register-options`              | Public     | Start passkey registration (`?username=` required)                         |
-| POST           | `/auth/device`                               | Public     | Finish registration → access + refresh cookies                             |
-| GET            | `/auth/device-session/options`               | Public     | Start passkey sign-in                                                      |
-| POST           | `/auth/device-session`                       | Public     | Finish sign-in → access + refresh cookies                                  |
-| POST           | `/auth/device-session/refresh`               | Public     | Refresh cookie → new access (+ rotate refresh)                             |
-| GET            | `/auth/device-session`                       | Public     | Current access session (silent refresh if needed)                          |
-| POST           | `/auth/app-session`                          | Public     | Verifier bearer → browse-unlock session cookie (app origins only)          |
-| POST           | `/webhooks/transactions`                     | Protected  | HMAC (`WALLET_WEBHOOK_SECRET`) — activity index + fee credit/debit         |
-| GET            | `/wallets/:address/activity`                 | Protected  | Self-indexed wallet activity from D1                                       |
-| GET            | `/auth/device/links`                         | Protected  | Listing index                                                              |
-| POST           | `/auth/device/links`                         | Protected  | Link → WebAuthn → DO `addOwner`                                            |
-| POST           | `/auth/device/links/:token/mutation-options` | Protected  | Claim WebAuthn challenge                                                   |
-| DELETE         | `/auth/device/links/:token`                  | Protected  | WebAuthn → DO `removeOwnerAndClear`                                        |
-| GET/PUT/DELETE | `/policies/:token`                           | Protected  | Owner session (+ WebAuthn on writes)                                       |
-| POST           | `/policies/:token/mutation-options`          | Protected  | Owner WebAuthn challenge                                                   |
-| POST           | `/policies/:token/grants`                    | Protected  | Owner WebAuthn                                                             |
-| GET            | `/policies/:token/approvals`                 | Protected  | Soft-deny inbox                                                            |
-| POST           | `/policies/:token/approvals/deny`            | Protected  | Owner deny                                                                 |
-| GET            | `/tokens/fee-balance`                        | Protected‡ | Matching browse-unlock **or** owner device session                         |
-| GET            | `/tokens/verified`                           | Protected  | Verified catalog                                                           |
+| Method | Path | Access | Notes |
+| --- | --- | --- | --- |
+| GET | `/health` | Public | Liveness |
+| POST | `/accessory/unlock/tap` | Public | NFC dynamic URL → browse-unlock cookie |
+| POST | `/accessory/unlock/challenge` | Public | WebAuthn challenge for Hold |
+| POST | `/accessory/unlock/webauthn` | Public | Finish Hold → browse-unlock cookie |
+| GET/DELETE | `/owner-session` | Public* | Owner login cookie |
+| POST | `/accessory/owner-browse` | Public† | Mint per-item owner-browse (`owner_session` required) |
+| GET | `/accessory/session` | Public* | Session status |
+| GET | `/owner-wallet/blob` | Public | Hash lookup |
+| POST | `/owner-wallet/blob/challenge` | Public | Possession challenge |
+| PUT | `/owner-wallet/blob` | Public | ed25519 proof → store + mint `owner_session` |
+| GET | `/getFeePayer` | Public | Default fee-payer pubkey (open CORS) |
+| POST | `/sign` | Public | Fee co-sign via TokenSigner DO (open CORS) |
+| POST | `/webhooks/transactions` | HMAC | Activity index + fee credit/debit |
+| GET | `/wallets/:address/activity` | Browse | Indexed wallet activity |
+| GET | `/tokens/fee-balance` | Browse‡ | Prepaid fee balance |
+| GET | `/tokens/verified` | Browse | Verified catalog |
 
-‡Not readable cross-token with a random device session — must own the token or hold browse-unlock for it.
+\*Response depends on cookies when present.
+†Exempt from the cookie floor; handler authenticates via `owner_session`.
+‡Must match browse-unlock or owner-browse for that token.
 
 ## Fee balance
 
-Per-token prepaid balance lives in the **TokenSigner DO** (not D1):
+Per-token prepaid balance lives in the **TokenSigner DO**:
 
-1. **Top-up:** `executeWithAuthority` wrapping SOL → `TOP_UP_ACCUMULATOR`; `POST /webhooks/transactions` → queue → DO credit (token PDA from the execute ix; new token ledgers start with 0.001 SOL)
-2. **Gate:** DO on preview/sign (`execute`: fee + policy; config: owner WebAuthn + fee)
-3. **Debit:** same transactions webhook → DO debit on confirmed execute sponsored by a default fee payer
+1. **Top-up:** SOL → `TOP_UP_ACCUMULATOR` via `executeWithAuthority`; webhook → DO credit
+2. **Gate:** DO on `/sign` (balance + tx shape)
+3. **Debit:** webhook → DO debit when a default fee payer sponsors a confirmed execute
 
-**Watch-list prerequisite (helius-wallet-service):** the subscribe feed must include:
-
-- `TOP_UP_ACCUMULATOR`
-- every pubkey in `DEFAULT_VERIFIER_PUBKEYS`
-
-Without those watches, top-ups and sponsored executes never reach this Worker.
+Helius subscribe must watch `TOP_UP_ACCUMULATOR` and every `DEFAULT_FEE_PAYER_PUBKEYS` entry.
 
 ## Env / bindings
 
-| Name                    | Where           | Purpose                                                               |
-| ----------------------- | --------------- | --------------------------------------------------------------------- |
-| `TOKEN_SIGNER`          | DO binding      | `TokenSigner` on `revibase-verifier-signer`                           |
-| `VERIFIER_SECRET_KEYS`  | **api-signer**  | verifier seeds                                                        |
-| `POLICY_SESSION_SECRET` | api **and app** | device session + browse-unlock HMAC (app middleware verifies cookies) |
-| `WALLET_WEBHOOK_SECRET` | api secret      | HMAC for `/webhooks/transactions`                                     |
-| `TOP_UP_ACCUMULATOR`    | api (+ app)     | Fee top-up destination                                                |
-| `DEFAULT_VERIFIER_PUBKEYS` | api          | Default fee-payer set (debit attribution)                             |
-| `WALLET_TX_QUEUE`       | Queue           | `wallet-tx-ingest` — activity + fee processing                        |
-| `phygital_token`        | D1              | credentials, link index, wallet_activity                              |
+| Name | Where | Purpose |
+| --- | --- | --- |
+| `TOKEN_SIGNER` | DO binding | `TokenSigner` on `revibase-token-signer` |
+| `FEE_PAYER_SECRET_KEYS` | api-signer | Fee-payer pubkey → seed/keypair map |
+| `POLICY_SESSION_SECRET` | api + app | Session cookie HMAC |
+| `WALLET_WEBHOOK_SECRET` | api | HMAC for `/webhooks/transactions` |
+| `TOP_UP_ACCUMULATOR` | api + api-signer (+ app) | Fee top-up destination |
+| `DEFAULT_FEE_PAYER_PUBKEYS` | api | Default fee-payer set (debit attribution) |
+| `WALLET_TX_QUEUE` | Queue | `wallet-tx-ingest` |
+| `phygital_token` | D1 | Sessions index, activity, audit_log |
 
 ## Deploy
 
-`pnpm --filter api run deploy` deploys **api-signer first** (TokenSigner DO must
-exist before `revibase-api` can bind `script_name`), then the API Worker.
-
 ```bash
-pnpm --filter api run deploy
-# or: pnpm deploy:api
+pnpm --filter api run deploy   # deploys api-signer first, then revibase-api
 ```

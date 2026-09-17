@@ -7,7 +7,7 @@ Private Cloudflare Worker hosting one `TokenSigner` Durable Object per
 2. Maintain that token's prepaid fee balance and idempotent credit/debit events.
 
 The worker has no public HTTP routes. The API worker calls it through the
-`TOKEN_SIGNER` Durable Object binding.
+`TOKEN_SIGNER` Durable Object binding (`script_name`: `revibase-token-signer`).
 
 ## RPC
 
@@ -21,13 +21,13 @@ check so an empty ledger can be funded.
 
 ## Configuration
 
-- `VERIFIER_SECRET_KEYS`: JSON map of fee-payer address to seed/keypair. The
-  legacy variable name is retained for deployment compatibility.
+- `FEE_PAYER_SECRET_KEYS`: JSON map of fee-payer address to seed/keypair.
 - `TOP_UP_ACCUMULATOR`: destination address recognized as a fee top-up.
 - `LOG_LEVEL`: `debug`, `info`, `warn`, or `error`.
 
 Deploy the signer before the API so the Durable Object class exists:
 
 ```bash
+pnpm --filter api-signer deploy
 pnpm --filter api deploy
 ```

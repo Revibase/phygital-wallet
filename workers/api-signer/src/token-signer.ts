@@ -1,9 +1,6 @@
 /**
- * TokenSigner Durable Object — per-phygitalToken paymaster.
- *
- * Owns the prepaid fee balance and the ed25519 fee-payer signature for
- * phygital-wallet transactions.
- * Hosted on revibase-verifier-signer.
+ * TokenSigner Durable Object — per-token fee ledger + shared fee-payer cosign.
+ * Hosted on revibase-token-signer.
  */
 import { DurableObject } from "cloudflare:workers";
 import { FeePayerSigner } from "@/backend/secrets";
@@ -82,7 +79,7 @@ export class TokenSigner extends DurableObject<Env> {
 
   #getBackend(): FeePayerSigner {
     if (!this.#backend) {
-      this.#backend = new FeePayerSigner(this.env.VERIFIER_SECRET_KEYS);
+      this.#backend = new FeePayerSigner(this.env.FEE_PAYER_SECRET_KEYS);
     }
     return this.#backend;
   }

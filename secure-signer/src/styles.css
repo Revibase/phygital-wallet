@@ -206,16 +206,6 @@ body {
   border: 1px solid color-mix(in srgb, var(--warn) 24%, transparent);
 }
 
-.secret-hidden {
-  margin: 0 0 12px;
-  padding: 16px 14px;
-  border-radius: 12px;
-  border: 1px dashed var(--line);
-  text-align: center;
-  letter-spacing: 0.12em;
-  color: var(--muted);
-}
-
 .mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-variant-numeric: tabular-nums;
@@ -379,19 +369,6 @@ body {
 .btn:disabled {
   opacity: 0.45;
   cursor: default;
-}
-
-.secret {
-  margin: 0 0 12px;
-  padding: 12px 14px;
-  border-radius: 12px;
-  border: 1px solid var(--line);
-  background: #fff;
-  color: var(--fg);
-  font-size: 0.9rem;
-  line-height: 1.45;
-  user-select: text;
-  -webkit-user-select: text;
 }
 
 .spinner {

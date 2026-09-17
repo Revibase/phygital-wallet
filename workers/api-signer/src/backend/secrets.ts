@@ -30,27 +30,26 @@ function parseSeed(raw: string): Uint8Array {
 }
 
 /**
- * In-process fee-payer signing from the existing `VERIFIER_SECRET_KEYS` secret
- * map. The environment name is retained for deployment compatibility.
+ * In-process fee-payer signing from `FEE_PAYER_SECRET_KEYS`.
  */
 export class FeePayerSigner {
   private readonly byPubkey: Map<string, Uint8Array>;
 
   constructor(secretKeysJson: string | undefined) {
     if (!secretKeysJson?.trim()) {
-      throw coded("VERIFIER_SECRET_KEYS is not configured", "signer_misconfigured");
+      throw coded("FEE_PAYER_SECRET_KEYS is not configured", "signer_misconfigured");
     }
 
     let parsed: unknown;
     try {
       parsed = JSON.parse(secretKeysJson);
     } catch {
-      throw coded("VERIFIER_SECRET_KEYS must be valid JSON", "signer_misconfigured");
+      throw coded("FEE_PAYER_SECRET_KEYS must be valid JSON", "signer_misconfigured");
     }
 
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
       throw coded(
-        "VERIFIER_SECRET_KEYS must be a JSON object map",
+        "FEE_PAYER_SECRET_KEYS must be a JSON object map",
         "signer_misconfigured",
       );
     }
@@ -58,13 +57,13 @@ export class FeePayerSigner {
     const entries = Object.entries(parsed as Record<string, unknown>);
     if (entries.length === 0) {
       throw coded(
-        "VERIFIER_SECRET_KEYS must include at least one key",
+        "FEE_PAYER_SECRET_KEYS must include at least one key",
         "signer_misconfigured",
       );
     }
     if (entries.length > MAX_FEE_PAYER_KEYS) {
       throw coded(
-        `VERIFIER_SECRET_KEYS supports at most ${MAX_FEE_PAYER_KEYS} keys`,
+        `FEE_PAYER_SECRET_KEYS supports at most ${MAX_FEE_PAYER_KEYS} keys`,
         "signer_misconfigured",
       );
     }
@@ -73,7 +72,7 @@ export class FeePayerSigner {
     for (const [pubkey, value] of entries) {
       if (typeof value !== "string" || !value.trim()) {
         throw coded(
-          `VERIFIER_SECRET_KEYS entry for ${pubkey} must be a string`,
+          `FEE_PAYER_SECRET_KEYS entry for ${pubkey} must be a string`,
           "signer_misconfigured",
         );
       }
@@ -81,7 +80,7 @@ export class FeePayerSigner {
       const derived = base58Decoder.decode(ed25519.getPublicKey(seed));
       if (derived !== pubkey) {
         throw coded(
-          `VERIFIER_SECRET_KEYS pubkey mismatch: map key ${pubkey} != derived ${derived}`,
+          `FEE_PAYER_SECRET_KEYS pubkey mismatch: map key ${pubkey} != derived ${derived}`,
           "signer_misconfigured",
         );
       }
