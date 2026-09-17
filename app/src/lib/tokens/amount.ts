@@ -22,7 +22,7 @@ export function formatCompactTokenAmount(uiAmount: string): string {
   if (!Number.isFinite(value)) return uiAmount;
   const abs = Math.abs(value);
   const maximumFractionDigits = abs >= 1000 ? 2 : abs >= 1 ? 4 : 6;
-  return value.toLocaleString(undefined, { maximumFractionDigits });
+  return value.toLocaleString("en-US", { maximumFractionDigits });
 }
 
 /** Keep a single decimal point while stripping non-numeric characters. */

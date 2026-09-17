@@ -65,8 +65,11 @@ export function writeLocalBlob(
   if (!store) return false;
   try {
     parseBlob(raw);
-    store.setItem(LOCAL_BLOB_KEY, bytesToBinary(raw));
-    return true;
+    const encoded = bytesToBinary(raw);
+    store.setItem(LOCAL_BLOB_KEY, encoded);
+    // Safari / partitioned storage can accept setItem then drop it — verify.
+    const roundTrip = store.getItem(LOCAL_BLOB_KEY);
+    return roundTrip === encoded;
   } catch {
     return false;
   }

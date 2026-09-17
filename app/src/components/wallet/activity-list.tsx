@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { RefreshCcw } from "lucide-react";
 
 import { GroupedList, GroupedRow } from "@/components/shared/grouped-list";
@@ -30,9 +30,9 @@ function symbolForMint(
 }
 
 /** Compact relative time — Phantom/Backpack-style trailing label. */
-function formatActivityTime(timestamp: number | null): string {
+function formatActivityTime(timestamp: number | null, nowMs: number): string {
   if (!timestamp) return "";
-  const diffMs = Date.now() - timestamp * 1000;
+  const diffMs = nowMs - timestamp * 1000;
   if (diffMs < 60_000) return "Just now";
   if (diffMs < 3_600_000) return `${Math.floor(diffMs / 60_000)}m`;
   if (diffMs < 86_400_000) return `${Math.floor(diffMs / 3_600_000)}h`;
@@ -47,10 +47,13 @@ const ActivityRow = memo(function ActivityRow({
   item,
   assetMetaByMint,
   onSelect,
+  nowMs,
 }: {
   item: WalletActivityItem;
   assetMetaByMint?: Record<string, { symbol: string; name: string }>;
   onSelect: (item: WalletActivityItem) => void;
+  /** null until mount — avoids SSR/client Date.now() hydration drift. */
+  nowMs: number | null;
 }) {
   // Prefer the indexer's parsed detail; fall back to the raw counterparty/status.
   const description = item.detail?.description?.trim();
@@ -103,7 +106,9 @@ const ActivityRow = memo(function ActivityRow({
 
   const timeLabel = item.pending
     ? "Pending"
-    : formatActivityTime(item.timestamp);
+    : nowMs != null
+      ? formatActivityTime(item.timestamp, nowMs)
+      : "";
 
   // A parsed category upgrades the generic fallback title (e.g. "Swap").
   const typeLabel = activityTypeLabel(item.detail?.type);
@@ -153,6 +158,11 @@ export function ActivityList({
   className?: string;
 }) {
   const [selected, setSelected] = useState<WalletActivityItem | null>(null);
+  const [nowMs, setNowMs] = useState<number | null>(null);
+
+  useEffect(() => {
+    setNowMs(Date.now());
+  }, []);
 
   if (items.length === 0) {
     return (
@@ -176,6 +186,7 @@ export function ActivityList({
             item={item}
             assetMetaByMint={assetMetaByMint}
             onSelect={setSelected}
+            nowMs={nowMs}
           />
         ))}
       </GroupedList>

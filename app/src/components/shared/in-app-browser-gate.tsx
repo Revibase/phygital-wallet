@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Smartphone } from "lucide-react";
 
@@ -33,8 +34,15 @@ export function InAppBrowserGate({
 }: {
   body?: string;
 }) {
-  const href = typeof window !== "undefined" ? window.location.href : "";
-  const safariHref = href && isIos() ? safariOpenHref(href) : null;
+  // Defer window/navigator reads until after mount so SSR HTML matches hydrate.
+  const [safariHref, setSafariHref] = useState<string | null>(null);
+  const [href, setHref] = useState("");
+
+  useEffect(() => {
+    const current = window.location.href;
+    setHref(current);
+    setSafariHref(isIos() ? safariOpenHref(current) : null);
+  }, []);
 
   return (
     <GateMessage
@@ -56,7 +64,7 @@ export function InAppBrowserGate({
             onClick={() => {
               void navigator.clipboard.writeText(href).then(
                 () => toast.success(copy.gate.linkCopied),
-                () => toast.error(copy.gate.linkCopyFailed)
+                () => toast.error(copy.gate.linkCopyFailed),
               );
             }}
           >

@@ -64,9 +64,9 @@ export function OwnerOwnershipSection({
   if (isLoading) {
     return (
       <GroupedList label={copy.wallet.ownershipLabel}>
-        <div className="px-4 py-3">
+        <li className="border-b border-border/50 px-4 py-3 last:border-b-0">
           <Skeleton className="h-5 w-40 rounded" />
-        </div>
+        </li>
       </GroupedList>
     );
   }
@@ -100,7 +100,7 @@ export function OwnerOwnershipSection({
         label={copy.wallet.ownershipLabel}
         footer={copy.wallet.ownershipClaimFooter}
       >
-        <div className="px-4 py-3">
+        <li className="border-b border-border/50 px-4 py-3 last:border-b-0">
           <Button
             type="button"
             size="lg"
@@ -109,7 +109,7 @@ export function OwnerOwnershipSection({
           >
             {copy.wallet.authorityClaimCta}
           </Button>
-        </div>
+        </li>
       </GroupedList>
     );
   }

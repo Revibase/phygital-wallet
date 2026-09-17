@@ -524,6 +524,12 @@ async function handleRemoteUnlock(opts: {
       seed.fill(0);
       return;
     }
+    // Refill signer LS as soon as D1 ciphertext is validated — before backup
+    // refresh, so a later PUT failure cannot leave this phone empty again.
+    if (!writeLocalBlob(raw)) {
+      seed.fill(0);
+      return fail(opts.requestId, "INTERNAL_ERROR");
+    }
     const putSignature = signChallenge(
       backup.challenge,
       seed,
@@ -587,9 +593,6 @@ async function handleRemoteUnlock(opts: {
       }));
     } catch {
       return fail(opts.requestId, "BLOB_UNAVAILABLE");
-    }
-    if (!writeLocalBlob(raw)) {
-      return fail(opts.requestId, "INTERNAL_ERROR");
     }
     busy.clear();
     await ui.showSuccess(pk, false);
