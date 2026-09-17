@@ -8,12 +8,6 @@ import type { OwnerWallet } from "@/hooks/wallet/use-owner-wallet";
 import { base64ToBytes } from "@/lib/crypto/base64";
 import { queryKeys } from "@/lib/queries";
 import {
-  backupOwnerWalletBlob,
-  restoreOwnerWalletBlob,
-  issueOwnerWalletRestoreChallenge,
-  issueOwnerWalletBackupChallenge,
-} from "@/lib/wallet/owner-wallet-blob";
-import {
   clearOwnerSession,
   fetchOwnerSession,
 } from "@/lib/wallet/owner-session";
@@ -24,14 +18,8 @@ import {
 import { createSecureSignerSigner } from "@/lib/wallet/secure-signer-signer";
 
 /**
- * `OwnerWallet` backed by the secure-signer iframe (see `secure-signer/`).
- *
- * Login: httpOnly `revibase_owner_session` via GET /owner-session.
- * Signing ciphertext lives only in the signer's origin localStorage; D1 is the
- * durable backup used during AUTH restore (`BLOB_NEEDED`).
- *
- * Discoverable unlock: one WebAuthn ceremony (restore challenge) unlocks PRF in
- * the signer and authorizes POST /owner-wallet/blob/restore with the assertion.
+ * Secure-signer backed owner wallet.
+ * Challenges + ciphertext stay in the signer; parent only drives UX + session cache.
  */
 
 function isLoginCancelled(err: unknown): boolean {
@@ -75,25 +63,10 @@ export function useSecureSignerWallet(): OwnerWallet {
   }, []);
 
   const finishAuth = useCallback(
-    async (result: {
-      publicKey: string;
-      encryptedWalletBlob: string;
-      putSignature: string;
-      challengeId: string;
-      webauthnAttestationObject?: string;
-    }) => {
-      const { expiresAt } = await backupOwnerWalletBlob({
-        encryptedWalletBlob: result.encryptedWalletBlob,
-        publicKey: result.publicKey,
-        challengeId: result.challengeId,
-        signature: result.putSignature,
-        ...(result.webauthnAttestationObject
-          ? { webauthnAttestationObject: result.webauthnAttestationObject }
-          : {}),
-      });
+    (result: { publicKey: string; expiresAt: number }) => {
       queryClient.setQueryData(queryKeys.ownerSession.all(), {
         publicKey: result.publicKey,
-        expiresAt,
+        expiresAt: result.expiresAt,
       });
     },
     [queryClient],
@@ -102,52 +75,24 @@ export function useSecureSignerWallet(): OwnerWallet {
   const login = useCallback(async () => {
     try {
       const client = getSecureSignerClient();
-
-      // Overlap backup-challenge mint with the setup sheet (create path uses it).
-      const backupChallengePromise = issueOwnerWalletBackupChallenge();
       const choice = await promptSetup();
       if (choice.mode === "cancel") return;
 
       if (choice.mode === "create") {
-        const backupChallenge = await backupChallengePromise;
-        const result = await client.authenticate({
-          authMode: "create",
-          credentialId: choice.credentialId,
-          putChallenge: backupChallenge.challenge,
-        });
-        await finishAuth({
-          ...result,
-          challengeId: backupChallenge.challengeId,
-          webauthnAttestationObject: choice.attestationObject,
-        });
+        finishAuth(
+          await client.authenticate({
+            authMode: "create",
+            credentialId: choice.credentialId,
+            webauthnAttestationObject: choice.attestationObject,
+          }),
+        );
         return;
       }
 
-      // Unlock: backup + restore challenges in parallel. restore challenge
-      // bytes are the WebAuthn challenge for the single discoverable ceremony.
-      const [backupChallenge, restoreChallenge] = await Promise.all([
-        backupChallengePromise,
-        issueOwnerWalletRestoreChallenge(),
-      ]);
-
       try {
-        const result = await client.authenticate({
-          authMode: "unlock",
-          putChallenge: backupChallenge.challenge,
-          fetchChallenge: restoreChallenge.challenge,
-          resolveBlob: async (_credentialId, assertion) =>
-            restoreOwnerWalletBlob({
-              challengeId: restoreChallenge.challengeId,
-              assertion,
-            }),
-        });
-        await finishAuth({
-          ...result,
-          challengeId: backupChallenge.challengeId,
-        });
+        finishAuth(await client.authenticate({ authMode: "unlock" }));
       } catch (err) {
         if (isLoginCancelled(err)) return;
-        // Unlock failed after WebAuthn (e.g. passkey deleted) — offer create.
         if (
           !(err instanceof SecureSignerError) ||
           err.code !== "AUTHENTICATION_FAILED"
@@ -156,17 +101,13 @@ export function useSecureSignerWallet(): OwnerWallet {
         }
         const recovery = await promptLostPasskey();
         if (recovery.mode === "cancel") return;
-        const createChallenge = await issueOwnerWalletBackupChallenge();
-        const result = await client.authenticate({
-          authMode: "create",
-          credentialId: recovery.credentialId,
-          putChallenge: createChallenge.challenge,
-        });
-        await finishAuth({
-          ...result,
-          challengeId: createChallenge.challengeId,
-          webauthnAttestationObject: recovery.attestationObject,
-        });
+        finishAuth(
+          await client.authenticate({
+            authMode: "create",
+            credentialId: recovery.credentialId,
+            webauthnAttestationObject: recovery.attestationObject,
+          }),
+        );
       }
     } catch (err) {
       if (isLoginCancelled(err)) return;

@@ -1,7 +1,5 @@
 /**
  * Last-known-good encrypted wallet on the signer origin. Ciphertext only.
- * Parent XSS cannot read this store. Clearing site data for the signer origin
- * drops the cache; restore then depends on the parent/KV backup.
  */
 
 import { MAX_BLOB_BYTES } from "./constants.js";

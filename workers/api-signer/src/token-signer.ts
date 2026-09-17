@@ -255,11 +255,19 @@ export class TokenSigner extends DurableObject<Env> {
                 };
               }
               reservedIds.push(reserveId);
+              const signature = await backend.sign(
+                decoded.feePayer,
+                decoded.messageBytes,
+              );
+              store.rebindReserve(reserveId, signature);
+              // Track the rebound id for rollback on later failure.
+              reservedIds[reservedIds.length - 1] = signature;
+              signatures.push(signature);
+            } else {
+              signatures.push(
+                await backend.sign(decoded.feePayer, decoded.messageBytes),
+              );
             }
-
-            signatures.push(
-              await backend.sign(decoded.feePayer, decoded.messageBytes),
-            );
           }
 
           await this.#scheduleReserveAlarm();

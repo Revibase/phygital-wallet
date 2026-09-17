@@ -55,11 +55,52 @@ function memorySql() {
               : [],
         };
       }
-      if (q.includes("SELECT id FROM fee_reserves WHERE id")) {
+      if (
+        q.includes("SELECT id, lamports, created_at, expires_at FROM fee_reserves")
+      ) {
+        const row = reserves.get(String(params[0]));
         return {
           toArray: () =>
-            reserves.has(String(params[0])) ? [{ id: params[0] }] : [],
+            row
+              ? [
+                  {
+                    id: params[0],
+                    lamports: row.lamports,
+                    created_at: row.created_at,
+                    expires_at: row.expires_at,
+                  },
+                ]
+              : [],
         };
+      }
+      if (
+        q.includes("SELECT id FROM fee_reserves") &&
+        q.includes("expires_at >") &&
+        q.includes("ORDER BY created_at")
+      ) {
+        const now = Number(params[0]);
+        const rows = [...reserves.entries()]
+          .filter(([, r]) => r.expires_at > now)
+          .sort((a, b) => a[1].created_at - b[1].created_at)
+          .slice(0, 1)
+          .map(([id]) => ({ id }));
+        return { toArray: () => rows };
+      }
+      if (q.includes("SELECT id FROM fee_reserves WHERE id")) {
+        const id = String(params[0]);
+        const now = params.length > 1 ? Number(params[1]) : null;
+        const row = reserves.get(id);
+        if (!row) return { toArray: () => [] };
+        if (now != null && row.expires_at <= now) return { toArray: () => [] };
+        return { toArray: () => [{ id }] };
+      }
+      if (q.includes("SELECT id, lamports FROM fee_reserves")) {
+        const now = Number(params[0]);
+        const rows = [...reserves.entries()]
+          .filter(([, r]) => r.expires_at > now)
+          .sort((a, b) => a[1].created_at - b[1].created_at)
+          .map(([id, r]) => ({ id, lamports: r.lamports }));
+        return { toArray: () => rows };
       }
       if (q.includes("INSERT INTO fee_reserves")) {
         reserves.set(String(params[0]), {
@@ -92,14 +133,6 @@ function memorySql() {
         return {
           toArray: () => (next ? [{ expires_at: next.expires_at }] : []),
         };
-      }
-      if (q.includes("SELECT id, lamports FROM fee_reserves")) {
-        const now = Number(params[0]);
-        const rows = [...reserves.entries()]
-          .filter(([, r]) => r.expires_at > now)
-          .sort((a, b) => a[1].created_at - b[1].created_at)
-          .map(([id, r]) => ({ id, lamports: r.lamports }));
-        return { toArray: () => rows };
       }
       return { toArray: () => [] };
     },
@@ -182,9 +215,28 @@ describe("TokenStore fee accounting", () => {
     expect(store.getFeeBalanceLamports()).toBe(
       STARTER_FEE_BALANCE_LAMPORTS - 50_000,
     );
-    // One FIFO reserve released on settle.
+    // FIFO fallback releases one reserve when signature is unbound.
     expect(store.getReservedLamports()).toBe(
       (maxReserves - 1) * MIN_ATTEMPT_FEE_LAMPORTS,
+    );
+  });
+
+  it("settleDebit releases the reserve rebound to the tx signature", () => {
+    const store = new TokenStore(memorySql(), "TokenA");
+    store.ensureToken("TokenA");
+    expect(store.reserve("msg-hash")).toBe(true);
+    expect(store.rebindReserve("msg-hash", "tx-sig")).toBe(true);
+    expect(store.getReservedLamports()).toBe(MIN_ATTEMPT_FEE_LAMPORTS);
+    expect(
+      store.settleDebit({
+        signature: "tx-sig:debit",
+        kind: "debit",
+        lamports: 40_000,
+      }),
+    ).toBe(true);
+    expect(store.getReservedLamports()).toBe(0);
+    expect(store.getFeeBalanceLamports()).toBe(
+      STARTER_FEE_BALANCE_LAMPORTS - 40_000,
     );
   });
 });

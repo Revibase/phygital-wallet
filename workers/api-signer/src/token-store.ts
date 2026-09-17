@@ -168,27 +168,69 @@ export class TokenStore {
   }
 
   /**
-   * On debit: release FIFO open reserves (covering the attempt floor), then
-   * apply the actual lamport debit to the settled ledger.
+   * On debit: release the reserve bound to this tx signature (rebound at sign
+   * time from the message hash), then apply the actual lamport debit.
+   * Falls back to releasing one FIFO open reserve if no signature match
+   * (legacy in-flight reserves during deploy).
    */
   settleDebit(event: FeeEvent, now = Date.now()): boolean {
     if (event.kind !== "debit") return this.applyFeeEvent(event);
     this.expireReserves(now);
-    let remaining = MIN_ATTEMPT_FEE_LAMPORTS;
-    const open = this.sql
-      .exec<{ id: string; lamports: number }>(
-        `SELECT id, lamports FROM fee_reserves
-         WHERE expires_at > ?
-         ORDER BY created_at ASC`,
+    const sig = event.signature.replace(/:debit$/, "");
+    const matched = this.sql
+      .exec<{ id: string }>(
+        `SELECT id FROM fee_reserves WHERE id = ? AND expires_at > ?`,
+        sig,
         now,
       )
-      .toArray();
-    for (const row of open) {
-      if (remaining <= 0) break;
-      this.sql.exec(`DELETE FROM fee_reserves WHERE id = ?`, row.id);
-      remaining -= Number(row.lamports);
+      .toArray()[0];
+    if (matched) {
+      this.sql.exec(`DELETE FROM fee_reserves WHERE id = ?`, matched.id);
+    } else {
+      const open = this.sql
+        .exec<{ id: string }>(
+          `SELECT id FROM fee_reserves
+           WHERE expires_at > ?
+           ORDER BY created_at ASC LIMIT 1`,
+          now,
+        )
+        .toArray()[0];
+      if (open) {
+        this.sql.exec(`DELETE FROM fee_reserves WHERE id = ?`, open.id);
+      }
     }
     return this.applyFeeEvent(event);
+  }
+
+  /** After co-sign: bind the open message-hash reserve to the tx signature. */
+  rebindReserve(fromId: string, toId: string, now = Date.now()): boolean {
+    if (!fromId || !toId || fromId === toId) return false;
+    const row = this.sql
+      .exec<{
+        id: string;
+        lamports: number;
+        created_at: number;
+        expires_at: number;
+      }>(
+        `SELECT id, lamports, created_at, expires_at FROM fee_reserves WHERE id = ?`,
+        fromId,
+      )
+      .toArray()[0];
+    if (!row || row.expires_at <= now) return false;
+    this.sql.exec(`DELETE FROM fee_reserves WHERE id = ?`, fromId);
+    const existingTo = this.sql
+      .exec<{ id: string }>(`SELECT id FROM fee_reserves WHERE id = ?`, toId)
+      .toArray()[0];
+    if (existingTo) return true;
+    this.sql.exec(
+      `INSERT INTO fee_reserves (id, lamports, created_at, expires_at)
+       VALUES (?, ?, ?, ?)`,
+      toId,
+      row.lamports,
+      row.created_at,
+      row.expires_at,
+    );
+    return true;
   }
 
   applyFeeEvent(event: FeeEvent): boolean {

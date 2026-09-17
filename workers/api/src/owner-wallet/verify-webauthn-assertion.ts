@@ -19,7 +19,7 @@ import {
 
 import { isAppBrowserOrigin } from "@/shared/cors";
 
-/** Mirror app `resolveWebAuthnRpId` — env override, else hostname heuristics. */
+/** Mirror app `resolveWebAuthnRpId` — hostname heuristics for RP ID. */
 export function resolveWebAuthnRpId(hostname: string): string {
   if (hostname === "localhost" || hostname === "127.0.0.1") return "localhost";
   if (hostname === "revibase.com" || hostname.endsWith(".revibase.com")) {
@@ -28,21 +28,59 @@ export function resolveWebAuthnRpId(hostname: string): string {
   return hostname;
 }
 
+export type AttestationCredential = {
+  /** COSE credential public key (SimpleWebAuthn `credential.publicKey`). */
+  publicKey: Uint8Array;
+  /** Raw credential ID from attestedCredentialData — must match blob header. */
+  credentialId: Uint8Array;
+};
+
+async function sha256(bytes: Uint8Array): Promise<Uint8Array> {
+  return new Uint8Array(
+    await crypto.subtle.digest("SHA-256", bytes as BufferSource),
+  );
+}
+
+function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a[i]! ^ b[i]!;
+  return diff === 0;
+}
+
 /**
- * Extract COSE credential public key from a registration attestationObject
- * (base64url). Prefer this on first PUT so the server stores what SimpleWebAuthn
- * expects for `credential.publicKey`.
+ * Extract COSE public key + credential ID from a registration attestationObject
+ * (base64url). PUT binds `credentialId` to the wallet blob header so a seed
+ * holder cannot poison restore with a mismatched passkey.
+ *
+ * Also checks authData rpIdHash against the expected RP ID and requires UP+AT.
+ * fmt:none attestations are still forgeable by a seed holder; this blocks
+ * careless / mismatched RP forgeries.
  */
-export function extractCosePublicKeyFromAttestationObject(
+export async function extractCredentialFromAttestationObject(
   attestationObjectB64url: string,
-): Uint8Array {
+  expectedRpId: string,
+): Promise<AttestationCredential> {
   const bytes = isoBase64URL.toBuffer(attestationObjectB64url);
   const decoded = decodeAttestationObject(bytes);
   const authData = parseAuthenticatorData(decoded.get("authData"));
   if (!authData.credentialPublicKey) {
     throw new Error("attestationObject missing credentialPublicKey");
   }
-  return authData.credentialPublicKey;
+  if (!authData.credentialID || authData.credentialID.length === 0) {
+    throw new Error("attestationObject missing credentialID");
+  }
+  const expectedHash = await sha256(new TextEncoder().encode(expectedRpId));
+  if (!bytesEqual(authData.rpIdHash, expectedHash)) {
+    throw new Error("attestationObject rpIdHash mismatch");
+  }
+  if (!authData.flags.up || !authData.flags.at) {
+    throw new Error("attestationObject missing UP or AT flags");
+  }
+  return {
+    publicKey: authData.credentialPublicKey,
+    credentialId: authData.credentialID,
+  };
 }
 
 export type VerifyAssertionResult =

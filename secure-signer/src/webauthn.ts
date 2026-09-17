@@ -11,8 +11,9 @@
  * derived from PRF_INPUT_LABEL. It is never taken from the (attacker-controlled)
  * blob.
  *
- * Discoverable unlock uses a **server-issued** challenge (fetchChallenge) so the
- * same ceremony both evaluates PRF and authorizes D1 blob fetch.
+ * Discoverable unlock uses a **server-issued** restore challenge (minted by the
+ * signer via the API) so the same ceremony both evaluates PRF and authorizes
+ * D1 blob fetch.
  */
 
 import { PRF_INPUT_LABEL, RP_ID } from "./constants.js";
@@ -155,16 +156,20 @@ export class BrowserPrfProvider implements PrfProvider {
     try {
       prfOutput = extractPrf(cred);
     } catch {
-      prfOutput = await this.get(rpId, credentialId);
+    prfOutput = await this.get(rpId, credentialId).then((r) => r.prfOutput);
     }
     return { credentialId, prfOutput };
   }
 
-  async get(rpId: string, credentialId: Uint8Array): Promise<Uint8Array> {
+  async get(
+    rpId: string,
+    credentialId: Uint8Array,
+    challenge?: Uint8Array,
+  ): Promise<{ prfOutput: Uint8Array; assertion: AuthenticationAssertionJSON }> {
     const salt = await prfSalt();
     const assertion = (await navigator.credentials.get({
       publicKey: {
-        challenge: buf(randomChallenge()),
+        challenge: buf(challenge ?? randomChallenge()),
         rpId,
         allowCredentials: [{ type: "public-key", id: buf(credentialId) }],
         userVerification: "required",
@@ -175,15 +180,18 @@ export class BrowserPrfProvider implements PrfProvider {
       },
     })) as PublicKeyCredential | null;
     if (!assertion) throw new WebAuthnUnsupported("assertion returned null");
-    return extractPrf(assertion);
+    return {
+      prfOutput: extractPrf(assertion),
+      assertion: assertionToJSON(assertion),
+    };
   }
 
   /**
-   * Discoverable assertion (empty allowCredentials) for "Sign in" on a device
-   * with no local/parent blob.
+   * Discoverable assertion (empty allowCredentials) for unlock on a device
+   * with no local ciphertext.
    *
-   * `challenge` MUST be the server fetch-challenge bytes so the same ceremony
-   * unlocks PRF and authorizes D1 blob fetch (parent posts `assertion`).
+   * `challenge` MUST be the server restore-challenge bytes so the same ceremony
+   * unlocks PRF and authorizes D1 blob fetch (signer posts `assertion`).
    */
   async getDiscoverable(
     rpId: string,

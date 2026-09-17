@@ -23,8 +23,11 @@ class MockPrf implements PrfProvider {
     const credentialId = crypto.getRandomValues(new Uint8Array(16));
     return { credentialId, prfOutput: await this.derive(credentialId) };
   }
-  async get(_rpId: string, credentialId: Uint8Array): Promise<Uint8Array> {
-    return this.derive(credentialId);
+  async get(
+    _rpId: string,
+    credentialId: Uint8Array,
+  ): Promise<{ prfOutput: Uint8Array }> {
+    return { prfOutput: await this.derive(credentialId) };
   }
   private derive(credentialId: Uint8Array): Promise<Uint8Array> {
     return sha256(new Uint8Array([...credentialId, ...utf8(this.secret)]));

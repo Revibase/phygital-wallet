@@ -51,23 +51,12 @@ export class SignerState {
 
   /**
    * Reject stale or duplicate requests. Returns an error code or null if fresh.
-   * `BLOB_PROVIDED` may reuse the active AUTH_START request id (continuation).
    */
   checkFreshnessAndReplay(
     requestId: string,
     timestamp?: number,
-    opts?: { continuation?: boolean },
   ): ErrorCode | null {
-    if (this.seen.has(requestId)) {
-      if (
-        opts?.continuation &&
-        this.state === "AUTH_PENDING" &&
-        this.activeRequestId === requestId
-      ) {
-        return null;
-      }
-      return "REPLAY_REJECTED";
-    }
+    if (this.seen.has(requestId)) return "REPLAY_REJECTED";
     if (timestamp !== undefined) {
       const skew = Math.abs(this.now() - timestamp);
       if (skew > REQUEST_FRESHNESS_WINDOW_MS) return "REPLAY_REJECTED";

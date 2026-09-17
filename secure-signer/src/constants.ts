@@ -106,7 +106,5 @@ export const MAX_TX_BYTES = 4096;
 export const REQUEST_FRESHNESS_WINDOW_MS = 60_000;
 /** Remembered request ids for duplicate detection. Bounded to avoid growth. */
 export const SEEN_REQUEST_IDS_LIMIT = 512;
-/** How long AUTH_START waits for BLOB_PROVIDED after BLOB_NEEDED. */
-export const AUTH_BLOB_WAIT_MS = 60_000;
 /** Brief authenticated confirmation before the parent may hide the overlay. */
 export const AUTH_SUCCESS_MS = 700;

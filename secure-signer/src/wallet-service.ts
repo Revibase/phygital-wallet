@@ -53,7 +53,11 @@ export interface PrfCreateOptions {
 
 export interface PrfProvider {
   create(rpId: string, opts: PrfCreateOptions): Promise<PrfResult>;
-  get(rpId: string, credentialId: Uint8Array): Promise<Uint8Array>;
+  get(
+    rpId: string,
+    credentialId: Uint8Array,
+    challenge?: Uint8Array,
+  ): Promise<{ prfOutput: Uint8Array; assertion?: unknown }>;
 }
 
 export interface CreatedWallet {
@@ -93,7 +97,8 @@ export async function enrollExistingCredential(
 ): Promise<CreatedWallet> {
   let prfOutput: Uint8Array | undefined;
   try {
-    prfOutput = await prf.get(rpId, credentialId);
+    const got = await prf.get(rpId, credentialId);
+    prfOutput = got.prfOutput;
     return await wrapNewSeed(prfOutput, credentialId, rpId, opts);
   } finally {
     scrub(prfOutput);
@@ -154,24 +159,28 @@ export async function decryptWallet(
   prf: PrfProvider,
   rpId: string,
   parsed: ParsedWalletBlob
-): Promise<{ seed: Uint8Array; publicKey: Uint8Array }> {
+): Promise<{ seed: Uint8Array; publicKey: Uint8Array; assertion?: unknown }> {
   let prfOutput: Uint8Array | undefined;
+  let assertion: unknown;
   try {
-    prfOutput = await prf.get(rpId, parsed.credentialId);
+    const got = await prf.get(rpId, parsed.credentialId);
+    prfOutput = got.prfOutput;
+    assertion = got.assertion;
   } catch {
     // WebAuthn cancelled / no PRF / wrong authenticator — do not distinguish.
     throw new ServiceError("AUTHENTICATION_FAILED");
   }
   try {
-    return await unwrapWallet(prfOutput, parsed, rpId);
+    const unwrapped = await unwrapWallet(prfOutput, parsed, rpId);
+    return { ...unwrapped, ...(assertion !== undefined ? { assertion } : {}) };
   } finally {
     scrub(prfOutput);
   }
 }
 
 /**
- * Unwrap with an already-evaluated PRF (e.g. discoverable assertion held only
- * until the parent returns a blob). Caller must scrub `prfOutput`.
+ * Unwrap with an already-evaluated PRF (e.g. discoverable assertion held while
+ * the signer restores ciphertext from the API). Caller must scrub `prfOutput`.
  */
 export async function unwrapWallet(
   prfOutput: Uint8Array,

@@ -1,7 +1,8 @@
 /**
  * Shared Set-Cookie attributes for device access/refresh + browse unlock.
- * Production uses Domain=.revibase.com so the Next.js app middleware can
- * read the same httpOnly cookies the API sets.
+ * Production uses Domain=.revibase.com so app middleware can read API-set
+ * httpOnly cookies. Credentialed API abuse from sibling subdomains is blocked
+ * by the explicit CORS host allowlist (not by cookie Domain).
  */
 import type { Context } from "hono";
 

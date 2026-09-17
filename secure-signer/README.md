@@ -62,31 +62,25 @@ hatch by design. See `tx/policy.ts` and the threat model.
 ## postMessage API
 
 Request → result: `AUTH_START` → `AUTH_COMPLETE`, `SIGN_TRANSACTION`,
-`EXPORT_PRIVATE_KEY`. Mid-flow: `BLOB_NEEDED` / `BLOB_PROVIDED` for discoverable
-restore when signer-origin localStorage has no ciphertext. Discoverable unlock
-requires `fetchChallenge` on `AUTH_START` (server restore WebAuthn challenge); the
-signer posts `credentialId` + `assertion` on `BLOB_NEEDED` so the parent can
-`POST /owner-wallet/blob/restore`.
+`EXPORT_PRIVATE_KEY`.
 
-Sign / export use **signer localStorage only**. The parent always shows the
-create/unlock sheet before `AUTH_START`. `AUTH_COMPLETE` returns ciphertext so
-the parent can PUT the D1 backup (and mint `owner_session`).
+**Create** (`authMode: "create"`): parent sends `credentialId` +
+`webauthnAttestationObject` (passkey registered on the app). Signer mints the
+backup challenge, enrolls (PRF), PUTs the blob, returns `{ publicKey, expiresAt }`.
 
-All requests carry `{ protocolVersion: 1, requestId, timestamp? }`; blobs are
-base64url, transactions base64. Errors are generic
-`{ type: "ERROR", requestId, code }`. Unknown/malformed input fails closed. The
-signer posts `{ type: "SIGNER_READY" }` on load.
+**Unlock** (`authMode: "unlock"`): signer mints challenges as needed. Local
+ciphertext → PRF + PUT refresh. Otherwise discoverable WebAuthn + restore from
+the API. Ciphertext never enters the parent.
 
-`AUTH_START` unlocks in the iframe, or completes create when the parent sends
-`authMode: "create"` + `credentialId` (passkey registered on the app with the
-shared RP ID). Optional `putChallenge` produces a possession proof so the parent
-can PUT the blob and mint `owner_session` in one step. For discoverable restore,
-`fetchChallenge` is required — one WebAuthn ceremony unlocks PRF and authorizes
-blob fetch.
+Sign / export use **signer localStorage only**.
+
+All requests carry `{ protocolVersion: 1, requestId, timestamp? }`; transactions
+are base64. Errors are `{ type: "ERROR", requestId, code }`. The signer posts
+`{ type: "SIGNER_READY" }` on load.
 
 **Passkey create:** runs on the **app** (top-level, Safari-safe) with
 `rpId` = `revibase.com` (prod) or `localhost` (dev). The signer then prompts
-once more for PRF and wraps the wallet key — the app never sees PRF/seed.
+for PRF and wraps the wallet key — the app never sees PRF/seed.
 Unlock / sign stay in the iframe.
 
 ## Parent integration seam
@@ -99,7 +93,7 @@ create/import; `signTransaction` ← `SIGN_TRANSACTION`; `exportWallet` ←
 ## Deployment
 
 Serve `dist/` from a **separate origin** with the headers in `deploy/` (strict
-CSP with `connect-src 'none'`, `frame-ancestors <app>`,
+CSP with `connect-src` limited to the backup API, `frame-ancestors <app>`,
 `Permissions-Policy: publickey-credentials-get=(self), clipboard-write=(self)`,
 HSTS, no-store index). Do **not** add `X-Frame-Options` (breaks embedding) or
 COEP. The parent must delegate `publickey-credentials-get` and `clipboard-write`

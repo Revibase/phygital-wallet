@@ -17,15 +17,16 @@ parent app (app.*)   ── postMessage ──►   signer origin (signer.*)
 
 Everything crossing into the signer is attacker-controlled (§44). The signer
 independently derives or cryptographically verifies anything security-sensitive.
-The parent only ever legitimately receives: public keys, ciphertext, signatures,
-and generic results/errors.
+The parent only ever legitimately receives: public keys, signatures,
+and generic results/errors. Encrypted wallet blobs stay on the signer origin
+(localStorage + direct restore/PUT to the API).
 
 ## What it defends against
 
 | Threat                                     | Defense                                                                                                                                                                         |
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Parent XSS reads the private key           | Key generated + decrypted only in the signer origin; never posted in plaintext; per-op WebAuthn; export is a dedicated in-iframe ceremony.                                      |
-| Malicious storage / stolen blob            | Blob is public ciphertext; PRF→HKDF→AES-256-GCM; holding it reveals nothing without the passkey.                                                                                |
+| Malicious storage / stolen blob            | Blob is public ciphertext at rest in D1; PRF→HKDF→AES-256-GCM; holding it reveals nothing without the passkey. Parent XSS no longer receives restore ciphertext. |
 | Blob substitution (wallet A shown, B used) | AAD binds {pubkey, credentialId, salt, rpId}; after decrypt the derived pubkey must match; the trusted UI shows the **derived** key, never a parent label.                      |
 | Transaction substitution after confirm     | Validated message bytes are copied + frozen; authorization is single-use and bound to their SHA-256; the exact frozen bytes are signed (no re-encode → no parser differential). |
 | Arbitrary signing oracle                   | Top-level program allowlist (phygital-wallet); owner must be a required signer and the instruction `authority`; inner spend is clear-signed; per-tx WebAuthn.                |

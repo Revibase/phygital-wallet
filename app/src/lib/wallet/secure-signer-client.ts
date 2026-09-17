@@ -14,7 +14,6 @@
 
 import { SECURE_SIGNER_ORIGIN } from "@/lib/wallet/owner-backend";
 import { bytesToBase64 } from "@/lib/crypto/base64";
-import type { OwnerWalletAssertionJSON } from "@/lib/wallet/owner-wallet-blob";
 
 const PROTOCOL_VERSION = 1;
 const REQUEST_TIMEOUT_MS = 120_000;
@@ -22,8 +21,7 @@ const READY_TIMEOUT_MS = 20_000;
 
 export type AuthResult = {
   publicKey: string;
-  encryptedWalletBlob: string;
-  putSignature: string;
+  expiresAt: number;
 };
 
 export class SecureSignerError extends Error {
@@ -38,30 +36,7 @@ type Pending = {
   resolve: (data: Record<string, unknown>) => void;
   reject: (err: Error) => void;
   timer: ReturnType<typeof setTimeout>;
-  onBlobNeeded?: (
-    credentialId: string,
-    assertion: OwnerWalletAssertionJSON,
-  ) => string | null | Promise<string | null>;
 };
-
-function isOwnerWalletAssertion(v: unknown): v is OwnerWalletAssertionJSON {
-  if (!v || typeof v !== "object" || Array.isArray(v)) return false;
-  const r = v as Record<string, unknown>;
-  if (typeof r["id"] !== "string" || typeof r["rawId"] !== "string") {
-    return false;
-  }
-  if (r["type"] !== "public-key") return false;
-  const response = r["response"];
-  if (!response || typeof response !== "object" || Array.isArray(response)) {
-    return false;
-  }
-  const resp = response as Record<string, unknown>;
-  return (
-    typeof resp["clientDataJSON"] === "string" &&
-    typeof resp["authenticatorData"] === "string" &&
-    typeof resp["signature"] === "string"
-  );
-}
 
 /** Open/close the Sheet — available as soon as `SecureSignerHost` mounts. */
 export type SecureSignerShell = {
@@ -261,31 +236,6 @@ class SecureSignerClient {
     const requestId = data?.["requestId"];
     if (typeof requestId !== "string") return;
 
-    if (data["type"] === "BLOB_NEEDED") {
-      const p = this.pending.get(requestId);
-      if (!p?.onBlobNeeded) {
-        this.postBlobProvided(requestId, null, "BLOB_UNAVAILABLE");
-        return;
-      }
-      const credentialId = String(data["credentialId"] ?? "");
-      const assertion = isOwnerWalletAssertion(data["assertion"])
-        ? data["assertion"]
-        : null;
-      if (!assertion) {
-        this.postBlobProvided(requestId, null, "BLOB_UNAVAILABLE");
-        return;
-      }
-      void Promise.resolve(p.onBlobNeeded(credentialId, assertion))
-        .then((blob) => {
-          if (blob) this.postBlobProvided(requestId, blob);
-          else this.postBlobProvided(requestId, null, "BLOB_UNAVAILABLE");
-        })
-        .catch(() => {
-          this.postBlobProvided(requestId, null, "BLOB_UNAVAILABLE");
-        });
-      return;
-    }
-
     const p = this.pending.get(requestId);
     if (!p) return;
     this.pending.delete(requestId);
@@ -297,23 +247,6 @@ class SecureSignerClient {
     } else {
       p.reject(new SecureSignerError("INTERNAL_ERROR"));
     }
-  }
-
-  private postBlobProvided(
-    requestId: string,
-    blob: string | null,
-    errorCode?: string,
-  ): void {
-    if (!this.iframeEl?.contentWindow) return;
-    const message: Record<string, unknown> = {
-      type: "BLOB_PROVIDED",
-      protocolVersion: PROTOCOL_VERSION,
-      requestId,
-      timestamp: Date.now(),
-    };
-    if (blob) message.encryptedWalletBlob = blob;
-    if (errorCode) message.errorCode = errorCode;
-    this.iframeEl.contentWindow.postMessage(message, SECURE_SIGNER_ORIGIN);
   }
 
   private hide(): void {
@@ -331,9 +264,6 @@ class SecureSignerClient {
     type: string,
     resultType: string,
     payload: Record<string, unknown>,
-    opts?: {
-      onBlobNeeded?: Pending["onBlobNeeded"];
-    },
   ): Promise<Record<string, unknown>> {
     try {
       await this.ensureReady();
@@ -364,7 +294,6 @@ class SecureSignerClient {
         resolve,
         reject,
         timer,
-        onBlobNeeded: opts?.onBlobNeeded,
       });
     });
     frame.contentWindow.postMessage(message, SECURE_SIGNER_ORIGIN);
@@ -380,35 +309,24 @@ class SecureSignerClient {
   }
 
   async authenticate(opts: {
-    resolveBlob?: (
-      credentialId: string,
-      assertion: OwnerWalletAssertionJSON,
-    ) => string | null | Promise<string | null>;
-    putChallenge: string;
-    /** Server fetch-challenge (base64url). Required for discoverable restore. */
-    fetchChallenge?: string;
     authMode?: "create" | "unlock";
     credentialId?: string;
+    webauthnAttestationObject?: string;
   }): Promise<AuthResult> {
     const payload: Record<string, unknown> = {
       authMode: opts.authMode ?? "unlock",
-      putChallenge: opts.putChallenge,
     };
     if (opts.credentialId) payload.credentialId = opts.credentialId;
-    if (opts.fetchChallenge) payload.fetchChallenge = opts.fetchChallenge;
-    const r = await this.request("AUTH_START", "AUTH_COMPLETE", payload, {
-      onBlobNeeded: async (credentialId, assertion) => {
-        if (opts.resolveBlob) return opts.resolveBlob(credentialId, assertion);
-        return null;
-      },
-    });
-    if (typeof r["putSignature"] !== "string") {
+    if (opts.webauthnAttestationObject) {
+      payload.webauthnAttestationObject = opts.webauthnAttestationObject;
+    }
+    const r = await this.request("AUTH_START", "AUTH_COMPLETE", payload);
+    if (typeof r["publicKey"] !== "string") {
       throw new SecureSignerError("INTERNAL_ERROR");
     }
     return {
       publicKey: String(r["publicKey"]),
-      encryptedWalletBlob: String(r["encryptedWalletBlob"]),
-      putSignature: String(r["putSignature"]),
+      expiresAt: Number(r["expiresAt"]) || 0,
     };
   }
 

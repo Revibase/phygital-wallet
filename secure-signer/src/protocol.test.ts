@@ -29,17 +29,21 @@ describe("validateInbound", () => {
     expect(r).toMatchObject({ ok: false, code: "INVALID_MESSAGE" });
   });
 
-  it("rejects AUTH_START with parent blob (strict schema)", () => {
+  it("rejects AUTH_START with challenge fields (signer mints those)", () => {
     const r = validateInbound({
       ...base,
       type: "AUTH_START",
-      encryptedWalletBlob: "AAAA",
+      putChallenge: "AAAA",
     });
     expect(r).toMatchObject({ ok: false, code: "INVALID_MESSAGE" });
   });
 
   it("rejects wrong protocol version", () => {
-    const r = validateInbound({ ...base, protocolVersion: 2, type: "AUTH_START" });
+    const r = validateInbound({
+      ...base,
+      protocolVersion: 2,
+      type: "AUTH_START",
+    });
     expect(r).toMatchObject({ ok: false, code: "UNSUPPORTED_PROTOCOL" });
   });
 
@@ -87,56 +91,25 @@ describe("validateInbound", () => {
     expect(r).toMatchObject({ ok: false });
   });
 
-  it("accepts AUTH_START create with credentialId", () => {
+  it("accepts AUTH_START create with credentialId + attestation", () => {
     expect(
       validateInbound({
         ...base,
         type: "AUTH_START",
         authMode: "create",
         credentialId: "AAAA",
+        webauthnAttestationObject: "BBBB",
       }).ok,
     ).toBe(true);
   });
 
-  it("accepts AUTH_START unlock with fetchChallenge", () => {
+  it("accepts AUTH_START unlock with no challenge fields", () => {
     const r = validateInbound({
       ...base,
       type: "AUTH_START",
       authMode: "unlock",
-      putChallenge: "AAAA",
-      fetchChallenge: "BBBB",
     });
     expect(r.ok).toBe(true);
-    if (r.ok && r.request.type === "AUTH_START") {
-      expect(r.request.fetchChallenge).toBe("BBBB");
-    }
-  });
-
-  it("rejects AUTH_START with oversized fetchChallenge", () => {
-    expect(
-      validateInbound({
-        ...base,
-        type: "AUTH_START",
-        fetchChallenge: "A".repeat(200),
-      }),
-    ).toMatchObject({ ok: false, code: "INVALID_MESSAGE" });
-  });
-
-  it("accepts BLOB_PROVIDED with blob or errorCode", () => {
-    expect(
-      validateInbound({
-        ...base,
-        type: "BLOB_PROVIDED",
-        encryptedWalletBlob: "AAAA",
-      }).ok,
-    ).toBe(true);
-    expect(
-      validateInbound({
-        ...base,
-        type: "BLOB_PROVIDED",
-        errorCode: "BLOB_UNAVAILABLE",
-      }).ok,
-    ).toBe(true);
   });
 
   it("accepts EXPORT_PRIVATE_KEY", () => {

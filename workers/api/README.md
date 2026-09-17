@@ -49,10 +49,10 @@ not admit protected routes by itself.
 | GET/DELETE | `/owner-session`                       | Public\* | Owner login cookie                                    |
 | POST       | `/accessory/owner-browse`              | Public†  | Mint per-item owner-browse (`owner_session` required) |
 | GET        | `/accessory/session`                   | Public\* | Session status                                        |
-| POST       | `/owner-wallet/blob/backup-challenge`  | Public   | ed25519 challenge for PUT backup                      |
-| POST       | `/owner-wallet/blob/restore-challenge` | Public   | WebAuthn challenge for discoverable restore           |
-| POST       | `/owner-wallet/blob/restore`           | Public   | WebAuthn assertion → ciphertext                       |
-| PUT        | `/owner-wallet/blob`                   | Public   | ed25519 proof → store + mint `owner_session`          |
+| POST       | `/owner-wallet/blob/backup-challenge`  | Public   | ed25519 challenge for PUT (signer mints)              |
+| POST       | `/owner-wallet/blob/restore-challenge` | Public   | WebAuthn challenge for restore (signer mints)         |
+| POST       | `/owner-wallet/blob/restore`           | Public   | WebAuthn assertion → ciphertext (signer); null-COSE husks temporarily allowed |
+| PUT        | `/owner-wallet/blob`                   | Public   | ed25519 proof → store + session; husk heal = unlock assertion + confirm assertion → single COSE |
 | GET        | `/getFeePayer`                         | Public   | Default fee-payer pubkey (open CORS)                  |
 | POST       | `/sign`                                | Public   | Fee co-sign via TokenSigner DO (open CORS)            |
 | POST       | `/webhooks/transactions`               | HMAC     | Activity index + fee credit/debit                     |
