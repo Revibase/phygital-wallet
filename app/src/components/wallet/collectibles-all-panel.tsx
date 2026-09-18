@@ -14,7 +14,6 @@ import {
   sortCollectibles,
 } from "@/lib/wallet/portfolio-preview";
 
-/** Full collectibles inventory — search when the list is long. */
 export function CollectiblesAllPanel({
   collectibles,
   linkedMint,

@@ -7,7 +7,6 @@ import {
   type ShortcutUriContext,
 } from "@/lib/tokens/shortcuts";
 
-/** Open a shortcut externally in a new tab — user-initiated only. */
 export function openShortcutExternal(resolvedUri: string): void {
   window.open(resolvedUri, "_blank", "noopener,noreferrer");
 }

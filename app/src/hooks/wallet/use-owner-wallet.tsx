@@ -19,13 +19,11 @@ import { useSecureSignerWallet } from "@/hooks/wallet/use-secure-signer-wallet";
  * Passkeys are registered on the app (shared RP ID); PRF + key wrap stay in the signer.
  */
 export type OwnerWallet = {
-  /** Base58 Solana address of the wallet, or null when signed out. */
   address: string | null;
   signer: TransactionPartialSigner | null;
   status: "loading" | "unauthenticated" | "authenticated";
   isAuthenticated: boolean;
   isLoading: boolean;
-  /** Sign in (create / unlock via the secure signer). */
   login: () => Promise<void>;
   logout: () => Promise<void>;
   /** Reveal / export this wallet's private key (in a controlled ceremony). */

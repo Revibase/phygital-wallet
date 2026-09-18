@@ -5,7 +5,6 @@
  */
 
 export type CounterState = {
-  /** Highest verified counter for this chip. */
   c: number;
 };
 

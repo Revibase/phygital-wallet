@@ -25,7 +25,6 @@ function seedPhygitalTokenCache(
   );
 }
 
-/** Load on-chain token by chip identifier (NFC URL `pk`). */
 export function usePhygitalToken(identifier: string | null) {
   const queryClient = useQueryClient();
   return useQuery<PhygitalToken, Error>({
@@ -44,7 +43,6 @@ export function usePhygitalToken(identifier: string | null) {
   });
 }
 
-/** Load on-chain token by PDA. */
 export function usePhygitalTokenByAddress(tokenAddress: string | null) {
   const queryClient = useQueryClient();
   return useQuery<PhygitalToken, Error>({

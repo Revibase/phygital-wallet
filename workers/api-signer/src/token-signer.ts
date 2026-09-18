@@ -113,7 +113,6 @@ export class TokenSigner extends DurableObject<Env> {
     }
   }
 
-  /** Release expired sign-time fee reserves. */
   async alarm(): Promise<void> {
     const store = this.#getStore();
     const released = store.expireReserves(Date.now());
@@ -147,8 +146,6 @@ export class TokenSigner extends DurableObject<Env> {
     );
   }
 
-  // --- fees ---
-
   async applyFeeEvents(
     events: FeeEvent[],
   ): Promise<{ applied: number; appliedSignatures: string[] }> {
@@ -171,8 +168,6 @@ export class TokenSigner extends DurableObject<Env> {
       },
     );
   }
-
-  // --- fee-payer co-sign ---
 
   /**
    * Validate transaction shape, reserve prepaid fee (unless top-up), and sign

@@ -202,7 +202,6 @@ export const copy = {
     confirmToTopUp: "Confirm on this phone",
     topUpPending: "Top-up sent. Balance updates shortly.",
     topUpSuccess: "Top-up submitted",
-    // Accessory policy (what a tap may do)
     policy: "Accessory permissions",
     policyStatusStandard: "Everyday payments",
     policyStatusStandardBody:
@@ -271,7 +270,6 @@ export const copy = {
     policyHubOpen: "Protections off",
     policyHubLocked: "Locked · no transactions",
     policyMore: "More",
-    // Pre-save preview of what a tap will be allowed to do
     policyPreviewTitle: "After saving, a tap can:",
     policyPreviewStandard:
       "Send SOL and standard tokens. Other programs stay blocked.",
@@ -317,7 +315,6 @@ export const copy = {
     policyNoTokensToAdd: "No more assets to add",
     policyRemoveTokenAria: (symbol: string) => `Remove ${symbol}`,
     policyTokenAmountLabel: (symbol: string) => `${symbol} a tap can spend`,
-    // Advanced — on-chain program permissions
     policyAdvanced: "Extra programs",
     policyProgramsHint:
       "Allow or block Solana programs beyond everyday payments.",

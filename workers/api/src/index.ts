@@ -1,7 +1,3 @@
-/**
- * Revibase API Worker entry.
- * See `../README.md` for routes and env.
- */
 import { Hono } from "hono";
 
 import { accessoryUnlockRoutes } from "@/auth/accessory-unlock-routes";

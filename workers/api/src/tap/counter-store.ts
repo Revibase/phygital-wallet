@@ -24,7 +24,6 @@ export async function readCounterSession(
   );
 }
 
-/** Persist a newly consumed counter. */
 export async function writeCounterSession(
   identifier: string,
   state: CounterState,

@@ -14,7 +14,6 @@ import type {
   WalletActivityRow,
 } from "@/webhooks/wallet-activity";
 
-/** Row served to the app — mirrors the app's `WalletActivityItem`. */
 export type WalletActivityItem = {
   id: string;
   walletAddress: string;

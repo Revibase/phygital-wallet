@@ -8,7 +8,6 @@ import { shortcutOpensExternally } from "@/lib/tokens/shortcuts";
 import type { CollectibleShortcut } from "@/lib/tokens/shortcuts";
 import { cn } from "@/lib/utils";
 
-/** Horizontal shortcut chips from Phantom shortcuts.json. */
 export function CollectibleShortcuts({
   shortcuts,
   onOpenShortcut,

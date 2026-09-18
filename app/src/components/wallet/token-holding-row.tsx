@@ -11,7 +11,6 @@ import {
   type SendAssetRef,
 } from "@/lib/wallet/send-asset-ref";
 
-/** Shared token row for home preview and See All. */
 export const TokenHoldingRow = memo(function TokenHoldingRow({
   holding,
   onSelect,

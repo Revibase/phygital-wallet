@@ -109,9 +109,6 @@ export function useMintMeta(mints: string[]): Record<string, MintMeta> {
   );
 }
 
-/**
- * Resolve activity mint symbol/name via {@link useMintMeta}.
- */
 export function useActivityMintMeta(
   items: WalletActivityItem[]
 ): Record<string, MintMeta> {

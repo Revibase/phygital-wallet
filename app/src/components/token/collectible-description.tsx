@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { copy } from "@/lib/copy/phygital";
 import { cn } from "@/lib/utils";
 
-/** Clamped collectible description with expand. */
 export function CollectibleDescription({
   description,
   className,

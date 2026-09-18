@@ -12,7 +12,6 @@ import { DEFAULT_FEE_PAYER_ENDPOINT } from "../constants.js";
 import { PolicyDeniedError } from "./preview.js";
 
 export async function createDefaultFeePayer(config?: {
-  /** Full `/sign` URL */
   endpoint?: string;
   fetch?: typeof fetch;
 }): Promise<TransactionPartialSigner<Address>> {

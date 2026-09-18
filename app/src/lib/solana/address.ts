@@ -11,7 +11,6 @@ export function routeParam(
   return "";
 }
 
-/** Parse a base58 Solana address; returns null if empty or invalid. */
 export function tryParseAddress(
   value: string | null | undefined
 ): Address | null {
@@ -23,7 +22,6 @@ export function tryParseAddress(
   }
 }
 
-/** `routeParam` + `tryParseAddress` for a dynamic segment. */
 export function tryParseRouteAddress(
   params: Record<string, string | string[] | undefined>,
   key: string,

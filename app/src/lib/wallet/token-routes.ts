@@ -27,7 +27,6 @@ export function settingsFromSegment(
   return SEGMENT_TO_SETTINGS.get(segment) ?? null;
 }
 
-/** Card / token home: `/token/{address}`. */
 export function tokenHref(phygitalToken: string): string {
   return `/token/${encodeURIComponent(phygitalToken)}`;
 }

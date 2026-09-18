@@ -1,12 +1,7 @@
-/**
- * Canonical result type for the TokenSigner DO `signTransactions` RPC.
- */
-
 /** Non-authoritative summary for centralized audit logging. */
 export type SignAudit = {
   feePayer: string;
   signatureCount: number;
-  /** Sign-time fee reserves opened for this batch. */
   reserved?: number;
 };
 

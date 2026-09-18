@@ -30,7 +30,6 @@ import { verifyDynamicUrlWithoutCounterCheck } from "@/tap/verify-dynamic-url";
 
 export const accessoryUnlockRoutes = new Hono<{ Bindings: Env }>();
 
-/** POST /accessory/unlock/tap — verify NFC dynamic-URL tap params. */
 accessoryUnlockRoutes.post("/accessory/unlock/tap", async (c) => {
   let body: { pk?: string; s?: string; c?: string | number; n?: string };
   try {
@@ -115,13 +114,11 @@ accessoryUnlockRoutes.post("/accessory/unlock/tap", async (c) => {
   }
 });
 
-/** POST /accessory/unlock/challenge — mint a single-use WebAuthn challenge. */
 accessoryUnlockRoutes.post("/accessory/unlock/challenge", async (c) => {
   const { challengeId, challenge } = await issueUnlockChallenge();
   return json({ challengeId, challenge });
 });
 
-/** POST /accessory/unlock/webauthn — verify a WebAuthn assertion. */
 accessoryUnlockRoutes.post("/accessory/unlock/webauthn", async (c) => {
   let body: { challengeId?: string; response?: unknown };
   try {

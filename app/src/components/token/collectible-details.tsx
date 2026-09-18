@@ -6,7 +6,6 @@ import { CopyableAddress } from "@/components/shared/copyable-address";
 import { copy } from "@/lib/copy/phygital";
 import { cn } from "@/lib/utils";
 
-/** Mint address + collection dossier (image, name, description). */
 export function CollectibleDetails({
   collectionName,
   collectionImage,
@@ -32,7 +31,6 @@ export function CollectibleDetails({
 
       <div className="mt-3 flex items-start gap-3">
         {showImage ? (
-          // DAS collection logos are remote https URLs.
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={collectionImage!}

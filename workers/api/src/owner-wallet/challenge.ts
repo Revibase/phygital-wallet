@@ -27,8 +27,6 @@ const restoreKv = createKvChallenge({
   ttlSec: 60,
 });
 
-/** Mint a single-use WebAuthn challenge for POST /owner-wallet/blob/restore. */
 export const issueRestoreChallenge = restoreKv.issue;
 
-/** Consume the restore challenge; returns the base64url challenge or null. */
 export const consumeRestoreChallenge = restoreKv.consume;

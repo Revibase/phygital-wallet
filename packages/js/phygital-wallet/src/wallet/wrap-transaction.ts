@@ -159,7 +159,6 @@ function roundUpLoadedAccountsDataSize(bytes: number): number {
   );
 }
 
-/** micro-lamports/CU × CU limit → absolute lamports for v1 priority fee. */
 function priorityFeeLamportsFromMicroLamports(
   microLamportsPerCu: bigint,
   unitLimit: number,

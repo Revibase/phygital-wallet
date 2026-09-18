@@ -62,7 +62,6 @@ function DialogContent({
       <DialogOverlay />
       <DialogPrimitive.Content
         className={cn(
-          // Mobile: bottom sheet. Desktop: centered dialog.
           "fixed inset-x-0 bottom-0 z-50",
           "mx-auto w-full max-w-lg rounded-t-3xl",
           "border border-border/50 bg-background/95 shadow-lg",

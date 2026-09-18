@@ -1,6 +1,5 @@
 import type { WalletActivityType } from "@/lib/wallet/portfolio-types";
 
-/** Human label for a parsed transaction category. */
 const TYPE_LABELS: Record<WalletActivityType, string> = {
   transfer: "Transfer",
   swap: "Swap",
@@ -21,7 +20,6 @@ export function activityTypeLabel(
   return TYPE_LABELS[type] ?? null;
 }
 
-/** Format a lamports fee as a compact SOL string, e.g. "0.000005 SOL". */
 export function formatFeeSol(
   lamports: number | null | undefined
 ): string | null {

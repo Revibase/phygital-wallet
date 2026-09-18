@@ -42,8 +42,7 @@ describe("activityRowsFromResult", () => {
         meta: {
           err: null,
           fee: 5000,
-          // sender: -1 SOL - 5000 fee ; recipient: +1 SOL
-          preBalances: [2_000_000_000, 0],
+                  preBalances: [2_000_000_000, 0],
           postBalances: [999_995_000, 1_000_000_000],
         },
       }),

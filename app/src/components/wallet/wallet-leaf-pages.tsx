@@ -31,17 +31,14 @@ function SettingsTokenLeaf({
   return <Panel phygitalTokenPda={tokenAddress} onBack={backSettings} />;
 }
 
-/** Spend-policy settings leaf. */
 export function WalletPolicyPageClient() {
   return <SettingsTokenLeaf Panel={WalletPolicyPanel} />;
 }
 
-/** Fee-balance settings leaf. */
 export function FeeBalancePageClient() {
   return <SettingsTokenLeaf Panel={FeeBalancePanel} />;
 }
 
-/** RPC preference settings leaf. */
 export function RpcPageClient() {
   const { backSettings } = useWalletNav();
   return <RpcConnectionPanel onBack={backSettings} />;

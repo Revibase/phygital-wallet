@@ -51,7 +51,6 @@ ownerSessionRoutes.get("/owner-session", async (c) => {
   });
 });
 
-/** DELETE /owner-session — logout clears owner cookies. */
 ownerSessionRoutes.delete("/owner-session", async (c) => {
   clearOwnerSessionCookie(c);
   clearOwnerBrowseCookie(c);

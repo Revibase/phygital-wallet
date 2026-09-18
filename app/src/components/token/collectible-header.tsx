@@ -4,7 +4,6 @@ import { useState } from "react";
 
 import { cn } from "@/lib/utils";
 
-/** Collectible identity — title and collection. */
 export function CollectibleHeader({
   name,
   collectionName,
@@ -27,7 +26,6 @@ export function CollectibleHeader({
       {collectionName || showCollectionImage ? (
         <div className="inline-flex min-w-0 items-center gap-1.5">
           {showCollectionImage ? (
-            // DAS collection logos are remote https URLs.
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={collectionImage!}

@@ -88,8 +88,7 @@ describe("recordAudit", () => {
     expect(batches).toHaveLength(0);
     expect(runs).toHaveLength(1);
     const r = row(runs[0]);
-    // Core columns.
-    expect(r.event).toBe("sign");
+      expect(r.event).toBe("sign");
     expect(r.phygital_token).toBe("Tok");
     expect(r.actor).toBe("accessory");
     expect(r.ok).toBe(1);

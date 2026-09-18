@@ -1,9 +1,3 @@
-/**
- * USD formatting helpers for wallet UI.
- *
- * Keep this lightweight and pure: no React, no data fetching.
- */
-
 export function formatUsd(value: number | null | undefined): string {
   if (typeof value !== "number" || !Number.isFinite(value)) return "—";
 

@@ -16,7 +16,6 @@ import {
   sortHoldings,
 } from "@/lib/wallet/portfolio-preview";
 
-/** Full token inventory — search when the list is long. */
 export function TokensAllPanel({
   holdings,
   loading = false,

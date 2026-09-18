@@ -78,8 +78,6 @@ export class TokenStore {
     );
   }
 
-  // --- fees ---
-
   getFeeBalanceLamports(): number {
     const row = this.sql
       .exec<{ balance_lamports: number }>(
@@ -145,7 +143,6 @@ export class TokenStore {
     return true;
   }
 
-  /** Drop expired reserves; returns how many rows removed. */
   expireReserves(now = Date.now()): number {
     const cursor = this.sql.exec(
       `DELETE FROM fee_reserves WHERE expires_at <= ?`,
@@ -154,7 +151,6 @@ export class TokenStore {
     return cursor.rowsWritten;
   }
 
-  /** Soonest open reserve expiry, or null if none. */
   nextReserveExpiry(now = Date.now()): number | null {
     const row = this.sql
       .exec<{ expires_at: number }>(

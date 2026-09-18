@@ -48,7 +48,6 @@ export function getFeePayerSet(): Set<string> {
   return cached;
 }
 
-/** True when this pubkey is a configured default fee payer. */
 export async function isDefaultFeePayer(feePayer: string): Promise<boolean> {
   return getFeePayerSet().has(feePayer);
 }

@@ -86,7 +86,6 @@ export type PhygitalWalletOptions = {
   /** Defaults to mainnet only (`solana:mainnet`). Override only for local testing. */
   chains?: readonly SolanaChain[];
   fetch?: typeof fetch;
-  /** Optional fee payer forwarded to `getPhygitalWalletSigner`. */
   feePayer?: TransactionPartialSigner;
   onPhaseChange?: PhygitalWalletSignerCallbacks["onPhaseChange"];
 };

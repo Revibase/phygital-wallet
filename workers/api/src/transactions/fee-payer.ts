@@ -1,4 +1,3 @@
-/** GET /getFeePayer — public default fee-payer pubkey. */
 import { Hono } from "hono";
 
 import { json } from "@/shared/http";

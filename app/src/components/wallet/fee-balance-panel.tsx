@@ -44,7 +44,6 @@ type TopUpSnapshot = {
   portfolioBefore: WalletPortfolio | undefined;
 };
 
-/** Settings → network fees: show balance + top up via executeWithAuthority. */
 export function FeeBalancePanel({
   phygitalTokenPda,
   onBack,

@@ -22,6 +22,12 @@ export const metadata: Metadata = {
   },
   description: brand.description,
   applicationName: brand.company,
+  formatDetection: {
+    telephone: false,
+    date: false,
+    email: false,
+    address: false,
+  },
   appleWebApp: {
     capable: true,
     title: brand.company,
@@ -59,7 +65,10 @@ export default function RootLayout({
       className={`${spaceGrotesk.variable} min-h-dvh antialiased`}
       suppressHydrationWarning
     >
-      <body className="flex min-h-dvh flex-col font-sans" suppressHydrationWarning>
+      <body
+        className="flex min-h-dvh flex-col font-sans"
+        suppressHydrationWarning
+      >
         <AppProviders>{children}</AppProviders>
       </body>
     </html>

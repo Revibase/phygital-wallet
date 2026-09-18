@@ -9,14 +9,12 @@ import { galleryAnimate } from "@/lib/motion";
 import type { ShellLayout } from "@/lib/layout";
 import { cn } from "@/lib/utils";
 
-/** Shared route loading splash (Suspense / dynamic import). */
 export function RouteBoot({
   layout = "compact",
   message = copy.common.loading,
   children,
 }: {
   layout?: ShellLayout;
-  /** Status under the mark — default is generic loading, not NFC-specific. */
   message?: string;
   children?: ReactNode;
 }) {

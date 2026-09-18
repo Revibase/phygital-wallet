@@ -7,13 +7,10 @@
  * rather than a copy per handler.
  */
 
-/** A stable, client-facing error code (e.g. `invalid_transaction`). */
 export type ErrorCode = string;
 
-/** Optional structured metadata carried on a coded error. */
 export type ErrorDetails = Record<string, unknown>;
 
-/** An Error enriched with a machine `code` and optional response metadata. */
 export interface CodedError extends Error {
   code: ErrorCode;
   /** Explicit http status; wins over the code→status table when set. */
@@ -32,14 +29,12 @@ export function coded(
   return Object.assign(new Error(message), { code, ...extra });
 }
 
-/** True when `err` is an Error carrying a machine `code`. */
 export function isCodedError(err: unknown): err is CodedError {
   return (
     err instanceof Error && typeof (err as { code?: unknown }).code === "string"
   );
 }
 
-/** Extract a human-readable message from any thrown value. */
 export function getErrorMessage(
   err: unknown,
   fallback = "Something went wrong",
@@ -47,7 +42,6 @@ export function getErrorMessage(
   return err instanceof Error && err.message ? err.message : fallback;
 }
 
-/** The canonical error shape every worker maps thrown values into. */
 export type NormalizedError = {
   error: string;
   code: ErrorCode;

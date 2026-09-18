@@ -17,7 +17,6 @@ import { cn } from "@/lib/utils";
 
 type View = "menu" | "custom";
 
-/** Settings → RPC Connection (Backpack-style default / custom). */
 export function RpcConnectionPanel({ onBack }: { onBack: () => void }) {
   const rpc = useRpcPreference();
   const [view, setView] = useState<View>("menu");

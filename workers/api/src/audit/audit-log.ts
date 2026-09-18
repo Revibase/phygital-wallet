@@ -49,7 +49,6 @@ const INSERT_SQL = `INSERT INTO audit_log
     (ts, event, phygital_token, actor, ok, session_id, intent_hash, detail_json)
   VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
 
-/** Fold optional fields into detail_json (null when empty). */
 function buildDetail(e: AuditEntry): string | null {
   const detail: Record<string, unknown> = { ...(e.detail ?? {}) };
   if (e.code != null) detail.code = e.code;
@@ -112,7 +111,6 @@ export function recordAudit(input: AuditEntry | AuditEntry[]): void {
   );
 }
 
-/** Request-scoped audit metadata shared by every handler. */
 export function auditMeta(c: Context): {
   requestId: string | null;
   origin: string | null;

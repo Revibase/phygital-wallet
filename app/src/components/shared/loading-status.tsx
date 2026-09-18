@@ -5,7 +5,6 @@ import { copy } from "@/lib/copy/phygital";
 import { centeredBlockClass } from "@/lib/layout";
 import { cn } from "@/lib/utils";
 
-/** Spinner with visible label — fills parent and centers (e.g. verifying chip). */
 export function LoadingStatus({
   label = copy.common.loading,
   className,

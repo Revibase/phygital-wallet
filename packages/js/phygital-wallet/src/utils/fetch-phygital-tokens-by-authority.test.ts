@@ -8,7 +8,6 @@ import {
 } from "./fetch-phygital-tokens-by-authority.js";
 
 const encodeAddress = getAddressEncoder();
-/** Bytes → base64 string (kit decoder). */
 const toBase64 = getBase64Decoder();
 
 function sliceAsBase64(token: ReturnType<typeof address>): string {

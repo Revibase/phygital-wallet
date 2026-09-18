@@ -118,12 +118,10 @@ function isAlreadyFriendly(raw: string): boolean {
   );
 }
 
-/** Technical error text before user-facing sanitization (for logs / dev UI). */
 export function getRawPaymentError(error: unknown): string {
   return rawMessage(error).trim();
 }
 
-/** Write full error detail to the console (raw message is stripped in UI). */
 export function logPaymentError(scope: string, error: unknown): void {
   const raw = getRawPaymentError(error);
   if (raw) {
@@ -152,7 +150,6 @@ function toFacing(error: unknown, fallback: UserFacingError): UserFacingError {
   return fallback;
 }
 
-/** Title + body for full-screen payment outcomes. */
 export function toUserFacingError(
   error: unknown,
   fallback: UserFacingError | string = DEFAULT_ERROR_BODY
@@ -164,7 +161,6 @@ export function toUserFacingError(
   return toFacing(error, fb);
 }
 
-/** Compact line for toasts and inline banners. */
 export function toUserErrorMessage(
   error: unknown,
   fallback: string = DEFAULT_ERROR_BODY

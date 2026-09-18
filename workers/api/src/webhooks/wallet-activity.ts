@@ -26,11 +26,9 @@ export type WalletActivityKind =
 
 export type WalletActivityDeltaDirection = "in" | "out";
 
-/** One mint's balance change inside a tx, relative to the wallet. */
 export type WalletActivityDelta = {
   mint: string;
   direction: WalletActivityDeltaDirection;
-  /** UI amount without sign, e.g. "12.34". */
   amountUi: string;
 };
 
@@ -72,17 +70,13 @@ export type WalletActivityType =
 export type WalletActivityDetail = {
   /** Transaction category once instruction parsing can classify it. */
   type?: WalletActivityType;
-  /** Human-readable one-line description, e.g. "Swapped 10 USDC for 0.05 SOL". */
   description?: string | null;
-  /** Other wallets involved (senders / recipients / authorities). */
   counterparties?: string[];
-  /** Program ids invoked by the transaction. */
   programIds?: string[];
   /** Network fee in lamports — set on the fee payer's row. */
   feeLamports?: number | null;
 };
 
-/** A fully-parsed activity row for one wallet, ready to persist. */
 export type WalletActivityRow = {
   walletAddress: string;
   signature: string;

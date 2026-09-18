@@ -1,7 +1,5 @@
 import { errorCopy } from "@/lib/copy/phygital";
 
-/** Parse / format token amounts without program deps. */
-
 export function formatTokenAmount(raw: bigint, decimals: number): string {
   if (raw === BigInt(0)) return "0";
   const negative = raw < BigInt(0);

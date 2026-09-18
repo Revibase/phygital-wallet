@@ -26,9 +26,7 @@ const UNSET_TOKEN = address("11111111111111111111111111111111");
 
 /** Layout offsets after the 8-byte Anchor discriminator. */
 export const AUTHORITY_GPA = {
-  /** `header.authority` */
   authorityOffset: 8n,
-  /** `header.phygitalToken` */
   phygitalTokenOffset: 40,
   phygitalTokenLength: 32,
   /**

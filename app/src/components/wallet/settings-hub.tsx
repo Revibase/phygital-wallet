@@ -21,7 +21,6 @@ import { cn } from "@/lib/utils";
 
 export type SettingsTarget = "rpcConnection" | "feeBalance" | "walletPolicy";
 
-/** Wallet settings hub — Permissions / Fees / Advanced. */
 export function SettingsHub({
   onBack,
   onOpen,

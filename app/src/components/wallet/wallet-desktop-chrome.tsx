@@ -41,7 +41,6 @@ type WalletSection =
 
 const WalletChromeContext = createContext<{ hasRail: boolean } | null>(null);
 
-/** True when the desktop wallet rail is actually visible (`lg+`). */
 export function useWalletChrome() {
   return useContext(WalletChromeContext);
 }

@@ -193,7 +193,6 @@ function isAuthenticationResponseJSON(
   );
 }
 
-/** POST /owner-wallet/blob/backup-challenge — mint a single-use PUT (ed25519) challenge. */
 ownerWalletRoutes.post("/owner-wallet/blob/backup-challenge", async (c) => {
   const originOrErr = requireAppOrigin(c);
   if (originOrErr instanceof Response) return originOrErr;

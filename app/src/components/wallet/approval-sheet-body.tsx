@@ -10,7 +10,6 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { copy } from "@/lib/copy/phygital";
 
-/** Shared soft-deny / open-approval sheet chrome. */
 export function ApprovalSheetBody({
   title,
   body,

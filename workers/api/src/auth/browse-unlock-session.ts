@@ -37,7 +37,6 @@ export async function readBrowseUnlock(
   };
 }
 
-/** Mint + Set-Cookie for a resolved phygital token PDA. */
 export async function issueBrowseUnlockCookie(
   c: Context,
   phygitalToken: string,

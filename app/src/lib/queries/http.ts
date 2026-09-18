@@ -96,7 +96,6 @@ export function isRetryableQueryError(error: unknown): boolean {
   );
 }
 
-/** React Query `retry` callback — up to 3 attempts on retryable errors only. */
 export function shouldRetryQuery(
   failureCount: number,
   error: unknown
@@ -105,7 +104,6 @@ export function shouldRetryQuery(
   return isRetryableQueryError(error);
 }
 
-/** Parse JSON and throw `QueryHttpError` when the response is not OK. */
 export async function readJson<T>(res: Response, fallback: string): Promise<T> {
   const body = (await res.json().catch(() => ({}))) as T & {
     error?: string;

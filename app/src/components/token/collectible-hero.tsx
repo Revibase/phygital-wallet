@@ -5,7 +5,6 @@ import { useState } from "react";
 import { galleryAnimate } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
-/** Full-width square NFT media — DAS image only, wallet-style cover. */
 export function CollectibleHero({
   src,
   alt,

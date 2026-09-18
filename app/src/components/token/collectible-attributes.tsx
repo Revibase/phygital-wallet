@@ -4,7 +4,6 @@ import { copy } from "@/lib/copy/phygital";
 import type { CollectibleAttribute } from "@/lib/tokens/collectible";
 import { cn } from "@/lib/utils";
 
-/** Two-column trait grid — Phantom/Backpack style. */
 export function CollectibleAttributes({
   attributes,
   className,

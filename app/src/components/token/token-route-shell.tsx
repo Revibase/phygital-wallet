@@ -5,7 +5,6 @@ import type { ReactNode } from "react";
 import { AppShell } from "@/components/layout/app-shell";
 import type { ShellLayout } from "@/lib/layout";
 
-/** Chrome for `/token` routes. */
 export function TokenRouteShell({
   children,
   layout = "compact",

@@ -8,7 +8,6 @@ const LIST_ROWS = [
   "wallet-skel-4",
 ] as const;
 
-/** Shared loading placeholder for wallet chrome panes (home / lists / boot). */
 export function WalletPanelSkeleton({
   variant = "list",
   className,

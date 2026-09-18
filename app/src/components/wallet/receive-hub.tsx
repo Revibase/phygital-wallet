@@ -13,7 +13,6 @@ import { walletContentColumnClass, walletDesktopTitleClass } from "@/lib/layout"
 import { queryKeys, queryOptions } from "@/lib/queries";
 import { fetchVerifiedTokens } from "@/lib/wallet/verified-tokens-client";
 
-/** Receive hub — QR primary; nearby as a compact secondary action. */
 export function ReceiveHub({
   walletAddress,
   onClose,

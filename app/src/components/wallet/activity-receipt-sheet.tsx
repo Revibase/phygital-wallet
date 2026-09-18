@@ -55,7 +55,6 @@ export function ActivityReceiptSheet({
   const deltas = item.balanceDeltas ?? [];
   const signature = item.signature;
 
-  // Parsed detail from the indexer — each optional, render only when present.
   const description = item.detail?.description?.trim() || null;
   const typeLabel = activityTypeLabel(item.detail?.type);
   const feeLabel = formatFeeSol(item.detail?.feeLamports);

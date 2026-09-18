@@ -29,7 +29,6 @@ function symbolForMint(
   return shortAddress(mint, 4);
 }
 
-/** Compact relative time — Phantom/Backpack-style trailing label. */
 function formatActivityTime(timestamp: number | null, nowMs: number): string {
   if (!timestamp) return "";
   const diffMs = nowMs - timestamp * 1000;
@@ -55,7 +54,6 @@ const ActivityRow = memo(function ActivityRow({
   /** null until mount — avoids SSR/client Date.now() hydration drift. */
   nowMs: number | null;
 }) {
-  // Prefer the indexer's parsed detail; fall back to the raw counterparty/status.
   const description = item.detail?.description?.trim();
   const counterparty =
     item.detail?.counterparties?.[0] ?? item.subtitle ?? null;
@@ -110,7 +108,6 @@ const ActivityRow = memo(function ActivityRow({
       ? formatActivityTime(item.timestamp, nowMs)
       : "";
 
-  // A parsed category upgrades the generic fallback title (e.g. "Swap").
   const typeLabel = activityTypeLabel(item.detail?.type);
   const title =
     item.title && item.title !== "Transaction"

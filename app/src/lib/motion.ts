@@ -82,9 +82,7 @@ export const galleryAnimate = {
   /** Object / key reveal — short spring, not a slow flourish. */
   reveal:
     "motion-safe:animate-[luminous-reveal_var(--duration-reveal)_var(--ease-out-expo)_both]",
-  /** Authenticity seal tick. */
   seal: "motion-safe:animate-[luminous-seal_var(--duration-slow)_var(--ease-spring)_both]",
-  /** Soft aura breath on boot. */
   auraBreath:
     "motion-safe:animate-[luminous-aura-breath_4s_ease-in-out_infinite]",
 } as const;

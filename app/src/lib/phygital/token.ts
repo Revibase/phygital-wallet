@@ -24,7 +24,6 @@ export type PhygitalToken = {
   tokenType: PhygitalTokenType;
   identifier: string;
   secp256r1PublicKey: string;
-  /** On-chain token PDA. */
   address: Address;
   isLocked: boolean;
   owner: Address;
@@ -48,7 +47,6 @@ export function phygitalTokenFromAccount(
   };
 }
 
-/** Load token by on-chain PDA. */
 export async function fetchPhygitalToken(
   rpc: Rpc<SolanaRpcApi>,
   tokenAddress: Address
