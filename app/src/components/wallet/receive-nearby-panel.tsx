@@ -630,7 +630,7 @@ export function ReceiveNearbyPanel({
           disabled={!canConfirm}
           onClick={() => void runReceive()}
         >
-          {busy ? <Spinner className="size-4" /> : copy.wallet.holdToReceive}
+          {busy ? <Spinner className="size-4" /> : copy.wallet.confirmReceive}
         </Button>
       </div>
     );

@@ -106,10 +106,11 @@ export const copy = {
     toWalletChip: "Wallet",
     openWalletAriaLabel: "Open wallet",
     /** Form CTA — Hold UI appears only at awaitingPasskey (DD-004). */
-    holdToSend: "Hold to send",
+    holdToSend: "Send",
     confirmToSend: "Confirm on this phone",
+    confirmReceive: "Confirm",
     holdToReceive: "Hold to confirm",
-    holdToIdentifyPayer: "Hold their accessory",
+    holdToIdentifyPayer: "Identify",
     holdToIdentifyPayerHint: "They hold once to link, then again to pay",
     nearbySummaryTitle: "Confirm receive",
     nearbySummaryBody: "Have them hold again to send this amount.",
@@ -121,24 +122,24 @@ export const copy = {
     configChangeConfirmPending: "Waiting for passkey…",
     save: "Save",
     holdToOpenTitle: "Hold to open",
-    holdToOpenBody: "Hold this accessory against your phone.",
-    holdToOpenBodyNamed: (name: string) => `Hold ${name} against your phone.`,
-    holdToOpenCta: "Hold to open",
+    holdToOpenBody: "Follow the prompt on your phone.",
+    holdToOpenBodyNamed: (name: string) =>
+      `Follow the prompt on your phone to open ${name}.`,
+    holdToOpenCta: "Open",
     holdMismatchTitle: "Different accessory",
     holdMismatchBody: (expected: string) =>
       `Hold ${expected} to continue, or open the one you just held.`,
     holdMismatchRetry: (expected: string) => `Hold ${expected}`,
     holdMismatchOpenHeld: (held: string) => `Open ${held} instead`,
-    /** Shared Hold placement body — titles carry intent (DD-004). */
+    /** Shared Hold copy — NFC placement comes from the system sheet. */
     holdCeremonyTitle: "Hold your accessory",
-    holdCeremonyBody: "Hold it to the top of your phone until this finishes.",
+    holdCeremonyBody: "Follow the prompt on your phone.",
     signPreparingTitle: "Preparing",
     signPreparingBody: "Getting everything ready…",
     signPreviewingTitle: "Checking limits",
     signPreviewingBody: "Making sure this is allowed…",
     signAwaitingPasskeyTitle: "Hold your accessory",
-    signAwaitingPasskeyBody:
-      "Hold it to the top of your phone until this finishes.",
+    signAwaitingPasskeyBody: "Follow the prompt on your phone.",
     signBuildingTitle: "Almost done",
     signBuildingBody: "Building your transaction…",
     signFeePayingTitle: "Covering fees",
@@ -205,12 +206,13 @@ export const copy = {
     policy: "Accessory permissions",
     policyStatusStandard: "Everyday payments",
     policyStatusStandardBody:
-      "A tap can send SOL and standard tokens with no amount caps until you set limits. Other programs stay blocked.",
+      "This accessory can send SOL and standard tokens with no amount caps until you set limits. Other programs stay blocked.",
     policyStatusOpen: "Protections off",
     policyStatusOpenBody:
       "Anyone with this accessory can move funds with no checks until you restore everyday payments.",
     policyStatusLimited: "Custom limits",
-    policyStatusLimitedBody: "Only listed assets can leave with a tap.",
+    policyStatusLimitedBody:
+      "Only listed assets can leave with this accessory.",
     policyStatusLocked: "Locked",
     policyStatusLockedBody:
       "Claim this accessory to turn on everyday payments.",
@@ -225,22 +227,17 @@ export const copy = {
       "Become the owner to turn on everyday payments. You’ll hold your accessory on the next step.",
     authorityClaimTitle: "Hold to claim",
     authorityClaimHoldBody:
-      "Hold your accessory to the top of this phone to become the owner and turn on everyday payments.",
-    authorityClaimCta: "Hold to claim",
+      "Become the owner and turn on everyday payments. Follow the prompt on your phone.",
+    authorityClaimCta: "Claim",
     authorityClaiming: "Hold your accessory…",
     authorityClaimFailed: "Couldn’t claim this item",
-    /** Claimed accessory, signed-out visitor — browse only. */
-    claimedVisitorBanner:
-      "This accessory has an owner. You can browse balances.",
-    claimedVisitorBannerAction: "Details",
-    otherOwnerBanner: "Owned by another account on this phone.",
-    otherOwnerBannerAction: "Details",
+    vistorNote: "Currently viewing this accessory in Visitor Mode.",
     ownershipLabel: "Ownership",
     ownershipSignIn: "Continue on this phone",
     ownershipSignInSubtitle:
       "Unlock on this phone to claim or manage this accessory.",
     ownershipClaimFooter:
-      "Claiming sets you as the owner and turns on everyday payments: a tap can send SOL and standard tokens with no amount caps until you set limits. Other programs stay blocked until you allow them.",
+      "Claiming sets you as the owner and turns on everyday payments: this accessory can send SOL and standard tokens with no amount caps until you set limits. Other programs stay blocked until you allow them.",
     ownershipOtherTitle: "Owned by another account",
     ownershipOtherSubtitle: (short: string) => `Owner · ${short}`,
     ownershipOtherFooter:
@@ -270,7 +267,7 @@ export const copy = {
     policyHubOpen: "Protections off",
     policyHubLocked: "Locked · no transactions",
     policyMore: "More",
-    policyPreviewTitle: "After saving, a tap can:",
+    policyPreviewTitle: "After saving, this accessory can:",
     policyPreviewStandard:
       "Send SOL and standard tokens. Other programs stay blocked.",
     policyPreviewSpend: (amount: string, phrase: string) =>
@@ -285,21 +282,21 @@ export const copy = {
     policyWindowHint: "Resets on a fixed UTC schedule.",
     policyWindowLabel: "Renew this limit",
     policyEdit: "Edit limits",
-    policySet: "Limit what a tap can spend",
+    policySet: "Limit what this accessory can spend",
     policyPresetsTitle: "Quick setups",
     policyPresetApplied: "Spend limits applied",
     policyClaimedTitle: "Everyday payments are on",
     policyClaimedBody:
-      "A tap can send SOL and standard tokens. Other programs stay blocked. You can add spend limits anytime.",
+      "This accessory can send SOL and standard tokens. Other programs stay blocked. You can add spend limits anytime.",
     policyClaimedStay: "Looks good",
-    policyClaimedLimit: "Limit what a tap can spend",
+    policyClaimedLimit: "Limit what this accessory can spend",
     policySave: "Save",
     policySaved: "Permissions saved",
     policyRestore: "Restore everyday payments",
     policyRestored: "Everyday payments restored",
     policyRestoreConfirmTitle: "Restore everyday payments?",
     policyRestoreConfirmBody:
-      "Removes your asset limits and extra program rules. A tap can again send SOL and standard tokens; other programs stay blocked.",
+      "Removes your asset limits and extra program rules. This accessory can again send SOL and standard tokens; other programs stay blocked.",
     policyTurnOff: "Turn off protections",
     policyTurnedOff: "Protections turned off",
     policyTurnOffConfirmTitle: "Turn off accessory protections?",
@@ -309,12 +306,12 @@ export const copy = {
     policySignInToEdit: "Unlock on this phone to change permissions.",
     policyTokenLimits: "Spendable assets",
     policyTokenLimitsHint:
-      "Add SOL or any token. A tap can only spend what you list.",
+      "Add SOL or any token. This accessory can only spend what you list.",
     policyAddToken: "Add an asset",
     policyPickToken: "Choose an asset",
     policyNoTokensToAdd: "No more assets to add",
     policyRemoveTokenAria: (symbol: string) => `Remove ${symbol}`,
-    policyTokenAmountLabel: (symbol: string) => `${symbol} a tap can spend`,
+    policyTokenAmountLabel: (symbol: string) => `${symbol} spend limit`,
     policyAdvanced: "Extra programs",
     policyProgramsHint:
       "Allow or block Solana programs beyond everyday payments.",
@@ -402,7 +399,7 @@ export const copy = {
     welcomeHaveAccessory: "I have an accessory",
     emptyTitle: "No accessories yet",
     emptyBody: "Hold an accessory to open it, then claim it to see it here.",
-    emptyOpenCta: "Hold to open",
+    emptyOpenCta: "Open accessory",
     openAnother: "Open another",
     addMoreTitle: "Add another",
     accessoriesCount: (count: number) =>
@@ -423,7 +420,7 @@ export const copy = {
     loadingWallet: "Loading wallet…",
     walletUnknown: "Wallet unavailable",
     holdTitle: "Add accessory",
-    holdBody: "Hold it to the top of your phone.",
+    holdBody: "Follow the prompt on your phone.",
   },
   address: {
     default: "address",
@@ -439,8 +436,8 @@ export const copy = {
     copiedAria: (label: string) => `Copied ${label}`,
   },
   verify: {
-    holdToCheck: "Hold to verify",
-    introBody: "Hold your accessory to the top of your phone.",
+    holdToCheck: "Verify",
+    introBody: "Follow the prompt on your phone.",
     verifying: "Confirming authenticity…",
     verifyAgain: "Verify again",
     verifyAgainHint: "Hold to re-check",
@@ -450,10 +447,10 @@ export const copy = {
     failed: "Couldn’t read the accessory",
     failedBody: "Try holding again.",
     holdStill: "Hold still…",
-    holdStillBody: "Keep holding until this finishes.",
+    holdStillBody: "Follow the prompt on your phone.",
     verifiedRecheckAria: "Verified. Verify again.",
     notVerified: "Not verified",
-    notVerifiedHint: "Hold your accessory to the top of your phone.",
+    notVerifiedHint: "Follow the prompt on your phone.",
     verifyingChip: "Confirming authenticity…",
     notSetUpTitle: "Not set up",
     notSetUpBody: "This accessory isn’t on Revibase yet.",
@@ -508,7 +505,7 @@ export const errorCopy = {
   },
   couldntVerify: {
     title: "Couldn’t verify",
-    body: "Hold here again and try once more.",
+    body: "Hold your accessory again and try once more.",
   },
   notEnoughMoney: {
     title: "Not enough",
@@ -520,11 +517,11 @@ export const errorCopy = {
   },
   accessoryLocked: {
     title: "Locked",
-    body: "Claim this accessory before a tap can send.",
+    body: "Claim this accessory before it can send.",
   },
   accessoryNeedsHold: {
     title: "Hold required",
-    body: "Hold the accessory flat against your phone, then try again.",
+    body: "Hold your accessory when prompted, then try again.",
   },
   signerCancelled: {
     title: "Cancelled",
@@ -548,7 +545,7 @@ export const errorCopy = {
   },
   sessionEnded: {
     title: "Timed out",
-    body: "Hold here again to verify.",
+    body: "Hold your accessory again to verify.",
   },
   accessoryNotReady: {
     title: "Not ready",
@@ -556,7 +553,7 @@ export const errorCopy = {
   },
   wrongItem: {
     title: "Wrong item",
-    body: "Hold the same item flat against your phone.",
+    body: "Hold the same accessory when prompted.",
   },
   nfcVerifyFailed: {
     title: "Couldn’t verify",
@@ -568,7 +565,7 @@ export const errorCopy = {
   },
   itemNotFound: {
     title: "Not found",
-    body: "Hold here again to verify.",
+    body: "Hold your accessory again to verify.",
   },
   enterAmount: {
     title: "Enter amount",

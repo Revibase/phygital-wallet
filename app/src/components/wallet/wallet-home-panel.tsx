@@ -25,7 +25,12 @@ import { formatUsd, sumUsd } from "@/lib/currency/usd";
 import { formatCompactTokenAmount } from "@/lib/tokens/amount";
 import { isDefaultMint } from "@/lib/tokens/payment-token";
 import { walletPortfolioSplitClass } from "@/lib/layout";
-import { snapEnter, snapEnterTransition, easeOut, duration } from "@/lib/motion";
+import {
+  snapEnter,
+  snapEnterTransition,
+  easeOut,
+  duration,
+} from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 /** Shared Wallet panel — calm home: capped tokens + collectibles, See All. */
@@ -54,8 +59,6 @@ export function WalletHomePanel({
   onRefresh,
   lastUpdatedLabel,
   visitorNotice,
-  onVisitorNotice,
-  visitorNoticeAction,
   status = "live",
   className,
 }: {
@@ -79,8 +82,6 @@ export function WalletHomePanel({
   lastUpdatedLabel?: string | null;
   /** Quiet visitor role notice (not linked as owner on this phone). */
   visitorNotice?: string | null;
-  visitorNoticeAction?: string;
-  onVisitorNotice?: () => void;
   status?: "live" | "refreshing" | "error";
   className?: string;
 }) {
@@ -128,13 +129,13 @@ export function WalletHomePanel({
           usdcHolding.symbol
         }`
       : showUsdHero
-        ? null
-        : primaryCryptoLine;
+      ? null
+      : primaryCryptoLine;
   const heroValue = showUsdHero
     ? formatUsd(totalUsd)
     : primaryCryptoLine
-      ? primaryCryptoLine
-      : formatUsd(0);
+    ? primaryCryptoLine
+    : formatUsd(0);
   const refreshing = status === "refreshing";
 
   if (loading && !portfolio) {
@@ -216,10 +217,7 @@ export function WalletHomePanel({
                   onClick={onRefresh}
                 >
                   <RefreshCcw
-                    className={cn(
-                      "size-3.5",
-                      refreshing ? "animate-spin" : "",
-                    )}
+                    className={cn("size-3.5", refreshing ? "animate-spin" : "")}
                     aria-hidden
                   />
                 </Button>
@@ -271,13 +269,7 @@ export function WalletHomePanel({
           </Button>
         </m.div>
 
-        {visitorNotice ? (
-          <QuietNotice
-            label={visitorNotice}
-            action={visitorNoticeAction}
-            onClick={onVisitorNotice}
-          />
-        ) : null}
+        {visitorNotice ? <QuietNotice label={visitorNotice} /> : null}
 
         {customRpcEndpoint && onChangeRpc ? (
           <QuietNotice

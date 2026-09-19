@@ -68,7 +68,7 @@ accessoryUnlockRoutes.post("/accessory/unlock/tap", async (c) => {
       return json(
         {
           isVerified: false,
-          error: "This tap timed out. Hold your item here again to verify.",
+          error: "This tap timed out. Hold your accessory again to verify.",
         },
         { status: 409 },
       );
@@ -106,7 +106,7 @@ accessoryUnlockRoutes.post("/accessory/unlock/tap", async (c) => {
         isVerified: false,
         error: getErrorMessage(
           err,
-          "Hold flat against the back of your phone and try again.",
+          "Hold your accessory when prompted and try again.",
         ),
       },
       { status: 400 },

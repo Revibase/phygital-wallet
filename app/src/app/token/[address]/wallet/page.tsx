@@ -35,32 +35,8 @@ export default function WalletHomePage() {
   const status = portfolio.isError
     ? "error"
     : portfolio.isLoading
-      ? "refreshing"
-      : "live";
-
-  const showOtherOwner =
-    !ownership.isLoading &&
-    ownership.isClaimed &&
-    ownership.isSignedIn &&
-    !ownership.isOwner;
-  const showClaimedVisitor =
-    !ownership.isLoading &&
-    ownership.isClaimed &&
-    !ownership.isSignedIn &&
-    !ownership.isOwner;
-  const visitor = showOtherOwner
-    ? {
-        notice: copy.wallet.otherOwnerBanner,
-        action: copy.wallet.otherOwnerBannerAction,
-        onNotice: () => goSettings(),
-      }
-    : showClaimedVisitor
-      ? {
-          notice: copy.wallet.claimedVisitorBanner,
-          action: copy.wallet.claimedVisitorBannerAction,
-          onNotice: () => goSettings(),
-        }
-      : null;
+    ? "refreshing"
+    : "live";
 
   return (
     <div className={walletContentColumnClass}>
@@ -132,9 +108,7 @@ export default function WalletHomePage() {
               )
             : null
         }
-        visitorNotice={visitor?.notice ?? null}
-        visitorNoticeAction={visitor?.action}
-        onVisitorNotice={visitor?.onNotice}
+        visitorNotice={copy?.wallet.vistorNote ?? null}
       />
     </div>
   );

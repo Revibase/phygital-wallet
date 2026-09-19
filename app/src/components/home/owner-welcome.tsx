@@ -45,7 +45,7 @@ export function OwnerWelcome() {
             onClick={() => void tap.open()}
           >
             {tap.holding
-              ? copy.wallet.holdToOpenTitle
+              ? copy.verify.holdStill
               : copy.home.welcomeHaveAccessory}
           </Button>
           {tap.error ? (

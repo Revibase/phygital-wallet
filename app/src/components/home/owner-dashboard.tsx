@@ -105,7 +105,7 @@ export function OwnerDashboard({ owner }: { owner: string }) {
             onClick={() => void tap.open()}
           >
             {tap.holding
-              ? copy.wallet.holdToOpenTitle
+              ? copy.verify.holdStill
               : copy.home.emptyOpenCta}
           </Button>
           {tap.error ? (
@@ -247,7 +247,7 @@ function OpenAnotherTile({
             <Plus className="size-5" strokeWidth={2} aria-hidden />
           </span>
           <span className="px-3 text-center text-sm font-medium tracking-tight">
-            {holding ? copy.wallet.holdToOpenTitle : copy.home.openAnother}
+            {holding ? copy.verify.holdStill : copy.home.openAnother}
           </span>
         </span>
       </Button>
