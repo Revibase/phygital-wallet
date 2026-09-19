@@ -9,10 +9,15 @@
  *   GET  /wallets/:address/activity?limit=&cursor=
  *     Serves the self-indexed activity from D1 in the app's
  *     `{ items, nextCursor }` shape — the drop-in for the Helius activity API.
+ *     Bound to the admit cookie's phygital token → wallet PDA.
  */
 import { Hono } from "hono";
+import { type Address } from "@solana/kit";
+import { findWalletPda } from "phygital-wallet-sdk";
 
 import { recordAudit } from "@/audit/audit-log";
+import { readBrowseUnlock } from "@/auth/browse-unlock-session";
+import { readOwnerBrowse } from "@/auth/owner-browse-session";
 import { hmacSha256, timingSafeEqual } from "@/auth/session-hmac";
 import { json } from "@/shared/http";
 import { createLogger } from "@/shared/log";
@@ -150,6 +155,43 @@ walletTxRoutes.get("/wallets/:address/activity", async (c) => {
   const address = tryParseAddress(c.req.param("address"));
   if (!address) {
     return json({ error: "Invalid wallet address" }, { status: 400 });
+  }
+
+  const browse = await readBrowseUnlock(c);
+  const ownerBrowse = browse ? null : await readOwnerBrowse(c);
+  const admitToken =
+    browse?.phygitalToken ?? ownerBrowse?.phygitalToken ?? null;
+  if (!admitToken) {
+    return json(
+      {
+        error: "Sign in or unlock this item to continue.",
+        code: "session_required",
+      },
+      { status: 401 },
+    );
+  }
+
+  let expectedWallet: string;
+  try {
+    const [walletPda] = await findWalletPda({
+      phygitalToken: admitToken as Address,
+    });
+    expectedWallet = String(walletPda);
+  } catch {
+    return json(
+      { error: "Could not resolve wallet for this session", code: "wallet_resolve_failed" },
+      { status: 502 },
+    );
+  }
+
+  if (expectedWallet !== String(address)) {
+    return json(
+      {
+        error: "Unlock this item again to view its activity.",
+        code: "session_required",
+      },
+      { status: 403 },
+    );
   }
 
   const limitParam = Number(c.req.query("limit"));

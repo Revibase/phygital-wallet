@@ -57,7 +57,7 @@ export interface PrfProvider {
     rpId: string,
     credentialId: Uint8Array,
     challenge?: Uint8Array,
-  ): Promise<{ prfOutput: Uint8Array; assertion?: unknown }>;
+  ): Promise<{ prfOutput: Uint8Array }>;
 }
 
 export interface CreatedWallet {
@@ -159,20 +159,17 @@ export async function decryptWallet(
   prf: PrfProvider,
   rpId: string,
   parsed: ParsedWalletBlob
-): Promise<{ seed: Uint8Array; publicKey: Uint8Array; assertion?: unknown }> {
+): Promise<{ seed: Uint8Array; publicKey: Uint8Array }> {
   let prfOutput: Uint8Array | undefined;
-  let assertion: unknown;
   try {
     const got = await prf.get(rpId, parsed.credentialId);
     prfOutput = got.prfOutput;
-    assertion = got.assertion;
   } catch {
     // WebAuthn cancelled / no PRF / wrong authenticator — do not distinguish.
     throw new ServiceError("AUTHENTICATION_FAILED");
   }
   try {
-    const unwrapped = await unwrapWallet(prfOutput, parsed, rpId);
-    return { ...unwrapped, ...(assertion !== undefined ? { assertion } : {}) };
+    return await unwrapWallet(prfOutput, parsed, rpId);
   } finally {
     scrub(prfOutput);
   }

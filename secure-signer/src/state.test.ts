@@ -3,10 +3,11 @@ import { digestHex, SignerState } from "./state.js";
 
 describe("SignerState", () => {
   it("rejects duplicate request ids", () => {
-    const s = new SignerState();
-    expect(s.checkFreshnessAndReplay("req-1")).toBeNull();
+    let now = 1_000_000;
+    const s = new SignerState(() => now);
+    expect(s.checkFreshnessAndReplay("req-1", now)).toBeNull();
     s.remember("req-1");
-    expect(s.checkFreshnessAndReplay("req-1")).toBe("REPLAY_REJECTED");
+    expect(s.checkFreshnessAndReplay("req-1", now)).toBe("REPLAY_REJECTED");
   });
 
   it("rejects stale timestamps", () => {
@@ -77,8 +78,9 @@ describe("SignerState", () => {
 
   it("rejects duplicate request ids", () => {
     const s = new SignerState();
+    const now = Date.now();
     expect(s.begin("AUTH_PENDING", "auth-req-1")).toBe(true);
     s.remember("auth-req-1");
-    expect(s.checkFreshnessAndReplay("auth-req-1")).toBe("REPLAY_REJECTED");
+    expect(s.checkFreshnessAndReplay("auth-req-1", now)).toBe("REPLAY_REJECTED");
   });
 });

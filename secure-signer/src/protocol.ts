@@ -42,7 +42,7 @@ export const RESULT_TYPE: Record<RequestType, string> = {
 interface Common {
   protocolVersion: number;
   requestId: string;
-  timestamp?: number;
+  timestamp: number;
 }
 
 export type InboundRequest = Common &
@@ -146,13 +146,13 @@ export function validateInbound(data: unknown): ValidationResult {
   }
 
   const ts = data["timestamp"];
-  if (ts !== undefined && (typeof ts !== "number" || !Number.isFinite(ts))) {
+  if (typeof ts !== "number" || !Number.isFinite(ts)) {
     return { ok: false, code: "INVALID_MESSAGE", requestId: rid };
   }
   const common: Common = {
     protocolVersion: PROTOCOL_VERSION,
     requestId: rid,
-    ...(typeof ts === "number" ? { timestamp: ts } : {}),
+    timestamp: ts,
   };
 
   switch (rtype) {

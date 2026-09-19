@@ -165,7 +165,7 @@ export class BrowserPrfProvider implements PrfProvider {
     rpId: string,
     credentialId: Uint8Array,
     challenge?: Uint8Array,
-  ): Promise<{ prfOutput: Uint8Array; assertion: AuthenticationAssertionJSON }> {
+  ): Promise<{ prfOutput: Uint8Array }> {
     const salt = await prfSalt();
     const assertion = (await navigator.credentials.get({
       publicKey: {
@@ -180,10 +180,7 @@ export class BrowserPrfProvider implements PrfProvider {
       },
     })) as PublicKeyCredential | null;
     if (!assertion) throw new WebAuthnUnsupported("assertion returned null");
-    return {
-      prfOutput: extractPrf(assertion),
-      assertion: assertionToJSON(assertion),
-    };
+    return { prfOutput: extractPrf(assertion) };
   }
 
   /**

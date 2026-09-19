@@ -67,9 +67,6 @@ export const walletFormColumnClass =
 export const walletContentColumnClass =
   "flex flex-1 flex-col gap-6 lg:mx-auto lg:w-full lg:max-w-2xl";
 
-/** @deprecated Prefer {@link walletContentColumnClass}. */
-export const walletHomeColumnClass = walletContentColumnClass;
-
 /**
  * Settings master-detail at lg+ — expands across the main pane.
  */
@@ -140,14 +137,3 @@ export const detailSplitClass =
 
 /** Minimum touch / click target (Apple HIG 44pt). */
 export const touchTargetClass = "min-h-11 min-w-11";
-
-/**
- * Legacy helper — ceremony content styling only.
- * Do not use to skip wallet chrome or force compact AppShell.
- */
-export function isWalletCeremonyPath(pathname: string): boolean {
-  return (
-    /\/wallet\/receive\/nearby(?:\/|$)/.test(pathname) ||
-    /\/wallet\/claim(?:\/|$)/.test(pathname)
-  );
-}

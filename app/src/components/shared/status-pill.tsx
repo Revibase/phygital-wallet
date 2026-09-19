@@ -13,7 +13,7 @@ export function StatusPill({
   ...props
 }: {
   label: string;
-  tone?: "neutral" | "success" | "accent";
+  tone?: "neutral" | "success" | "accent" | "danger";
   className?: string;
 } & ComponentProps<"span">) {
   return (
@@ -22,6 +22,7 @@ export function StatusPill({
         "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium tracking-tight",
         tone === "success" && "bg-success/12 text-success",
         tone === "accent" && "bg-primary/12 text-primary",
+        tone === "danger" && "bg-destructive/12 text-destructive",
         tone === "neutral" && "bg-muted/60 text-muted-foreground",
         className
       )}

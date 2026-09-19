@@ -30,7 +30,8 @@ Privileges are those passed to CPI (including the wallet PDA signature). The
 passkey challenge binds them in `accounts_hash` (`execute:v3`).
 
 Rules run immediately before each direct CPI (see prior CPI effects). Nested CPIs
-inside a permitted program are **not** inspected. Caps and control invariants are
+inside a permitted program are **not** inspected — treat `AllInstructions` as full
+trust of that program’s transitive call graph. Caps and control invariants are
 independent and mandatory whenever a policy is present.
 
 ### Merchant System transfer example
@@ -70,8 +71,10 @@ WalletPolicyArgs {
 }
 ```
 
-Other baseline routes remain open unless also denied/restricted. Argument bounds
-are per matching instruction; the SOL cap aggregates net SOL/WSOL loss per execute.
+Other baseline routes remain open unless also denied/restricted — a merchant-only
+System::Transfer rule does **not** close SPL Token / Token-2022 / ATA by itself.
+Argument bounds are per matching instruction; the SOL cap aggregates net SOL/WSOL
+loss per execute.
 
 See [instruction_policy_flow.rs](../tests/instruction_policy_flow.rs).
 
@@ -102,7 +105,7 @@ hash. Authority paths reject durable nonces.
 | --- | --- | --- |
 | `set_authority` | Passkey | Once; starts empty active policy |
 | `set_wallet_policy` | Owner | Full replace; **unchanged** caps keep `remaining` + anchor |
-| `clear_wallet_policy` | Owner | Shrink to header; refund original payer |
+| `clear_wallet_policy` | Owner | Shrink to header (`policy_version = 0`); **disables** allow-list, caps, and control checks until a new policy is set. Prefer empty `set_wallet_policy` to restore baseline protections. Refunds original payer. |
 | `clear_authority` | Owner | Close account; disables tap |
 | `execute` | Passkey | Requires present owner; enforces policy if present |
 | `execute_with_authority` | Owner | Skips policy; no allowance charge |

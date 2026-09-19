@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  MAX_CONCURRENT_FEE_RESERVES,
   MIN_ATTEMPT_FEE_LAMPORTS,
   STARTER_FEE_BALANCE_LAMPORTS,
 } from "@/fees/constants";
 import { TokenStore } from "@/token-store";
 
 function memorySql() {
-  let token: string | null = null;
+  const meta = new Map<string, string>();
   let balance: number | null = null;
   const signatures = new Set<string>();
   const reserves = new Map<
@@ -18,10 +19,19 @@ function memorySql() {
   return {
     exec(query: string, ...params: unknown[]) {
       const q = query.replace(/\s+/g, " ").trim();
-      if (q.includes("SELECT value FROM meta")) {
-        return { toArray: () => (token ? [{ value: token }] : []) };
+      if (q.includes("SELECT value FROM meta WHERE key")) {
+        const key = String(params[0]);
+        const value = meta.get(key);
+        return { toArray: () => (value != null ? [{ value }] : []) };
       }
-      if (q.includes("INSERT INTO meta")) token = String(params[0]);
+      if (q.includes("UPDATE meta SET value")) {
+        meta.set(String(params[1]), String(params[0]));
+        return { toArray: () => [] };
+      }
+      if (q.includes("INSERT INTO meta")) {
+        meta.set(String(params[0]), String(params[1]));
+        return { toArray: () => [] };
+      }
       if (q.includes("SELECT balance_lamports FROM fee_balance")) {
         return {
           toArray: () =>
@@ -38,6 +48,14 @@ function memorySql() {
       }
       if (q.includes("INSERT INTO fee_events")) signatures.add(String(params[0]));
       if (q.includes("INSERT INTO fee_balance")) balance = Number(params[0]);
+      if (q.includes("COUNT(*)")) {
+        const now = Number(params[0]);
+        let total = 0;
+        for (const r of reserves.values()) {
+          if (r.expires_at > now) total += 1;
+        }
+        return { toArray: () => [{ total }] };
+      }
       if (q.includes("COALESCE(SUM(lamports)")) {
         const now = Number(params[0]);
         let total = 0;
@@ -140,15 +158,19 @@ function memorySql() {
 }
 
 describe("TokenStore fee accounting", () => {
-  it("creates a token ledger with the starter balance", () => {
+  it("creates a token ledger with zero balance until starter is granted", () => {
     const store = new TokenStore(memorySql(), "TokenA");
     store.ensureToken("TokenA");
+    expect(store.getFeeBalanceLamports()).toBe(0);
+    expect(store.grantStarterIfNeeded()).toBe(true);
     expect(store.getFeeBalanceLamports()).toBe(STARTER_FEE_BALANCE_LAMPORTS);
+    expect(store.grantStarterIfNeeded()).toBe(false);
   });
 
   it("applies each fee event once", () => {
     const store = new TokenStore(memorySql(), "TokenA");
     store.ensureToken("TokenA");
+    store.grantStarterIfNeeded();
     expect(
       store.applyFeeEvent({
         signature: "credit-1",
@@ -178,6 +200,7 @@ describe("TokenStore fee accounting", () => {
   it("never debits below zero", () => {
     const store = new TokenStore(memorySql(), "TokenA");
     store.ensureToken("TokenA");
+    store.grantStarterIfNeeded();
     store.applyFeeEvent({
       signature: "debit-all",
       kind: "debit",
@@ -186,24 +209,21 @@ describe("TokenStore fee accounting", () => {
     expect(store.getFeeBalanceLamports()).toBe(0);
   });
 
-  it("reserves reduce available balance until release or settle", () => {
+  it("caps concurrent reserves and reduces available until release or settle", () => {
     const store = new TokenStore(memorySql(), "TokenA");
     store.ensureToken("TokenA");
+    store.grantStarterIfNeeded();
     expect(store.reserve("msg-1")).toBe(true);
     expect(store.getAvailableLamports()).toBe(
       STARTER_FEE_BALANCE_LAMPORTS - MIN_ATTEMPT_FEE_LAMPORTS,
     );
-    // Exhaust available with enough attempt-floor reserves.
-    const maxReserves = Math.floor(
-      STARTER_FEE_BALANCE_LAMPORTS / MIN_ATTEMPT_FEE_LAMPORTS,
-    );
-    for (let i = 2; i <= maxReserves; i++) {
+    for (let i = 2; i <= MAX_CONCURRENT_FEE_RESERVES; i++) {
       expect(store.reserve(`msg-${i}`)).toBe(true);
     }
-    expect(store.getAvailableLamports()).toBe(
-      STARTER_FEE_BALANCE_LAMPORTS - maxReserves * MIN_ATTEMPT_FEE_LAMPORTS,
-    );
     expect(store.reserve("msg-overflow")).toBe(false);
+    expect(store.getReservedLamports()).toBe(
+      MAX_CONCURRENT_FEE_RESERVES * MIN_ATTEMPT_FEE_LAMPORTS,
+    );
 
     expect(
       store.settleDebit({
@@ -215,15 +235,16 @@ describe("TokenStore fee accounting", () => {
     expect(store.getFeeBalanceLamports()).toBe(
       STARTER_FEE_BALANCE_LAMPORTS - 50_000,
     );
-    // FIFO fallback releases one reserve when signature is unbound.
+    // Unbound signature does not release a reserve — only rebound ids settle.
     expect(store.getReservedLamports()).toBe(
-      (maxReserves - 1) * MIN_ATTEMPT_FEE_LAMPORTS,
+      MAX_CONCURRENT_FEE_RESERVES * MIN_ATTEMPT_FEE_LAMPORTS,
     );
   });
 
   it("settleDebit releases the reserve rebound to the tx signature", () => {
     const store = new TokenStore(memorySql(), "TokenA");
     store.ensureToken("TokenA");
+    store.grantStarterIfNeeded();
     expect(store.reserve("msg-hash")).toBe(true);
     expect(store.rebindReserve("msg-hash", "tx-sig")).toBe(true);
     expect(store.getReservedLamports()).toBe(MIN_ATTEMPT_FEE_LAMPORTS);

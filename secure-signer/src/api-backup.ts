@@ -79,7 +79,6 @@ export async function restoreOwnerWalletBlob(params: {
 }): Promise<{
   encryptedWalletBlob: string;
   publicKey: string;
-  needsWebauthnHeal: boolean;
 } | null> {
   const res = await fetch(`${API_BASE_URL}/owner-wallet/blob/restore`, {
     method: "POST",
@@ -95,7 +94,6 @@ export async function restoreOwnerWalletBlob(params: {
   const body = (await res.json()) as {
     encryptedWalletBlob?: string;
     publicKey?: string;
-    needsWebauthnHeal?: boolean;
   };
   if (
     typeof body.encryptedWalletBlob !== "string" ||
@@ -107,7 +105,6 @@ export async function restoreOwnerWalletBlob(params: {
   return {
     encryptedWalletBlob: body.encryptedWalletBlob,
     publicKey: String(body.publicKey ?? ""),
-    needsWebauthnHeal: Boolean(body.needsWebauthnHeal),
   };
 }
 
@@ -117,10 +114,7 @@ export async function backupOwnerWalletBlob(params: {
   challengeId: string;
   signature: string;
   webauthnAttestationObject?: string;
-  webauthnAssertion?: Record<string, unknown>;
-  webauthnConfirmAssertion?: Record<string, unknown>;
-  confirmChallengeId?: string;
-}): Promise<{ expiresAt: number; webauthnBound: boolean }> {
+}): Promise<{ expiresAt: number }> {
   const res = await fetch(`${API_BASE_URL}/owner-wallet/blob`, {
     method: "PUT",
     credentials: "include",
@@ -133,24 +127,9 @@ export async function backupOwnerWalletBlob(params: {
       ...(params.webauthnAttestationObject
         ? { webauthnAttestationObject: params.webauthnAttestationObject }
         : {}),
-      ...(params.webauthnAssertion
-        ? { webauthnAssertion: params.webauthnAssertion }
-        : {}),
-      ...(params.webauthnConfirmAssertion
-        ? { webauthnConfirmAssertion: params.webauthnConfirmAssertion }
-        : {}),
-      ...(params.confirmChallengeId
-        ? { confirmChallengeId: params.confirmChallengeId }
-        : {}),
     }),
   });
   if (!res.ok) throw new Error(await errorCode(res));
-  const body = (await res.json()) as {
-    expiresAt?: number;
-    webauthnBound?: boolean;
-  };
-  return {
-    expiresAt: Number(body.expiresAt) || 0,
-    webauthnBound: Boolean(body.webauthnBound),
-  };
+  const body = (await res.json()) as { expiresAt?: number };
+  return { expiresAt: Number(body.expiresAt) || 0 };
 }

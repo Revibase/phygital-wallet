@@ -46,7 +46,7 @@ function normalizeSignatureToLowS(signature: Uint8Array): Uint8Array {
  * signs the raw 12-byte `counter||nonce` message.
  *
  * Counter anti-replay is enforced by the `/accessory/unlock/tap` route: the
- * next `c` must exceed the high-water mark in `revibase_auth_kv`.
+ * next `c` must exceed the high-water mark.
  */
 export function verifyDynamicUrlWithoutCounterCheck(
   params: URLSearchParams,

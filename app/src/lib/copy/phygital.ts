@@ -201,18 +201,32 @@ export const copy = {
     topUpSuccess: "Top-up submitted",
     policy: "Accessory permissions",
     policyStatusStandard: "Everyday payments",
-    policyStatusStandardBody:
-      "This accessory can send SOL and standard tokens with no amount caps until you set limits. Other programs stay blocked.",
     policyStatusOpen: "Protections off",
-    policyStatusOpenBody:
-      "Anyone with this accessory can move funds with no checks until you restore everyday payments.",
     policyStatusLimited: "Custom limits",
-    policyStatusLimitedBody:
-      "Only listed assets can leave with this accessory.",
     policyStatusLocked: "Locked",
     policyStatusLockedBody:
       "Claim this accessory to turn on everyday payments.",
     policyLockedClaimCta: "Claim to unlock",
+    /** Compact status chips next to the mode title. */
+    policyChipProtected: "Protected",
+    policyChipLimited: "Limited",
+    policyChipOff: "Off",
+    policyChipLocked: "Locked",
+    /** Capability matrix section labels (Screen Time–style). */
+    policyMatrixAllowed: "Allowed",
+    policyMatrixBlocked: "Blocked",
+    policyMatrixSpendable: "Spendable",
+    policyMatrixPrograms: "Programs",
+    policyMatrixAmounts: "Amounts",
+    policyMatrixUncapped: "Uncapped",
+    policyMatrixAnyProgram: "Any program",
+    policyMatrixAnyAmount: "Any amount",
+    policyMatrixNoChecks: "No accessory checks",
+    policyMatrixAllTx: "All transactions",
+    policyMatrixOtherPrograms: "Other programs",
+    policyMatrixUnlistedAssets: "Unlisted assets",
+    policyMatrixOtherProgramsDetail: "Swaps, DeFi, NFTs, custom apps",
+    policyMatrixUnlessListed: "Unless listed above",
     /** Post-tap: no on-chain authority yet. */
     authorityChecking: "Checking ownership…",
     authoritySignInTitle: "Set up this phone to claim",
@@ -297,12 +311,13 @@ export const copy = {
     policyTurnedOff: "Protections turned off",
     policyTurnOffConfirmTitle: "Turn off accessory protections?",
     policyTurnOffConfirmBody:
-      "Anyone with this accessory can move funds with no checks until you restore everyday payments. Your owner key stays.",
+      "This disables every spend check and program allow-list. Anyone who taps this accessory can move funds with no limits until you restore everyday payments. Your owner key stays.",
     /** Exact phrase required before the turn-off confirm button enables. */
+    policyTurnOffConfirmPhrase: "TURN OFF PROTECTIONS",
     policySignInToEdit: "Unlock on this phone to change permissions.",
     policyTokenLimits: "Spendable assets",
     policyTokenLimitsHint:
-      "Add SOL or any token. This accessory can only spend what you list.",
+      "Add SOL or any token. This accessory can only spend what you list. Unlisted tokens cannot leave (net) while any limit is active.",
     policyAddToken: "Add an asset",
     policyPickToken: "Choose an asset",
     policyNoTokensToAdd: "No more assets to add",
@@ -310,7 +325,7 @@ export const copy = {
     policyTokenAmountLabel: (symbol: string) => `${symbol} spend limit`,
     policyAdvanced: "Extra programs",
     policyProgramsHint:
-      "Allow or block Solana programs beyond everyday payments.",
+      "Allow or block Solana programs beyond everyday payments. Everyday Token/System routes stay open unless you block them here.",
     policyProgramsNone: "No extra programs",
     policyAddProgram: "Add",
     policyProgramIdPlaceholder: "Program ID",
@@ -320,7 +335,7 @@ export const copy = {
     policyAccessDeny: "Block",
     policyAccessCustom: "Custom rules",
     policyAccessAllowDanger:
-      "Allow lets this program run any instruction, including nested calls. Only allow programs you trust.",
+      "Allow lets this program run any instruction, including nested calls that this wallet cannot inspect. Only allow programs you fully trust. Prefer Block on System/Token if you are locking spends to a single merchant rule.",
     policyRemoveProgramAria: (id: string) => `Remove program ${id}`,
     interfaceNft: "NFT",
     interfacePnft: "pNFT",

@@ -1,9 +1,6 @@
 /**
  * D1 persistence for encrypted owner-wallet blobs (secure-signer backups).
- *
- * New creates require a COSE public key from registration attestation.
- * Legacy rows with null COSE are still readable for a temporary restore window
- * (unlink / recovery); PUT can refresh them without attestation.
+ * Creates and restores require a COSE public key from registration attestation.
  */
 import { getD1 } from "@/shared/db";
 
@@ -13,8 +10,7 @@ export type OwnerWalletBlobRow = {
   encryptedBlob: string;
   blobVersion: number;
   updatedAt: number;
-  /** Null on pre-COSE backups — temporary restore/PUT still allowed. */
-  webauthnPublicKey: string | null;
+  webauthnPublicKey: string;
 };
 
 type DbRow = {
@@ -26,8 +22,9 @@ type DbRow = {
   webauthn_public_key: string | null;
 };
 
-function mapRow(r: DbRow): OwnerWalletBlobRow {
-  const key = r.webauthn_public_key?.trim() || null;
+function mapRow(r: DbRow): OwnerWalletBlobRow | null {
+  const key = r.webauthn_public_key?.trim();
+  if (!key) return null;
   return {
     credentialIdHash: r.credential_id_hash,
     publicKey: r.public_key,
@@ -55,9 +52,9 @@ export async function getOwnerWalletBlob(
 }
 
 /**
- * Insert or refresh ciphertext.
- * Create requires COSE. Legacy null-COSE rows may be refreshed without COSE.
- * Updates never clear an existing COSE key; attestation upgrades a husk.
+ * Insert or refresh ciphertext. COSE is required on create; updates never
+ * clear an existing COSE key. Rows without COSE are deleted so a fresh
+ * attestation-backed create can proceed.
  */
 export async function putOwnerWalletBlob(params: {
   credentialIdHash: string;
@@ -80,42 +77,31 @@ export async function putOwnerWalletBlob(params: {
       return "updated";
     }
 
-    if (existing.webauthnPublicKey) {
-      // Never overwrite / clear COSE; ciphertext last-write-wins.
-      await db
-        .prepare(
-          `UPDATE owner_wallet_blob
-           SET encrypted_blob = ?, blob_version = ?, updated_at = ?
-           WHERE credential_id_hash = ?`,
-        )
-        .bind(
-          params.encryptedBlob,
-          params.blobVersion,
-          now,
-          params.credentialIdHash,
-        )
-        .run();
-      return "updated";
-    }
-
-    // Legacy husk: refresh ciphertext; upgrade COSE if attestation provided.
     await db
       .prepare(
         `UPDATE owner_wallet_blob
-         SET encrypted_blob = ?, blob_version = ?, updated_at = ?,
-             webauthn_public_key = COALESCE(?, webauthn_public_key)
+         SET encrypted_blob = ?, blob_version = ?, updated_at = ?
          WHERE credential_id_hash = ?`,
       )
       .bind(
         params.encryptedBlob,
         params.blobVersion,
         now,
-        incomingKey,
         params.credentialIdHash,
       )
       .run();
     return "updated";
   }
+
+  // Drop incomplete rows (no COSE) so create can insert cleanly.
+  await db
+    .prepare(
+      `DELETE FROM owner_wallet_blob
+       WHERE credential_id_hash = ?
+         AND (webauthn_public_key IS NULL OR TRIM(webauthn_public_key) = '')`,
+    )
+    .bind(params.credentialIdHash)
+    .run();
 
   if (!incomingKey) return "webauthn_required";
 

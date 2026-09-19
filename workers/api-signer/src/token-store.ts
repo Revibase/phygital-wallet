@@ -6,6 +6,7 @@
  */
 import {
   FEE_RESERVE_TTL_MS,
+  MAX_CONCURRENT_FEE_RESERVES,
   MIN_ATTEMPT_FEE_LAMPORTS,
   STARTER_FEE_BALANCE_LAMPORTS,
 } from "@/fees/constants";
@@ -21,9 +22,6 @@ export type FeeEvent = {
 
 export function initTokenSchema(sql: Sql): void {
   sql.exec(`
-    DROP TABLE IF EXISTS owner;
-    DROP TABLE IF EXISTS challenges;
-    DROP TABLE IF EXISTS accessory_counter;
     CREATE TABLE IF NOT EXISTS meta (
       key TEXT PRIMARY KEY NOT NULL,
       value TEXT NOT NULL
@@ -57,7 +55,8 @@ export class TokenStore {
   ensureToken(token: string): void {
     const existing = this.sql
       .exec<{ value: string }>(
-        `SELECT value FROM meta WHERE key = 'phygital_token'`,
+        `SELECT value FROM meta WHERE key = ?`,
+        "phygital_token",
       )
       .toArray()[0];
     if (existing) {
@@ -67,15 +66,64 @@ export class TokenStore {
       return;
     }
     this.sql.exec(
-      `INSERT INTO meta (key, value) VALUES ('phygital_token', ?)`,
+      `INSERT INTO meta (key, value) VALUES (?, ?)`,
+      "phygital_token",
       token,
     );
     const now = Date.now();
+    // Public /sign must not mint free prepaid balance for arbitrary token PDAs.
+    // Starter is granted once via {@link grantStarterIfNeeded} (admit-gated).
     this.sql.exec(
       `INSERT INTO fee_balance (id, balance_lamports, updated_at) VALUES (1, ?, ?)`,
+      0,
+      now,
+    );
+    this.sql.exec(
+      `INSERT INTO meta (key, value) VALUES (?, ?)`,
+      "starter_granted",
+      "0",
+    );
+  }
+
+  /** One-time starter credit — call only from admit-gated reads (fee-balance). */
+  grantStarterIfNeeded(): boolean {
+    const flag = this.sql
+      .exec<{ value: string }>(
+        `SELECT value FROM meta WHERE key = ?`,
+        "starter_granted",
+      )
+      .toArray()[0];
+    if (flag?.value !== "0") return false;
+
+    const now = Date.now();
+    this.sql.exec(
+      `UPDATE meta SET value = ? WHERE key = ?`,
+      "1",
+      "starter_granted",
+    );
+
+    const current = this.getFeeBalanceLamports();
+    if (current > 0) return false;
+
+    this.sql.exec(
+      `INSERT INTO fee_balance (id, balance_lamports, updated_at) VALUES (1, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         balance_lamports = excluded.balance_lamports,
+         updated_at = excluded.updated_at`,
       STARTER_FEE_BALANCE_LAMPORTS,
       now,
     );
+    return true;
+  }
+
+  getOpenReserveCount(now = Date.now()): number {
+    const row = this.sql
+      .exec<{ total: number }>(
+        `SELECT COUNT(*) AS total FROM fee_reserves WHERE expires_at > ?`,
+        now,
+      )
+      .toArray()[0];
+    return Number(row?.total ?? 0);
   }
 
   getFeeBalanceLamports(): number {
@@ -126,6 +174,9 @@ export class TokenStore {
       if (existing.expires_at > now) return true;
       this.sql.exec(`DELETE FROM fee_reserves WHERE id = ?`, id);
     }
+    if (this.getOpenReserveCount(now) >= MAX_CONCURRENT_FEE_RESERVES) {
+      return false;
+    }
     if (this.getAvailableLamports(now) < lamports) return false;
     this.sql.exec(
       `INSERT INTO fee_reserves (id, lamports, created_at, expires_at)
@@ -166,35 +217,16 @@ export class TokenStore {
   /**
    * On debit: release the reserve bound to this tx signature (rebound at sign
    * time from the message hash), then apply the actual lamport debit.
-   * Falls back to releasing one FIFO open reserve if no signature match
-   * (legacy in-flight reserves during deploy).
    */
   settleDebit(event: FeeEvent, now = Date.now()): boolean {
     if (event.kind !== "debit") return this.applyFeeEvent(event);
     this.expireReserves(now);
     const sig = event.signature.replace(/:debit$/, "");
-    const matched = this.sql
-      .exec<{ id: string }>(
-        `SELECT id FROM fee_reserves WHERE id = ? AND expires_at > ?`,
-        sig,
-        now,
-      )
-      .toArray()[0];
-    if (matched) {
-      this.sql.exec(`DELETE FROM fee_reserves WHERE id = ?`, matched.id);
-    } else {
-      const open = this.sql
-        .exec<{ id: string }>(
-          `SELECT id FROM fee_reserves
-           WHERE expires_at > ?
-           ORDER BY created_at ASC LIMIT 1`,
-          now,
-        )
-        .toArray()[0];
-      if (open) {
-        this.sql.exec(`DELETE FROM fee_reserves WHERE id = ?`, open.id);
-      }
-    }
+    this.sql.exec(
+      `DELETE FROM fee_reserves WHERE id = ? AND expires_at > ?`,
+      sig,
+      now,
+    );
     return this.applyFeeEvent(event);
   }
 

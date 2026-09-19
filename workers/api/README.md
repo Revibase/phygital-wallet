@@ -51,8 +51,8 @@ not admit protected routes by itself.
 | GET        | `/accessory/session`                   | Public\* | Session status                                        |
 | POST       | `/owner-wallet/blob/backup-challenge`  | Public   | ed25519 challenge for PUT (signer mints)              |
 | POST       | `/owner-wallet/blob/restore-challenge` | Public   | WebAuthn challenge for restore (signer mints)         |
-| POST       | `/owner-wallet/blob/restore`           | Public   | WebAuthn assertion → ciphertext (signer); null-COSE husks temporarily allowed |
-| PUT        | `/owner-wallet/blob`                   | Public   | ed25519 proof → store + session; husk heal = unlock assertion + confirm assertion → single COSE |
+| POST       | `/owner-wallet/blob/restore`           | Public   | WebAuthn assertion → ciphertext (signer)              |
+| PUT        | `/owner-wallet/blob`                   | Public   | ed25519 proof → store + session; create needs attestationObject |
 | GET        | `/getFeePayer`                         | Public   | Default fee-payer pubkey (open CORS)                  |
 | POST       | `/sign`                                | Public   | Fee co-sign via TokenSigner DO (open CORS)            |
 | POST       | `/webhooks/transactions`               | HMAC     | Activity index + fee credit/debit                     |

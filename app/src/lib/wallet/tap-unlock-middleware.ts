@@ -51,7 +51,7 @@ export async function handleTokenColdStart(
 ): Promise<NextResponse | null> {
   if (request.nextUrl.pathname !== "/token") return null;
 
-  // Tap proof wins over legacy `?address=` when both are present.
+  // Tap proof wins over `?address=` when both are present.
   const tap = readTapParams(request.nextUrl);
   if (tap) {
     try {

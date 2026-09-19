@@ -23,8 +23,7 @@ import {
 } from "@/auth/unlock-challenge";
 import { getErrorMessage } from "@/shared/errors";
 import { json } from "@/shared/http";
-import { evaluateCounter } from "@/tap/counter-session";
-import { readCounterSession, writeCounterSession } from "@/tap/counter-store";
+import { consumeCounterSession } from "@/tap/counter-store";
 import { resolvePhygitalTokenFromIdentifier } from "@/tap/resolve-token";
 import { verifyDynamicUrlWithoutCounterCheck } from "@/tap/verify-dynamic-url";
 
@@ -60,10 +59,7 @@ accessoryUnlockRoutes.post("/accessory/unlock/tap", async (c) => {
       );
     }
 
-    const verdict = evaluateCounter(
-      await readCounterSession(identifier),
-      counter,
-    );
+    const verdict = await consumeCounterSession(identifier, counter);
     if (verdict === "replay") {
       return json(
         {
@@ -73,7 +69,6 @@ accessoryUnlockRoutes.post("/accessory/unlock/tap", async (c) => {
         { status: 409 },
       );
     }
-    await writeCounterSession(identifier, { c: counter });
 
     const phygitalToken =
       await resolvePhygitalTokenFromIdentifier(identifier);

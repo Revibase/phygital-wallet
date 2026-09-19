@@ -50,17 +50,16 @@ export class SignerState {
   }
 
   /**
-   * Reject stale or duplicate requests. Returns an error code or null if fresh.
+   * Reject stale or duplicate requests. Timestamp is required by the protocol
+   * schema; freshness is always enforced here.
    */
   checkFreshnessAndReplay(
     requestId: string,
-    timestamp?: number,
+    timestamp: number,
   ): ErrorCode | null {
     if (this.seen.has(requestId)) return "REPLAY_REJECTED";
-    if (timestamp !== undefined) {
-      const skew = Math.abs(this.now() - timestamp);
-      if (skew > REQUEST_FRESHNESS_WINDOW_MS) return "REPLAY_REJECTED";
-    }
+    const skew = Math.abs(this.now() - timestamp);
+    if (skew > REQUEST_FRESHNESS_WINDOW_MS) return "REPLAY_REJECTED";
     return null;
   }
 

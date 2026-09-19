@@ -1,35 +1,46 @@
-import { getEnv } from "@/shared/request-context";
+import { getD1 } from "@/shared/db";
 import {
-  parseCounterState,
-  type CounterState,
+  evaluateCounter,
+  type CounterVerdict,
 } from "@/tap/counter-session";
 
 /**
- * KV-backed high-water mark for tap anti-replay (counter only, no TTL).
- * Reuses the `revibase_auth_kv` namespace under a `tap:counter:` prefix so no
- * separate binding is required.
+ * D1-backed high-water mark for tap anti-replay (atomic consume).
  */
 
-const COUNTER_PREFIX = "tap:counter:";
-
-function counterKey(identifier: string): string {
-  return `${COUNTER_PREFIX}${identifier}`;
-}
-
-export async function readCounterSession(
+/**
+ * Atomically consume a tap counter.
+ * Returns `replay` if the counter is not strictly greater than the stored mark.
+ */
+export async function consumeCounterSession(
   identifier: string,
-): Promise<CounterState | null> {
-  return parseCounterState(
-    await getEnv().revibase_auth_kv.get(counterKey(identifier)),
-  );
-}
+  counter: number,
+): Promise<CounterVerdict> {
+  const db = getD1();
+  const now = Date.now();
 
-export async function writeCounterSession(
-  identifier: string,
-  state: CounterState,
-): Promise<void> {
-  await getEnv().revibase_auth_kv.put(
-    counterKey(identifier),
-    JSON.stringify({ c: state.c, t: Date.now() }),
-  );
+  const existing = await db
+    .prepare(`SELECT c FROM tap_counters WHERE identifier = ?`)
+    .bind(identifier)
+    .first<{ c: number }>();
+
+  const floor =
+    existing && Number.isFinite(existing.c) ? existing.c : null;
+  if (evaluateCounter(floor != null ? { c: floor } : null, counter) === "replay") {
+    return "replay";
+  }
+
+  const result = await db
+    .prepare(
+      `INSERT INTO tap_counters (identifier, c, updated_at)
+       VALUES (?, ?, ?)
+       ON CONFLICT(identifier) DO UPDATE SET
+         c = excluded.c,
+         updated_at = excluded.updated_at
+       WHERE tap_counters.c < excluded.c`,
+    )
+    .bind(identifier, counter, now)
+    .run();
+
+  return (result.meta?.changes ?? 0) > 0 ? "new" : "replay";
 }

@@ -135,6 +135,7 @@ export class TokenSigner extends DurableObject<Env> {
       async () => {
         const store = this.#getStore();
         store.expireReserves();
+        store.grantStarterIfNeeded();
         const balanceLamports = store.getFeeBalanceLamports();
         const reservedLamports = store.getReservedLamports();
         return {

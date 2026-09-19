@@ -195,10 +195,7 @@ async function pushBackup(opts: {
   putChallengeId: string;
   putSignature: string;
   webauthnAttestationObject?: string;
-  webauthnAssertion?: Record<string, unknown>;
-  webauthnConfirmAssertion?: Record<string, unknown>;
-  confirmChallengeId?: string;
-}): Promise<{ expiresAt: number; webauthnBound: boolean }> {
+}): Promise<{ expiresAt: number }> {
   return backupOwnerWalletBlob({
     encryptedWalletBlob: opts.encryptedWalletBlob,
     publicKey: opts.publicKey,
@@ -206,15 +203,6 @@ async function pushBackup(opts: {
     signature: opts.putSignature,
     ...(opts.webauthnAttestationObject
       ? { webauthnAttestationObject: opts.webauthnAttestationObject }
-      : {}),
-    ...(opts.webauthnAssertion
-      ? { webauthnAssertion: opts.webauthnAssertion }
-      : {}),
-    ...(opts.webauthnConfirmAssertion
-      ? { webauthnConfirmAssertion: opts.webauthnConfirmAssertion }
-      : {}),
-    ...(opts.confirmChallengeId
-      ? { confirmChallengeId: opts.confirmChallengeId }
       : {}),
   });
 }
@@ -228,25 +216,6 @@ async function mintBackupChallenge(): Promise<{
   } catch {
     throw new ServiceError("BLOB_UNAVAILABLE");
   }
-}
-
-async function mintConfirmCeremony(opts: {
-  rpId: string;
-  credentialId: Uint8Array;
-}): Promise<{
-  confirmChallengeId: string;
-  confirmAssertion: Record<string, unknown>;
-}> {
-  const confirm = await issueRestoreChallenge();
-  const challengeBytes = base64ToBytes(confirm.challenge, 64, "url");
-  const got = await prf.get(opts.rpId, opts.credentialId, challengeBytes);
-  if (!got.assertion || typeof got.assertion !== "object") {
-    throw new ServiceError("AUTHENTICATION_FAILED");
-  }
-  return {
-    confirmChallengeId: confirm.challengeId,
-    confirmAssertion: got.assertion as Record<string, unknown>,
-  };
 }
 
 /** Create: parent registered passkey → enroll here → backup with attestation. */
@@ -342,7 +311,7 @@ async function handleLocalUnlock(opts: {
   const busy = beginBusy(opts.requestId, "Use Face ID or Touch ID to approve");
   try {
     const { challengeId, challenge } = await mintBackupChallenge();
-    const { seed, publicKey, assertion } = await decryptWallet(
+    const { seed, publicKey } = await decryptWallet(
       prf,
       opts.rpId,
       opts.parsed,
@@ -359,9 +328,8 @@ async function handleLocalUnlock(opts: {
 
     const pk = toBase58Pubkey(publicKey);
     let expiresAt: number;
-    let webauthnBound: boolean;
     try {
-      ({ expiresAt, webauthnBound } = await pushBackup({
+      ({ expiresAt } = await pushBackup({
         encryptedWalletBlob: bytesToBase64(opts.raw, "url"),
         publicKey: pk,
         putChallengeId: challengeId,
@@ -370,48 +338,6 @@ async function handleLocalUnlock(opts: {
     } catch {
       seed.fill(0);
       return fail(opts.requestId, "BLOB_UNAVAILABLE");
-    }
-
-    if (!webauthnBound && assertion && typeof assertion === "object") {
-      busy.clear();
-      const healBusy = beginBusy(
-        opts.requestId,
-        "Confirm once more to finish wallet backup…",
-      );
-      try {
-        const confirm = await mintConfirmCeremony({
-          rpId: opts.rpId,
-          credentialId: opts.parsed.credentialId,
-        });
-        if (healBusy.wasDismissed()) {
-          seed.fill(0);
-          return;
-        }
-        const backup2 = await mintBackupChallenge();
-        const putSignature2 = signChallenge(
-          backup2.challenge,
-          seed,
-          PUT_CHALLENGE_PREFIX,
-        );
-        if (!putSignature2) {
-          seed.fill(0);
-          return fail(opts.requestId, "INTERNAL_ERROR");
-        }
-        ({ expiresAt } = await pushBackup({
-          encryptedWalletBlob: bytesToBase64(opts.raw, "url"),
-          publicKey: pk,
-          putChallengeId: backup2.challengeId,
-          putSignature: putSignature2,
-          webauthnAssertion: assertion as Record<string, unknown>,
-          webauthnConfirmAssertion: confirm.confirmAssertion,
-          confirmChallengeId: confirm.confirmChallengeId,
-        }));
-      } catch {
-        seed.fill(0);
-        return fail(opts.requestId, "BLOB_UNAVAILABLE");
-      } finally {
-        healBusy.clear();
-      }
     }
 
     seed.fill(0);
@@ -541,45 +467,6 @@ async function handleRemoteUnlock(opts: {
     }
 
     const pk = toBase58Pubkey(publicKey);
-    let heal:
-      | {
-          webauthnAssertion: Record<string, unknown>;
-          webauthnConfirmAssertion: Record<string, unknown>;
-          confirmChallengeId: string;
-        }
-      | undefined;
-    if (restored.needsWebauthnHeal) {
-      busy.clear();
-      const healBusy = beginBusy(
-        opts.requestId,
-        "Confirm once more to finish wallet backup…",
-      );
-      try {
-        const confirm = await mintConfirmCeremony({
-          rpId: opts.rpId,
-          credentialId: parsed.credentialId,
-        });
-        if (healBusy.wasDismissed()) {
-          seed.fill(0);
-          return;
-        }
-        heal = {
-          webauthnAssertion: disc.assertion as unknown as Record<
-            string,
-            unknown
-          >,
-          webauthnConfirmAssertion: confirm.confirmAssertion,
-          confirmChallengeId: confirm.confirmChallengeId,
-        };
-      } catch {
-        seed.fill(0);
-        return fail(opts.requestId, "BLOB_UNAVAILABLE");
-      } finally {
-        healBusy.clear();
-      }
-      busy = beginBusy(opts.requestId, "Restoring your wallet…");
-    }
-
     seed.fill(0);
 
     let expiresAt: number;
@@ -589,7 +476,6 @@ async function handleRemoteUnlock(opts: {
         publicKey: pk,
         putChallengeId: backup.challengeId,
         putSignature,
-        ...heal,
       }));
     } catch {
       return fail(opts.requestId, "BLOB_UNAVAILABLE");

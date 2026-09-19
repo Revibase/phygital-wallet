@@ -3,13 +3,10 @@
  *
  * Fetch — WebAuthn assertion over a server challenge (same ceremony as PRF
  * unlock in the secure-signer). Ciphertext is returned only after verify.
- * TEMPORARY: rows with null `webauthn_public_key` restore without assertion
- * crypto so legacy owners can unlock and unlink; remove once husks are gone.
  * PUT — ed25519 signature over a server challenge from the secure-signer
- *       (proves possession of the wallet). Accepts attestationObject whose
- *       credential ID must match the blob header (binds COSE to the passkey).
+ *       (proves possession of the wallet). Create requires attestationObject
+ *       whose credential ID matches the blob header (binds COSE to the passkey).
  *       On success also mints the owner_session cookie (same proof = signed in).
- *       Legacy husk: PUT with `webauthnAssertion` EC-recovers COSE after seed proof.
  */
 import { Hono } from "hono";
 import { getAddressDecoder } from "@solana/kit";
@@ -44,7 +41,6 @@ import {
   resolveWebAuthnRpId,
   verifyOwnerWalletAssertion,
 } from "@/owner-wallet/verify-webauthn-assertion";
-import { selectWebauthnPublicKeyB64url, parseStoredWebauthnPublicKeys } from "@/owner-wallet/recover-webauthn-key";
 import { getErrorMessage } from "@/shared/errors";
 import { json } from "@/shared/http";
 import { isAppBrowserOrigin } from "@/shared/cors";
@@ -75,14 +71,10 @@ function requireAppOrigin(c: {
   return { origin };
 }
 
-/**
- * COSE for PUT: registration attestation (create), or EC-recover from an
- * unlock assertion filtered by a confirm assertion (legacy husk upgrade).
- */
+/** COSE from registration attestation (required on first backup). */
 async function resolvePutWebauthnKey(
   record: Record<string, unknown>,
   expectedRpId: string,
-  origin: string,
 ): Promise<
   | { ok: true; key: string | null; credentialId: Uint8Array | null }
   | { ok: false; code: string; error: string }
@@ -91,83 +83,24 @@ async function resolvePutWebauthnKey(
     typeof record["webauthnAttestationObject"] === "string"
       ? record["webauthnAttestationObject"].trim()
       : "";
-  if (attestation) {
-    try {
-      const cred = await extractCredentialFromAttestationObject(
-        attestation,
-        expectedRpId,
-      );
-      return {
-        ok: true,
-        key: bytesToBase64Url(cred.publicKey),
-        credentialId: cred.credentialId,
-      };
-    } catch {
-      return {
-        ok: false,
-        code: "invalid_webauthn_key",
-        error: "Invalid webauthnAttestationObject",
-      };
-    }
-  }
-
-  const unlockAssertion = record["webauthnAssertion"];
-  const confirmAssertion = record["webauthnConfirmAssertion"];
-  const confirmChallengeId =
-    typeof record["confirmChallengeId"] === "string"
-      ? record["confirmChallengeId"].trim()
-      : "";
-
-  if (!isAuthenticationResponseJSON(unlockAssertion)) {
+  if (!attestation) {
     return { ok: true, key: null, credentialId: null };
   }
-  if (!isAuthenticationResponseJSON(confirmAssertion) || !confirmChallengeId) {
-    return {
-      ok: false,
-      code: "confirm_required",
-      error:
-        "webauthnConfirmAssertion and confirmChallengeId are required to bind a recovered key",
-    };
-  }
-
-  const expectedConfirmChallenge =
-    await consumeRestoreChallenge(confirmChallengeId);
-  if (!expectedConfirmChallenge) {
-    return {
-      ok: false,
-      code: "challenge_invalid",
-      error: "Confirm challenge expired or invalid. Try again.",
-    };
-  }
-
   try {
-    const key = await selectWebauthnPublicKeyB64url({
-      unlockAssertion,
-      confirmAssertion,
-      expectedConfirmChallenge,
-      origin,
-    });
-    const credentialId = base64UrlToBytes(
-      unlockAssertion.rawId,
-      MAX_CREDENTIAL_ID_BYTES,
+    const cred = await extractCredentialFromAttestationObject(
+      attestation,
+      expectedRpId,
     );
-    const confirmId = base64UrlToBytes(
-      confirmAssertion.rawId,
-      MAX_CREDENTIAL_ID_BYTES,
-    );
-    if (!timingSafeEqual(credentialId, confirmId)) {
-      return {
-        ok: false,
-        code: "webauthn_credential_mismatch",
-        error: "Confirm assertion credential does not match unlock assertion",
-      };
-    }
-    return { ok: true, key, credentialId };
+    return {
+      ok: true,
+      key: bytesToBase64Url(cred.publicKey),
+      credentialId: cred.credentialId,
+    };
   } catch {
     return {
       ok: false,
-      code: "invalid_webauthn_assertion",
-      error: "Could not recover WebAuthn public key from assertions",
+      code: "invalid_webauthn_key",
+      error: "Invalid webauthnAttestationObject",
     };
   }
 }
@@ -305,67 +238,25 @@ ownerWalletRoutes.post("/owner-wallet/blob/restore", async (c) => {
       );
     }
 
-    // TEMPORARY: pre-COSE rows restore without assertion crypto so owners can
-    // unlock once and unlink. Remove once husks are gone.
-    if (!row.webauthnPublicKey) {
-      if (!isAppBrowserOrigin(origin)) {
-        return json(
-          { error: "App origin required", code: "origin_required" },
-          { status: 403 },
-        );
-      }
-      recordAudit({
-        event: "blob_get",
-        ok: true,
-        actor: "system",
-        origin: meta.origin,
-        requestId: meta.requestId,
-        detail: {
-          hashPrefix: credentialIdHash.slice(0, 8),
-          legacyNullCose: true,
-        },
-      });
-      return json({
-        encryptedWalletBlob: row.encryptedBlob,
-        publicKey: row.publicKey,
-        blobVersion: row.blobVersion,
-        updatedAt: row.updatedAt,
-        needsWebauthnHeal: true,
-      });
-    }
-
-    const storedKeys = parseStoredWebauthnPublicKeys(row.webauthnPublicKey);
-    let verified: Awaited<ReturnType<typeof verifyOwnerWalletAssertion>> | null =
-      null;
-    for (const storedKey of storedKeys) {
-      const result = await verifyOwnerWalletAssertion({
-        assertion,
-        expectedChallenge,
-        origin,
-        storedPublicKeyBytes: storedKey,
-      });
-      if (result.ok) {
-        verified = result;
-        break;
-      }
-      verified = result;
-    }
-    if (!verified?.ok) {
+    const verified = await verifyOwnerWalletAssertion({
+      assertion,
+      expectedChallenge,
+      origin,
+      storedPublicKeyBytes: base64UrlToBytes(row.webauthnPublicKey, 1024),
+    });
+    if (!verified.ok) {
       recordAudit({
         event: "blob_get",
         ok: false,
         actor: "system",
-        code: verified?.code ?? "assertion_invalid",
+        code: verified.code,
         origin: meta.origin,
         requestId: meta.requestId,
         detail: { hashPrefix: credentialIdHash.slice(0, 8) },
       });
       return json(
-        {
-          error: verified?.error ?? "Invalid assertion",
-          code: verified?.code ?? "assertion_invalid",
-        },
-        { status: verified?.status ?? 401 },
+        { error: verified.error, code: verified.code },
+        { status: verified.status },
       );
     }
 
@@ -382,7 +273,6 @@ ownerWalletRoutes.post("/owner-wallet/blob/restore", async (c) => {
       publicKey: row.publicKey,
       blobVersion: row.blobVersion,
       updatedAt: row.updatedAt,
-      needsWebauthnHeal: false,
     });
   } catch (error) {
     return json(
@@ -395,8 +285,6 @@ ownerWalletRoutes.post("/owner-wallet/blob/restore", async (c) => {
 /**
  * PUT — `{ challengeId, signature, encryptedWalletBlob, publicKey }`.
  * Create requires `webauthnAttestationObject` (credential ID bound to blob).
- * Legacy husk upgrade: unlock assertion + confirm assertion (fresh challenge)
- * EC-recovers a single COSE key after ed25519 proof.
  * Update refreshes ciphertext + mints owner_session.
  */
 ownerWalletRoutes.put("/owner-wallet/blob", async (c) => {
@@ -459,7 +347,7 @@ ownerWalletRoutes.put("/owner-wallet/blob", async (c) => {
   }
   const publicKey = publicKeyRaw.trim();
 
-  const attestation = await resolvePutWebauthnKey(record, expectedRpId, origin);
+  const attestation = await resolvePutWebauthnKey(record, expectedRpId);
   if (!attestation.ok) {
     return json(
       { error: attestation.error, code: attestation.code },
@@ -548,13 +436,11 @@ ownerWalletRoutes.put("/owner-wallet/blob", async (c) => {
       );
     }
     const { expiresAt } = await issueOwnerSessionCookie(c, publicKey);
-    const bound = await getOwnerWalletBlob(credentialIdHash);
     return json({
       ok: true,
       credentialIdHash,
       created: result === "created",
       expiresAt,
-      webauthnBound: Boolean(bound?.webauthnPublicKey),
     });
   } catch (error) {
     return json(

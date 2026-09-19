@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { validateInbound } from "./protocol.js";
 
 const rid = "abcd1234efgh";
-const base = { protocolVersion: 1, requestId: rid };
+const base = { protocolVersion: 1, requestId: rid, timestamp: Date.now() };
 
 describe("validateInbound", () => {
   it("accepts AUTH_START", () => {
@@ -54,6 +54,15 @@ describe("validateInbound", () => {
 
   it("rejects unknown extra fields (strict schema)", () => {
     const r = validateInbound({ ...base, type: "AUTH_START", evil: 1 });
+    expect(r).toMatchObject({ ok: false, code: "INVALID_MESSAGE" });
+  });
+
+  it("rejects missing timestamp", () => {
+    const r = validateInbound({
+      protocolVersion: 1,
+      requestId: rid,
+      type: "AUTH_START",
+    });
     expect(r).toMatchObject({ ok: false, code: "INVALID_MESSAGE" });
   });
 
