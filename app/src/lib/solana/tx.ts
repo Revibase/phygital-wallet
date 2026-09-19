@@ -79,8 +79,7 @@ let _estimateAndSetResourceLimits: ReturnType<
 /**
  * Simulate, then set CU / loaded-accounts limits with headroom.
  * Bare Kit estimation uses exact `unitsConsumed`; on-chain can run slightly
- * hotter than sim (claim already includes secp + verify CPI in that sim — the
- * SDK’s +20k buffer is only for authority *preview* sims that omit the passkey).
+ * hotter than sim, so we add a small margin here for direct (non-wrap) sends.
  */
 function estimateAndSetResourceLimits() {
   if (_estimateAndSetResourceLimits) return _estimateAndSetResourceLimits;

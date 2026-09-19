@@ -24,6 +24,7 @@ import {
   parseSendSearchParams,
   settingsFromDenyCode,
 } from "@/lib/wallet/token-routes";
+import { cn } from "@/lib/utils";
 
 export default function WalletSendPage() {
   return (
@@ -57,21 +58,19 @@ function WalletSendPageInner() {
   const inCeremony = ceremony.stage !== "idle";
 
   return (
-    <StageTransition
-      stageKey={inCeremony ? "send-ceremony" : "send-form"}
-      variant="fade"
-    >
-      {ceremony.stage === "holding" || ceremony.stage === "success" ? (
-        <SendHoldStage
-          phase={ceremony.stage}
-          signPhase={
-            ceremony.stage === "holding" ? ceremony.signPhase : null
-          }
-          imageSrc={ceremony.recap.imageSrc}
-          recap={ceremony.recap}
-          onClose={backHome}
-        />
-      ) : (
+    <div className="flex min-h-0 flex-1 flex-col">
+      {/*
+        Keep SendFlow mounted during the hold ceremony. Unmounting it tore down
+        useWalletTransaction + WalletApprovalSheet, so fee-payer policy denials
+        and other post-tap errors never surfaced and the UI stayed on "Sending".
+      */}
+      <div
+        className={cn(
+          "flex min-h-0 flex-1 flex-col",
+          inCeremony && "hidden",
+        )}
+        aria-hidden={inCeremony}
+      >
         <SendFlow
           phygitalTokenPda={tokenAddress}
           walletAddress={walletAddress}
@@ -82,7 +81,26 @@ function WalletSendPageInner() {
           onCeremonyChange={setCeremony}
           onChangeLimits={(code) => goSettings(settingsFromDenyCode(code))}
         />
-      )}
-    </StageTransition>
+      </div>
+
+      {ceremony.stage === "holding" || ceremony.stage === "success" ? (
+        <StageTransition
+          stageKey={
+            ceremony.stage === "success" ? "send-success" : "send-holding"
+          }
+          variant="fade"
+        >
+          <SendHoldStage
+            phase={ceremony.stage}
+            signPhase={
+              ceremony.stage === "holding" ? ceremony.signPhase : null
+            }
+            imageSrc={ceremony.recap.imageSrc}
+            recap={ceremony.recap}
+            onClose={backHome}
+          />
+        </StageTransition>
+      ) : null}
+    </div>
   );
 }

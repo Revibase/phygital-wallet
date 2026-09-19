@@ -24,6 +24,9 @@ Prefer package-root exports. Do not deep-import `wallet/*` or `wallet-standard/*
 ## Constraints
 
 - One tx per `modifyAndSignTransactions`; recent blockhash only (no durable nonce).
+- Wrap upgrades legacy / v0 inputs to v1 for both policy preview and the final
+  wrap. Preview uses placeholder CU / priority-fee config; real limits are
+  estimated on the execute envelope after the passkey.
 - Default fee payer: `api.revibase.com` `getFeePayer` / `sign`.
 - Preserve caller non-wallet signatures; wallet PDA is not an outer ed25519 signer.
 - Preview authority = `Authority.header.authority` (no-op identity for simulation).

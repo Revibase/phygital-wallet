@@ -161,6 +161,12 @@ export function SendFlow({
   }, [initialAsset, tokensOnly]);
 
   useEffect(() => {
+    if (!walletTx.approval.open) return;
+    setPhase("form");
+    onCeremonyChange({ stage: "idle" });
+  }, [walletTx.approval.open, onCeremonyChange]);
+
+  useEffect(() => {
     if (asset) return;
     const next = defaultAsset(portfolio, initialAsset, tokensOnly);
     if (!next) return;
@@ -431,6 +437,7 @@ export function SendFlow({
         toast.error(toUserErrorMessage(err));
       },
       onError: (e) => {
+        setBusy(false);
         setPhase("form");
         onCeremonyChange({ stage: "idle" });
         toast.error(toUserErrorMessage(e));
@@ -440,6 +447,7 @@ export function SendFlow({
     if (outcome.status !== "sent") {
       // Aborted / rejected (visitor / owner denied) / error — drop back to the
       // form. Funding denials keep their own inline error (set above).
+      setBusy(false);
       setPhase("form");
       onCeremonyChange({ stage: "idle" });
     }
@@ -452,8 +460,8 @@ export function SendFlow({
   const collectibles = tokensOnly ? [] : portfolio?.collectibles ?? [];
 
   if (phase === "holding") {
-    // Parent swaps to SendHoldStage for the NFC ceremony; the approval modal
-    // still needs to surface over it if policy denies mid-ceremony.
+    // Parent shows SendHoldStage; keep this tree mounted so the approval sheet
+    // (and useWalletTransaction) survive fee-payer denials after the NFC tap.
     return (
       <WalletApprovalSheet
         approval={walletTx.approval}

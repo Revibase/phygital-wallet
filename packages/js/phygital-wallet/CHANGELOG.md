@@ -16,6 +16,10 @@
 
 ### Changed
 
+- Wallet wrap (`modifyAndWrapWalletTransaction`) always uses a version 1
+  transaction for policy preview and the final wrap (legacy / v0 inputs are
+  upgraded). Preview sims with placeholder CU / priority-fee config;
+  measured resource limits are applied only when building the execute envelope.
 - `getPhygitalWalletSigner` takes a phygital token PDA, previews policy locally,
   discovers the default fee payer from `https://api.revibase.com/getFeePayer`,
   prompts for the passkey only after preview succeeds, and obtains the fee-payer

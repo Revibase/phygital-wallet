@@ -3,11 +3,12 @@ import {
   createNoopSigner,
   decompileTransactionMessageFetchingLookupTables,
   estimateResourceLimitsFactory,
+  getBase64EncodedWireTransaction,
   getCompiledTransactionMessageDecoder,
+  getSolanaErrorFromTransactionError,
   isTransactionMessageWithBlockhashLifetime,
   isTransactionWithBlockhashLifetime,
   isWritableRole,
-  prependTransactionMessageInstructions,
   setTransactionMessageComputeUnitLimit,
   setTransactionMessageFeePayerSigner,
   setTransactionMessageLifetimeUsingBlockhash,
@@ -27,11 +28,7 @@ import {
   type TransactionWithLifetime,
   type TransactionWithinSizeLimit,
 } from "@solana/kit";
-import {
-  COMPUTE_BUDGET_PROGRAM_ADDRESS,
-  getSetComputeUnitLimitInstruction,
-  getSetComputeUnitPriceInstruction,
-} from "@solana-program/compute-budget";
+import { COMPUTE_BUDGET_PROGRAM_ADDRESS } from "@solana-program/compute-budget";
 import {
   authenticatePasskeyForSecp256r1Verify,
   buildSecp256r1VerifyInstruction,
@@ -60,8 +57,10 @@ const MEMO_PROGRAM_ADDRESS =
 
 /** Round loaded-accounts data size up to the next 32 KiB page (v1 cost model). */
 const LOADED_ACCOUNTS_PAGE_BYTES = 32 * 1024;
-/** Covers the passkey precompile + verify CPI omitted by authority preview. */
-const PASSKEY_VERIFY_COMPUTE_BUFFER = 20_000;
+/** Agave max CU — used as a placeholder so v1 policy preview can simulate. */
+const PREVIEW_COMPUTE_UNIT_LIMIT = 1_400_000;
+/** Agave max loaded-accounts bytes — placeholder for v1 policy preview only. */
+const PREVIEW_LOADED_ACCOUNTS_DATA_SIZE_LIMIT = 64 * 1024 * 1024;
 
 /** Account metas for execute don't depend on the passkey payload. */
 const PLACEHOLDER_SECP_ARGS: Secp256r1VerifyArgsArgs = {
@@ -88,9 +87,12 @@ type DecompiledMessage = Awaited<
   ReturnType<typeof decompileTransactionMessageFetchingLookupTables>
 >;
 
+type V1DecompiledMessage = Extract<DecompiledMessage, { version: 1 }>;
+
 type PreparedWalletWrap = {
   transaction: Transaction & TransactionWithLifetime;
-  decompiled: DecompiledMessage;
+  /** Always v1 — legacy / v0 inputs are upgraded at prepare. */
+  decompiled: V1DecompiledMessage;
   bodyInstructions: Instruction[];
   memoInstructions: Instruction[];
 };
@@ -115,6 +117,40 @@ function stripComputeBudgetInstructions(
     (instruction) =>
       instruction.programAddress !== COMPUTE_BUDGET_PROGRAM_ADDRESS,
   );
+}
+
+function toStaticAccountMeta(account: {
+  address: Address;
+  role: AccountMeta["role"];
+}): AccountMeta {
+  return { address: account.address, role: account.role };
+}
+
+function toStaticInstruction(instruction: Instruction): Instruction {
+  if (!instruction.accounts?.length) {
+    return instruction;
+  }
+  return {
+    ...instruction,
+    accounts: instruction.accounts.map(toStaticAccountMeta),
+  };
+}
+
+/**
+ * Upgrade any decompiled message to v1: flatten ALT metas, drop incoming v1
+ * config (limits are set separately for preview vs finalize), set `version: 1`.
+ */
+export function asV1TransactionMessage(
+  message: DecompiledMessage,
+): V1DecompiledMessage {
+  const { config: _incomingConfig, ...rest } = message as DecompiledMessage & {
+    config?: unknown;
+  };
+  return {
+    ...rest,
+    version: 1,
+    instructions: Array.from(message.instructions, toStaticInstruction),
+  } as V1DecompiledMessage;
 }
 
 function withRemainingAccounts(
@@ -184,46 +220,55 @@ function collectWritableAddresses(message: DecompiledMessage): Address[] {
   return [...writable];
 }
 
+function stripBudgetAndEnsureV1(message: DecompiledMessage): V1DecompiledMessage {
+  const v1 = asV1TransactionMessage(message);
+  return {
+    ...v1,
+    instructions: stripComputeBudgetInstructions(v1.instructions),
+  } as V1DecompiledMessage;
+}
+
 /**
- * Apply CU / priority fee for the message version:
- * - legacy / v0 → prepend ComputeBudget instructions
- * - v1 → message `config` (ComputeBudget ixs are no-ops)
+ * Placeholder v1 config so policy preview can simulate (`sigVerify: false`).
+ * Real CU / priority fee / loaded-accounts limits are applied only at finalize.
  */
-function applyResourceLimits<T extends DecompiledMessage>(
-  message: T,
+function applyPlaceholderResourceLimits(
+  message: DecompiledMessage,
+): V1DecompiledMessage {
+  const withoutBudget = stripBudgetAndEnsureV1(message);
+  let next = setTransactionMessageComputeUnitLimit(
+    PREVIEW_COMPUTE_UNIT_LIMIT,
+    withoutBudget,
+  );
+  next = setTransactionMessagePriorityFeeLamports(0n, next);
+  return setTransactionMessageLoadedAccountsDataSizeLimit(
+    PREVIEW_LOADED_ACCOUNTS_DATA_SIZE_LIMIT,
+    next,
+  ) as V1DecompiledMessage;
+}
+
+/**
+ * Apply measured CU / priority fee / loaded-accounts limits on the final v1 wrap.
+ * ComputeBudget instructions are no-ops on v1 and are stripped.
+ */
+function applyResourceLimits(
+  message: DecompiledMessage,
   unitLimit: number,
   unitPriceMicroLamports: bigint,
   loadedAccountsDataSizeLimit?: number,
-): T {
-  const withoutBudget = {
-    ...message,
-    instructions: stripComputeBudgetInstructions(message.instructions),
-  } as T;
+): V1DecompiledMessage {
+  const withoutBudget = stripBudgetAndEnsureV1(message);
 
-  if (withoutBudget.version === 1) {
-    let next = setTransactionMessageComputeUnitLimit(
-      unitLimit,
-      withoutBudget as never,
-    ) as T;
-    next = setTransactionMessagePriorityFeeLamports(
-      priorityFeeLamportsFromMicroLamports(unitPriceMicroLamports, unitLimit),
-      next as never,
-    ) as T;
-    const dataSize = loadedAccountsDataSizeLimit ?? LOADED_ACCOUNTS_PAGE_BYTES;
-    return setTransactionMessageLoadedAccountsDataSizeLimit(
-      roundUpLoadedAccountsDataSize(dataSize),
-      next as never,
-    ) as T;
-  }
-
-  const budgetIxs = [
-    getSetComputeUnitLimitInstruction({ units: unitLimit }),
-    getSetComputeUnitPriceInstruction({
-      microLamports: unitPriceMicroLamports,
-    }),
-  ];
-
-  return prependTransactionMessageInstructions(budgetIxs, withoutBudget) as T;
+  let next = setTransactionMessageComputeUnitLimit(unitLimit, withoutBudget);
+  next = setTransactionMessagePriorityFeeLamports(
+    priorityFeeLamportsFromMicroLamports(unitPriceMicroLamports, unitLimit),
+    next,
+  );
+  const dataSize = loadedAccountsDataSizeLimit ?? LOADED_ACCOUNTS_PAGE_BYTES;
+  return setTransactionMessageLoadedAccountsDataSizeLimit(
+    roundUpLoadedAccountsDataSize(dataSize),
+    next,
+  ) as V1DecompiledMessage;
 }
 
 function applyBlockhashIfNeeded<T extends DecompiledMessage>(
@@ -283,7 +328,7 @@ function buildWrappedBaseMessage(input: {
   executeAccounts: WalletExecuteAccounts;
   secp256r1VerifyInstruction?: Instruction;
   secp256r1VerifyArgs?: Secp256r1VerifyArgsArgs;
-}): DecompiledMessage {
+}): V1DecompiledMessage {
   const { pending, executeAccounts } = input;
 
   const executeIx = getExecuteInstruction({
@@ -307,10 +352,10 @@ function buildWrappedBaseMessage(input: {
     ...pending.prepared.memoInstructions,
   ];
 
-  const baseMessage = {
+  const baseMessage = asV1TransactionMessage({
     ...pending.prepared.decompiled,
     instructions,
-  } as typeof pending.prepared.decompiled;
+  } as DecompiledMessage);
 
   return withFeePayerIfWallet(
     baseMessage,
@@ -324,7 +369,7 @@ function buildPolicyPreviewMessage(input: {
   compactInstructions: CompactInstructionArgs[];
   remainingAccounts: AccountMeta[];
   executeAccounts: WalletExecuteAccounts;
-}): DecompiledMessage {
+}): V1DecompiledMessage {
   const { prepared, executeAccounts } = input;
   const previewIx = getExecuteWithAuthorityUsingPoliciesInstruction({
     authority: createNoopSigner(executeAccounts.authority),
@@ -337,11 +382,38 @@ function buildPolicyPreviewMessage(input: {
     withRemainingAccounts(previewIx, input.remainingAccounts),
     ...prepared.memoInstructions,
   ];
-  return withFeePayerIfWallet(
-    { ...prepared.decompiled, instructions } as DecompiledMessage,
-    executeAccounts.wallet,
-    executeAccounts.feePayer,
+  return applyPlaceholderResourceLimits(
+    withFeePayerIfWallet(
+      asV1TransactionMessage({
+        ...prepared.decompiled,
+        instructions,
+      } as DecompiledMessage),
+      executeAccounts.wallet,
+      executeAccounts.feePayer,
+    ),
   );
+}
+
+/** Policy-only sim (`sigVerify: false`). Does not measure CU for the final wrap. */
+async function assertPolicyPreviewSucceeds(
+  rpc: Rpc<SolanaRpcApi>,
+  message: V1DecompiledMessage,
+  abortSignal?: AbortSignal,
+): Promise<void> {
+  const wire = getBase64EncodedWireTransaction(
+    compileTransaction(message as Parameters<typeof compileTransaction>[0]),
+  );
+  const { value } = await rpc
+    .simulateTransaction(wire, {
+      encoding: "base64",
+      replaceRecentBlockhash: true,
+      sigVerify: false,
+    })
+    .send({ abortSignal });
+
+  if (value.err) {
+    throw getSolanaErrorFromTransactionError(value.err);
+  }
 }
 
 /** Priority-fee RPC for the same writable set finalize would price. */
@@ -410,10 +482,12 @@ async function prepareWrappedWalletTransaction(input: {
       }
     : undefined;
 
-  const decompiled = await decompileTransactionMessageFetchingLookupTables(
-    compiledMessage,
-    input.rpc,
-    decompileConfig,
+  const decompiled = asV1TransactionMessage(
+    await decompileTransactionMessageFetchingLookupTables(
+      compiledMessage,
+      input.rpc,
+      decompileConfig,
+    ),
   );
 
   const instructions = decompiled.instructions;
@@ -485,15 +559,16 @@ function buildPendingWalletWrap(
 }
 
 /**
- * After passkey: execute ix, resource limits, lifetime, compile.
+ * After passkey: execute ix, real resource limits, lifetime, compile.
  */
 async function finalizeWrappedWalletTransaction(input: {
+  rpc: Rpc<SolanaRpcApi>;
   pending: PendingWalletWrap;
   executeAccounts: WalletExecuteAccounts;
   passkeyTap: Awaited<ReturnType<typeof authenticatePasskeyForSecp256r1Verify>>;
-  limits: Awaited<ReturnType<ReturnType<typeof estimateResourceLimitsFactory>>>;
   unitPrice: bigint;
   block: BlockContext | null;
+  abortSignal?: AbortSignal;
 }): Promise<SignedTransaction> {
   const { pending, executeAccounts, passkeyTap } = input;
 
@@ -507,11 +582,17 @@ async function finalizeWrappedWalletTransaction(input: {
     secp256r1VerifyArgs,
   });
 
+  // Estimate against the real execute envelope (includes secp) — not the preview.
+  const limits = await estimateResourceLimitsFactory({ rpc: input.rpc })(
+    baseMessage,
+    { abortSignal: input.abortSignal },
+  );
+
   let message = applyResourceLimits(
     baseMessage,
-    withMargin(input.limits.computeUnitLimit) + PASSKEY_VERIFY_COMPUTE_BUFFER,
+    withMargin(limits.computeUnitLimit),
     input.unitPrice,
-    input.limits.loadedAccountsDataSizeLimit,
+    limits.loadedAccountsDataSizeLimit,
   );
   if (input.block) {
     message = applyBlockhashIfNeeded(message, input.block);
@@ -563,10 +644,9 @@ export async function modifyAndWrapWalletTransaction(input: {
     executeAccounts: input.executeAccounts,
   });
 
-  const [limits, unitPrice, slot, block] = await Promise.all([
-    estimateResourceLimitsFactory({ rpc: input.rpc })(previewMessage, {
-      abortSignal: input.abortSignal,
-    }),
+  // Policy check uses placeholder v1 limits. Real CU / fees are measured at finalize.
+  const [, unitPrice, slot, block] = await Promise.all([
+    assertPolicyPreviewSucceeds(input.rpc, previewMessage, input.abortSignal),
     fetchPriorityFeeMicroLamports(
       input.rpc,
       {
@@ -592,12 +672,13 @@ export async function modifyAndWrapWalletTransaction(input: {
   const passkeyTap = await input.authenticate(pending.messageHash);
 
   const wrapped = await finalizeWrappedWalletTransaction({
+    rpc: input.rpc,
     pending,
     executeAccounts: input.executeAccounts,
     passkeyTap,
-    limits,
     unitPrice,
     block,
+    abortSignal: input.abortSignal,
   });
 
   input.abortSignal?.throwIfAborted();
