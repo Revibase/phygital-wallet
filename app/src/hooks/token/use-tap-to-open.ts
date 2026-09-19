@@ -4,18 +4,16 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useAccessoryHold } from "@/hooks/token/use-accessory-hold";
-import { tokenHref } from "@/lib/wallet/token-routes";
+import { walletHref } from "@/lib/wallet/token-routes";
 
 /** Sentinel for an unscoped "open whatever is tapped" hold. */
 const ANY_TOKEN = "__any__";
 
 /**
- * Hold an accessory, then open its token page (cookie minted by the API;
+ * Hold an accessory, then open its wallet (cookie minted by the API;
  * middleware gates `/token/[address]/**`).
  *
  * Use when the token is unknown until the tap (welcome / “open another”).
- * Known dashboard cards `router.push(tokenHref(…))` and use `/unlock` for a
- * named Hold + mismatch recovery when the cookie belongs to another item.
  */
 export function useTapToOpen() {
   const router = useRouter();
@@ -27,7 +25,7 @@ export function useTapToOpen() {
     try {
       const connection = await accessory.hold();
       if (connection) {
-        router.push(tokenHref(connection.phygitalToken));
+        router.push(walletHref(connection.phygitalToken));
       }
     } finally {
       setOpeningToken(null);

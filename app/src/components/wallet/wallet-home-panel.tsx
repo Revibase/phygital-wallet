@@ -44,7 +44,6 @@ const sectionTransition = {
 export function WalletHomePanel({
   portfolio,
   loading,
-  linkedMint,
   onSend,
   onSendAsset,
   onReceive,
@@ -64,7 +63,6 @@ export function WalletHomePanel({
 }: {
   portfolio: WalletPortfolio | undefined;
   loading?: boolean;
-  linkedMint?: string | null;
   onSend: () => void;
   onSendAsset: (asset: SendAssetRef) => void;
   onReceive: () => void;
@@ -101,8 +99,8 @@ export function WalletHomePanel({
       };
   const tokenPreview = useMemo(() => previewHoldings(holdings), [holdings]);
   const collectiblePreview = useMemo(
-    () => previewCollectibles(collectibles, linkedMint),
-    [collectibles, linkedMint],
+    () => previewCollectibles(collectibles),
+    [collectibles],
   );
   const moreTokens = holdings.length > HOME_TOKEN_PREVIEW;
   const moreCollectibles = collectibles.length > HOME_COLLECTIBLE_PREVIEW;

@@ -1,5 +1,4 @@
 import {
-  address,
   type Address,
   type Rpc,
   type SolanaRpcApi,
@@ -16,10 +15,7 @@ import {
 
 import { bytesToBase64Url } from "@/lib/crypto/base64";
 
-/** System program / default pubkey — token.owner before first claim. */
-export const DEFAULT_TOKEN_OWNER = address("11111111111111111111111111111111");
-
-/** Lean view of an on-chain phygital token (ownership-only). */
+/** Lean view of an on-chain phygital token (ownership-only; mint ignored). */
 export type PhygitalToken = {
   tokenType: PhygitalTokenType;
   identifier: string;
@@ -28,7 +24,6 @@ export type PhygitalToken = {
   isLocked: boolean;
   owner: Address;
   lastSignCount: number;
-  mint: Address;
 };
 
 export function phygitalTokenFromAccount(
@@ -43,7 +38,6 @@ export function phygitalTokenFromAccount(
     isLocked: account.isLocked !== 0,
     owner: account.owner,
     lastSignCount: account.lastSignCount,
-    mint: account.mint,
   };
 }
 
@@ -107,14 +101,4 @@ export async function fetchPhygitalTokenByIdentifier(
   }
   const tokenAddress = await findPhygitalTokenPda(account.publicKey);
   return phygitalTokenFromAccount(tokenAddress, account);
-}
-
-/**
- * True when on-chain `mint` is set (not `Pubkey::default()` / system program).
- * Unset mint is the same sentinel as unclaimed `owner`.
- */
-export function tokenHasLinkedMint(
-  token: Pick<PhygitalToken, "mint">
-): boolean {
-  return token.mint !== DEFAULT_TOKEN_OWNER;
 }

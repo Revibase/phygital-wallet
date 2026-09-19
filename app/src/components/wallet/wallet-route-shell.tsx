@@ -10,17 +10,14 @@ import { WalletPanelSkeleton } from "@/components/wallet/wallet-panel-skeleton";
 import type { SettingsTarget } from "@/components/wallet/settings-hub";
 import { useTokenSession } from "@/components/token/token-session";
 import { useWalletPda } from "@/hooks/wallet/use-wallet-pda";
-import { useResolvedDasCollectible } from "@/hooks/token/use-das-collectible";
 import { useIsInAppBrowser } from "@/hooks/layout/use-is-in-app-browser";
-import { tokenHasLinkedMint } from "@/lib/phygital/token";
-import type { Collectible } from "@/lib/tokens/collectible";
+import type { PhygitalToken } from "@/lib/phygital/token";
 import { copy } from "@/lib/copy/phygital";
 import { centeredBlockClass, walletContentColumnClass } from "@/lib/layout";
-import { tokenHref, walletHref, walletSendHref, walletSettingsHref } from "@/lib/wallet/token-routes";
+import { walletHref, walletSendHref, walletSettingsHref } from "@/lib/wallet/token-routes";
 import { navigateBack } from "@/lib/wallet/navigate-back";
 import { isCollectibleSendKind, type SendAssetRef } from "@/lib/wallet/send-asset-ref";
 import { invalidateWalletBalances } from "@/lib/queries";
-import type { PhygitalToken } from "@/lib/phygital/token";
 import { cn } from "@/lib/utils";
 
 export type WalletGo =
@@ -32,8 +29,6 @@ type WalletSessionValue = {
   token: PhygitalToken;
   tokenAddress: string;
   walletAddress: string;
-  mint: string | null;
-  collectible: Collectible | null;
 };
 
 type WalletNavValue = {
@@ -41,7 +36,6 @@ type WalletNavValue = {
   goSettings: (target?: SettingsTarget) => void;
   goSend: (asset?: SendAssetRef | null) => void;
   goHome: () => void;
-  goCard: () => void;
   backHome: () => void;
   backSettings: () => void;
   backTo: (fallbackHref: string) => void;
@@ -78,11 +72,8 @@ export function WalletRouteShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const queryClient = useQueryClient();
   const inApp = useIsInAppBrowser();
-  const mint = tokenHasLinkedMint(token) ? String(token.mint) : null;
   const { walletAddress } = useWalletPda(tokenAddress);
-  const { collectible } = useResolvedDasCollectible(mint);
 
-  const goCard = useCallback(() => router.push(tokenHref(tokenAddress)), [router, tokenAddress]);
   const go = useCallback((...args: WalletGo) => router.push(walletHref(tokenAddress, ...args)), [router, tokenAddress]);
   const goSettings = useCallback((target?: SettingsTarget) => router.push(walletSettingsHref(tokenAddress, target)), [router, tokenAddress]);
   const goSend = useCallback((asset?: SendAssetRef | null) => router.push(walletSendHref(tokenAddress, asset ? { mint: asset.mint, collectible: isCollectibleSendKind(asset.kind) } : null)), [router, tokenAddress]);
@@ -94,8 +85,14 @@ export function WalletRouteShell({ children }: { children: ReactNode }) {
     if (walletAddress) invalidateWalletBalances(queryClient, { wallets: [walletAddress], tokens: [tokenAddress] });
   }, [queryClient, walletAddress, tokenAddress]);
 
-  const sessionValue = useMemo(() => walletAddress ? { token, tokenAddress, walletAddress, mint, collectible } : null, [token, tokenAddress, walletAddress, mint, collectible]);
-  const navValue = useMemo(() => ({ go, goSettings, goSend, goHome, goCard, backHome, backSettings, backTo, refresh }), [go, goSettings, goSend, goHome, goCard, backHome, backSettings, backTo, refresh]);
+  const sessionValue = useMemo(
+    () => (walletAddress ? { token, tokenAddress, walletAddress } : null),
+    [token, tokenAddress, walletAddress],
+  );
+  const navValue = useMemo(
+    () => ({ go, goSettings, goSend, goHome, backHome, backSettings, backTo, refresh }),
+    [go, goSettings, goSend, goHome, backHome, backSettings, backTo, refresh],
+  );
 
   if (!sessionValue) {
     return (
@@ -121,10 +118,7 @@ export function WalletRouteShell({ children }: { children: ReactNode }) {
           pathname={pathname}
           tokenAddress={tokenAddress}
           walletAddress={sessionValue.walletAddress}
-          mint={mint}
-          collectible={collectible}
           go={go}
-          goCard={goCard}
           goSend={() => goSend()}
           goHome={goHome}
         >

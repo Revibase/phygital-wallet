@@ -1,18 +1,6 @@
 /** React Query key factories. Keep in sync with `persist.ts` root names. */
 
 export const queryKeys = {
-  dasCollectible: {
-    all: () => ["dasCollectible"] as const,
-    byMint: (mint: string | null) =>
-      [...queryKeys.dasCollectible.all(), mint] as const,
-  },
-
-  mintedCollectibleView: {
-    all: () => ["mintedCollectibleView"] as const,
-    byMint: (mint: string | null) =>
-      [...queryKeys.mintedCollectibleView.all(), mint] as const,
-  },
-
   walletPortfolio: {
     all: () => ["walletPortfolio"] as const,
     byOwner: (owner: string | null) =>

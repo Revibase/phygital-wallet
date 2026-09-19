@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, type ReactNode } from "react";
 import { Plus } from "lucide-react";
 
 import { InAppBrowserGate } from "@/components/shared/in-app-browser-gate";
+import { GroupedList, GroupedRow } from "@/components/shared/grouped-list";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { OwnerAccessoryCard } from "@/components/home/owner-accessory-card";
 import { OwnerAccountMenu } from "@/components/home/owner-account-menu";
 import { useTapToOpen } from "@/hooks/token/use-tap-to-open";
@@ -13,9 +14,7 @@ import { useOpenOwnedAccessory } from "@/hooks/wallet/use-open-owned-accessory";
 import { useOwnedAccessories } from "@/hooks/wallet/use-owned-accessories";
 import { useOwnedAccessoryDetails } from "@/hooks/wallet/use-owned-accessory-details";
 import { copy } from "@/lib/copy/phygital";
-import { galleryAnimate, staggerStyle } from "@/lib/motion";
-import { tokenHasLinkedMint } from "@/lib/phygital/token";
-import type { OwnedAccessoryDetails } from "@/hooks/wallet/use-owned-accessory-details";
+import { galleryAnimate } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 /**
@@ -26,35 +25,18 @@ import { cn } from "@/lib/utils";
 export function OwnerDashboard({ owner }: { owner: string }) {
   const accessories = useOwnedAccessories(owner);
   const tokens = accessories.data ?? [];
-  const details = useOwnedAccessoryDetails(
+  // Prefetch token accounts so later wallet routes hit warm cache.
+  useOwnedAccessoryDetails(
     accessories.isSuccess && tokens.length > 0 ? tokens : undefined,
   );
   const tap = useTapToOpen();
   const { open: openOwned, openingToken } = useOpenOwnedAccessory();
-
-  const sections = useMemo(() => {
-    const minted: string[] = [];
-    const unminted: string[] = [];
-    if (!details.data) {
-      // While details load, keep a single section so skeletons aren't split.
-      return { minted: [] as string[], unminted: tokens };
-    }
-    for (const pda of tokens) {
-      const token = details.data.tokens.get(pda);
-      if (token && tokenHasLinkedMint(token)) minted.push(pda);
-      else unminted.push(pda);
-    }
-    return { minted, unminted };
-  }, [details.data, tokens]);
 
   if (tap.showInAppGate) {
     return <InAppBrowserGate body={copy.gate.openInBrowserBody} />;
   }
 
   const isEmpty = accessories.isSuccess && tokens.length === 0;
-  const showMinted = sections.minted.length > 0;
-  const linkedCount = sections.minted.length + sections.unminted.length;
-  const detailsMap = details.data;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-5 py-1 sm:gap-6 sm:py-2">
@@ -65,7 +47,7 @@ export function OwnerDashboard({ owner }: { owner: string }) {
           </h1>
           {!accessories.isPending && !isEmpty ? (
             <p className="text-sm text-muted-foreground">
-              {copy.home.accessoriesCount(linkedCount)}
+              {copy.home.accessoriesCount(tokens.length)}
             </p>
           ) : null}
         </div>
@@ -73,15 +55,20 @@ export function OwnerDashboard({ owner }: { owner: string }) {
       </header>
 
       {accessories.isPending ? (
-        <ul className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <li key={i} style={staggerStyle(i)} className={galleryAnimate.rise}>
-              <Skeleton className="aspect-square w-full rounded-[1.25rem]" />
-              <Skeleton className="mt-2.5 h-4 w-2/3 rounded" />
-              <Skeleton className="mt-1.5 h-3 w-1/2 rounded" />
+        <GroupedList className={galleryAnimate.rise}>
+          {Array.from({ length: 3 }).map((_, i) => (
+            <li
+              key={i}
+              className="flex min-h-11 items-center gap-3 border-b border-border/50 px-4 py-3 last:border-b-0"
+            >
+              <Skeleton className="size-9 shrink-0 rounded-xl" />
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-3 w-32" />
+              </div>
             </li>
           ))}
-        </ul>
+        </GroupedList>
       ) : isEmpty ? (
         <div
           className={cn(
@@ -104,40 +91,50 @@ export function OwnerDashboard({ owner }: { owner: string }) {
             disabled={tap.holding}
             onClick={() => void tap.open()}
           >
-            {tap.holding
-              ? copy.verify.holdStill
-              : copy.home.emptyOpenCta}
+            {tap.holding ? (
+              <>
+                <Spinner className="size-4" />
+                {copy.verify.holdStill}
+              </>
+            ) : (
+              copy.home.emptyOpenCta
+            )}
           </Button>
           {tap.error ? (
             <p className="text-xs text-destructive">{tap.error}</p>
           ) : null}
         </div>
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col gap-6">
-          {showMinted ? (
-            <AccessorySection
-              title={copy.home.cards}
-              tokens={sections.minted}
-              details={detailsMap}
-              openingToken={openingToken}
-              onOpen={(t) => void openOwned(t)}
-            />
-          ) : null}
-          <AccessorySection
-            title={showMinted ? copy.home.accessories : undefined}
-            tokens={sections.unminted}
-            details={detailsMap}
-            openingToken={openingToken}
-            onOpen={(t) => void openOwned(t)}
-            trailingTile={
-              <OpenAnotherTile
-                index={sections.unminted.length}
-                holding={tap.holding}
-                error={tap.error}
-                onOpen={() => void tap.open()}
+        <div className={cn("flex flex-col gap-3", galleryAnimate.rise)}>
+          <GroupedList>
+            {tokens.map((token) => (
+              <OwnerAccessoryCard
+                key={token}
+                phygitalToken={token}
+                busy={openingToken === token}
+                onOpen={(t) => void openOwned(t)}
               />
-            }
-          />
+            ))}
+          </GroupedList>
+          <GroupedList>
+            <GroupedRow
+              onClick={tap.holding ? undefined : () => void tap.open()}
+              leading={
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-secondary/80 text-foreground/80">
+                  {tap.holding ? (
+                    <Spinner className="size-4" />
+                  ) : (
+                    <Plus className="size-4" strokeWidth={2} aria-hidden />
+                  )}
+                </span>
+              }
+            >
+              {tap.holding ? copy.verify.holdStill : copy.home.openAnother}
+            </GroupedRow>
+          </GroupedList>
+          {tap.error ? (
+            <p className="px-1 text-xs text-destructive">{tap.error}</p>
+          ) : null}
         </div>
       )}
 
@@ -145,114 +142,6 @@ export function OwnerDashboard({ owner }: { owner: string }) {
         <p className="text-center text-xs text-destructive">
           {copy.home.accessoriesLoadFailed}
         </p>
-      ) : null}
-    </div>
-  );
-}
-
-function AccessorySection({
-  title,
-  tokens,
-  details,
-  trailingTile,
-  openingToken,
-  onOpen,
-}: {
-  title?: string;
-  tokens: string[];
-  details?: OwnedAccessoryDetails;
-  trailingTile?: ReactNode;
-  openingToken: string | null;
-  onOpen: (phygitalToken: string) => void;
-}) {
-  if (tokens.length === 0 && !trailingTile) return null;
-
-  return (
-    <section className="space-y-3">
-      {title ? (
-        <h2 className="px-0.5 text-sm font-medium tracking-tight text-foreground">
-          {title}
-        </h2>
-      ) : null}
-      <ul className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
-        {tokens.map((token, index) => {
-          const phygital = details?.tokens.get(token);
-          const mint =
-            phygital && tokenHasLinkedMint(phygital)
-              ? String(phygital.mint)
-              : null;
-          const collectible = mint
-            ? (details?.collectibles[mint] ?? null)
-            : null;
-          return (
-            <li key={token}>
-              <OwnerAccessoryCard
-                phygitalToken={token}
-                token={details ? (phygital ?? null) : undefined}
-                collectible={
-                  details
-                    ? mint
-                      ? collectible
-                      : null
-                    : undefined
-                }
-                index={index}
-                busy={openingToken === token}
-                onOpen={onOpen}
-              />
-            </li>
-          );
-        })}
-        {trailingTile ? <li>{trailingTile}</li> : null}
-      </ul>
-    </section>
-  );
-}
-
-function OpenAnotherTile({
-  index,
-  holding,
-  error,
-  onOpen,
-}: {
-  index: number;
-  holding: boolean;
-  error: string | null;
-  onOpen: () => void;
-}) {
-  return (
-    <div className="flex flex-col gap-2">
-      <Button
-        type="button"
-        variant="ghost"
-        disabled={holding}
-        onClick={onOpen}
-        style={staggerStyle(index)}
-        className={cn(
-          "group h-auto min-h-0 w-full flex-col items-stretch gap-0 rounded-[1.25rem] p-0 font-normal",
-          "hover:bg-transparent focus-visible:ring-2 focus-visible:ring-ring/60",
-          galleryAnimate.rise,
-        )}
-      >
-        <span
-          className={cn(
-            "relative flex aspect-square w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-[1.25rem]",
-            "border border-dashed border-border/90 bg-card/40 text-muted-foreground",
-            "transition-[border-color,background-color,color,transform]",
-            "group-hover:border-foreground/25 group-hover:bg-card/80 group-hover:text-foreground",
-            "group-active:scale-[0.985]",
-          )}
-        >
-          <span className="flex size-10 items-center justify-center rounded-full bg-secondary/80 text-foreground/80 transition-colors group-hover:bg-secondary">
-            <Plus className="size-5" strokeWidth={2} aria-hidden />
-          </span>
-          <span className="px-3 text-center text-sm font-medium tracking-tight">
-            {holding ? copy.verify.holdStill : copy.home.openAnother}
-          </span>
-        </span>
-      </Button>
-      {error ? (
-        <p className="px-0.5 text-xs text-destructive">{error}</p>
       ) : null}
     </div>
   );

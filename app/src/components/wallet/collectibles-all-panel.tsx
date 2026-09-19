@@ -16,21 +16,16 @@ import {
 
 export function CollectiblesAllPanel({
   collectibles,
-  linkedMint,
   loading = false,
   onBack,
   onSelect,
 }: {
   collectibles: WalletCollectible[];
-  linkedMint?: string | null;
   loading?: boolean;
   onBack: () => void;
   onSelect: (c: WalletCollectible) => void;
 }) {
-  const sorted = useMemo(
-    () => sortCollectibles(collectibles, linkedMint),
-    [collectibles, linkedMint]
-  );
+  const sorted = useMemo(() => sortCollectibles(collectibles), [collectibles]);
   const [query, setQuery] = useState("");
   const showSearch = sorted.length >= ALL_LIST_SEARCH_THRESHOLD;
 

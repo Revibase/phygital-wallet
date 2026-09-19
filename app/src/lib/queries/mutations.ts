@@ -342,12 +342,6 @@ export function invalidateRpcDependentQueries(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({
     queryKey: queryKeys.walletPortfolio.all(),
   });
-  void queryClient.invalidateQueries({
-    queryKey: queryKeys.dasCollectible.all(),
-  });
-  void queryClient.invalidateQueries({
-    queryKey: queryKeys.mintedCollectibleView.all(),
-  });
 }
 
 /**

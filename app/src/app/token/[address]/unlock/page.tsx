@@ -13,7 +13,7 @@ import { useAccessoryHold } from "@/hooks/token/use-accessory-hold";
 import { useAccessoryHoldLabel } from "@/hooks/token/use-accessory-hold-label";
 import { copy } from "@/lib/copy/phygital";
 import { tryParseRouteAddress } from "@/lib/solana/address";
-import { tokenHref } from "@/lib/wallet/token-routes";
+import { walletHref } from "@/lib/wallet/token-routes";
 
 /**
  * Hold ceremony when middleware redirects here — no browse-unlock cookie for
@@ -39,7 +39,7 @@ export default function TokenUnlockPage() {
       expectedPhygitalToken: expectedPda,
     });
     if (!connection) return;
-    router.replace(tokenHref(connection.phygitalToken));
+    router.replace(walletHref(connection.phygitalToken));
   }
 
   function openHeldInstead() {
@@ -47,7 +47,7 @@ export default function TokenUnlockPage() {
     if (!heldPda) return;
     accessory.clearMismatch();
     // Cookie already issued for the held accessory during the mismatched tap.
-    router.replace(tokenHref(heldPda));
+    router.replace(walletHref(heldPda));
   }
 
   if (!address || !expectedPda) {

@@ -59,13 +59,12 @@ export function WalletTokensPageClient() {
 }
 
 export function WalletCollectiblesPageClient() {
-  const { walletAddress, mint } = useWalletSession();
+  const { walletAddress } = useWalletSession();
   const { backHome, go } = useWalletNav();
   const portfolio = useWalletPortfolio(walletAddress);
   return (
     <CollectiblesAllPanel
       collectibles={portfolio.data?.collectibles ?? []}
-      linkedMint={mint}
       loading={portfolio.isLoading}
       onBack={backHome}
       onSelect={(c) => go("collectibles", c.mint)}

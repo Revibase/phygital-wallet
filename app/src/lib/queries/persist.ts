@@ -14,9 +14,9 @@ const STORAGE_KEY = "phygital-wallet.react-query";
 
 /**
  * Bump to drop incompatible cached shapes after schema changes.
- * v17: activity from client getTransactionsForAddress (cursor pagination).
+ * v18: drop phygital linked-mint DAS / minted collectible view caches.
  */
-const CACHE_BUSTER = "v17";
+const CACHE_BUSTER = "v18";
 
 export { CACHE_BUSTER };
 
@@ -29,8 +29,6 @@ type TaggedMap = { [MAP_TAG]: [unknown, unknown][] };
 /** Roots worth instant paint. Must match `queryKeys` in `./keys.ts`. */
 const PERSISTED_QUERY_ROOTS = new Set([
   "phygitalTokens",
-  "dasCollectible",
-  "mintedCollectibleView",
   "walletPortfolio",
   "feeBalance",
   "verifiedTokens",

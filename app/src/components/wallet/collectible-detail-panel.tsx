@@ -14,12 +14,10 @@ export function CollectibleDetailPanel({
   collectible,
   onBack,
   onSend,
-  onOpenCard,
 }: {
   collectible: WalletCollectible;
   onBack: () => void;
   onSend: (c: WalletCollectible) => void;
-  onOpenCard?: () => void;
 }) {
   const badge = collectibleInterfaceLabel(collectible);
 
@@ -78,16 +76,6 @@ export function CollectibleDetailPanel({
             >
               {copy.wallet.send}
             </Button>
-            {onOpenCard ? (
-              <Button
-                type="button"
-                variant="ghost"
-                className="w-full"
-                onClick={onOpenCard}
-              >
-                {copy.wallet.openCard}
-              </Button>
-            ) : null}
           </div>
         </div>
       </div>

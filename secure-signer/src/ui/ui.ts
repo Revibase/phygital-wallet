@@ -152,16 +152,16 @@ function statusScreen(args: {
           el("div", { class: "spinner" }),
         ])
       : tone === "success"
-        ? el("div", {
-            class: "status-mark status-mark-success",
-            text: "✓",
-          })
-        : tone === "error"
-          ? el("div", {
-              class: "status-mark status-mark-error",
-              text: "!",
-            })
-          : null;
+      ? el("div", {
+          class: "status-mark status-mark-success",
+          text: "✓",
+        })
+      : tone === "error"
+      ? el("div", {
+          class: "status-mark status-mark-error",
+          text: "!",
+        })
+      : null;
 
   const status = el("div", { class: "status" });
   if (mark) status.appendChild(mark);
@@ -221,7 +221,9 @@ function promptChoice<T>(args: {
     const actions: Node[] = [];
     if (args.secondary) {
       actions.push(
-        button(args.secondary.label, "ghost", () => done(args.secondary!.value)),
+        button(args.secondary.label, "ghost", () =>
+          done(args.secondary!.value),
+        ),
       );
     }
     actions.push(
@@ -281,9 +283,7 @@ export function renderError(message: string, onDismiss?: () => void): void {
     title: "Couldn’t continue",
     body: message,
     tone: "error",
-    ...(onDismiss
-      ? { dismissible: true, onDismiss }
-      : {}),
+    ...(onDismiss ? { dismissible: true, onDismiss } : {}),
   });
 }
 
@@ -320,7 +320,10 @@ export function confirmFinishCreate(): Promise<boolean> {
   });
 }
 
-export function showSuccess(publicKey: string, created: boolean): Promise<void> {
+export function showSuccess(
+  publicKey: string,
+  created: boolean,
+): Promise<void> {
   return new Promise((resolve) => {
     let settled = false;
     const done = () => {
@@ -336,7 +339,12 @@ export function showSuccess(publicKey: string, created: boolean): Promise<void> 
         ? "Your wallet is set up on this phone."
         : "You’re back in — returning to the app.",
       tone: "success",
-      detail: [el("p", { class: "mono muted status-detail", text: shorten(publicKey) })],
+      detail: [
+        el("p", {
+          class: "mono muted status-detail",
+          text: shorten(publicKey),
+        }),
+      ],
       dismissible: true,
       onDismiss: done,
     });
@@ -466,9 +474,6 @@ function advancedRows(
         value: instructionLabel(ix.kind),
       });
     }
-    if (ix.phygitalToken) {
-      rows.push({ label: "Accessory", value: shorten(ix.phygitalToken) });
-    }
     for (const d of ix.details) {
       if (!primaryKeys.has(`${d.label}|${d.value}`)) rows.push(d);
     }
@@ -484,7 +489,10 @@ function advancedRows(
   if (summary.config.priorityFeeLamports !== undefined) {
     rows.push({
       label: "Priority fee",
-      value: `${formatUnits(BigInt(summary.config.priorityFeeLamports), 9)} SOL`,
+      value: `${formatUnits(
+        BigInt(summary.config.priorityFeeLamports),
+        9,
+      )} SOL`,
     });
   }
   if (summary.config.computeUnitLimit !== undefined) {

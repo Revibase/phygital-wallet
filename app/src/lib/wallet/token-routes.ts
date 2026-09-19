@@ -119,11 +119,12 @@ function rejectUnsafeReturn(raw: string): boolean {
 }
 
 export type ParsedTokenPath =
-  | { kind: "card"; token: string; path: string }
+  | { kind: "token"; token: string; path: string }
   | { kind: "wallet"; token: string; segments: string[]; path: string };
 
 /**
  * Parse `/token/{address}` or `/token/{address}/wallet(/…)?`.
+ * Bare `/token/{address}` normalizes to the wallet path (mint gallery removed).
  * Returns null for anything outside the allowlist.
  */
 export function parseTokenWalletPath(
@@ -148,7 +149,7 @@ export function parseTokenWalletPath(
     const tokenStr = String(token);
 
     if (parts.length === 2) {
-      return { kind: "card", token: tokenStr, path: tokenHref(tokenStr) };
+      return { kind: "token", token: tokenStr, path: walletHref(tokenStr) };
     }
 
     if (parts[2] !== "wallet") return null;

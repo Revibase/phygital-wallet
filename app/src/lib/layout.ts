@@ -2,13 +2,11 @@
 
 /**
  * Column widths:
- * - gallery: minted card detail (room for art + dossier)
- * - home: owned cards/accessories list — phone column → wider desktop
+ * - home: owned accessories list — phone column → wider desktop
  * - wallet: full-bleed Squads-style shell from lg (sidebar + main)
  * - compact: NFC ceremony outside wallet — phone-width (desktop drops frame via shellDeviceFrame)
  */
 export const shellLayoutClass = {
-  gallery: "max-w-lg md:max-w-3xl lg:max-w-5xl xl:max-w-6xl",
   home: "max-w-md md:max-w-2xl lg:max-w-3xl w-full",
   /** Phone column centered until lg, then full viewport for edge-docked sidebar. */
   wallet: "mx-auto w-full max-w-md md:max-w-2xl lg:mx-0 lg:max-w-none",
@@ -28,12 +26,7 @@ export const shellDeviceFrameClass = {
     "md:my-4 md:max-h-[min(100dvh-2rem,52rem)] md:overflow-y-auto md:rounded-[2rem] md:border md:border-border/40 md:bg-background/80 md:shadow-[0_24px_80px_-32px_var(--card-shadow)] md:backdrop-blur-xl lg:my-0 lg:max-h-none lg:overflow-visible lg:rounded-none lg:border-0 lg:bg-transparent lg:shadow-none lg:backdrop-blur-none",
   home: "md:my-6 lg:my-8",
   wallet: "md:my-6 lg:my-0",
-  gallery: "md:my-6 lg:my-8",
 } as const;
-
-/** Home form-factor sections: stack on phone, side-by-side when both exist. */
-export const homeSectionsClass =
-  "flex flex-col gap-6 md:grid md:grid-cols-2 md:items-start md:gap-6 lg:gap-8";
 
 /** Wallet home tokens + collectibles: stack on phone, split on tablet+. */
 export const walletPortfolioSplitClass =

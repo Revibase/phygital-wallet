@@ -1,8 +1,8 @@
 /**
  * `/token` cold-start handling for Next middleware.
  *
- * - `?pk&s&c&n` → POST unlock/tap, forward Set-Cookie, redirect to `/token/{pda}`
- * - `?address=` → redirect to `/token/{address}` (admit cookie enforced on that path)
+ * - `?pk&s&c&n` → POST unlock/tap, forward Set-Cookie, redirect to wallet
+ * - `?address=` → redirect to wallet for that token (admit cookie enforced on that path)
  *
  * Keeps NFC deep links off the client so hydrate never forks on search params.
  */
@@ -11,7 +11,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { apiUrl } from "@/lib/api-base";
 import { tryParseAddress } from "@/lib/solana/address";
 import { TAP_ERROR_COOKIE } from "@/lib/wallet/tap-error-cookie";
-import { tokenHref } from "@/lib/wallet/token-routes";
+import { walletHref } from "@/lib/wallet/token-routes";
 
 type TapParams = { pk: string; s: string; c: string; n: string };
 
@@ -79,7 +79,7 @@ export async function handleTokenColdStart(
       }
 
       const redirect = NextResponse.redirect(
-        new URL(tokenHref(String(pda)), request.url),
+        new URL(walletHref(String(pda)), request.url),
       );
       forwardSetCookies(apiRes, redirect);
       return redirect;
@@ -92,9 +92,9 @@ export async function handleTokenColdStart(
   if (addressRaw) {
     const parsed = tryParseAddress(addressRaw);
     if (!parsed) return null;
-    // Cookie gate runs on `/token/{address}` — do not mint unlock from address alone.
+    // Cookie gate runs on `/token/{address}/**` — do not mint unlock from address alone.
     return NextResponse.redirect(
-      new URL(tokenHref(String(parsed)), request.url),
+      new URL(walletHref(String(parsed)), request.url),
     );
   }
 

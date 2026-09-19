@@ -8,11 +8,11 @@ import {
   verifyOwnerSessionCookie,
 } from "@/lib/auth/session-cookies";
 import { handleTokenColdStart } from "@/lib/wallet/tap-unlock-middleware";
-import { tokenHref, tokenUnlockHref } from "@/lib/wallet/token-routes";
+import { tokenUnlockHref, walletHref } from "@/lib/wallet/token-routes";
 
 /**
- * - `/token?pk&s&c&n` → API unlock + cookie + redirect to `/token/{pda}`
- * - `/token?address=` → redirect to `/token/{address}`
+ * - `/token?pk&s&c&n` → API unlock + cookie + redirect to wallet
+ * - `/token?address=` → redirect to wallet
  * - `/token/:address/**` → browse-unlock or owner-browse HMAC gate
  *
  * Verifies admit cookies locally with `POLICY_SESSION_SECRET` (same as API).
@@ -43,7 +43,7 @@ export async function middleware(request: NextRequest) {
   if (isUnlock) {
     if (unlocked) {
       return NextResponse.redirect(
-        new URL(tokenHref(phygitalToken), request.url),
+        new URL(walletHref(phygitalToken), request.url),
       );
     }
     return NextResponse.next();

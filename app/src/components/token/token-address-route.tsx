@@ -11,23 +11,16 @@ import { NfcHoldStatus } from "@/components/shared/nfc-hold-status";
 import { TokenRouteShell } from "@/components/token/token-route-shell";
 import { Button } from "@/components/ui/button";
 import { RequireClaimedAccessory } from "@/components/wallet/require-claimed-accessory";
-import { useResolvedDasCollectible } from "@/hooks/token/use-das-collectible";
 import { usePhygitalTokenByAddress } from "@/hooks/token/use-phygital-token";
 import { copy } from "@/lib/copy/phygital";
 import type { ShellLayout } from "@/lib/layout";
-import { tokenHasLinkedMint, type PhygitalToken } from "@/lib/phygital/token";
+import type { PhygitalToken } from "@/lib/phygital/token";
 import { toUserErrorMessage } from "@/lib/user-errors";
 
 export type TokenHomeRenderArgs = { token: PhygitalToken };
 
-function layoutForRoute(token: PhygitalToken, pathname: string): ShellLayout {
+function layoutForRoute(pathname: string): ShellLayout {
   if (/\/wallet(?:\/|$)/.test(pathname)) return "wallet";
-  return tokenHasLinkedMint(token) ? "gallery" : "compact";
-}
-
-function bootLayoutForPath(pathname: string): ShellLayout {
-  if (/\/wallet(?:\/|$)/.test(pathname)) return "wallet";
-  // Entry / unlock boot: full-bleed on desktop (no floating phone frame).
   return "compact";
 }
 
@@ -47,15 +40,11 @@ export function TokenAddressRoute({
   const tokenQuery = usePhygitalTokenByAddress(tokenAddress);
   // Prefer cached data during persist restore so we don't blank the tree.
   const token = tokenQuery.data;
-  const mint = token && tokenHasLinkedMint(token) ? String(token.mint) : null;
-  const { collectible } = useResolvedDasCollectible(mint);
   const sessionValue = useMemo(
     () => (token ? { token } : null),
     [token],
   );
-  const layout = sessionValue
-    ? layoutForRoute(sessionValue.token, pathname)
-    : bootLayoutForPath(pathname);
+  const layout = layoutForRoute(pathname);
 
   if (!sessionValue && (restoring || tokenQuery.isPending)) {
     return (
@@ -65,8 +54,6 @@ export function TokenAddressRoute({
             size="lg"
             pulsing
             busy
-            imageSrc={collectible?.image}
-            imageAlt={collectible?.name ?? ""}
             title={copy.verify.verifyingChip}
           />
         </CeremonyShell>

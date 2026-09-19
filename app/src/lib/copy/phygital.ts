@@ -2,7 +2,7 @@
  * Revibase brand stack — company first, products second.
  *
  * All user-facing UX strings live here. Import nested groups:
- * `copy.verify.holdToCheck`, `copy.wallet.*`, etc.
+ * `copy.verify.*`, `copy.wallet.*`, etc.
  *
  * Voice: short labels, one-line bodies, plain words over jargon.
  * Titles name what the screen is; subtitles show current state.
@@ -62,7 +62,6 @@ export const copy = {
   },
   wallet: {
     addressCopyFailed: "Couldn’t copy",
-    showCardAria: "Back to card",
     addMoney: "Nothing here yet — receive to get started",
     available: "Available",
     sendNeedsFunds: "Add money to send",
@@ -103,8 +102,6 @@ export const copy = {
     rpcBannerChange: "Change",
     rpcInvalidUrl: "Enter a valid HTTPS URL",
     advanced: "Advanced",
-    toWalletChip: "Wallet",
-    openWalletAriaLabel: "Open wallet",
     /** Form CTA — Hold UI appears only at awaitingPasskey (DD-004). */
     holdToSend: "Send",
     confirmToSend: "Confirm on this phone",
@@ -188,7 +185,6 @@ export const copy = {
     selfSend: "Can’t send to this wallet",
     cantReceiveFromSelf: "Can’t receive from this item",
     viewReceipt: "Receipt",
-    openCard: "Open card",
     feeBalance: "Network fees",
     feeBalanceHint:
       "New wallets start with 0.001 SOL for network fees. Top up with SOL from this wallet when it runs low.",
@@ -389,7 +385,6 @@ export const copy = {
     sendBlockedHard:
       "This can’t be approved once — change permissions or try a different send.",
     settingsSaved: "Saved",
-    statusVerifiedNow: "Verified just now",
   },
   home: {
     welcomeTitle: "Your accessories, one place",
@@ -401,34 +396,22 @@ export const copy = {
     emptyBody: "Hold an accessory to open it, then claim it to see it here.",
     emptyOpenCta: "Open accessory",
     openAnother: "Open another",
-    addMoreTitle: "Add another",
     accessoriesCount: (count: number) =>
       count === 1 ? "1 linked" : `${count} linked`,
-    oneItem: "1 item",
-    manyItems: (count: number) => `${count} items`,
     accessoriesLoadFailed: "Couldn’t load your accessories.",
     account: "Account",
     accountExportKey: "Export private key",
     accountExportKeySubtitle: "Reveal and copy this wallet’s private key.",
     accountSignOut: "Sign out",
     accountExportFailed: "Couldn’t open export",
-    keysSubtitle: "Your keys",
-    cards: "Cards",
     accessories: "Accessories",
-    card: "Card",
     accessory: "Accessory",
     loadingWallet: "Loading wallet…",
     walletUnknown: "Wallet unavailable",
-    holdTitle: "Add accessory",
-    holdBody: "Follow the prompt on your phone.",
   },
   address: {
     default: "address",
     wallet: "wallet",
-    linkedWallet: "linked wallet",
-    mintAddress: "token ID",
-    mintOwner: "owner wallet",
-    cardId: "card ID",
     recipient: "recipient",
     walletAddress: "wallet address",
     copiedToClipboard: "Copied",
@@ -436,55 +419,18 @@ export const copy = {
     copiedAria: (label: string) => `Copied ${label}`,
   },
   verify: {
-    holdToCheck: "Verify",
-    introBody: "Follow the prompt on your phone.",
-    verifying: "Confirming authenticity…",
-    verifyAgain: "Verify again",
-    verifyAgainHint: "Hold to re-check",
-    verifyCta: "Verify",
-    verified: "Verified just now",
-    verifiedAgainBody: "This accessory is authentic.",
     failed: "Couldn’t read the accessory",
     failedBody: "Try holding again.",
     holdStill: "Hold still…",
     holdStillBody: "Follow the prompt on your phone.",
-    verifiedRecheckAria: "Verified. Verify again.",
-    notVerified: "Not verified",
-    notVerifiedHint: "Follow the prompt on your phone.",
     verifyingChip: "Confirming authenticity…",
     notSetUpTitle: "Not set up",
     notSetUpBody: "This accessory isn’t on Revibase yet.",
-    loadTimedOut: "Taking too long",
-    loadTimedOutBody: "Check your connection and try again.",
-    verifyToUnlockShortcut: "Verify to unlock",
   },
   token: {
-    verification: "Authenticity",
-    linked: "Linked",
-    notLinked: "Not linked",
-    mintOwner: "Owner",
-    cardId: "Card ID",
-    cardIdHint: "Unique ID for this accessory.",
-    about: "About",
-    attributes: "Attributes",
-    details: "Details",
-    provenance: "Provenance",
-    collection: "Collection",
-    showMore: "More",
-    showLess: "Less",
-    showDetails: "Details",
-    hideDetails: "Hide",
-    mintAddress: "Token ID",
     itemLoadFailed: "Couldn’t load",
     itemNotOnChain: "This accessory may no longer be available.",
-    unnamedCard: "Collectible",
     wrongItem: "Wrong accessory.",
-  },
-  shortcut: {
-    heading: "Shortcuts",
-    openInBrowser: "Open in browser",
-    embedBlocked: "Can’t show this site here.",
-    loading: "Loading…",
   },
   gate: {
     openInBrowserTitle: "Open in browser",

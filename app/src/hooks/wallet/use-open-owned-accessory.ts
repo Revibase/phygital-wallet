@@ -10,7 +10,7 @@ import {
   isOwnerSessionRequiredError,
   mintOwnerBrowse,
 } from "@/lib/wallet/owner-session";
-import { tokenHref } from "@/lib/wallet/token-routes";
+import { walletHref } from "@/lib/wallet/token-routes";
 import { toUserErrorMessage } from "@/lib/user-errors";
 
 /** Quietly mint owner_browse for a PDA, then navigate — Face ID only if session cold. */
@@ -33,7 +33,7 @@ export function useOpenOwnedAccessory() {
           await login();
           await mintOwnerBrowse(phygitalToken);
         }
-        router.push(tokenHref(phygitalToken));
+        router.push(walletHref(phygitalToken));
       } catch (err) {
         toast.error(toUserErrorMessage(err, errorCopy.signerFailed.body));
       } finally {

@@ -85,8 +85,8 @@ describe("sortCollectibles / previewCollectibles", () => {
     },
   ];
 
-  it("puts linked mint first", () => {
-    expect(sortCollectibles(items, "linked")[0]?.mint).toBe("linked");
+  it("sorts by name", () => {
+    expect(sortCollectibles(items)[0]?.mint).toBe("a");
   });
 
   it("caps preview", () => {

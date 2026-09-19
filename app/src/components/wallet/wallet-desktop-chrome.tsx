@@ -26,7 +26,6 @@ import {
   walletDesktopRailClass,
 } from "@/lib/layout";
 import { cn } from "@/lib/utils";
-import type { Collectible } from "@/lib/tokens/collectible";
 import type { WalletGo } from "@/components/wallet/wallet-route-shell";
 
 type WalletSection =
@@ -114,10 +113,7 @@ export function WalletDesktopChrome({
   pathname,
   tokenAddress,
   walletAddress,
-  mint,
-  collectible,
   go,
-  goCard,
   goSend,
   goHome,
   children,
@@ -125,17 +121,13 @@ export function WalletDesktopChrome({
   pathname: string;
   tokenAddress: string;
   walletAddress: string;
-  mint: string | null;
-  collectible: Collectible | null;
   go: (...args: WalletGo) => void;
-  goCard: () => void;
   goSend: () => void;
   goHome: () => void;
   children: ReactNode;
 }) {
   const section = sectionFromPath(pathname, tokenAddress);
-  const label =
-    collectible?.name ?? (mint ? copy.home.card : copy.common.wallet);
+  const label = copy.common.wallet;
   const hasRail = useLgRailVisible();
 
   return (
@@ -150,27 +142,18 @@ export function WalletDesktopChrome({
               <Button
                 type="button"
                 variant="ghost"
-                onClick={mint ? goCard : goHome}
+                onClick={goHome}
                 aria-label={label}
                 className="relative size-11 shrink-0 overflow-hidden rounded-xl bg-muted p-0 hover:bg-muted"
               >
-                {collectible?.image ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={collectible.image}
-                    alt=""
-                    className="size-full object-cover"
-                  />
-                ) : (
-                  <span className="flex size-full items-center justify-center text-sm font-semibold text-muted-foreground">
-                    {(label.trim().charAt(0) || "?").toUpperCase()}
-                  </span>
-                )}
+                <span className="flex size-full items-center justify-center text-sm font-semibold text-muted-foreground">
+                  {(label.trim().charAt(0) || "?").toUpperCase()}
+                </span>
               </Button>
               <div className="min-w-0 flex-1 space-y-0.5 pt-0.5">
                 <button
                   type="button"
-                  onClick={mint ? goCard : goHome}
+                  onClick={goHome}
                   className="block w-full truncate text-left text-sm font-semibold tracking-tight text-foreground"
                 >
                   {label}

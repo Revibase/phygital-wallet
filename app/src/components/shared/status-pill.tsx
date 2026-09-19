@@ -4,20 +4,16 @@ import { CheckCircle2 } from "lucide-react";
 import type { ComponentProps } from "react";
 
 import { cn } from "@/lib/utils";
-import { galleryAnimate } from "@/lib/motion";
 
-/** Quiet authenticity / role status — never jargon. */
+/** Quiet status chip — never jargon. */
 export function StatusPill({
   label,
   tone = "neutral",
-  sealed = false,
   className,
   ...props
 }: {
   label: string;
   tone?: "neutral" | "success" | "accent";
-  /** Play seal tick animation once. */
-  sealed?: boolean;
   className?: string;
 } & ComponentProps<"span">) {
   return (
@@ -27,7 +23,6 @@ export function StatusPill({
         tone === "success" && "bg-success/12 text-success",
         tone === "accent" && "bg-primary/12 text-primary",
         tone === "neutral" && "bg-muted/60 text-muted-foreground",
-        sealed && galleryAnimate.seal,
         className
       )}
       {...props}

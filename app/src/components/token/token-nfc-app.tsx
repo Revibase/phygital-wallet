@@ -11,7 +11,7 @@ import { useAccessoryHold } from "@/hooks/token/use-accessory-hold";
 import { copy } from "@/lib/copy/phygital";
 import { toUserErrorMessage } from "@/lib/user-errors";
 import { TAP_ERROR_COOKIE } from "@/lib/wallet/tap-error-cookie";
-import { tokenHref } from "@/lib/wallet/token-routes";
+import { walletHref } from "@/lib/wallet/token-routes";
 
 function consumeTapErrorCookie(): boolean {
   if (typeof document === "undefined") return false;
@@ -43,7 +43,7 @@ export function TokenNfcApp() {
     const connection = await accessory.hold();
     if (!connection) return;
     try {
-      router.replace(tokenHref(connection.phygitalToken));
+      router.replace(walletHref(connection.phygitalToken));
     } catch (e) {
       setHoldError(toUserErrorMessage(e));
     }

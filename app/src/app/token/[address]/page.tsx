@@ -4,26 +4,18 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 import { RouteBoot } from "@/components/layout/route-boot";
-import { TokenMintedHome } from "@/components/token/token-minted-home";
 import { useTokenSession } from "@/components/token/token-session";
-import { tokenHasLinkedMint } from "@/lib/phygital/token";
 import { walletHref } from "@/lib/wallet/token-routes";
 
-/** Minted card landing; unminted accessories redirect to wallet. */
+/** Accessory entry always opens the wallet (linked mint ignored for now). */
 export default function TokenAddressPage() {
   const session = useTokenSession();
   const router = useRouter();
-  const minted = tokenHasLinkedMint(session.token);
+  const tokenAddress = String(session.token.address);
 
   useEffect(() => {
-    if (!minted) {
-      router.replace(walletHref(String(session.token.address)));
-    }
-  }, [minted, router, session.token.address]);
+    router.replace(walletHref(tokenAddress));
+  }, [router, tokenAddress]);
 
-  if (!minted) {
-    return <RouteBoot layout="wallet" />;
-  }
-
-  return <TokenMintedHome token={session.token} />;
+  return <RouteBoot layout="wallet" />;
 }

@@ -37,15 +37,8 @@ export function sortHoldings(
 
 export function sortCollectibles(
   collectibles: WalletCollectible[],
-  linkedMint?: string | null
 ): WalletCollectible[] {
-  return [...collectibles].sort((a, b) => {
-    if (linkedMint) {
-      if (a.mint === linkedMint && b.mint !== linkedMint) return -1;
-      if (b.mint === linkedMint && a.mint !== linkedMint) return 1;
-    }
-    return a.name.localeCompare(b.name);
-  });
+  return [...collectibles].sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export function previewHoldings(
@@ -56,10 +49,6 @@ export function previewHoldings(
 
 export function previewCollectibles(
   collectibles: WalletCollectible[],
-  linkedMint?: string | null
 ): WalletCollectible[] {
-  return sortCollectibles(collectibles, linkedMint).slice(
-    0,
-    HOME_COLLECTIBLE_PREVIEW
-  );
+  return sortCollectibles(collectibles).slice(0, HOME_COLLECTIBLE_PREVIEW);
 }
