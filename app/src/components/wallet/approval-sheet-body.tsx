@@ -13,26 +13,26 @@ import { copy } from "@/lib/copy/phygital";
 export function ApprovalSheetBody({
   title,
   body,
-  hint,
   amountLabel,
   recipientLabel,
   detailRows,
   busy,
   mode,
-  visitorPhase = "idle",
   onApprove,
   onClose,
 }: {
   title: string;
   body: string;
-  hint?: string;
   amountLabel?: string;
   recipientLabel?: string;
   detailRows: { label: string; value: string }[];
   busy: boolean;
-  mode: "owner" | "signIn" | "visitor";
-  visitorPhase?: "denied" | "idle";
-  onApprove: () => void;
+  /**
+   * `owner` — approve / deny CTAs.
+   * `blocked` — info only (shared terminal; no sign-in CTAs).
+   */
+  mode: "owner" | "blocked";
+  onApprove?: () => void;
   onClose: () => void;
 }) {
   const showRecap = Boolean(amountLabel || recipientLabel);
@@ -46,9 +46,6 @@ export function ApprovalSheetBody({
         <SheetDescription className="text-sm text-muted-foreground">
           {body}
         </SheetDescription>
-        {hint ? (
-          <p className="text-xs text-muted-foreground/80">{hint}</p>
-        ) : null}
       </SheetHeader>
       {showRecap || detailRows.length > 0 ? (
         <div className="overflow-hidden rounded-2xl bg-muted/25 text-left">
@@ -100,38 +97,6 @@ export function ApprovalSheetBody({
               {copy.wallet.denyOnce}
             </Button>
           </>
-        ) : mode === "signIn" ? (
-          <>
-            <Button
-              type="button"
-              size="lg"
-              className="w-full"
-              disabled={busy}
-              onClick={onApprove}
-            >
-              {copy.wallet.approveSendSignInCta}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="lg"
-              className="w-full"
-              disabled={busy}
-              onClick={onClose}
-            >
-              {copy.wallet.approveSendSignInNotNow}
-            </Button>
-          </>
-        ) : visitorPhase === "denied" ? (
-          <Button
-            type="button"
-            size="lg"
-            className="w-full"
-            disabled={busy}
-            onClick={onClose}
-          >
-            {copy.common.done}
-          </Button>
         ) : (
           <Button
             type="button"

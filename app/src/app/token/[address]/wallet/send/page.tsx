@@ -77,6 +77,7 @@ function WalletSendPageInner() {
           portfolio={portfolio.data}
           initialAsset={initialAsset}
           tokensOnly={!collectible}
+          ceremonyActive={inCeremony}
           onClose={backHome}
           onCeremonyChange={setCeremony}
           onChangeLimits={(code) => goSettings(settingsFromDenyCode(code))}

@@ -46,6 +46,7 @@ import {
   compileWalletInstructions,
   elevateRemainingForExecuteChallenge,
 } from "./compile.js";
+import { policyDeniedErrorFromSolanaError } from "./preview.js";
 import {
   buildExecuteChallengeFromSlot,
   fetchLatestSlotHash,
@@ -412,7 +413,10 @@ async function assertPolicyPreviewSucceeds(
     .send({ abortSignal });
 
   if (value.err) {
-    throw getSolanaErrorFromTransactionError(value.err);
+    const solanaError = getSolanaErrorFromTransactionError(value.err);
+    const denial = policyDeniedErrorFromSolanaError(solanaError);
+    if (denial) throw denial;
+    throw solanaError;
   }
 }
 

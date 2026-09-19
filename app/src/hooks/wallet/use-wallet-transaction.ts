@@ -23,11 +23,10 @@ import {
 /** State for the shared <WalletApprovalSheet>. */
 export type WalletApprovalState = {
   open: boolean;
-  mode: "owner" | "signIn" | "visitor";
+  mode: "owner" | "blocked";
   error: PolicyDeniedError | null;
   busy: boolean;
   onApprove: () => void;
-  onSignIn: () => void;
   onCancel: () => void;
 };
 
@@ -48,19 +47,17 @@ export type WalletTransactionController = {
     instructions: Instruction[],
     abortSignal?: AbortSignal,
   ) => Promise<SentTransaction>;
-  isAuthority: boolean;
   /** Owner-browse admit: spends via executeWithAuthority (no NFC Hold). */
   isOwnerBrowse: boolean;
   approval: WalletApprovalState;
 };
 
-const CLOSED: Omit<WalletApprovalState, "onApprove" | "onSignIn" | "onCancel"> =
-  {
-    open: false,
-    mode: "owner",
-    error: null,
-    busy: false,
-  };
+const CLOSED: Omit<WalletApprovalState, "onApprove" | "onCancel"> = {
+  open: false,
+  mode: "owner",
+  error: null,
+  busy: false,
+};
 
 /**
  * Centralized transaction mutation controller. Wires `runWalletTransaction` to
@@ -71,13 +68,10 @@ const CLOSED: Omit<WalletApprovalState, "onApprove" | "onSignIn" | "onCancel"> =
 export function useWalletTransaction(
   phygitalToken: string,
 ): WalletTransactionController {
-  const { isAuthenticated, address, signer, login } = useOwnerWallet();
+  const { address, signer, login } = useOwnerWallet();
   const authority = useTokenAuthority(phygitalToken);
   const session = useWalletSessionMode(phygitalToken);
   const isOwnerBrowse = session.data === "owner";
-  const isAuthority = Boolean(
-    isAuthenticated && address && authority.data?.authority === address,
-  );
 
   const liveRef = useRef({
     address,
@@ -115,16 +109,6 @@ export function useWalletTransaction(
     decide?.("rejected");
   }, []);
 
-  const onSignIn = useCallback(() => {
-    const decide = decideRef.current;
-    decideRef.current = null;
-    setModal(CLOSED);
-    decide?.("rejected");
-    void login().catch((err) =>
-      toast.error(toUserErrorMessage(err, errorCopy.signerFailed.body)),
-    );
-  }, [login]);
-
   const sendWithAuthority = useCallback(
     (instructions: Instruction[], abortSignal?: AbortSignal) => {
       const live = liveRef.current;
@@ -146,11 +130,10 @@ export function useWalletTransaction(
       new Promise<PolicyDenialDecision>((resolve) => {
         decideRef.current = resolve;
         const live = liveRef.current;
-        const mode = !live.address
-          ? "signIn"
-          : live.authority === live.address
-            ? "owner"
-            : "visitor";
+        // Shared terminals: never prompt unsigned / wrong-wallet users to
+        // unlock with a passkey here — info sheet only.
+        const mode =
+          live.address && live.authority === live.address ? "owner" : "blocked";
         setModal({
           open: true,
           mode,
@@ -175,9 +158,7 @@ export function useWalletTransaction(
           try {
             await login();
           } catch (err) {
-            toast.error(
-              toUserErrorMessage(err, errorCopy.signerFailed.body),
-            );
+            toast.error(toUserErrorMessage(err, errorCopy.signerFailed.body));
             return { status: "aborted" };
           }
           live = liveRef.current;
@@ -208,8 +189,7 @@ export function useWalletTransaction(
   return {
     run,
     sendWithAuthority,
-    isAuthority,
     isOwnerBrowse,
-    approval: { ...modal, onApprove, onSignIn, onCancel },
+    approval: { ...modal, onApprove, onCancel },
   };
 }

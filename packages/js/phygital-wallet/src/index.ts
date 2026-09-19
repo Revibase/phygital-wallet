@@ -26,7 +26,10 @@ export {
   sliceExecuteRemainingAccounts,
 } from "./wallet/execute-remaining.js";
 export { createDefaultFeePayer } from "./wallet/fee-payer.js";
-export { PolicyDeniedError } from "./wallet/preview.js";
+export {
+  PolicyDeniedError,
+  policyDeniedErrorFromSolanaError,
+} from "./wallet/preview.js";
 
 export { registerPhygitalWallet } from "./wallet-standard/index.js";
 

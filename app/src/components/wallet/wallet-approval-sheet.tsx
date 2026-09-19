@@ -5,7 +5,6 @@ import { ApprovalSheetBody } from "@/components/wallet/approval-sheet-body";
 import { copy } from "@/lib/copy/phygital";
 import {
   policyAmountLabel,
-  policyApprovalDetailRows,
   policyRecipientLabel,
   policySoftDenyBody,
 } from "@/lib/wallet/policy-deny-copy";
@@ -13,9 +12,9 @@ import type { WalletApprovalState } from "@/hooks/wallet/use-wallet-transaction"
 
 /**
  * Shared policy-denial sheet driven by `useWalletTransaction`.
- * - `mode="owner"`: the connected authority can approve → executeWithAuthority.
- * - `mode="signIn"`: soft-deny while unsigned — prompt to sign in, then retry.
- * - `mode="visitor"`: the connected wallet isn't the authority → rejection only.
+ * - `mode="owner"`: connected authority can approve → executeWithAuthority.
+ * - `mode="blocked"`: unsigned / wrong wallet — explain owner approval only
+ *   (no sign-in CTA; shared terminals must not prompt for a passkey here).
  */
 export function WalletApprovalSheet({
   approval,
@@ -25,8 +24,13 @@ export function WalletApprovalSheet({
   /** Prefer a symbol over a truncated mint in the detail rows. */
   tokenSymbol?: string | null;
 }) {
-  const { open, mode, error, busy, onApprove, onSignIn, onCancel } = approval;
+  const { open, mode, error, busy, onApprove, onCancel } = approval;
   const details = error?.details ?? null;
+  const tokenLabel = tokenSymbol?.trim() || null;
+  const detailRows =
+    tokenLabel && mode === "owner"
+      ? [{ label: copy.wallet.approveSendMint, value: tokenLabel }]
+      : [];
 
   return (
     <Sheet
@@ -49,39 +53,19 @@ export function WalletApprovalSheet({
               body={policySoftDenyBody(error)}
               amountLabel={policyAmountLabel(details, tokenSymbol)}
               recipientLabel={policyRecipientLabel(details)}
-              detailRows={policyApprovalDetailRows(details, {
-                omitDestination: true,
-                omitAmount: true,
-                omitTechnical: true,
-                tokenLabel: tokenSymbol,
-              })}
+              detailRows={detailRows}
               onApprove={onApprove}
-              onClose={onCancel}
-            />
-          ) : mode === "signIn" ? (
-            <ApprovalSheetBody
-              mode="signIn"
-              busy={busy}
-              title={copy.wallet.approveSendTitle}
-              body={copy.wallet.approveSendSignInBody}
-              amountLabel={policyAmountLabel(details, tokenSymbol)}
-              recipientLabel={policyRecipientLabel(details)}
-              detailRows={[]}
-              onApprove={onSignIn}
               onClose={onCancel}
             />
           ) : (
             <ApprovalSheetBody
-              mode="visitor"
-              visitorPhase="denied"
+              mode="blocked"
               busy={busy}
-              title={copy.wallet.nearbyPolicyTitle}
-              body={copy.wallet.visitorNeedsApprovalBody}
-              hint={copy.wallet.visitorNeedsApprovalHint}
+              title={copy.wallet.policyNeedsAuthorityTitle}
+              body={copy.wallet.policyNeedsAuthorityBody}
               amountLabel={policyAmountLabel(details, tokenSymbol)}
               recipientLabel={policyRecipientLabel(details)}
               detailRows={[]}
-              onApprove={onApprove}
               onClose={onCancel}
             />
           )

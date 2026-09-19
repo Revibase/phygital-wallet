@@ -363,37 +363,28 @@ export const copy = {
     receiptTime: "Time",
     receiptType: "Type",
     receiptFee: "Network fee",
+    approveSendBodyInstruction:
+      "This action isn’t allowed by your accessory permissions.",
+    approveSendBodyProgram:
+      "This program isn’t allowed by your accessory permissions.",
+    approveSendBodyMint:
+      "This token isn’t allowed by your accessory permissions.",
+    approveSendBodyUnexpected:
+      "This transaction couldn’t be checked against your settings.",
+    /** Non-authority soft-deny on a shared terminal — info only, no sign-in CTA. */
+    policyNeedsAuthorityTitle: "Needs owner approval",
+    policyNeedsAuthorityBody:
+      "This send isn’t allowed by accessory permissions. Have the owner approve once with their passkey on their own device.",
     nearbyPolicyTitle: "Needs approval",
     nearbyPolicyBody:
       "Over their limits. Ask them to approve once on their linked phone, then try again.",
     nearbyPolicyFeeBody:
       "They need more network fees. Ask them to top up, then try again.",
     nearbyPolicyGotIt: "Got it",
-    visitorNeedsApprovalBody:
-      "Ask the owner to approve this send on their linked phone. Once approved, try the same transaction again.",
-    visitorNeedsApprovalHint: "Requests will expire in about 5 minutes.",
-    visitorDeniedTitle: "Send not approved",
-    visitorDeniedBody: "The owner declined this send.",
     approveSendTitle: "Approve this send?",
     approveSendBodyLimit: (limit: string) => `Over your $${limit} limit.`,
-    approveSendBodyTime: "Sending isn’t allowed right now.",
-    approveSendBodyApproval: "This send needs your one-time approval.",
     approveSendBodyFallback: "This send needs your one-time approval.",
-    approveSendBodyInstruction:
-      "This action isn’t allowed by your accessory permissions.",
-    approveSendBodyProgram:
-      "This program isn’t allowed by your accessory permissions.",
-    approveSendBodyUnexpected:
-      "This transaction couldn’t be checked against your settings.",
-    approveSendSignInBody:
-      "Unlock on this phone as the owner to approve once, then try again.",
-    approveSendSignInCta: "Unlock on this phone",
-    approveSendSignInNotNow: "Not now",
-    approveSendAmount: "Amount",
-    approveSendDestination: "To",
     approveSendMint: "Token",
-    approveSendProgram: "Program",
-    approveSendInstruction: "Action",
     approveOnce: "Approve once",
     denyOnce: "Deny",
     changeLimits: "Change settings",

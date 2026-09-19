@@ -194,8 +194,17 @@ export function toUserErrorMessage(
         ? copy.wallet.approveSendBodyLimit(limit)
         : copy.wallet.approveSendBodyFallback;
     }
-    if (error.code === "outside_time_window") {
-      return copy.wallet.approveSendBodyTime;
+    if (error.code === "mint_not_allowed") {
+      return copy.wallet.approveSendBodyMint;
+    }
+    if (error.code === "instruction_not_allowed") {
+      return copy.wallet.approveSendBodyInstruction;
+    }
+    if (error.code === "program_not_allowed") {
+      return copy.wallet.approveSendBodyProgram;
+    }
+    if (error.code === "unexpected_instruction") {
+      return copy.wallet.approveSendBodyUnexpected;
     }
     if (!error.soft) return copy.wallet.sendBlockedHard;
     return copy.wallet.approveSendBodyFallback;

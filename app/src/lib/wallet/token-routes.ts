@@ -72,6 +72,15 @@ export function settingsFromDenyCode(
   code?: string
 ): SettingsTarget | undefined {
   if (code === "insufficient_fee_balance") return "feeBalance";
+  if (
+    code === "spend_limit" ||
+    code === "mint_not_allowed" ||
+    code === "program_not_allowed" ||
+    code === "instruction_not_allowed" ||
+    code === "unexpected_instruction"
+  ) {
+    return "walletPolicy";
+  }
   return undefined;
 }
 

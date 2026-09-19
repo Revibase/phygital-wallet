@@ -3,8 +3,10 @@
 import {
   createContext,
   memo,
+  useCallback,
   useContext,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -51,10 +53,20 @@ function ShellFrame({
 }) {
   const [stageMount, setStageMount] = useState<HTMLElement | null>(null);
   const [stageActive, setStageActive] = useState(false);
+  // Refcount: overlapping NavBars (e.g. form kept mounted under a ceremony)
+  // must not let the exiting bar's cleanup hide the stage while another remains.
+  const stageActiveCount = useRef(0);
+  const setActive = useCallback((active: boolean) => {
+    stageActiveCount.current = Math.max(
+      0,
+      stageActiveCount.current + (active ? 1 : -1),
+    );
+    setStageActive(stageActiveCount.current > 0);
+  }, []);
 
   const stageApi = useMemo(
-    () => ({ mount: stageMount, setActive: setStageActive }),
-    [stageMount],
+    () => ({ mount: stageMount, setActive }),
+    [stageMount, setActive],
   );
 
   const isWallet = layout === "wallet";
