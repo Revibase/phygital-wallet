@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 
-import { queryKeys } from "@/lib/queries";
+import { queryKeys, queryOptions } from "@/lib/queries";
 import {
   fetchAccessorySession,
   type AccessorySessionMode,
@@ -21,6 +21,6 @@ export function useWalletSessionMode(phygitalToken: string | null) {
       if (session.phygitalToken !== phygitalToken) return null;
       return session.mode;
     },
-    staleTime: 30_000,
+    ...queryOptions.default,
   });
 }

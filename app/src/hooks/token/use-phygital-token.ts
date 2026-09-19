@@ -39,7 +39,8 @@ export function usePhygitalToken(identifier: string | null) {
       return token;
     },
     enabled: Boolean(identifier),
-    ...queryOptions.volatile,
+    // Ownership metadata — mutations invalidate; not a balance feed.
+    ...queryOptions.default,
   });
 }
 
@@ -57,6 +58,6 @@ export function usePhygitalTokenByAddress(tokenAddress: string | null) {
       return token;
     },
     enabled: Boolean(tokenAddress),
-    ...queryOptions.volatile,
+    ...queryOptions.default,
   });
 }

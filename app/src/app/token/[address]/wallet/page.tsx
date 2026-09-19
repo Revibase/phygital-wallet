@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import { Settings } from "lucide-react";
 
 import { CopyableAddress } from "@/components/shared/copyable-address";
@@ -10,11 +11,14 @@ import {
   useWalletNav,
   useWalletSession,
 } from "@/components/wallet/wallet-route-shell";
+import { useTokenOwner } from "@/hooks/token/use-token-owner";
 import { useWalletPortfolio } from "@/hooks/wallet/use-wallet-portfolio";
 import { useFeeBalance } from "@/hooks/wallet/use-fee-balance";
 import { useRpcPreference } from "@/hooks/wallet/use-rpc-preference";
 import { copy } from "@/lib/copy/phygital";
 import { walletContentColumnClass } from "@/lib/layout";
+import type { WalletCollectible } from "@/lib/wallet/portfolio-types";
+import type { SendAssetRef } from "@/lib/wallet/send-asset-ref";
 
 const timeFormatter = new Intl.DateTimeFormat("en-US", {
   hour: "numeric",
@@ -27,12 +31,42 @@ export default function WalletHomePage() {
   const portfolio = useWalletPortfolio(walletAddress);
   const feeBalance = useFeeBalance(tokenAddress);
   const rpc = useRpcPreference();
+  const ownership = useTokenOwner(tokenAddress);
 
-  const status = portfolio.isError
-    ? "error"
-    : portfolio.isLoading
-    ? "refreshing"
-    : "live";
+  const status =
+    portfolio.isError
+      ? "error"
+      : portfolio.isFetching && portfolio.data
+      ? "refreshing"
+      : "live";
+
+  const onSend = useCallback(() => goSend(), [goSend]);
+  const onSendAsset = useCallback(
+    (asset: SendAssetRef) => goSend(asset),
+    [goSend],
+  );
+  const onReceive = useCallback(() => go("receive"), [go]);
+  const onSelectCollectible = useCallback(
+    (c: WalletCollectible) => go("collectibles", c.mint),
+    [go],
+  );
+  const onSeeAllTokens = useCallback(() => go("tokens"), [go]);
+  const onSeeAllCollectibles = useCallback(() => go("collectibles"), [go]);
+  const onSeeAllActivity = useCallback(() => go("activity"), [go]);
+  const onTopUpFees = useCallback(
+    () => goSettings("feeBalance"),
+    [goSettings],
+  );
+  const onChangeRpc = useCallback(
+    () => goSettings("rpcConnection"),
+    [goSettings],
+  );
+  const onOpenSettings = useCallback(() => go("settings"), [go]);
+
+  const visitorNotice =
+    ownership.isClaimed && ownership.isSignedIn && !ownership.isOwner
+      ? copy.wallet.vistorNote
+      : null;
 
   return (
     <div className={walletContentColumnClass}>
@@ -57,7 +91,7 @@ export default function WalletHomePage() {
             variant="ghost"
             size="icon"
             aria-label={copy.wallet.manageDevice}
-            onClick={() => go("settings")}
+            onClick={onOpenSettings}
             className="rounded-full text-muted-foreground hover:text-foreground"
           >
             <Settings className="size-4" aria-hidden />
@@ -67,19 +101,17 @@ export default function WalletHomePage() {
       <WalletHomePanel
         portfolio={portfolio.data}
         loading={portfolio.isLoading}
-        onSend={() => goSend()}
-        onSendAsset={(asset) => goSend(asset)}
-        onReceive={() => go("receive")}
-        onSelectCollectible={(c) => {
-          go("collectibles", c.mint);
-        }}
-        onSeeAllTokens={() => go("tokens")}
-        onSeeAllCollectibles={() => go("collectibles")}
-        onSeeAllActivity={() => go("activity")}
+        onSend={onSend}
+        onSendAsset={onSendAsset}
+        onReceive={onReceive}
+        onSelectCollectible={onSelectCollectible}
+        onSeeAllTokens={onSeeAllTokens}
+        onSeeAllCollectibles={onSeeAllCollectibles}
+        onSeeAllActivity={onSeeAllActivity}
         feeBalanceLow={feeBalance.data?.low}
-        onTopUpFees={() => goSettings("feeBalance")}
+        onTopUpFees={onTopUpFees}
         customRpcEndpoint={rpc.isCustom ? rpc.displayEndpoint : null}
-        onChangeRpc={() => goSettings("rpcConnection")}
+        onChangeRpc={onChangeRpc}
         onRefresh={refresh}
         status={status}
         lastUpdatedLabel={
@@ -89,7 +121,7 @@ export default function WalletHomePage() {
               )
             : null
         }
-        visitorNotice={copy?.wallet.vistorNote ?? null}
+        visitorNotice={visitorNotice}
       />
     </div>
   );

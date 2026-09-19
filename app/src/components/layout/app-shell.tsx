@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  memo,
   useContext,
   useMemo,
   useState,
@@ -29,20 +30,31 @@ export function useShellStageSlot() {
   return useContext(ShellStageSlotContext);
 }
 
-/** Chrome for every route: stage nav when a NavBar registers; no idle brand row. */
-export function AppShell({
+/**
+ * Keeps route `{children}` outside stageActive state updates so NavBar
+ * portal registration doesn’t re-render the whole page tree.
+ */
+const ShellMainContent = memo(function ShellMainContent({
   children,
-  layout = "compact",
 }: {
   children: ReactNode;
-  layout?: ShellLayout;
+}) {
+  return <div className="flex min-h-0 flex-1 flex-col">{children}</div>;
+});
+
+function ShellFrame({
+  children,
+  layout,
+}: {
+  children: ReactNode;
+  layout: ShellLayout;
 }) {
   const [stageMount, setStageMount] = useState<HTMLElement | null>(null);
   const [stageActive, setStageActive] = useState(false);
 
   const stageApi = useMemo(
     () => ({ mount: stageMount, setActive: setStageActive }),
-    [stageMount]
+    [stageMount],
   );
 
   const isWallet = layout === "wallet";
@@ -51,38 +63,54 @@ export function AppShell({
 
   return (
     <ShellStageSlotContext.Provider value={stageApi}>
-      <div
+      <main
         className={cn(
-          "relative flex min-h-dvh flex-1 flex-col items-center overflow-x-clip bg-background",
-          (isWallet || isCompact) && "lg:items-stretch",
+          "relative z-10 flex w-full min-w-0 flex-1 flex-col self-center",
+          (isWallet || isCompact) && "lg:self-stretch",
+          padding,
+          shellLayoutClass[layout],
+          shellDeviceFrameClass[layout],
         )}
       >
-        <LuminousAura intensity="default" />
-        <main
+        <div
           className={cn(
-            "relative z-10 flex w-full min-w-0 flex-1 flex-col self-center",
-            (isWallet || isCompact) && "lg:self-stretch",
-            padding,
-            shellLayoutClass[layout],
-            shellDeviceFrameClass[layout]
+            stageActive && "mb-4 md:mb-5",
+            stageActive && isWallet && "lg:mb-0 lg:px-8 lg:pt-6",
+            stageActive && galleryAnimate.rise,
           )}
         >
           <div
-            className={cn(
-              stageActive && "mb-4 md:mb-5",
-              stageActive && isWallet && "lg:mb-0 lg:px-8 lg:pt-6",
-              stageActive && galleryAnimate.rise
-            )}
-          >
-            <div
-              ref={setStageMount}
-              className={cn(!stageActive && "hidden")}
-              aria-hidden={!stageActive}
-            />
-          </div>
-          <div className="flex min-h-0 flex-1 flex-col">{children}</div>
-        </main>
-      </div>
+            ref={setStageMount}
+            className={cn(!stageActive && "hidden")}
+            aria-hidden={!stageActive}
+          />
+        </div>
+        <ShellMainContent>{children}</ShellMainContent>
+      </main>
     </ShellStageSlotContext.Provider>
+  );
+}
+
+/** Chrome for every route: stage nav when a NavBar registers; no idle brand row. */
+export function AppShell({
+  children,
+  layout = "compact",
+}: {
+  children: ReactNode;
+  layout?: ShellLayout;
+}) {
+  const isWallet = layout === "wallet";
+  const isCompact = layout === "compact";
+
+  return (
+    <div
+      className={cn(
+        "relative flex min-h-dvh flex-1 flex-col items-center overflow-x-clip bg-background",
+        (isWallet || isCompact) && "lg:items-stretch",
+      )}
+    >
+      <LuminousAura intensity="default" />
+      <ShellFrame layout={layout}>{children}</ShellFrame>
+    </div>
   );
 }

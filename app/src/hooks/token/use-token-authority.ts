@@ -7,7 +7,7 @@ import {
   findAuthorityAccountPda,
 } from "phygital-wallet-sdk";
 
-import { queryKeys } from "@/lib/queries";
+import { queryKeys, queryOptions } from "@/lib/queries";
 import { getSolanaRpc } from "@/lib/solana/rpc";
 
 export type TokenAuthority = {
@@ -34,5 +34,6 @@ export function useTokenAuthority(phygitalToken: string | null) {
         authority: String(account.data.header.authority),
       };
     },
+    ...queryOptions.default,
   });
 }

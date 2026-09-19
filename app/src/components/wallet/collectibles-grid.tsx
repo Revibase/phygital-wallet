@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 /** Collectibles — strip on phone home, grid on desktop / See all. */
-export function CollectiblesGrid({
+export const CollectiblesGrid = memo(function CollectiblesGrid({
   collectibles,
   onSelect,
   className,
@@ -69,7 +69,7 @@ export function CollectiblesGrid({
       ))}
     </ul>
   );
-}
+});
 
 const CollectibleTile = memo(function CollectibleTile({
   collectible: c,

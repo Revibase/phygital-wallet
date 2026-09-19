@@ -77,6 +77,7 @@ export function WalletRouteShell({ children }: { children: ReactNode }) {
   const go = useCallback((...args: WalletGo) => router.push(walletHref(tokenAddress, ...args)), [router, tokenAddress]);
   const goSettings = useCallback((target?: SettingsTarget) => router.push(walletSettingsHref(tokenAddress, target)), [router, tokenAddress]);
   const goSend = useCallback((asset?: SendAssetRef | null) => router.push(walletSendHref(tokenAddress, asset ? { mint: asset.mint, collectible: isCollectibleSendKind(asset.kind) } : null)), [router, tokenAddress]);
+  const goSendHome = useCallback(() => goSend(), [goSend]);
   const goHome = useCallback(() => router.push(walletHref(tokenAddress)), [router, tokenAddress]);
   const backTo = useCallback((fallbackHref: string) => navigateBack(router, fallbackHref), [router]);
   const backHome = useCallback(() => navigateBack(router, walletHref(tokenAddress)), [router, tokenAddress]);
@@ -119,7 +120,7 @@ export function WalletRouteShell({ children }: { children: ReactNode }) {
           tokenAddress={tokenAddress}
           walletAddress={sessionValue.walletAddress}
           go={go}
-          goSend={() => goSend()}
+          goSend={goSendHome}
           goHome={goHome}
         >
           <WalletMain>{children}</WalletMain>

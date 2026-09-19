@@ -2,8 +2,11 @@
 
 import {
   createContext,
+  memo,
+  useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
   type ReactNode,
 } from "react";
@@ -73,7 +76,7 @@ function sectionFromPath(
   return "other";
 }
 
-function RailNavItem({
+const RailNavItem = memo(function RailNavItem({
   active,
   label,
   icon,
@@ -103,7 +106,7 @@ function RailNavItem({
       {label}
     </Button>
   );
-}
+});
 
 /**
  * Desktop-native wallet chrome: full-height edge-docked sidebar + scrolling main.
@@ -129,9 +132,16 @@ export function WalletDesktopChrome({
   const section = sectionFromPath(pathname, tokenAddress);
   const label = copy.common.wallet;
   const hasRail = useLgRailVisible();
+  const chromeValue = useMemo(() => ({ hasRail }), [hasRail]);
+
+  const goReceive = useCallback(() => go("receive"), [go]);
+  const goTokens = useCallback(() => go("tokens"), [go]);
+  const goCollectibles = useCallback(() => go("collectibles"), [go]);
+  const goActivity = useCallback(() => go("activity"), [go]);
+  const goSettings = useCallback(() => go("settings"), [go]);
 
   return (
-    <WalletChromeContext.Provider value={{ hasRail }}>
+    <WalletChromeContext.Provider value={chromeValue}>
       <div className={walletDesktopChromeClass}>
         <aside
           className={walletDesktopRailClass}
@@ -171,7 +181,7 @@ export function WalletDesktopChrome({
               <Button
                 type="button"
                 size="sm"
-                onClick={() => goSend()}
+                onClick={goSend}
                 className="h-9 flex-1 rounded-full text-xs font-semibold"
               >
                 <ArrowUp className="size-3.5" aria-hidden />
@@ -181,7 +191,7 @@ export function WalletDesktopChrome({
                 type="button"
                 size="sm"
                 variant="secondary"
-                onClick={() => go("receive")}
+                onClick={goReceive}
                 className="h-9 flex-1 rounded-full border border-border/50 bg-card/80 text-xs font-semibold"
               >
                 <ArrowDown className="size-3.5" aria-hidden />
@@ -204,25 +214,25 @@ export function WalletDesktopChrome({
               active={section === "tokens"}
               label={copy.wallet.tokens}
               icon={<Coins />}
-              onClick={() => go("tokens")}
+              onClick={goTokens}
             />
             <RailNavItem
               active={section === "collectibles"}
               label={copy.wallet.collectibles}
               icon={<ImageIcon />}
-              onClick={() => go("collectibles")}
+              onClick={goCollectibles}
             />
             <RailNavItem
               active={section === "activity"}
               label={copy.wallet.activity}
               icon={<Clock3 />}
-              onClick={() => go("activity")}
+              onClick={goActivity}
             />
             <RailNavItem
               active={section === "settings"}
               label={copy.wallet.settings}
               icon={<Settings />}
-              onClick={() => go("settings")}
+              onClick={goSettings}
             />
           </nav>
         </aside>

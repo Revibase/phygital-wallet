@@ -45,6 +45,6 @@ export function useOwnedAccessoryDetails(tokenPdas: string[] | undefined) {
 
       return { tokens };
     },
-    ...queryOptions.volatile,
+    ...queryOptions.default,
   });
 }

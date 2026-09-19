@@ -33,7 +33,7 @@ export function LuminousAura({
         className={cn(
           "absolute inset-0",
           opacity,
-          breathing && galleryAnimate.auraBreath
+          breathing && galleryAnimate.auraBreath,
         )}
         style={{
           backgroundImage: [

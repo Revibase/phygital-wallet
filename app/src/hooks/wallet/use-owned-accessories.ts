@@ -14,6 +14,7 @@ export function useOwnedAccessories(authority: string | null) {
     queryKey: queryKeys.ownedAccessories.byAuthority(authority),
     queryFn: () => fetchOwnedAccessories(authority!),
     enabled: Boolean(authority),
-    ...queryOptions.volatile,
+    // List changes on claim/transfer — mutations patch; skip focus thrash.
+    ...queryOptions.default,
   });
 }

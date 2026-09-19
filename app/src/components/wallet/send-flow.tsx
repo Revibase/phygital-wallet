@@ -2,13 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  AnimatePresence,
-  LazyMotion,
-  domAnimation,
-  m,
-  useReducedMotion,
-} from "framer-motion";
 import { ChevronDown, Nfc } from "lucide-react";
 import { toast } from "sonner";
 
@@ -72,7 +65,7 @@ import {
   isNativeSolHolding,
   resolveTokenIconSrc,
 } from "@/lib/tokens/payment-token";
-import { snapEnter, snapEnterTransition } from "@/lib/motion";
+import { galleryAnimate } from "@/lib/motion";
 import type {
   SendCeremonyState,
   SendHoldRecap,
@@ -144,8 +137,6 @@ export function SendFlow({
   const sendAbortRef = useRef<AbortController | null>(null);
   const feeBalance = useFeeBalance(phygitalTokenPda);
   const usesFeeBalance = true;
-  const prefersReducedMotion = useReducedMotion();
-  const enter = snapEnter(prefersReducedMotion);
 
   useEffect(() => {
     setPhase("form");
@@ -471,13 +462,7 @@ export function SendFlow({
   }
 
   const form = (
-    <LazyMotion features={domAnimation}>
-      <m.div
-        className={walletFormColumnClass}
-        initial={enter.initial}
-        animate={enter.animate}
-        transition={snapEnterTransition}
-      >
+    <div className={cn(walletFormColumnClass, galleryAnimate.rise)}>
         <NavBar
           desktopHidden
           className="mb-0"
@@ -531,12 +516,7 @@ export function SendFlow({
           <ChevronDown className="size-4 text-muted-foreground" />
         </Button>
 
-        <m.div
-          className="flex flex-col items-center gap-2 py-1"
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={snapEnterTransition}
-        >
+        <div className="flex flex-col items-center gap-2 py-1">
           {nft ? (
             <>
               <p className="font-(family-name:--font-display) text-4xl font-light tabular-nums">
@@ -585,14 +565,9 @@ export function SendFlow({
               ) : null}
             </>
           )}
-        </m.div>
+        </div>
 
-        <m.div
-          className="flex flex-col gap-2"
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={snapEnterTransition}
-        >
+        <div className="flex flex-col gap-2">
           <FieldLabel className="px-1 normal-case tracking-normal text-xs">
             {copy.wallet.to}
           </FieldLabel>
@@ -622,20 +597,11 @@ export function SendFlow({
               )}
             </Button>
           </div>
-          <AnimatePresence initial={false}>
-            {parsedRecipient ? (
-              <m.p
-                key={String(parsedRecipient)}
-                className="px-1 text-xs text-muted-foreground"
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                transition={snapEnterTransition}
-              >
-                {shortAddress(String(parsedRecipient), 6)}
-              </m.p>
-            ) : null}
-          </AnimatePresence>
+          {parsedRecipient ? (
+            <p className={cn("px-1 text-xs text-muted-foreground", galleryAnimate.fade)}>
+              {shortAddress(String(parsedRecipient), 6)}
+            </p>
+          ) : null}
           {invalidRecipient ? (
             <p className="px-1 text-xs text-destructive">
               {copy.wallet.invalidAddress}
@@ -651,7 +617,7 @@ export function SendFlow({
               {copy.wallet.insufficientAtaRentSend}
             </p>
           ) : null}
-        </m.div>
+        </div>
 
         {asset && usesFeeBalance ? (
           feeInsufficient ? (
@@ -693,38 +659,30 @@ export function SendFlow({
           )
         ) : null}
 
-        <AnimatePresence initial={false}>
-          {hardError ? (
-            <m.div
-              className="rounded-2xl bg-muted/25 px-4 py-3 text-sm text-muted-foreground"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={snapEnterTransition}
-            >
-              <p>{hardError.message}</p>
-              {onChangeLimits ? (
-                <Button
-                  type="button"
-                  variant="link"
-                  className="mt-2 h-auto min-h-0 px-0 text-xs font-medium"
-                  onClick={() => onChangeLimits(hardError.code ?? undefined)}
-                >
-                  {hardError.code === "insufficient_fee_balance"
-                    ? copy.wallet.topUpFees
-                    : copy.wallet.changeLimits}
-                </Button>
-              ) : null}
-            </m.div>
-          ) : null}
-        </AnimatePresence>
+        {hardError ? (
+          <div
+            className={cn(
+              "rounded-2xl bg-muted/25 px-4 py-3 text-sm text-muted-foreground",
+              galleryAnimate.fade,
+            )}
+          >
+            <p>{hardError.message}</p>
+            {onChangeLimits ? (
+              <Button
+                type="button"
+                variant="link"
+                className="mt-2 h-auto min-h-0 px-0 text-xs font-medium"
+                onClick={() => onChangeLimits(hardError.code ?? undefined)}
+              >
+                {hardError.code === "insufficient_fee_balance"
+                  ? copy.wallet.topUpFees
+                  : copy.wallet.changeLimits}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
 
-        <m.div
-          className="pt-2"
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={snapEnterTransition}
-        >
+        <div className="pt-2">
           <Button
             type="button"
             size="lg"
@@ -743,7 +701,7 @@ export function SendFlow({
               copy.wallet.holdToSend
             )}
           </Button>
-        </m.div>
+        </div>
 
         <Sheet open={pickerOpen} onOpenChange={setPickerOpen}>
           <SheetContent
@@ -826,8 +784,7 @@ export function SendFlow({
             </div>
           </SheetContent>
         </Sheet>
-      </m.div>
-    </LazyMotion>
+    </div>
   );
 
   return (

@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePasskeySetup } from "@/components/wallet/passkey-setup-sheet";
 import type { OwnerWallet } from "@/hooks/wallet/use-owner-wallet";
 import { base64ToBytes } from "@/lib/crypto/base64";
-import { queryKeys } from "@/lib/queries";
+import { queryKeys, queryOptions } from "@/lib/queries";
 import {
   clearOwnerSession,
   fetchOwnerSession,
@@ -44,7 +44,7 @@ export function useSecureSignerWallet(): OwnerWallet {
   const sessionQuery = useQuery({
     queryKey: queryKeys.ownerSession.all(),
     queryFn: fetchOwnerSession,
-    staleTime: 30_000,
+    ...queryOptions.default,
   });
 
   const publicKey = sessionQuery.data?.publicKey ?? null;
@@ -141,14 +141,17 @@ export function useSecureSignerWallet(): OwnerWallet {
     await getSecureSignerClient().exportPrivateKey();
   }, []);
 
-  return {
-    address: publicKey,
-    status,
-    isAuthenticated: status === "authenticated",
-    isLoading: status === "loading",
-    login,
-    logout,
-    exportWallet,
-    signer,
-  };
+  return useMemo(
+    () => ({
+      address: publicKey,
+      status,
+      isAuthenticated: status === "authenticated",
+      isLoading: status === "loading",
+      login,
+      logout,
+      exportWallet,
+      signer,
+    }),
+    [publicKey, status, login, logout, exportWallet, signer],
+  );
 }
